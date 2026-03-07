@@ -207,7 +207,7 @@ function ComparisonBar({
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-slate-900">{label}</h3>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">Visual comparison</span>
+        
       </div>
 
       <div className="space-y-4">
@@ -498,11 +498,11 @@ export default function TenantSavingsPage(): JSX.Element {
                 </div>
 
                 <div className="mt-5 flex-1 rounded-3xl border border-slate-200 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Cost over tenancy</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Money You Never Get Back</p>
                   <div className="mt-3 space-y-1">
                     <ResultRow label="Brokerage" value={metrics.traditional.brokerage} />
                     <ResultRow label="Security deposit deducted" value={metrics.traditional.securityDepositDeducted} />
-                    <ResultRow label="Indirect cost (imputed interest)" value={metrics.traditional.indirectCost} />
+                    <ResultRow label="Opportunity cost on blocked deposit" value={metrics.traditional.indirectCost} />
                     <ResultRow label="Total cost" value={metrics.traditional.totalCost} strong />
                   </div>
                 </div>
@@ -526,7 +526,7 @@ export default function TenantSavingsPage(): JSX.Element {
                       label="Security deposit (1× rent)"
                       value={metrics.reeve.deposit}
                       tone="positive"
-                      note="Fully refundable if no damages (refer Damage Assessment SOP)"
+                      note="Fully Refundable at Move-out*"
                     />
                     <ResultRow label="Brokerage" value={0} tone="positive" />
                     <ResultRow label="Stamp duty" value={0} tone="positive" />
@@ -535,10 +535,10 @@ export default function TenantSavingsPage(): JSX.Element {
                 </div>
 
                 <div className="mt-5 flex-1 rounded-3xl border border-slate-200 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Cost over tenancy</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Money You Never Get Back</p>
                   <div className="mt-3 space-y-1">
                     <ResultRow label="Service fee (7% of 11-month base rent)" value={metrics.reeve.serviceFee} />
-                    <ResultRow label="Indirect cost (imputed interest)" value={metrics.reeve.indirectCost} />
+                    <ResultRow label="Opportunity cost on blocked deposit" value={metrics.reeve.indirectCost} />
                     <ResultRow label="Total cost" value={metrics.reeve.totalCost} strong />
                   </div>
                 </div>
