@@ -526,7 +526,7 @@ export default function TenantSavingsPage(): JSX.Element {
                       label="Security deposit (1× rent)"
                       value={metrics.reeve.deposit}
                       tone="positive"
-                      note="Fully Refundable at Move-out*"
+                      note="Fully Refundable* (FAQs)"
                     />
                     <ResultRow label="Brokerage" value={0} tone="positive" />
                     <ResultRow label="Stamp duty" value={0} tone="positive" />
