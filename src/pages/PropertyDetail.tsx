@@ -582,9 +582,18 @@ const PropertyDetail: React.FC = () => {
                   {formatAvailableFrom(property.available_from)}
                 </span>
               </div>
-              <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-                {bhkLabel(property.bhk)} in {property.building_name}
-              </h1>
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="text-xl font-bold text-foreground sm:text-2xl">
+                  {bhkLabel(property.bhk)} in {property.building_name}
+                </h1>
+                <FavouriteHeart
+                  filled={id ? isFavourited(id) : false}
+                  onClick={() => {
+                    if (!favLoggedIn) { setLoginDrawerOpen(true); return; }
+                    if (id) toggleFavourite(id);
+                  }}
+                />
+              </div>
               {property.floor_number != null && (
                 <p className="text-sm text-muted-foreground">
                   Floor {property.floor_number}
