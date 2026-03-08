@@ -9,6 +9,7 @@ import Terms from "./pages/Terms";
 import Refund from "./pages/Refund";
 import NotFound from "./pages/NotFound";
 import TenantSavingsCalculator from "./pages/TenantSavingsCalculator";
+import Search from "./pages/Search";
 
 const queryClient = new QueryClient();
 
