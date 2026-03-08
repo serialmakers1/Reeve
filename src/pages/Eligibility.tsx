@@ -355,21 +355,21 @@ export default function EligibilityPage() {
     );
   }
 
-  if (pageView === 'login') {
-    return (
-      <Layout>
-        <div className="mx-auto max-w-md px-4 py-20 text-center">
-          <h1 className="text-xl font-bold text-foreground">Eligibility Check</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            You need to be logged in to complete eligibility.
-          </p>
-          <Link to="/login">
-            <Button className="mt-6">Log In</Button>
-          </Link>
-        </div>
-      </Layout>
-    );
-  }
+  // if (pageView === 'login') {
+  //   return (
+  //     <Layout>
+  //       <div className="mx-auto max-w-md px-4 py-20 text-center">
+  //         <h1 className="text-xl font-bold text-foreground">Eligibility Check</h1>
+  //         <p className="mt-3 text-sm text-muted-foreground">
+  //           You need to be logged in to complete eligibility.
+  //         </p>
+  //         <Link to="/login">
+  //           <Button className="mt-6">Log In</Button>
+  //         </Link>
+  //       </div>
+  //     </Layout>
+  //   );
+  // }
 
   if (pageView === 'completed') {
     return (
