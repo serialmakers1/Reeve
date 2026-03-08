@@ -31,6 +31,7 @@ const App = () => (
           <Route path="/refund" element={<Refund />} />
           <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
           <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
+          <Route path="/eligibility" element={<Eligibility />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
