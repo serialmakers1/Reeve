@@ -145,6 +145,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "agreements_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "agreements_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -343,6 +350,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "applications_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "applications_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -459,6 +473,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
           {
@@ -637,6 +658,13 @@ export type Database = {
             referencedRelation: "properties_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "external_queries_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
         ]
       }
       favourites: {
@@ -671,6 +699,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "favourites_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
           {
@@ -796,6 +831,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "keys_tracking_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "keys_tracking_signed_off_by_fkey"
             columns: ["signed_off_by"]
             isOneToOne: false
@@ -888,6 +930,13 @@ export type Database = {
             columns: ["converted_property_id"]
             isOneToOne: false
             referencedRelation: "properties_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_converted_property_id_fkey"
+            columns: ["converted_property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
           {
@@ -1046,6 +1095,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leases_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "leases_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1148,6 +1204,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
           {
@@ -1610,6 +1673,13 @@ export type Database = {
             referencedRelation: "properties_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "property_condition_reports_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
         ]
       }
       property_images: {
@@ -1662,6 +1732,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_images_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
           {
@@ -1805,6 +1882,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "visits_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "visits_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1818,6 +1902,8 @@ export type Database = {
       properties_public: {
         Row: {
           amenities: Json | null
+          auto_accept_enabled: boolean | null
+          available_from: string | null
           bhk: Database["public"]["Enums"]["bhk_type"] | null
           board_qr_code: string | null
           board_status: Database["public"]["Enums"]["board_status"] | null
@@ -1825,11 +1911,14 @@ export type Database = {
           building_rules: string | null
           city: string | null
           created_at: string | null
+          description: string | null
+          flat_number_revealed: boolean | null
           floor_number: number | null
           floor_plan_url: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"] | null
           id: string | null
           is_active: boolean | null
+          last_leased_at: string | null
           latitude: number | null
           listed_at: string | null
           listed_rent: number | null
@@ -1837,17 +1926,21 @@ export type Database = {
           longitude: number | null
           main_door_lock_type: string | null
           map_pin_url: string | null
+          off_market_at: string | null
           owner_id: string | null
           parking_2w: Database["public"]["Enums"]["parking_availability"] | null
           parking_4w: Database["public"]["Enums"]["parking_availability"] | null
           pet_policy: string | null
           pincode: string | null
+          property_type: string | null
           security_deposit_months: number | null
           society_maintenance_approx: number | null
           square_footage: number | null
           state: string | null
           status: Database["public"]["Enums"]["property_status"] | null
           street_address: string | null
+          title: string | null
+          total_floors: number | null
           updated_at: string | null
           utility_electricity_included: boolean | null
           utility_gas_included: boolean | null
@@ -1855,6 +1948,8 @@ export type Database = {
         }
         Insert: {
           amenities?: Json | null
+          auto_accept_enabled?: boolean | null
+          available_from?: string | null
           bhk?: Database["public"]["Enums"]["bhk_type"] | null
           board_qr_code?: string | null
           board_status?: Database["public"]["Enums"]["board_status"] | null
@@ -1862,11 +1957,14 @@ export type Database = {
           building_rules?: string | null
           city?: string | null
           created_at?: string | null
+          description?: string | null
+          flat_number_revealed?: boolean | null
           floor_number?: number | null
           floor_plan_url?: string | null
           furnishing?: Database["public"]["Enums"]["furnishing_type"] | null
           id?: string | null
           is_active?: boolean | null
+          last_leased_at?: string | null
           latitude?: number | null
           listed_at?: string | null
           listed_rent?: number | null
@@ -1874,6 +1972,7 @@ export type Database = {
           longitude?: number | null
           main_door_lock_type?: string | null
           map_pin_url?: string | null
+          off_market_at?: string | null
           owner_id?: string | null
           parking_2w?:
             | Database["public"]["Enums"]["parking_availability"]
@@ -1883,12 +1982,15 @@ export type Database = {
             | null
           pet_policy?: string | null
           pincode?: string | null
+          property_type?: string | null
           security_deposit_months?: number | null
           society_maintenance_approx?: number | null
           square_footage?: number | null
           state?: string | null
           status?: Database["public"]["Enums"]["property_status"] | null
           street_address?: string | null
+          title?: string | null
+          total_floors?: number | null
           updated_at?: string | null
           utility_electricity_included?: boolean | null
           utility_gas_included?: boolean | null
@@ -1896,6 +1998,8 @@ export type Database = {
         }
         Update: {
           amenities?: Json | null
+          auto_accept_enabled?: boolean | null
+          available_from?: string | null
           bhk?: Database["public"]["Enums"]["bhk_type"] | null
           board_qr_code?: string | null
           board_status?: Database["public"]["Enums"]["board_status"] | null
@@ -1903,11 +2007,14 @@ export type Database = {
           building_rules?: string | null
           city?: string | null
           created_at?: string | null
+          description?: string | null
+          flat_number_revealed?: boolean | null
           floor_number?: number | null
           floor_plan_url?: string | null
           furnishing?: Database["public"]["Enums"]["furnishing_type"] | null
           id?: string | null
           is_active?: boolean | null
+          last_leased_at?: string | null
           latitude?: number | null
           listed_at?: string | null
           listed_rent?: number | null
@@ -1915,6 +2022,7 @@ export type Database = {
           longitude?: number | null
           main_door_lock_type?: string | null
           map_pin_url?: string | null
+          off_market_at?: string | null
           owner_id?: string | null
           parking_2w?:
             | Database["public"]["Enums"]["parking_availability"]
@@ -1924,12 +2032,15 @@ export type Database = {
             | null
           pet_policy?: string | null
           pincode?: string | null
+          property_type?: string | null
           security_deposit_months?: number | null
           society_maintenance_approx?: number | null
           square_footage?: number | null
           state?: string | null
           status?: Database["public"]["Enums"]["property_status"] | null
           street_address?: string | null
+          title?: string | null
+          total_floors?: number | null
           updated_at?: string | null
           utility_electricity_included?: boolean | null
           utility_gas_included?: boolean | null
@@ -1944,6 +2055,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      properties_with_flat_number: {
+        Row: {
+          building_name: string | null
+          flat_number: string | null
+          flat_number_revealed: boolean | null
+          floor_number: number | null
+          id: string | null
+        }
+        Insert: {
+          building_name?: string | null
+          flat_number?: string | null
+          flat_number_revealed?: boolean | null
+          floor_number?: number | null
+          id?: string | null
+        }
+        Update: {
+          building_name?: string | null
+          flat_number?: string | null
+          flat_number_revealed?: boolean | null
+          floor_number?: number | null
+          id?: string | null
+        }
+        Relationships: []
       }
     }
     Functions: {
