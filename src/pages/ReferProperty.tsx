@@ -193,8 +193,7 @@ export default function ReferProperty() {
               <Button className="mt-6 min-h-[44px]">Log In</Button>
             </Link>
           </div>
-        ) :
-      {submitted ? (
+        ) : submitted ? (
           /* Success */
           <div className="rounded-xl border bg-card p-8 text-center shadow-sm">
             <CheckCircle2 className="mx-auto h-12 w-12 text-green-600" />
