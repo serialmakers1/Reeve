@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getSafeReturnTo, getDefaultRouteForRole } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,8 +32,6 @@ interface LoginState {
   resendCooldown: number;
   termsAccepted: boolean;
 }
-
-type UserRole = "tenant" | "owner" | "admin" | "super_admin";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -101,21 +100,12 @@ export default function LoginPage() {
 
   const redirectByRole = useCallback(
     (role: string | null | undefined) => {
+      const safeReturn = getSafeReturnTo(returnTo);
       if (returnTo) {
-        navigate(returnTo, { replace: true });
+        navigate(safeReturn, { replace: true });
         return;
       }
-      switch (role) {
-        case "owner":
-          navigate("/owner", { replace: true });
-          break;
-        case "admin":
-        case "super_admin":
-          navigate("/admin", { replace: true });
-          break;
-        default:
-          navigate("/dashboard", { replace: true });
-      }
+      navigate(getDefaultRouteForRole(role), { replace: true });
     },
     [navigate, returnTo]
   );
