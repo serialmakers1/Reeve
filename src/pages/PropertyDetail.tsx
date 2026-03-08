@@ -55,6 +55,7 @@ import {
   CircleDot,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
+import VisitSchedulingModal from "@/components/VisitSchedulingModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
