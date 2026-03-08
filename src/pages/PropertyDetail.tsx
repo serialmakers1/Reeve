@@ -427,8 +427,7 @@ const PropertyDetail: React.FC = () => {
       setLoginDrawerOpen(true);
       return;
     }
-    // TODO: navigate to visit scheduling
-    navigate(`/dashboard/visits/new?property_id=${id}`);
+    setVisitModalOpen(true);
   };
 
   const handleApplyNow = async () => {
