@@ -320,6 +320,8 @@ const PropertyDetail: React.FC = () => {
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [existingVisit, setExistingVisit] = useState<{ id: string; scheduled_at: string; status: string } | null>(null);
   const [visitLoading, setVisitLoading] = useState(false);
+  const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
+  const [eligibilityChecking, setEligibilityChecking] = useState(false);
 
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
