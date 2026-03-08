@@ -404,7 +404,7 @@ function SkeletonCardList() {
 
 // ─── Property Card ───────────────────────────────────────────────────────────
 
-function PropertyCardGrid({ p }: { p: Property }) {
+function PropertyCardGrid({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: { p: Property; isFav: boolean; onToggleFav: (id: string) => void; isLoggedIn: boolean; onLoginPrompt: () => void }) {
   const pills = getHighlightPills(p);
   return (
     <Link to={`/property/${p.id}`} className="block cursor-pointer">
@@ -419,6 +419,12 @@ function PropertyCardGrid({ p }: { p: Property }) {
         <span className="absolute left-2 top-2 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
           {bhkLabel(p.bhk)}
         </span>
+        <div className="absolute right-2 top-2">
+          <FavouriteHeart
+            filled={isFav}
+            onClick={() => isLoggedIn ? onToggleFav(p.id) : onLoginPrompt()}
+          />
+        </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-3 pb-2 pt-6">
           <span className="text-lg font-bold text-white">
             {formatIndianRupee(p.listed_rent)}
