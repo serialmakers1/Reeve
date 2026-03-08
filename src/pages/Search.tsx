@@ -397,7 +397,8 @@ function SkeletonCardList() {
 function PropertyCardGrid({ p }: { p: Property }) {
   const pills = getHighlightPills(p);
   return (
-    <div className="group rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden transition-shadow hover:shadow-md">
+    <Link to={`/property/${p.id}`} className="block cursor-pointer">
+    <div className="group rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden transition-shadow hover:shadow-md hover:shadow-primary/10">
       <div className="relative h-48 overflow-hidden">
         <img
           src={p.primary_image_url || PLACEHOLDER_IMG}
