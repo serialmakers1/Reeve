@@ -9,6 +9,7 @@ import Terms from "./pages/Terms";
 import Refund from "./pages/Refund";
 import NotFound from "./pages/NotFound";
 import TenantSavingsCalculator from "./pages/TenantSavingsCalculator";
+import OwnerSavingsCalculator from "./pages/OwnerSavingsCalculator";
 import Search from "./pages/Search";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/terms" element={<Terms />} />
           <Route path="/refund" element={<Refund />} />
           <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
+          <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
