@@ -877,6 +877,39 @@ const PropertyDetail: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* ─── Eligibility Gate Modal ──────────────────────────── */}
+      <Drawer open={eligibilityGateOpen} onOpenChange={setEligibilityGateOpen}>
+        <DrawerContent>
+          <div className="flex flex-col items-center gap-3 px-6 pt-6 pb-2 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent">
+              <ClipboardCheck className="h-7 w-7 text-primary" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">Complete Eligibility Check First</h3>
+            <p className="text-sm text-muted-foreground">
+              To schedule a visit, you need to complete a quick eligibility check. It only takes 2 minutes and helps us match you with the right properties.
+            </p>
+          </div>
+          <DrawerFooter>
+            <Button
+              className="min-h-[44px]"
+              onClick={() => {
+                setEligibilityGateOpen(false);
+                navigate(`/eligibility?property_id=${id}&redirect=visit`);
+              }}
+            >
+              Check Eligibility Now
+            </Button>
+            <Button
+              variant="ghost"
+              className="min-h-[44px]"
+              onClick={() => setEligibilityGateOpen(false)}
+            >
+              Maybe Later
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </Layout>
   );
 };
