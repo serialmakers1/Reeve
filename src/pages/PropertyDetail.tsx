@@ -55,6 +55,7 @@ import {
   CircleDot,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
+import VisitSchedulingModal from "@/components/VisitSchedulingModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -313,6 +314,11 @@ const PropertyDetail: React.FC = () => {
   // Login drawer
   const [loginDrawerOpen, setLoginDrawerOpen] = useState(false);
 
+  // Visit scheduling
+  const [visitModalOpen, setVisitModalOpen] = useState(false);
+  const [existingVisit, setExistingVisit] = useState<{ id: string; scheduled_at: string; status: string } | null>(null);
+  const [visitLoading, setVisitLoading] = useState(false);
+
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
 
@@ -322,6 +328,26 @@ const PropertyDetail: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => subscription.unsubscribe();
   }, []);
+
+  // Check for existing visit
+  const fetchExistingVisit = useCallback(async () => {
+    if (!session || !id) { setExistingVisit(null); return; }
+    setVisitLoading(true);
+    const { data } = await supabase
+      .from("visits")
+      .select("id, scheduled_at, status")
+      .eq("property_id", id)
+      .eq("tenant_id", session.user.id)
+      .in("status", ["scheduled", "confirmed"])
+      .limit(1)
+      .maybeSingle();
+    setExistingVisit(data ?? null);
+    setVisitLoading(false);
+  }, [session, id]);
+
+  useEffect(() => {
+    fetchExistingVisit();
+  }, [fetchExistingVisit]);
 
   // Fetch property + images
   useEffect(() => {
@@ -401,8 +427,7 @@ const PropertyDetail: React.FC = () => {
       setLoginDrawerOpen(true);
       return;
     }
-    // TODO: navigate to visit scheduling
-    navigate(`/dashboard/visits/new?property_id=${id}`);
+    setVisitModalOpen(true);
   };
 
   const handleApplyNow = async () => {
@@ -501,6 +526,20 @@ const PropertyDetail: React.FC = () => {
 
       {/* Login Drawer */}
       <LoginDrawer open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen} propertyId={id} />
+
+      {/* Visit Scheduling Modal */}
+      {session && id && property && (
+        <VisitSchedulingModal
+          open={visitModalOpen}
+          onOpenChange={setVisitModalOpen}
+          propertyId={id}
+          userId={session.user.id}
+          buildingName={property.building_name}
+          bhk={property.bhk}
+          existingVisit={existingVisit}
+          onVisitChanged={fetchExistingVisit}
+        />
+      )}
 
       <div className="mx-auto max-w-4xl pb-24 lg:pb-8">
         {/* Back button */}
@@ -779,7 +818,7 @@ const PropertyDetail: React.FC = () => {
                     variant="outline"
                     className="w-full min-h-[44px]"
                   >
-                    Schedule a Visit
+                    {existingVisit ? "Manage Visit" : "Schedule a Visit"}
                   </Button>
                   <Button
                     onClick={handleApplyNow}
@@ -802,7 +841,7 @@ const PropertyDetail: React.FC = () => {
             variant="outline"
             className="min-h-[44px] flex-1"
           >
-            Schedule Visit
+            {existingVisit ? "Manage Visit" : "Schedule Visit"}
           </Button>
           <Button
             onClick={handleApplyNow}
