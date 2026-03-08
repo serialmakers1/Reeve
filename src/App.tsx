@@ -14,6 +14,7 @@ import Search from "./pages/Search";
 import ReferProperty from "./pages/ReferProperty";
 import Eligibility from "./pages/Eligibility";
 import PropertyDetail from "./pages/PropertyDetail";
+import DashboardFavourites from "./pages/DashboardFavourites";
 
 const queryClient = new QueryClient();
 

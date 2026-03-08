@@ -734,6 +734,25 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Login Drawer */}
+      <LoginDrawerPrimitive open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen}>
+        <LoginDrawerContent>
+          <LoginDrawerHeader>
+            <LoginDrawerTitle>Please log in to save properties</LoginDrawerTitle>
+          </LoginDrawerHeader>
+          <div className="px-4 pb-2 text-sm text-muted-foreground">
+            You need to be logged in to favourite properties.
+          </div>
+          <LoginDrawerFooter>
+            <Button asChild className="min-h-[44px]">
+              <Link to="/login">Log In</Link>
+            </Button>
+            <LoginDrawerClose asChild>
+              <Button variant="outline" className="min-h-[44px]">Cancel</Button>
+            </LoginDrawerClose>
+          </LoginDrawerFooter>
+        </LoginDrawerContent>
+      </LoginDrawerPrimitive>
       {/* ─── NAV ─── */}
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
