@@ -24,6 +24,16 @@ import {
   Home,
   ChevronDown,
 } from "lucide-react";
+import { useFavourites } from "@/hooks/useFavourites";
+import FavouriteHeart from "@/components/FavouriteHeart";
+import {
+  Drawer as LoginDrawerPrimitive,
+  DrawerContent as LoginDrawerContent,
+  DrawerHeader as LoginDrawerHeader,
+  DrawerTitle as LoginDrawerTitle,
+  DrawerClose as LoginDrawerClose,
+  DrawerFooter as LoginDrawerFooter,
+} from "@/components/ui/drawer";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
