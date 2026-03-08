@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -11,11 +11,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, User } from "lucide-react";
+import { useState, useEffect } from "react";
 
 type UserRole = "tenant" | "owner" | "admin" | "super_admin";
 
-interface AuthUser {
-  id: string;
+interface UserInfo {
   fullName: string;
   role: UserRole;
 }
@@ -23,48 +23,32 @@ interface AuthUser {
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading, isAuthenticated } = useAuthSession();
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
-    const loadUser = async (userId: string) => {
-      const { data } = await supabase
-        .from("users")
-        .select("full_name, role")
-        .eq("id", userId)
-        .single();
+    if (!user) {
+      setUserInfo(null);
+      return;
+    }
 
-      if (data) {
-        setAuthUser({
-          id: userId,
-          fullName: data.full_name || "",
-          role: data.role as UserRole,
-        });
-      }
-      setLoading(false);
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session?.user) {
-          loadUser(session.user.id);
-        } else {
-          setAuthUser(null);
-          setLoading(false);
+    setProfileLoading(true);
+    supabase
+      .from("users")
+      .select("full_name, role")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setUserInfo({
+            fullName: data.full_name || "",
+            role: data.role as UserRole,
+          });
         }
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        loadUser(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+        setProfileLoading(false);
+      });
+  }, [user]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -72,7 +56,8 @@ const Header = () => {
   };
 
   const loginUrl = `/login?returnTo=${encodeURIComponent(location.pathname)}`;
-  const firstName = authUser?.fullName?.split(" ")[0] || "Account";
+  const firstName = userInfo?.fullName?.split(" ")[0] || "Account";
+  const loading = authLoading || profileLoading;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -88,7 +73,7 @@ const Header = () => {
         <div className="flex items-center gap-2">
           {loading ? (
             <Skeleton className="h-9 w-24 rounded-md" />
-          ) : authUser ? (
+          ) : isAuthenticated && userInfo ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-1.5 min-h-[40px]">
@@ -98,13 +83,13 @@ const Header = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                {authUser.role === "admin" || authUser.role === "super_admin" ? (
+                {userInfo.role === "admin" || userInfo.role === "super_admin" ? (
                   <>
                     <DropdownMenuItem onClick={() => navigate("/admin")}>
                       Admin Panel
                     </DropdownMenuItem>
                   </>
-                ) : authUser.role === "owner" ? (
+                ) : userInfo.role === "owner" ? (
                   <>
                     <DropdownMenuItem onClick={() => navigate("/owner")}>
                       My Properties
