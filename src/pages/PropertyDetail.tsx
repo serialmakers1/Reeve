@@ -527,6 +527,20 @@ const PropertyDetail: React.FC = () => {
       {/* Login Drawer */}
       <LoginDrawer open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen} propertyId={id} />
 
+      {/* Visit Scheduling Modal */}
+      {session && id && property && (
+        <VisitSchedulingModal
+          open={visitModalOpen}
+          onOpenChange={setVisitModalOpen}
+          propertyId={id}
+          userId={session.user.id}
+          buildingName={property.building_name}
+          bhk={property.bhk}
+          existingVisit={existingVisit}
+          onVisitChanged={fetchExistingVisit}
+        />
+      )}
+
       <div className="mx-auto max-w-4xl pb-24 lg:pb-8">
         {/* Back button */}
         <div className="px-4 py-3">
