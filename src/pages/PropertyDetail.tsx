@@ -426,12 +426,32 @@ const PropertyDetail: React.FC = () => {
   }, [lightboxImages.length]);
 
   // CTA handlers
-  const handleScheduleVisit = () => {
+  const handleScheduleVisit = async () => {
     if (!session) {
       setLoginDrawerOpen(true);
       return;
     }
-    setVisitModalOpen(true);
+    // If managing an existing visit, skip eligibility gate
+    if (existingVisit) {
+      setVisitModalOpen(true);
+      return;
+    }
+    // Check eligibility before opening scheduling modal
+    setEligibilityChecking(true);
+    const { data } = await supabase
+      .from("eligibility")
+      .select("status")
+      .eq("user_id", session.user.id)
+      .eq("status", "passed")
+      .limit(1)
+      .maybeSingle();
+    setEligibilityChecking(false);
+
+    if (data) {
+      setVisitModalOpen(true);
+    } else {
+      setEligibilityGateOpen(true);
+    }
   };
 
   const handleApplyNow = async () => {
