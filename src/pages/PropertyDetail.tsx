@@ -841,7 +841,7 @@ const PropertyDetail: React.FC = () => {
             variant="outline"
             className="min-h-[44px] flex-1"
           >
-            Schedule Visit
+            {existingVisit ? "Manage Visit" : "Schedule Visit"}
           </Button>
           <Button
             onClick={handleApplyNow}
