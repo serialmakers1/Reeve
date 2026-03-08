@@ -510,6 +510,7 @@ function PropertyCardList({ p }: { p: Property }) {
         </div>
       </div>
     </div>
+    </Link>
   );
 }
 
