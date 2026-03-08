@@ -560,6 +560,8 @@ export default function SearchPage() {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [loginDrawerOpen, setLoginDrawerOpen] = useState(false);
+  const { isFavourited, toggleFavourite, isLoggedIn } = useFavourites();
 
   // Debounce search
   useEffect(() => {
