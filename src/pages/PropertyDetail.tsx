@@ -310,6 +310,9 @@ const PropertyDetail: React.FC = () => {
   // Login drawer
   const [loginDrawerOpen, setLoginDrawerOpen] = useState(false);
 
+  // Favourites
+  const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
+
   // Auth
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s));
