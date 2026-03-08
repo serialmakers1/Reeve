@@ -314,6 +314,11 @@ const PropertyDetail: React.FC = () => {
   // Login drawer
   const [loginDrawerOpen, setLoginDrawerOpen] = useState(false);
 
+  // Visit scheduling
+  const [visitModalOpen, setVisitModalOpen] = useState(false);
+  const [existingVisit, setExistingVisit] = useState<{ id: string; scheduled_at: string; status: string } | null>(null);
+  const [visitLoading, setVisitLoading] = useState(false);
+
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
 
