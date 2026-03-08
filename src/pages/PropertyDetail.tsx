@@ -53,6 +53,8 @@ import {
   TreePine,
   Users,
   CircleDot,
+  ClipboardCheck,
+  Loader2,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import VisitSchedulingModal from "@/components/VisitSchedulingModal";
@@ -318,6 +320,8 @@ const PropertyDetail: React.FC = () => {
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [existingVisit, setExistingVisit] = useState<{ id: string; scheduled_at: string; status: string } | null>(null);
   const [visitLoading, setVisitLoading] = useState(false);
+  const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
+  const [eligibilityChecking, setEligibilityChecking] = useState(false);
 
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
@@ -422,12 +426,32 @@ const PropertyDetail: React.FC = () => {
   }, [lightboxImages.length]);
 
   // CTA handlers
-  const handleScheduleVisit = () => {
+  const handleScheduleVisit = async () => {
     if (!session) {
       setLoginDrawerOpen(true);
       return;
     }
-    setVisitModalOpen(true);
+    // If managing an existing visit, skip eligibility gate
+    if (existingVisit) {
+      setVisitModalOpen(true);
+      return;
+    }
+    // Check eligibility before opening scheduling modal
+    setEligibilityChecking(true);
+    const { data } = await supabase
+      .from("eligibility")
+      .select("status")
+      .eq("user_id", session.user.id)
+      .eq("status", "passed")
+      .limit(1)
+      .maybeSingle();
+    setEligibilityChecking(false);
+
+    if (data) {
+      setVisitModalOpen(true);
+    } else {
+      setEligibilityGateOpen(true);
+    }
   };
 
   const handleApplyNow = async () => {
@@ -817,8 +841,9 @@ const PropertyDetail: React.FC = () => {
                     onClick={handleScheduleVisit}
                     variant="outline"
                     className="w-full min-h-[44px]"
+                    disabled={eligibilityChecking}
                   >
-                    {existingVisit ? "Manage Visit" : "Schedule a Visit"}
+                    {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : existingVisit ? "Manage Visit" : "Schedule a Visit"}
                   </Button>
                   <Button
                     onClick={handleApplyNow}
@@ -840,8 +865,9 @@ const PropertyDetail: React.FC = () => {
             onClick={handleScheduleVisit}
             variant="outline"
             className="min-h-[44px] flex-1"
+            disabled={eligibilityChecking}
           >
-            {existingVisit ? "Manage Visit" : "Schedule Visit"}
+            {eligibilityChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : existingVisit ? "Manage Visit" : "Schedule Visit"}
           </Button>
           <Button
             onClick={handleApplyNow}
@@ -851,6 +877,39 @@ const PropertyDetail: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* ─── Eligibility Gate Modal ──────────────────────────── */}
+      <Drawer open={eligibilityGateOpen} onOpenChange={setEligibilityGateOpen}>
+        <DrawerContent>
+          <div className="flex flex-col items-center gap-3 px-6 pt-6 pb-2 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent">
+              <ClipboardCheck className="h-7 w-7 text-primary" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">Complete Eligibility Check First</h3>
+            <p className="text-sm text-muted-foreground">
+              To schedule a visit, you need to complete a quick eligibility check. It only takes 2 minutes and helps us match you with the right properties.
+            </p>
+          </div>
+          <DrawerFooter>
+            <Button
+              className="min-h-[44px]"
+              onClick={() => {
+                setEligibilityGateOpen(false);
+                navigate(`/eligibility?property_id=${id}&redirect=visit`);
+              }}
+            >
+              Check Eligibility Now
+            </Button>
+            <Button
+              variant="ghost"
+              className="min-h-[44px]"
+              onClick={() => setEligibilityGateOpen(false)}
+            >
+              Maybe Later
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </Layout>
   );
 };
