@@ -53,6 +53,8 @@ import {
   TreePine,
   Users,
   CircleDot,
+  ClipboardCheck,
+  Loader2,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import VisitSchedulingModal from "@/components/VisitSchedulingModal";
