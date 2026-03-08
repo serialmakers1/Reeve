@@ -449,6 +449,7 @@ function PropertyCardGrid({ p }: { p: Property }) {
         </div>
       </div>
     </div>
+    </Link>
   );
 }
 
