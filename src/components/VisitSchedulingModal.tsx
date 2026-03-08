@@ -185,15 +185,25 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
         if (error) throw error;
       }
 
-      // Fetch full property details for confirmation
-      const { data: propData } = await supabase
-        .from("properties")
-        .select("flat_number, floor_number, building_name, street_address, locality, city, pincode, bhk")
-        .eq("id", propertyId)
-        .single();
+      // Fetch property details from public view + flat number from gated view
+      const [pubRes, flatRes] = await Promise.all([
+        supabase
+          .from("properties_public")
+          .select("floor_number, building_name, street_address, locality, city, pincode, bhk")
+          .eq("id", propertyId)
+          .single(),
+        supabase
+          .from("properties_with_flat_number")
+          .select("flat_number")
+          .eq("id", propertyId)
+          .single(),
+      ]);
 
-      if (propData) {
-        setConfirmationData(propData as ConfirmationData);
+      if (pubRes.data) {
+        setConfirmationData({
+          ...pubRes.data,
+          flat_number: flatRes.data?.flat_number ?? null,
+        } as ConfirmationData);
       }
 
       setScheduledVisitDate(selectedDate);

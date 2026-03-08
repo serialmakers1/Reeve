@@ -323,6 +323,9 @@ const PropertyDetail: React.FC = () => {
   const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
   const [eligibilityChecking, setEligibilityChecking] = useState(false);
 
+  // Flat number reveal
+  const [revealedFlatNumber, setRevealedFlatNumber] = useState<string | null>(null);
+
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
 
@@ -353,6 +356,22 @@ const PropertyDetail: React.FC = () => {
     fetchExistingVisit();
   }, [fetchExistingVisit]);
 
+  // Check if user has earned flat_number access
+  useEffect(() => {
+    if (!session?.user?.id || !id) return;
+    const checkFlatNumberAccess = async () => {
+      const { data } = await supabase
+        .from("properties_with_flat_number")
+        .select("flat_number")
+        .eq("id", id)
+        .single();
+      if (data?.flat_number) {
+        setRevealedFlatNumber(data.flat_number);
+      }
+    };
+    checkFlatNumberAccess();
+  }, [session, id]);
+
   // Fetch property + images
   useEffect(() => {
     if (!id) return;
@@ -363,7 +382,7 @@ const PropertyDetail: React.FC = () => {
 
       const [propRes, imgRes] = await Promise.all([
         supabase
-          .from("properties")
+          .from("properties_public")
           .select(
             "id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type"
           )
@@ -741,16 +760,31 @@ const PropertyDetail: React.FC = () => {
               </div>
             </section>
 
-            {/* 5. Flat Number — Locked */}
+            {/* 5. Flat Number — Locked / Revealed */}
             <section className="px-4 lg:px-0">
-              <Card className="border-border bg-muted/50">
-                <CardContent className="flex items-center gap-3 p-4">
-                  <Lock className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Flat number revealed after scheduling a visit or completing payment
-                  </p>
-                </CardContent>
-              </Card>
+              {revealedFlatNumber ? (
+                <Card className="border-green-200 bg-green-50/50">
+                  <CardContent className="flex items-center gap-3 p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">
+                        Flat {revealedFlatNumber}
+                      </span>
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
+                        Revealed
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-border bg-muted/50">
+                  <CardContent className="flex items-center gap-3 p-4">
+                    <Lock className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                    <p className="text-sm italic text-muted-foreground">
+                      Flat number revealed after scheduling a visit or completing payment
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </section>
 
             {/* 6. Property Details Grid */}
