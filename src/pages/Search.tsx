@@ -24,6 +24,16 @@ import {
   Home,
   ChevronDown,
 } from "lucide-react";
+import { useFavourites } from "@/hooks/useFavourites";
+import FavouriteHeart from "@/components/FavouriteHeart";
+import {
+  Drawer as LoginDrawerPrimitive,
+  DrawerContent as LoginDrawerContent,
+  DrawerHeader as LoginDrawerHeader,
+  DrawerTitle as LoginDrawerTitle,
+  DrawerClose as LoginDrawerClose,
+  DrawerFooter as LoginDrawerFooter,
+} from "@/components/ui/drawer";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -394,7 +404,7 @@ function SkeletonCardList() {
 
 // ─── Property Card ───────────────────────────────────────────────────────────
 
-function PropertyCardGrid({ p }: { p: Property }) {
+function PropertyCardGrid({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: { p: Property; isFav: boolean; onToggleFav: (id: string) => void; isLoggedIn: boolean; onLoginPrompt: () => void }) {
   const pills = getHighlightPills(p);
   return (
     <Link to={`/property/${p.id}`} className="block cursor-pointer">
@@ -409,6 +419,12 @@ function PropertyCardGrid({ p }: { p: Property }) {
         <span className="absolute left-2 top-2 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
           {bhkLabel(p.bhk)}
         </span>
+        <div className="absolute right-2 top-2">
+          <FavouriteHeart
+            filled={isFav}
+            onClick={() => isLoggedIn ? onToggleFav(p.id) : onLoginPrompt()}
+          />
+        </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-3 pb-2 pt-6">
           <span className="text-lg font-bold text-white">
             {formatIndianRupee(p.listed_rent)}
@@ -453,7 +469,7 @@ function PropertyCardGrid({ p }: { p: Property }) {
   );
 }
 
-function PropertyCardList({ p }: { p: Property }) {
+function PropertyCardList({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: { p: Property; isFav: boolean; onToggleFav: (id: string) => void; isLoggedIn: boolean; onLoginPrompt: () => void }) {
   const pills = getHighlightPills(p);
   return (
     <Link to={`/property/${p.id}`} className="block cursor-pointer">
@@ -468,6 +484,13 @@ function PropertyCardList({ p }: { p: Property }) {
         <span className="absolute left-1.5 top-1.5 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
           {bhkLabel(p.bhk)}
         </span>
+        <div className="absolute right-1.5 top-1.5">
+          <FavouriteHeart
+            filled={isFav}
+            onClick={() => isLoggedIn ? onToggleFav(p.id) : onLoginPrompt()}
+            className="h-9 w-9"
+          />
+        </div>
       </div>
       <div className="flex flex-1 flex-col justify-between p-3">
         <div className="space-y-1">
@@ -537,6 +560,8 @@ export default function SearchPage() {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [loginDrawerOpen, setLoginDrawerOpen] = useState(false);
+  const { isFavourited, toggleFavourite, isLoggedIn } = useFavourites();
 
   // Debounce search
   useEffect(() => {
@@ -709,6 +734,25 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Login Drawer */}
+      <LoginDrawerPrimitive open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen}>
+        <LoginDrawerContent>
+          <LoginDrawerHeader>
+            <LoginDrawerTitle>Please log in to save properties</LoginDrawerTitle>
+          </LoginDrawerHeader>
+          <div className="px-4 pb-2 text-sm text-muted-foreground">
+            You need to be logged in to favourite properties.
+          </div>
+          <LoginDrawerFooter>
+            <Button asChild className="min-h-[44px]">
+              <Link to="/login">Log In</Link>
+            </Button>
+            <LoginDrawerClose asChild>
+              <Button variant="outline" className="min-h-[44px]">Cancel</Button>
+            </LoginDrawerClose>
+          </LoginDrawerFooter>
+        </LoginDrawerContent>
+      </LoginDrawerPrimitive>
       {/* ─── NAV ─── */}
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
@@ -959,9 +1003,9 @@ export default function SearchPage() {
               >
                 {properties.map((p) =>
                   viewMode === "grid" ? (
-                    <PropertyCardGrid key={p.id} p={p} />
+                    <PropertyCardGrid key={p.id} p={p} isFav={isFavourited(p.id)} onToggleFav={toggleFavourite} isLoggedIn={isLoggedIn} onLoginPrompt={() => setLoginDrawerOpen(true)} />
                   ) : (
-                    <PropertyCardList key={p.id} p={p} />
+                    <PropertyCardList key={p.id} p={p} isFav={isFavourited(p.id)} onToggleFav={toggleFavourite} isLoggedIn={isLoggedIn} onLoginPrompt={() => setLoginDrawerOpen(true)} />
                   )
                 )}
               </div>

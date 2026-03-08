@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFavourites } from "@/hooks/useFavourites";
+import FavouriteHeart from "@/components/FavouriteHeart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -308,6 +310,9 @@ const PropertyDetail: React.FC = () => {
   // Login drawer
   const [loginDrawerOpen, setLoginDrawerOpen] = useState(false);
 
+  // Favourites
+  const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
+
   // Auth
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s));
@@ -577,9 +582,18 @@ const PropertyDetail: React.FC = () => {
                   {formatAvailableFrom(property.available_from)}
                 </span>
               </div>
-              <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-                {bhkLabel(property.bhk)} in {property.building_name}
-              </h1>
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="text-xl font-bold text-foreground sm:text-2xl">
+                  {bhkLabel(property.bhk)} in {property.building_name}
+                </h1>
+                <FavouriteHeart
+                  filled={id ? isFavourited(id) : false}
+                  onClick={() => {
+                    if (!favLoggedIn) { setLoginDrawerOpen(true); return; }
+                    if (id) toggleFavourite(id);
+                  }}
+                />
+              </div>
               {property.floor_number != null && (
                 <p className="text-sm text-muted-foreground">
                   Floor {property.floor_number}

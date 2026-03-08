@@ -14,6 +14,7 @@ import Search from "./pages/Search";
 import ReferProperty from "./pages/ReferProperty";
 import Eligibility from "./pages/Eligibility";
 import PropertyDetail from "./pages/PropertyDetail";
+import DashboardFavourites from "./pages/DashboardFavourites";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
           <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
           <Route path="/eligibility" element={<Eligibility />} />
+          <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
