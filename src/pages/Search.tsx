@@ -48,10 +48,10 @@ interface Property {
 }
 
 interface Filters {
-  bhk: ("studio" | "1bhk" | "2bhk" | "3bhk" | "4bhk" | "5bhk_plus")[];
+  bhk: string[];
   budgetMin: number | null;
   budgetMax: number | null;
-  furnishing: ("unfurnished" | "semi_furnished" | "fully_furnished")[];
+  furnishing: string[];
   amenities: string[];
   pets: "any" | "allowed" | "not_allowed";
 }
@@ -87,11 +87,11 @@ const LOCALITIES = [
 
 const BHK_OPTIONS = [
   { value: "studio", label: "Studio" },
-  { value: "1bhk", label: "1 BHK" },
-  { value: "2bhk", label: "2 BHK" },
-  { value: "3bhk", label: "3 BHK" },
-  { value: "4bhk", label: "4 BHK" },
-  { value: "5bhk_plus", label: "5 BHK+" },
+  { value: "1BHK", label: "1 BHK" },
+  { value: "2BHK", label: "2 BHK" },
+  { value: "3BHK", label: "3 BHK" },
+  { value: "4BHK", label: "4 BHK" },
+  { value: "5BHK_plus", label: "5 BHK+" },
 ];
 
 const FURNISHING_OPTIONS = [
