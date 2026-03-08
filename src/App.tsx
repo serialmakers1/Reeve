@@ -13,6 +13,7 @@ import OwnerSavingsCalculator from "./pages/OwnerSavingsCalculator";
 import Search from "./pages/Search";
 import ReferProperty from "./pages/ReferProperty";
 import Eligibility from "./pages/Eligibility";
+import PropertyDetail from "./pages/PropertyDetail";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/property/:id" element={<PropertyDetail />} />
           <Route path="/refer-property" element={<ReferProperty />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
