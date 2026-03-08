@@ -689,7 +689,7 @@ export default function EligibilityPage() {
                   className="mt-0.5"
                 />
                 <label htmlFor="foreign_citizen" className="text-sm text-foreground cursor-pointer leading-relaxed">
-                  I am a non-Indian resident or foreign citizen
+                  I am a Foreign Citizen
                 </label>
               </div>
             </div>
