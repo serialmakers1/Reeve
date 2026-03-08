@@ -48,10 +48,10 @@ interface Property {
 }
 
 interface Filters {
-  bhk: string[];
+  bhk: ("studio" | "1bhk" | "2bhk" | "3bhk" | "4bhk" | "5bhk_plus")[];
   budgetMin: number | null;
   budgetMax: number | null;
-  furnishing: string[];
+  furnishing: ("unfurnished" | "semi_furnished" | "fully_furnished")[];
   amenities: string[];
   pets: "any" | "allowed" | "not_allowed";
 }
