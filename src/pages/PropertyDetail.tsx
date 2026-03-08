@@ -363,7 +363,7 @@ const PropertyDetail: React.FC = () => {
 
       const [propRes, imgRes] = await Promise.all([
         supabase
-          .from("properties")
+          .from("properties_public")
           .select(
             "id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type"
           )
