@@ -631,35 +631,6 @@ export default function OwnerSavingsPage(): React.ReactElement {
           </section>
         ) : null}
 
-        <section className="mx-auto max-w-6xl px-4 pb-12 sm:px-6 lg:px-8">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:p-8">
-            <div className="max-w-3xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                FAQ
-              </p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                Frequently Asked Questions
-              </h2>
-            </div>
-
-            <div className="mt-6 space-y-4">
-              {faqItems.map((item: FAQItem) => (
-                <details
-                  key={item.question}
-                  className="group rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 sm:px-5"
-                >
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-slate-900">
-                    <span>{item.question}</span>
-                    <span className="text-slate-400 transition group-open:rotate-45">+</span>
-                  </summary>
-                  <p className="mt-4 pr-6 text-sm leading-7 text-slate-600 sm:text-base">
-                    {item.answer}
-                  </p>
-                </details>
-              ))}
-            </div>
-          </div>
-        </section>
 
         {breakdown ? (
           <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 lg:px-8 lg:pb-20">
@@ -743,6 +714,37 @@ export default function OwnerSavingsPage(): React.ReactElement {
               </div>
             </div>
           </section>
+        <section className="mx-auto max-w-6xl px-4 pb-12 sm:px-6 lg:px-8">
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:p-8">
+            <div className="max-w-3xl">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                FAQ
+              </p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Frequently Asked Questions
+              </h2>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {faqItems.map((item: FAQItem) => (
+                <details
+                  key={item.question}
+                  className="group rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 sm:px-5"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-slate-900">
+                    <span>{item.question}</span>
+                    <span className="text-slate-400 transition group-open:rotate-45">+</span>
+                  </summary>
+                  <p className="mt-4 pr-6 text-sm leading-7 text-slate-600 sm:text-base">
+                    {item.answer}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+      
         ) : null}
       </main>
     </div>
