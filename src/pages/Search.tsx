@@ -469,7 +469,7 @@ function PropertyCardGrid({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: 
   );
 }
 
-function PropertyCardList({ p }: { p: Property }) {
+function PropertyCardList({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: { p: Property; isFav: boolean; onToggleFav: (id: string) => void; isLoggedIn: boolean; onLoginPrompt: () => void }) {
   const pills = getHighlightPills(p);
   return (
     <Link to={`/property/${p.id}`} className="block cursor-pointer">
@@ -484,6 +484,13 @@ function PropertyCardList({ p }: { p: Property }) {
         <span className="absolute left-1.5 top-1.5 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
           {bhkLabel(p.bhk)}
         </span>
+        <div className="absolute right-1.5 top-1.5">
+          <FavouriteHeart
+            filled={isFav}
+            onClick={() => isLoggedIn ? onToggleFav(p.id) : onLoginPrompt()}
+            className="h-9 w-9"
+          />
+        </div>
       </div>
       <div className="flex flex-1 flex-col justify-between p-3">
         <div className="space-y-1">
