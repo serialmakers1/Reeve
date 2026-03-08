@@ -1760,7 +1760,7 @@ export type Database = {
           id: string
           is_active: boolean
           last_login_at: string | null
-          phone: string
+          phone: string | null
           phone_verified: boolean
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
@@ -1774,7 +1774,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
-          phone: string
+          phone?: string | null
           phone_verified?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -1788,7 +1788,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
-          phone?: string
+          phone?: string | null
           phone_verified?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string

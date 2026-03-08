@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -15,8 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, AlertTriangle, CheckCircle2, XCircle, ShieldAlert } from "lucide-react";
 import Layout from "@/components/Layout";
+import VisitSchedulingModal from "@/components/VisitSchedulingModal";
 import type { Session } from "@supabase/supabase-js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -51,8 +54,16 @@ interface RejectionRule {
   field_hint: string;
 }
 
+interface PropertyContext {
+  id: string;
+  building_name: string;
+  bhk: string;
+  listed_rent: number;
+  locality: string | null;
+}
+
 type FormMode = 'create' | 'update';
-type PageView = 'loading' | 'login' | 'form' | 'completed' | 'rejected';
+type PageView = 'loading' | 'login' | 'form' | 'passed' | 'rejected';
 
 interface StepErrors {
   [key: string]: string;
@@ -73,12 +84,22 @@ const INITIAL_FORM: EligibilityFormData = {
   is_foreign_citizen: false,
 };
 
+function bhkLabel(bhk: string): string {
+  const map: Record<string, string> = { studio: "Studio", "1BHK": "1 BHK", "2BHK": "2 BHK", "3BHK": "3 BHK", "4BHK": "4 BHK", "5BHK_plus": "5 BHK+" };
+  return map[bhk] ?? bhk;
+}
+
+function formatIndianRupee(n: number): string {
+  return '₹' + n.toLocaleString('en-IN');
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function EligibilityPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
+  const propertyIdParam = searchParams.get('property_id');
 
   const [session, setSession] = useState<Session | null>(null);
   const [pageView, setPageView] = useState<PageView>('loading');
@@ -90,6 +111,11 @@ export default function EligibilityPage() {
   const [rejectionMessage, setRejectionMessage] = useState<string | null>(null);
   const [existingReason, setExistingReason] = useState<string | null>(null);
   const [animDir, setAnimDir] = useState<'forward' | 'back'>('forward');
+
+  // Property context for visit scheduling
+  const [propertyContext, setPropertyContext] = useState<PropertyContext | null>(null);
+  const [visitModalOpen, setVisitModalOpen] = useState(false);
+  const [existingVisit, setExistingVisit] = useState<{ id: string; scheduled_at: string; status: string } | null>(null);
 
   // Auth listener
   useEffect(() => {
@@ -104,6 +130,22 @@ export default function EligibilityPage() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Load property context when property_id is present
+  useEffect(() => {
+    if (!propertyIdParam) return;
+    const fetchProperty = async () => {
+      const { data } = await supabase
+        .from('properties_public')
+        .select('id, building_name, bhk, listed_rent, locality')
+        .eq('id', propertyIdParam)
+        .single();
+      if (data) {
+        setPropertyContext(data as PropertyContext);
+      }
+    };
+    fetchProperty();
+  }, [propertyIdParam]);
 
   // Load existing eligibility
   const loadExisting = useCallback(async (userId: string) => {
@@ -122,7 +164,6 @@ export default function EligibilityPage() {
     }
 
     if (!data) {
-      // CASE 1: No row
       setPageView('form');
       setMode('create');
       return;
@@ -146,16 +187,18 @@ export default function EligibilityPage() {
       is_foreign_citizen: data.is_foreign_citizen || false,
     });
 
-    if (status === 'pending' || status === 'passed') {
-      // CASE 2
-      setPageView('completed');
+    if (status === 'passed') {
+      setPageView('passed');
+      setMode('update');
+    } else if (status === 'pending') {
+      // Pending is treated as passed for display (auto-approved)
+      setPageView('passed');
       setMode('update');
     } else if (status === 'disqualified') {
-      // CASE 3
       setExistingReason(data.disqualification_reason || null);
-      setPageView('form');
-      setMode('update');
       setRejectionMessage(data.disqualification_reason || 'You are currently ineligible.');
+      setPageView('rejected');
+      setMode('update');
     }
   }, []);
 
@@ -213,7 +256,7 @@ export default function EligibilityPage() {
 
     setSubmitting(true);
 
-    // Run rejection rules
+    // Run rejection rules (foreign citizen removed — noted for admin only)
     const rejectionRules: RejectionRule[] = [
       {
         condition: Number(formData.age) < 21,
@@ -228,23 +271,18 @@ export default function EligibilityPage() {
         field_hint: 'occupation',
       },
       {
-        condition: formData.is_foreign_citizen === true,
-        reason: 'Foreign citizens are not eligible through the standard flow.',
-        message: 'We are currently unable to onboard non-Indian residents or foreign citizens through our standard process. If this was entered incorrectly, you can update it below.',
-        field_hint: 'citizenship',
-      },
-      {
         condition: formData.expected_stay === 'less_than_10_months',
         reason: 'Expected stay is less than the minimum tenancy of 10 months.',
-        message: 'Our minimum tenancy is 10 months. If your plans change and you are looking for a longer stay, update your expected duration below.',
+        message: 'Unfortunately, we require a minimum stay of 10 months. We\'d love to have you when your plans align!',
         field_hint: 'expected_stay',
       },
     ];
 
     const rejection = rejectionRules.find((r) => r.condition);
 
-    const status: EligibilityStatus = rejection ? 'disqualified' : 'pending';
+    const status: EligibilityStatus = rejection ? 'disqualified' : 'passed';
     const disqualification_reason = rejection ? rejection.reason : null;
+    const reviewed_at = new Date().toISOString();
 
     const payload = {
       user_id: session.user.id,
@@ -262,6 +300,7 @@ export default function EligibilityPage() {
       is_foreign_citizen: formData.is_foreign_citizen,
       status,
       disqualification_reason,
+      reviewed_at,
     };
 
     let dbError = false;
@@ -296,14 +335,12 @@ export default function EligibilityPage() {
     if (rejection) {
       setRejectionMessage(rejection.message);
       setMode('update');
-      // Navigate to step hinted
-      if (rejection.field_hint === 'age') setStep(1);
-      else if (rejection.field_hint === 'occupation') setStep(2);
-      else setStep(3);
+      setPageView('rejected');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      const dest = returnTo || '/dashboard/favourites';
-      navigate(dest);
+      setPageView('passed');
+      setMode('update');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -365,7 +402,7 @@ export default function EligibilityPage() {
           <p className="mt-3 text-sm text-muted-foreground">
             You need to be logged in to complete eligibility.
           </p>
-          <Link to={`/login?returnTo=${encodeURIComponent('/eligibility' + (returnTo ? `?returnTo=${returnTo}` : ''))}`}>
+          <Link to={`/login?returnTo=${encodeURIComponent('/eligibility' + (returnTo ? `?returnTo=${returnTo}` : '') + (propertyIdParam ? `${returnTo ? '&' : '?'}property_id=${propertyIdParam}` : ''))}`}>
             <Button className="mt-6 min-h-[44px]">Log In</Button>
           </Link>
         </div>
@@ -373,28 +410,177 @@ export default function EligibilityPage() {
     );
   }
 
-  if (pageView === 'completed') {
+  // ─── Rejected View ─────────────────────────────────────────────────────────
+
+  if (pageView === 'rejected') {
     return (
       <Layout>
-        <div className="mx-auto max-w-md px-4 py-20 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-            <Check className="h-7 w-7 text-green-600" />
+        <div className="mx-auto max-w-md px-4 py-16 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
+            <ShieldAlert className="h-8 w-8 text-amber-600" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">
-            Your eligibility profile has been submitted.
+          <h1 className="text-2xl font-bold text-foreground">
+            You don't qualify at this time
           </h1>
+          <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+            {rejectionMessage || 'Based on your responses, you don\'t meet the eligibility criteria for our platform at this time.'}
+          </p>
+
           <button
             onClick={startEditing}
-            className="mt-4 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+            className="mt-5 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
           >
-            Need to update your answers? Edit eligibility →
+            Think something's wrong? Edit your answers →
           </button>
-          <div className="mt-6">
+
+          <div className="mt-8">
             <Link to="/search">
-              <Button variant="outline">Back to Search</Button>
+              <Button className="min-h-[44px] w-full">Back to Browse</Button>
             </Link>
           </div>
         </div>
+      </Layout>
+    );
+  }
+
+  // ─── Passed View ───────────────────────────────────────────────────────────
+
+  if (pageView === 'passed') {
+    const criteria = [
+      '✓ Stay duration',
+      '✓ Resident count',
+      '✓ Citizenship',
+      '✓ Occupation',
+    ];
+
+    return (
+      <Layout>
+        <div className="mx-auto max-w-md px-4 py-12">
+          {/* Passed badge */}
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 animate-in zoom-in-50 duration-500">
+              <CheckCircle2 className="h-10 w-10 text-green-600" />
+            </div>
+            <h1 className="text-3xl font-extrabold text-green-600 animate-in fade-in duration-500">
+              Passed ✓
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Great news! You meet the basic eligibility criteria for Reeve.
+            </p>
+          </div>
+
+          {/* Criteria pills */}
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {criteria.map((c) => (
+              <Badge
+                key={c}
+                variant="secondary"
+                className="bg-green-50 text-green-700 border-green-200 text-xs px-3 py-1"
+              >
+                {c}
+              </Badge>
+            ))}
+          </div>
+
+          {/* Property context card */}
+          {propertyContext && (
+            <Card className="mt-8 border-border">
+              <CardContent className="p-4 space-y-2">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                  You were checking eligibility for
+                </p>
+                <p className="text-sm font-semibold text-card-foreground">
+                  {bhkLabel(propertyContext.bhk)} in {propertyContext.building_name}
+                  {propertyContext.locality && `, ${propertyContext.locality}`}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Rent: {formatIndianRupee(propertyContext.listed_rent)}/month
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* CTAs */}
+          <div className="mt-8 space-y-3">
+            {propertyContext ? (
+              <>
+                <Button
+                  className="min-h-[44px] w-full"
+                  onClick={() => setVisitModalOpen(true)}
+                >
+                  Schedule a Visit
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-[44px] w-full"
+                  onClick={() => navigate(`/dashboard/applications/new?property_id=${propertyContext.id}`)}
+                >
+                  Apply Now
+                </Button>
+                <button
+                  onClick={() => navigate('/search')}
+                  className="block w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors mt-2"
+                >
+                  Browse other properties
+                </button>
+              </>
+            ) : (
+              <>
+                <Button
+                  className="min-h-[44px] w-full"
+                  onClick={() => navigate('/search')}
+                >
+                  Browse Properties
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-[44px] w-full"
+                  onClick={() => navigate('/dashboard')}
+                >
+                  Go to Dashboard
+                </Button>
+              </>
+            )}
+          </div>
+
+          {/* Edit link */}
+          <button
+            onClick={startEditing}
+            className="mt-6 block w-full text-center text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+          >
+            Need to update your answers? Edit eligibility →
+          </button>
+        </div>
+
+        {/* Visit scheduling modal */}
+        {propertyContext && session?.user?.id && (
+          <VisitSchedulingModal
+            open={visitModalOpen}
+            onOpenChange={setVisitModalOpen}
+            propertyId={propertyContext.id}
+            userId={session.user.id}
+            buildingName={propertyContext.building_name}
+            bhk={propertyContext.bhk}
+            existingVisit={existingVisit}
+            onVisitChanged={() => {
+              // Refresh existing visit state
+              if (session?.user?.id && propertyContext) {
+                supabase
+                  .from('visits')
+                  .select('id, scheduled_at, status')
+                  .eq('property_id', propertyContext.id)
+                  .eq('tenant_id', session.user.id)
+                  .in('status', ['scheduled', 'confirmed'])
+                  .order('created_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle()
+                  .then(({ data }) => {
+                    setExistingVisit(data ?? null);
+                  });
+              }
+            }}
+          />
+        )}
       </Layout>
     );
   }
