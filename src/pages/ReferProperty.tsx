@@ -183,8 +183,8 @@ export default function ReferProperty() {
           <ArrowLeft className="h-4 w-4" /> Back to Search
         </Link>
 
-        {!session ? (
-          /* Login gate */
+      {/* Login gate — temporarily commented out
+      {!session ? (
           <div className="rounded-xl border bg-card p-8 text-center shadow-sm">
             <h1 className="text-xl font-bold text-foreground">Log in to Refer a Property</h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -194,7 +194,8 @@ export default function ReferProperty() {
               <Button className="mt-6">Log In</Button>
             </Link>
           </div>
-        ) : submitted ? (
+        ) : */}
+      {submitted ? (
           /* Success */
           <div className="rounded-xl border bg-card p-8 text-center shadow-sm">
             <CheckCircle2 className="mx-auto h-12 w-12 text-green-600" />
