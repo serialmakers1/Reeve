@@ -12,6 +12,7 @@ import TenantSavingsCalculator from "./pages/TenantSavingsCalculator";
 import OwnerSavingsCalculator from "./pages/OwnerSavingsCalculator";
 import Search from "./pages/Search";
 import ReferProperty from "./pages/ReferProperty";
+import Eligibility from "./pages/Eligibility";
 
 const queryClient = new QueryClient();
 
