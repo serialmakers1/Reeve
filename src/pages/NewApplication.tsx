@@ -401,20 +401,19 @@ export default function NewApplicationPage() {
       return null;
     }
 
-    const { data: urlData } = supabase.storage
-      .from("tenant-documents")
-      .getPublicUrl(path);
-
     // Since bucket is private, store the path — access via signed URL
     const fileUrl = path;
 
     // Insert into documents table
+    type DocType = "aadhaar" | "pan" | "salary_slip" | "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other";
+    type DocCategory = "tenant_kyc" | "owner_kyc" | "agreement" | "inspection" | "condition_report" | "payment_receipt" | "maintenance" | "lead";
+
     await supabase.from("documents").insert({
       owner_user_id: user.id,
       uploaded_by: user.id,
       application_id: applicationId,
-      document_type: documentType as "salary_slip" | "itr" | "bank_statement" | "aadhaar" | "pan" | "passport" | "agreement" | "condition_report" | "invoice" | "receipt" | "other",
-      category: "tenant_kyc" as "tenant_kyc" | "owner_kyc" | "property_doc" | "lease_doc" | "payment_doc",
+      document_type: documentType as DocType,
+      category: "tenant_kyc" as DocCategory,
       file_name: file.name,
       file_size_bytes: file.size,
       file_url: fileUrl,
