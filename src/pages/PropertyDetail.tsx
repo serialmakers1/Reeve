@@ -329,6 +329,26 @@ const PropertyDetail: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Check for existing visit
+  const fetchExistingVisit = useCallback(async () => {
+    if (!session || !id) { setExistingVisit(null); return; }
+    setVisitLoading(true);
+    const { data } = await supabase
+      .from("visits")
+      .select("id, scheduled_at, status")
+      .eq("property_id", id)
+      .eq("tenant_id", session.user.id)
+      .in("status", ["scheduled", "confirmed"])
+      .limit(1)
+      .maybeSingle();
+    setExistingVisit(data ?? null);
+    setVisitLoading(false);
+  }, [session, id]);
+
+  useEffect(() => {
+    fetchExistingVisit();
+  }, [fetchExistingVisit]);
+
   // Fetch property + images
   useEffect(() => {
     if (!id) return;
