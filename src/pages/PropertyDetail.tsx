@@ -500,7 +500,7 @@ const PropertyDetail: React.FC = () => {
       )}
 
       {/* Login Drawer */}
-      <LoginDrawer open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen} />
+      <LoginDrawer open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen} propertyId={id} />
 
       <div className="mx-auto max-w-4xl pb-24 lg:pb-8">
         {/* Back button */}

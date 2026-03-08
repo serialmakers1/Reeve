@@ -745,7 +745,7 @@ export default function SearchPage() {
           </div>
           <LoginDrawerFooter>
             <Button asChild className="min-h-[44px]">
-              <Link to="/login">Log In</Link>
+              <Link to={`/login?returnTo=${encodeURIComponent('/search')}`}>Log In</Link>
             </Button>
             <LoginDrawerClose asChild>
               <Button variant="outline" className="min-h-[44px]">Cancel</Button>

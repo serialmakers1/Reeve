@@ -703,7 +703,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
               <div className="mt-8 max-w-3xl">
                 <a
-                  href="/owner"
+                  href="/login?returnTo=/owner"
                   className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-5 py-4 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   List Your Property With Us →

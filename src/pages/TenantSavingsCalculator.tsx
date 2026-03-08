@@ -600,7 +600,7 @@ export default function TenantSavingsPage(): JSX.Element {
                   Skip brokerage, keep more cash in hand, and move in with just 1 month of deposit.
                 </p>
                 <a
-                  href="/login"
+                  href="/login?returnTo=/search"
                   className="mt-8 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
                   Sign Up and Start Saving
