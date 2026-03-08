@@ -580,7 +580,7 @@ export default function SearchPage() {
 
         // BHK filter
         if (filters.bhk.length > 0) {
-          query = query.in("bhk", filters.bhk);
+          query = query.in("bhk", filters.bhk as any);
         }
 
         // Budget
@@ -593,7 +593,7 @@ export default function SearchPage() {
 
         // Furnishing
         if (filters.furnishing.length > 0) {
-          query = query.in("furnishing", filters.furnishing);
+          query = query.in("furnishing", filters.furnishing as any);
         }
 
         // Amenities
