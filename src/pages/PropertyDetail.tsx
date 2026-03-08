@@ -865,8 +865,9 @@ const PropertyDetail: React.FC = () => {
             onClick={handleScheduleVisit}
             variant="outline"
             className="min-h-[44px] flex-1"
+            disabled={eligibilityChecking}
           >
-            {existingVisit ? "Manage Visit" : "Schedule Visit"}
+            {eligibilityChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : existingVisit ? "Manage Visit" : "Schedule Visit"}
           </Button>
           <Button
             onClick={handleApplyNow}
