@@ -220,10 +220,15 @@ export default function LoginPage() {
       return;
     }
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("users")
-      .update({ full_name: name })
+      .update({ full_name: name, updated_at: new Date().toISOString() })
       .eq("id", session.user.id);
+
+    if (updateError) {
+      update({ isLoading: false, error: "Could not save your name. Please try again." });
+      return;
+    }
 
     const { data: userRow } = await supabase
       .from("users")
