@@ -98,7 +98,7 @@ export default function EligibilityPage() {
     });
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
-      if (!s) setPageView('login');
+      // if (!s) setPageView('login'); // temporarily commented out — login gate disabled
     });
     return () => subscription.unsubscribe();
   }, []);
