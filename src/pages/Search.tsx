@@ -984,9 +984,9 @@ export default function SearchPage() {
               >
                 {properties.map((p) =>
                   viewMode === "grid" ? (
-                    <PropertyCardGrid key={p.id} p={p} />
+                    <PropertyCardGrid key={p.id} p={p} isFav={isFavourited(p.id)} onToggleFav={toggleFavourite} isLoggedIn={isLoggedIn} onLoginPrompt={() => setLoginDrawerOpen(true)} />
                   ) : (
-                    <PropertyCardList key={p.id} p={p} />
+                    <PropertyCardList key={p.id} p={p} isFav={isFavourited(p.id)} onToggleFav={toggleFavourite} isLoggedIn={isLoggedIn} onLoginPrompt={() => setLoginDrawerOpen(true)} />
                   )
                 )}
               </div>
