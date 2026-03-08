@@ -12,6 +12,7 @@ import TenantSavingsCalculator from "./pages/TenantSavingsCalculator";
 import OwnerSavingsCalculator from "./pages/OwnerSavingsCalculator";
 import Search from "./pages/Search";
 import ReferProperty from "./pages/ReferProperty";
+import Eligibility from "./pages/Eligibility";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/refund" element={<Refund />} />
           <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
           <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
+          <Route path="/eligibility" element={<Eligibility />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
