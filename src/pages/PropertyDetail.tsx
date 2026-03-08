@@ -323,6 +323,9 @@ const PropertyDetail: React.FC = () => {
   const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
   const [eligibilityChecking, setEligibilityChecking] = useState(false);
 
+  // Flat number reveal
+  const [revealedFlatNumber, setRevealedFlatNumber] = useState<string | null>(null);
+
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
 
