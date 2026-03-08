@@ -126,11 +126,11 @@ function formatIndianRupee(n: number): string {
 function bhkLabel(bhk: string): string {
   const map: Record<string, string> = {
     studio: "Studio",
-    "1bhk": "1 BHK",
-    "2bhk": "2 BHK",
-    "3bhk": "3 BHK",
-    "4bhk": "4 BHK",
-    "5bhk_plus": "5 BHK+",
+    "1BHK": "1 BHK",
+    "2BHK": "2 BHK",
+    "3BHK": "3 BHK",
+    "4BHK": "4 BHK",
+    "5BHK_plus": "5 BHK+",
   };
   return map[bhk] ?? bhk;
 }
