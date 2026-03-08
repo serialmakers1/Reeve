@@ -356,6 +356,22 @@ const PropertyDetail: React.FC = () => {
     fetchExistingVisit();
   }, [fetchExistingVisit]);
 
+  // Check if user has earned flat_number access
+  useEffect(() => {
+    if (!session?.user?.id || !id) return;
+    const checkFlatNumberAccess = async () => {
+      const { data } = await supabase
+        .from("properties_with_flat_number")
+        .select("flat_number")
+        .eq("id", id)
+        .single();
+      if (data?.flat_number) {
+        setRevealedFlatNumber(data.flat_number);
+      }
+    };
+    checkFlatNumberAccess();
+  }, [session, id]);
+
   // Fetch property + images
   useEffect(() => {
     if (!id) return;
