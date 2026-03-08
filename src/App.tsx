@@ -35,6 +35,7 @@ const App = () => (
           <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
           <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
           <Route path="/eligibility" element={<Eligibility />} />
+          <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
