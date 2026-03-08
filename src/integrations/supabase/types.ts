@@ -2115,7 +2115,7 @@ export type Database = {
         | "lease_active"
         | "withdrawn"
         | "expired"
-      auth_provider: "phone_otp" | "google" | "apple"
+      auth_provider: "phone_otp" | "google" | "apple" | "email_otp"
       bhk_type: "1BHK" | "2BHK" | "3BHK" | "4BHK" | "5BHK_plus" | "studio"
       bill_compliance_status:
         | "undisclosed"
@@ -2434,7 +2434,7 @@ export const Constants = {
         "withdrawn",
         "expired",
       ],
-      auth_provider: ["phone_otp", "google", "apple"],
+      auth_provider: ["phone_otp", "google", "apple", "email_otp"],
       bhk_type: ["1BHK", "2BHK", "3BHK", "4BHK", "5BHK_plus", "studio"],
       bill_compliance_status: [
         "undisclosed",
