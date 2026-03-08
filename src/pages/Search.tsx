@@ -990,6 +990,23 @@ export default function SearchPage() {
             </>
           )}
 
+          {/* Refer a Property Banner */}
+          {!loading && (
+            <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-6 text-center sm:p-8">
+              <h3 className="text-lg font-bold text-gray-900 sm:text-xl">
+                Can't find your property listed here?
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm text-gray-600">
+                Tell us the owner's details — we'll bring them onboard with our 1-month deposit system.
+              </p>
+              <Link to="/refer-property">
+                <Button className="mt-4 rounded-lg bg-primary px-6 text-sm font-semibold text-white hover:bg-primary/90">
+                  Refer a Property →
+                </Button>
+              </Link>
+            </div>
+          )}
+
           {/* Sentinel for infinite scroll */}
           <div ref={sentinelRef} className="h-px" />
         </main>

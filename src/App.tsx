@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import TenantSavingsCalculator from "./pages/TenantSavingsCalculator";
 import OwnerSavingsCalculator from "./pages/OwnerSavingsCalculator";
 import Search from "./pages/Search";
+import ReferProperty from "./pages/ReferProperty";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/refer-property" element={<ReferProperty />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/refund" element={<Refund />} />
