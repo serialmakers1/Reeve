@@ -813,6 +813,7 @@ export type Database = {
           converted_property_id: string | null
           created_at: string
           expected_rent: number | null
+          flat_number: string | null
           id: string
           locality: string | null
           notes: string | null
@@ -833,6 +834,7 @@ export type Database = {
           converted_property_id?: string | null
           created_at?: string
           expected_rent?: number | null
+          flat_number?: string | null
           id?: string
           locality?: string | null
           notes?: string | null
@@ -853,6 +855,7 @@ export type Database = {
           converted_property_id?: string | null
           created_at?: string
           expected_rent?: number | null
+          flat_number?: string | null
           id?: string
           locality?: string | null
           notes?: string | null
