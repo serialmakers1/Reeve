@@ -15,6 +15,7 @@ import ReferProperty from "./pages/ReferProperty";
 import Eligibility from "./pages/Eligibility";
 import PropertyDetail from "./pages/PropertyDetail";
 import DashboardFavourites from "./pages/DashboardFavourites";
+import Login from "./pages/Login";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/search" element={<Search />} />
           <Route path="/property/:id" element={<PropertyDetail />} />
           <Route path="/refer-property" element={<ReferProperty />} />

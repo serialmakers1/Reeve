@@ -259,10 +259,13 @@ function Lightbox({
 function LoginDrawer({
   open,
   onOpenChange,
+  propertyId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  propertyId?: string;
 }) {
+  const returnPath = propertyId ? `/property/${propertyId}` : "/search";
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
@@ -274,7 +277,7 @@ function LoginDrawer({
         </div>
         <DrawerFooter>
           <Button asChild className="min-h-[44px]">
-            <Link to="/login">Log In</Link>
+            <Link to={`/login?returnTo=${encodeURIComponent(returnPath)}`}>Log In</Link>
           </Button>
           <DrawerClose asChild>
             <Button variant="outline" className="min-h-[44px]">
@@ -497,7 +500,7 @@ const PropertyDetail: React.FC = () => {
       )}
 
       {/* Login Drawer */}
-      <LoginDrawer open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen} />
+      <LoginDrawer open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen} propertyId={id} />
 
       <div className="mx-auto max-w-4xl pb-24 lg:pb-8">
         {/* Back button */}

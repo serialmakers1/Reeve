@@ -183,19 +183,17 @@ export default function ReferProperty() {
           <ArrowLeft className="h-4 w-4" /> Back to Search
         </Link>
 
-      {/* Login gate — temporarily commented out
       {!session ? (
           <div className="rounded-xl border bg-card p-8 text-center shadow-sm">
             <h1 className="text-xl font-bold text-foreground">Log in to Refer a Property</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               You need to be logged in to refer a property.
             </p>
-            <Link to="/login">
-              <Button className="mt-6">Log In</Button>
+            <Link to={`/login?returnTo=${encodeURIComponent('/refer-property')}`}>
+              <Button className="mt-6 min-h-[44px]">Log In</Button>
             </Link>
           </div>
-        ) : */}
-      {submitted ? (
+        ) : submitted ? (
           /* Success */
           <div className="rounded-xl border bg-card p-8 text-center shadow-sm">
             <CheckCircle2 className="mx-auto h-12 w-12 text-green-600" />
