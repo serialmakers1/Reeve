@@ -86,7 +86,7 @@ export default function DashboardFavourites() {
 
       // Fetch properties
       const { data: props } = await supabase
-        .from("properties")
+        .from("properties_public")
         .select("id, building_name, floor_number, locality, city, bhk, listed_rent, furnishing, square_footage, property_type")
         .in("id", ids);
 
