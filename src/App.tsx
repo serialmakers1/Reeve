@@ -18,6 +18,7 @@ import Eligibility from "./pages/Eligibility";
 import PropertyDetail from "./pages/PropertyDetail";
 import DashboardFavourites from "./pages/DashboardFavourites";
 import Login from "./pages/Login";
+import NewApplication from "./pages/NewApplication";
 
 const queryClient = new QueryClient();
 
