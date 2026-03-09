@@ -366,14 +366,15 @@ export default function NewApplicationPage() {
       });
     }
 
-    // Determine furthest step
+    // Determine furthest step — resume to next uncompleted step
     let furthest: ApplicationStep = 1;
+    if (resData && resData.length > 0) furthest = 2;
     if (draft.employer_name) furthest = 3;
     if (draft.cibil_range) furthest = 4;
     if (draft.crime_record_self_attest) furthest = 5;
     if (draft.proposed_rent && (draft.proposed_rent as number) !== prop.listed_rent) furthest = 6;
     if (draft.property_notes_text) furthest = 7;
-    // Simple heuristic: go to the next step after the furthest completed
+    // Go to the next step after the furthest completed
     setStep(Math.min(furthest + 1, 8) as ApplicationStep);
   };
 
