@@ -140,10 +140,10 @@ const STAY_LABELS: Record<string, string> = {
 
 const CIBIL_OPTIONS = [
   { value: "below_550", label: "Below 550", note: null },
-  { value: "550_649", label: "550 – 649", note: null },
-  { value: "650_749", label: "650 – 749", note: null },
-  { value: "750_900", label: "750 – 900", note: "Excellent" },
-  { value: "no_history", label: "No credit history", note: "Common for first-time borrowers" },
+  { value: "550_to_649", label: "550 – 649", note: null },
+  { value: "650_to_749", label: "650 – 749", note: null },
+  { value: "750_to_900", label: "750 – 900", note: "Excellent" },
+  { value: "no_credit_history", label: "No credit history", note: "Common for first-time borrowers" },
   { value: "not_sure", label: "Not sure", note: "That's okay, you can check at CIBIL.com" },
 ];
 
