@@ -165,6 +165,7 @@ export default function NewApplicationPage() {
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [resumeBanner, setResumeBanner] = useState(false);
+  const [alreadySubmittedBlock, setAlreadySubmittedBlock] = useState(false);
 
   // Step 2 — Residents
   const [residents, setResidents] = useState<Resident[]>([]);
@@ -242,21 +243,33 @@ export default function NewApplicationPage() {
     }
     setEligibility(elig as EligibilityData);
 
-    // Check for existing draft
-    const { data: draft } = await supabase
+    // Check for ANY existing application (not just drafts)
+    const { data: existing } = await supabase
       .from("applications")
-      .select("*")
+      .select("*, application_residents(id)")
       .eq("property_id", propertyId)
       .eq("tenant_id", user.id)
-      .eq("status", "draft")
       .maybeSingle();
 
-    if (draft) {
-      setApplicationId(draft.id);
-      loadDraft(draft, prop as PropertyInfo);
+    if (existing) {
+      const NON_DRAFT_STATUSES = [
+        "submitted", "platform_review", "sent_to_owner",
+        "owner_accepted", "owner_countered", "payment_pending",
+        "kyc_pending", "kyc_passed", "agreement_pending", "lease_active",
+      ];
+      if (NON_DRAFT_STATUSES.includes(existing.status)) {
+        setProperty(prop as PropertyInfo);
+        setAlreadySubmittedBlock(true);
+        setPageLoading(false);
+        return;
+      }
+
+      // Draft exists — resume
+      setApplicationId(existing.id);
+      loadDraft(existing as Record<string, unknown>, prop as PropertyInfo);
       setResumeBanner(true);
     } else {
-      // Create new draft
+      // Fresh start — INSERT one new draft row
       const { data: newApp, error } = await supabase
         .from("applications")
         .insert({
@@ -353,14 +366,15 @@ export default function NewApplicationPage() {
       });
     }
 
-    // Determine furthest step
+    // Determine furthest step — resume to next uncompleted step
     let furthest: ApplicationStep = 1;
+    if (resData && resData.length > 0) furthest = 2;
     if (draft.employer_name) furthest = 3;
     if (draft.cibil_range) furthest = 4;
     if (draft.crime_record_self_attest) furthest = 5;
     if (draft.proposed_rent && (draft.proposed_rent as number) !== prop.listed_rent) furthest = 6;
     if (draft.property_notes_text) furthest = 7;
-    // Simple heuristic: go to the next step after the furthest completed
+    // Go to the next step after the furthest completed
     setStep(Math.min(furthest + 1, 8) as ApplicationStep);
   };
 
@@ -624,7 +638,33 @@ export default function NewApplicationPage() {
     );
   }
 
-  if (!property || !eligibility) return null;
+  if (!property || !eligibility) {
+    // Show already-submitted block if applicable
+    if (alreadySubmittedBlock && property) {
+      return (
+        <Layout>
+          <div className="mx-auto max-w-md px-4 py-16 text-center">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
+              <AlertTriangle className="h-10 w-10 text-amber-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">Application Already Submitted</h1>
+            <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+              You have already submitted an application for this property.
+            </p>
+            <div className="mt-8 flex flex-col gap-3">
+              <Button className="min-h-[44px] w-full" onClick={() => navigate("/dashboard/applications")}>
+                View My Applications
+              </Button>
+              <Button variant="outline" className="min-h-[44px] w-full" onClick={() => navigate(-1)}>
+                ← Go Back
+              </Button>
+            </div>
+          </div>
+        </Layout>
+      );
+    }
+    return null;
+  }
 
   // ─── Success Screen ────────────────────────────────────────────────────────
 

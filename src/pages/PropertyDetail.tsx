@@ -326,6 +326,9 @@ const PropertyDetail: React.FC = () => {
   // Flat number reveal
   const [revealedFlatNumber, setRevealedFlatNumber] = useState<string | null>(null);
 
+  // Already applied
+  const [alreadyApplied, setAlreadyApplied] = useState(false);
+
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
 
@@ -411,6 +414,25 @@ const PropertyDetail: React.FC = () => {
 
       const fetchedImages = (imgRes.data ?? []) as PropertyImage[];
       setImages(fetchedImages.length > 0 ? fetchedImages : PLACEHOLDER_IMAGES);
+
+      // Check if user already applied
+      const sess = await supabase.auth.getSession();
+      if (sess.data.session?.user?.id) {
+        const { data: existingApp } = await supabase
+          .from("applications")
+          .select("status")
+          .eq("property_id", id)
+          .eq("tenant_id", sess.data.session.user.id)
+          .maybeSingle();
+
+        const applied = existingApp && [
+          "submitted", "platform_review", "sent_to_owner",
+          "owner_accepted", "owner_countered", "payment_pending",
+          "kyc_pending", "kyc_passed", "agreement_pending", "lease_active",
+        ].includes(existingApp.status);
+        setAlreadyApplied(!!applied);
+      }
+
       setLoading(false);
     };
 
@@ -879,12 +901,15 @@ const PropertyDetail: React.FC = () => {
                   >
                     {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : existingVisit ? "Manage Visit" : "Schedule a Visit"}
                   </Button>
-                  <Button
-                    onClick={handleApplyNow}
-                    className="w-full min-h-[44px]"
-                  >
-                    Apply Now
-                  </Button>
+                  {alreadyApplied ? (
+                    <Button disabled className="w-full min-h-[44px] bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
+                      ✓ Already Applied
+                    </Button>
+                  ) : (
+                    <Button onClick={handleApplyNow} className="w-full min-h-[44px]">
+                      Apply Now
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -903,12 +928,15 @@ const PropertyDetail: React.FC = () => {
           >
             {eligibilityChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : existingVisit ? "Manage Visit" : "Schedule Visit"}
           </Button>
-          <Button
-            onClick={handleApplyNow}
-            className="min-h-[44px] flex-1"
-          >
-            Apply Now
-          </Button>
+          {alreadyApplied ? (
+            <Button disabled className="min-h-[44px] flex-1 bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
+              ✓ Already Applied
+            </Button>
+          ) : (
+            <Button onClick={handleApplyNow} className="min-h-[44px] flex-1">
+              Apply Now
+            </Button>
+          )}
         </div>
       </div>
 
