@@ -74,8 +74,14 @@ export default function LoginPage() {
     }
   }, [navigate, location.state]);
 
+  const isRateLimitError = (msg: string) =>
+    /429|security purposes|rate.?limit/i.test(msg);
+
+  const RATE_LIMIT_MSG =
+    "Please wait a moment before requesting a new code. Try again in 60 seconds.";
+
   const startCooldown = () => {
-    setResendCooldown(30);
+    setResendCooldown(60);
     if (cooldownRef.current) clearInterval(cooldownRef.current);
     cooldownRef.current = setInterval(() => {
       setResendCooldown((prev) => {
