@@ -115,7 +115,12 @@ export default function LoginPage() {
 
     if (otpError) {
       setIsLoading(false);
-      setError("Something went wrong. Please try again.");
+      if (isRateLimitError(otpError.message || "")) {
+        setError(RATE_LIMIT_MSG);
+        startCooldown();
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
       return;
     }
 
