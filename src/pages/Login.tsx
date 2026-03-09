@@ -184,7 +184,12 @@ export default function LoginPage() {
     });
     setIsLoading(false);
     if (resendError) {
-      setError("Something went wrong. Please try again.");
+      if (isRateLimitError(resendError.message || "")) {
+        setError(RATE_LIMIT_MSG);
+        startCooldown();
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
       return;
     }
     setOtp("");
