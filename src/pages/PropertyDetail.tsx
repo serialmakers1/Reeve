@@ -326,6 +326,9 @@ const PropertyDetail: React.FC = () => {
   // Flat number reveal
   const [revealedFlatNumber, setRevealedFlatNumber] = useState<string | null>(null);
 
+  // Already applied
+  const [alreadyApplied, setAlreadyApplied] = useState(false);
+
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
 
