@@ -16,6 +16,7 @@ export default function LoginPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
+  const intendedRole = new URLSearchParams(location.search).get('role') === 'owner' ? 'owner' : 'tenant';
   const { user, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth();
 
   const [step, setStep] = useState<LoginStep>("email");
