@@ -1034,7 +1034,7 @@ export default function NewApplicationPage() {
             }`}
           >
             <span className="text-sm font-medium text-foreground">{opt.label}</span>
-            {opt.value === "750_900" && cibilRange === opt.value && (
+            {opt.value === "750_to_900" && cibilRange === opt.value && (
               <Badge className="ml-2 bg-green-100 text-green-700 border-green-200">Excellent</Badge>
             )}
             {opt.note && (
