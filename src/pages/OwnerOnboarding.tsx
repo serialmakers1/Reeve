@@ -10,11 +10,11 @@ import { Loader2 } from "lucide-react";
 
 const BHK_OPTIONS = [
   { value: "studio", label: "Studio" },
-  { value: "1bhk", label: "1 BHK" },
-  { value: "2bhk", label: "2 BHK" },
-  { value: "3bhk", label: "3 BHK" },
-  { value: "4bhk", label: "4 BHK" },
-  { value: "5bhk_plus", label: "5 BHK+" },
+  { value: "1BHK", label: "1 BHK" },
+  { value: "2BHK", label: "2 BHK" },
+  { value: "3BHK", label: "3 BHK" },
+  { value: "4BHK", label: "4 BHK" },
+  { value: "5BHK_plus", label: "5 BHK+" },
 ] as const;
 
 const FURNISHING_OPTIONS = [

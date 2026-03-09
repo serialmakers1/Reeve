@@ -115,8 +115,9 @@ export default function OwnerDashboard() {
     );
   }
 
-  const displaySlot =
-    selectedSlot === "Other (specify)" && customSlot.trim()
+  const displaySlot = existingSlot
+    ? existingSlot
+    : selectedSlot === "Other (specify)" && customSlot.trim()
       ? customSlot.trim()
       : selectedSlot;
 
