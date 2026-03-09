@@ -155,13 +155,24 @@ export default function LoginPage() {
 
         const { data: userData } = await supabase
           .from("users")
-          .select("full_name, role")
+          .select("full_name, phone, role")
           .eq("id", data.user.id)
           .single();
 
         const fullNameVal = userData?.full_name ?? "";
         const role = userData?.role ?? "tenant";
         verifiedRoleRef.current = role;
+
+        // Owner-specific routing
+        if (role === "owner") {
+          await refreshUser();
+          if (!userData?.phone) {
+            navigate("/owner/onboarding", { replace: true });
+          } else {
+            navigate("/owner", { replace: true });
+          }
+          return;
+        }
 
         if (!fullNameVal || fullNameVal.trim() === "") {
           setStep("name");

@@ -372,6 +372,44 @@ export type Database = {
           },
         ]
       }
+      callback_requests: {
+        Row: {
+          created_at: string
+          custom_slot: string | null
+          id: string
+          phone: string
+          preferred_slot: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_slot?: string | null
+          id?: string
+          phone: string
+          preferred_slot: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_slot?: string | null
+          id?: string
+          phone?: string
+          preferred_slot?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "callback_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           application_id: string | null
@@ -1498,7 +1536,7 @@ export type Database = {
           last_leased_at?: string | null
           latitude?: number | null
           listed_at?: string | null
-          listed_rent: number
+          listed_rent?: number
           locality?: string | null
           longitude?: number | null
           main_door_lock_type?: string | null
