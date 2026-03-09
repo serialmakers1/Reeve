@@ -19,6 +19,7 @@ import PropertyDetail from "./pages/PropertyDetail";
 import DashboardFavourites from "./pages/DashboardFavourites";
 import Login from "./pages/Login";
 import NewApplication from "./pages/NewApplication";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient();
 
