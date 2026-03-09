@@ -255,7 +255,7 @@ export default function OwnerDashboard() {
             </Card>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </Layout>
   );
 }
