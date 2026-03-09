@@ -159,12 +159,13 @@ export default function LoginPage() {
           .eq("id", data.user.id)
           .single();
 
-        const fullNameVal = userData?.full_name ?? "";
-        const role = userData?.role ?? "tenant";
-        verifiedRoleRef.current = role;
+        const effectiveRole = intendedRole === 'owner' ? 'owner' : (userData?.role ?? 'tenant');
+        verifiedRoleRef.current = effectiveRole;
 
-        // Owner-specific routing
-        if (role === "owner") {
+        if (effectiveRole === 'owner') {
+          if (userData?.role !== 'owner') {
+            await supabase.from('users').update({ role: 'owner' as any }).eq('id', data.user.id);
+          }
           await refreshUser();
           if (!userData?.phone) {
             navigate("/owner/onboarding", { replace: true });
@@ -174,11 +175,12 @@ export default function LoginPage() {
           return;
         }
 
+        const fullNameVal = userData?.full_name ?? "";
         if (!fullNameVal || fullNameVal.trim() === "") {
           setStep("name");
         } else {
           await refreshUser();
-          redirectByRole(role);
+          redirectByRole(effectiveRole);
         }
       }
     } finally {
