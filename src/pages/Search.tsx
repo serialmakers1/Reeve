@@ -22,8 +22,6 @@ import {
   SlidersHorizontal,
   X,
   AlertTriangle,
-  Home,
-  ChevronDown,
 } from "lucide-react";
 import { useFavourites } from "@/hooks/useFavourites";
 import FavouriteHeart from "@/components/FavouriteHeart";
