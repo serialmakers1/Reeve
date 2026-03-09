@@ -98,8 +98,8 @@ export default function OwnerDashboard() {
       custom_slot: selectedSlot === "Other (specify)" ? customSlot.trim() : null,
     });
 
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
       return;
     }
