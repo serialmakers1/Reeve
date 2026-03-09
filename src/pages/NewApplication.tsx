@@ -637,7 +637,33 @@ export default function NewApplicationPage() {
     );
   }
 
-  if (!property || !eligibility) return null;
+  if (!property || !eligibility) {
+    // Show already-submitted block if applicable
+    if (alreadySubmittedBlock && property) {
+      return (
+        <Layout>
+          <div className="mx-auto max-w-md px-4 py-16 text-center">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
+              <AlertTriangle className="h-10 w-10 text-amber-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">Application Already Submitted</h1>
+            <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+              You have already submitted an application for this property.
+            </p>
+            <div className="mt-8 flex flex-col gap-3">
+              <Button className="min-h-[44px] w-full" onClick={() => navigate("/dashboard/applications")}>
+                View My Applications
+              </Button>
+              <Button variant="outline" className="min-h-[44px] w-full" onClick={() => navigate(-1)}>
+                ← Go Back
+              </Button>
+            </div>
+          </div>
+        </Layout>
+      );
+    }
+    return null;
+  }
 
   // ─── Success Screen ────────────────────────────────────────────────────────
 
