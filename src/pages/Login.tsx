@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getSafeReturnTo, getDefaultRouteForRole } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,6 +13,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
   const { user, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth();
@@ -23,9 +23,14 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [fullName, setFullName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(true);
+
+  // Store role + userId from OTP verification for use in Step 3
+  const verifiedUserIdRef = useRef<string | null>(null);
+  const verifiedRoleRef = useRef<string>("tenant");
 
   const emailRef = useRef<HTMLInputElement>(null);
   const otpRef = useRef<HTMLInputElement>(null);
@@ -44,21 +49,30 @@ export default function LoginPage() {
     if (!isAuthenticated || !user) return;
     if (!user.full_name || user.full_name.trim() === "") {
       setStep("name");
+      verifiedUserIdRef.current = user.id;
+      verifiedRoleRef.current = user.role || "tenant";
       return;
     }
-    const safeReturn = getSafeReturnTo(returnTo);
-    if (returnTo) {
-      navigate(safeReturn, { replace: true });
-    } else {
-      navigate(getDefaultRouteForRole(user.role), { replace: true });
-    }
-  }, [authLoading, isAuthenticated, user, navigate, returnTo]);
+    redirectByRole(user.role);
+  }, [authLoading, isAuthenticated, user]);
 
   useEffect(() => {
     return () => {
       if (cooldownRef.current) clearInterval(cooldownRef.current);
     };
   }, []);
+
+  const redirectByRole = useCallback((role: string | null | undefined) => {
+    const from = (location.state as any)?.from as string | undefined;
+    const safeRole = role || "tenant";
+    if (safeRole === "admin" || safeRole === "super_admin") {
+      navigate(from || "/admin", { replace: true });
+    } else if (safeRole === "owner") {
+      navigate(from || "/owner", { replace: true });
+    } else {
+      navigate(from || "/dashboard", { replace: true });
+    }
+  }, [navigate, location.state]);
 
   const startCooldown = () => {
     setResendCooldown(30);
@@ -73,18 +87,6 @@ export default function LoginPage() {
       });
     }, 1000);
   };
-
-  const redirectByRole = useCallback(
-    (role: string | null | undefined) => {
-      const safeReturn = getSafeReturnTo(returnTo);
-      if (returnTo) {
-        navigate(safeReturn, { replace: true });
-        return;
-      }
-      navigate(getDefaultRouteForRole(role), { replace: true });
-    },
-    [navigate, returnTo]
-  );
 
   // Step 1: Send OTP
   const handleSendOtp = async () => {
@@ -116,33 +118,52 @@ export default function LoginPage() {
     startCooldown();
   };
 
-  // Step 2: Verify OTP
-  const handleVerifyOtp = async (otpValue?: string) => {
-    const code = otpValue ?? otp;
-    if (code.length !== 6) return;
-
-    setIsLoading(true);
+  // Step 2: Verify OTP — single submission only
+  const handleVerifyOtp = async () => {
+    if (isVerifying) return;
+    setIsVerifying(true);
     setError(null);
 
-    const { data, error: verifyError } = await supabase.auth.verifyOtp({
-      email: email.trim().toLowerCase(),
-      token: code,
-      type: "email",
-    });
+    try {
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: otp,
+        type: "email",
+      });
 
-    if (verifyError || !data.user) {
-      setIsLoading(false);
-      setError("Invalid or expired code. Please try again.");
-      setOtp("");
-      otpRef.current?.focus();
-      return;
+      if (verifyError) {
+        setError(verifyError.message || "Invalid or expired code. Please try again.");
+        setOtp("");
+        otpRef.current?.focus();
+        return;
+      }
+
+      if (data?.user) {
+        verifiedUserIdRef.current = data.user.id;
+
+        const { data: userData } = await supabase
+          .from("users")
+          .select("full_name, role")
+          .eq("id", data.user.id)
+          .single();
+
+        const fullNameVal = userData?.full_name ?? "";
+        const role = userData?.role ?? "tenant";
+        verifiedRoleRef.current = role;
+
+        if (!fullNameVal || fullNameVal.trim() === "") {
+          setStep("name");
+        } else {
+          await refreshUser();
+          redirectByRole(role);
+        }
+      }
+    } finally {
+      setIsVerifying(false);
     }
-
-    setIsLoading(false);
-    // useAuth will detect sign-in and the redirect useEffect handles the rest
   };
 
-  // Step 2: Resend
+  // Resend OTP — never calls verifyOtp
   const handleResend = async () => {
     setIsLoading(true);
     setError(null);
@@ -155,6 +176,7 @@ export default function LoginPage() {
       setError("Something went wrong. Please try again.");
       return;
     }
+    setOtp("");
     startCooldown();
   };
 
@@ -165,7 +187,7 @@ export default function LoginPage() {
       setError("Name must be at least 2 characters.");
       return;
     }
-    if (!user) {
+    if (!verifiedUserIdRef.current) {
       setError("Session expired. Please start over.");
       return;
     }
@@ -175,7 +197,7 @@ export default function LoginPage() {
     const { error: updateError } = await supabase
       .from("users")
       .update({ full_name: name, updated_at: new Date().toISOString() })
-      .eq("id", user.id);
+      .eq("id", verifiedUserIdRef.current);
 
     if (updateError) {
       setIsLoading(false);
@@ -185,13 +207,14 @@ export default function LoginPage() {
 
     setIsLoading(false);
     await refreshUser();
+    redirectByRole(verifiedRoleRef.current);
   };
 
+  // OTP input change — NO auto-submit
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/\D/g, "").slice(0, 6);
     setOtp(val);
     setError(null);
-    if (val.length === 6) handleVerifyOtp(val);
   };
 
   const isEmailValid = EMAIL_REGEX.test(email.trim());
@@ -295,23 +318,25 @@ export default function LoginPage() {
                   placeholder="000000"
                   value={otp}
                   onChange={handleOtpChange}
+                  onKeyDown={(e) => e.key === "Enter" && otp.length === 6 && handleVerifyOtp()}
+                  disabled={isVerifying}
                   className="min-h-[48px] text-center text-2xl font-bold tracking-[0.5em]"
                 />
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </div>
 
               <Button
-                onClick={() => handleVerifyOtp()}
-                disabled={otp.length !== 6 || isLoading}
+                onClick={handleVerifyOtp}
+                disabled={otp.length !== 6 || isVerifying}
                 className="w-full min-h-[44px]"
               >
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Verify
               </Button>
 
               <div className="text-center">
                 {resendCooldown > 0 ? (
-                  <p className="text-xs text-muted-foreground">Resend in {resendCooldown}s...</p>
+                  <p className="text-xs text-muted-foreground">Resend code in {resendCooldown}s</p>
                 ) : (
                   <button
                     onClick={handleResend}
