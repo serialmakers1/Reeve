@@ -19,6 +19,7 @@ import PropertyDetail from "./pages/PropertyDetail";
 import DashboardFavourites from "./pages/DashboardFavourites";
 import Login from "./pages/Login";
 import NewApplication from "./pages/NewApplication";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,7 @@ function AppInner() {
       <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
       <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
       <Route path="/eligibility" element={<Eligibility />} />
+      <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
       <Route path="/dashboard/applications/new" element={<NewApplication />} />
       <Route path="*" element={<NotFound />} />
