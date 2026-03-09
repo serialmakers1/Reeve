@@ -61,6 +61,8 @@ function AppInner() {
       <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
       <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
       <Route path="/eligibility" element={<Eligibility />} />
+      <Route path="/owner" element={<OwnerDashboard />} />
+      <Route path="/owner/onboarding" element={<OwnerOnboarding />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
       <Route path="/dashboard/applications/new" element={<NewApplication />} />
