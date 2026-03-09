@@ -1,20 +1,20 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthSession } from '@/hooks/useAuthSession';
+import { useAuth } from '@/hooks/useAuth';
 
 export function useRequireAuth() {
-  const { session, user, loading, isAuthenticated } = useAuthSession();
+  const { session, user, isLoading, isAuthenticated, signOut, refreshUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!isLoading && !isAuthenticated) {
       navigate(
         `/login?returnTo=${encodeURIComponent(location.pathname)}`,
         { replace: true }
       );
     }
-  }, [isAuthenticated, loading, navigate, location]);
+  }, [isAuthenticated, isLoading, navigate, location]);
 
-  return { session, user, loading, isAuthenticated };
+  return { session, user, loading: isLoading, isAuthenticated, signOut, refreshUser };
 }

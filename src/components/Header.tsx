@@ -1,6 +1,5 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuthSession } from "@/hooks/useAuthSession";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -11,53 +10,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, User } from "lucide-react";
-import { useState, useEffect } from "react";
-
-type UserRole = "tenant" | "owner" | "admin" | "super_admin";
-
-interface UserInfo {
-  fullName: string;
-  role: UserRole;
-}
 
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, loading: authLoading, isAuthenticated } = useAuthSession();
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-
-  useEffect(() => {
-    if (!user) {
-      setUserInfo(null);
-      return;
-    }
-
-    setProfileLoading(true);
-    supabase
-      .from("users")
-      .select("full_name, role")
-      .eq("id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          setUserInfo({
-            fullName: data.full_name || "",
-            role: data.role as UserRole,
-          });
-        }
-        setProfileLoading(false);
-      });
-  }, [user]);
+  const { user, isLoading, isAuthenticated, signOut } = useAuth();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate("/");
   };
 
   const loginUrl = `/login?returnTo=${encodeURIComponent(location.pathname)}`;
-  const firstName = userInfo?.fullName?.split(" ")[0] || "Account";
-  const loading = authLoading || profileLoading;
+  const displayName = user?.full_name?.split(" ")[0] || user?.email || "Account";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -71,52 +36,37 @@ const Header = () => {
         </p>
 
         <div className="flex items-center gap-2">
-          {loading ? (
+          {isLoading ? (
             <Skeleton className="h-9 w-24 rounded-md" />
-          ) : isAuthenticated && userInfo ? (
+          ) : isAuthenticated && user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-1.5 min-h-[40px]">
                   <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">{firstName}</span>
+                  <span className="hidden sm:inline">{displayName}</span>
                   <ChevronDown className="h-3.5 w-3.5 opacity-60" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                {userInfo.role === "admin" || userInfo.role === "super_admin" ? (
-                  <>
-                    <DropdownMenuItem onClick={() => navigate("/admin")}>
-                      Admin Panel
-                    </DropdownMenuItem>
-                  </>
-                ) : userInfo.role === "owner" ? (
-                  <>
-                    <DropdownMenuItem onClick={() => navigate("/owner")}>
-                      My Properties
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/owner/applications")}>
-                      Applications
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/owner/payouts")}>
-                      Payouts
-                    </DropdownMenuItem>
-                  </>
+                {user.role === "admin" || user.role === "super_admin" ? (
+                  <DropdownMenuItem onClick={() => navigate("/admin")}>
+                    Dashboard
+                  </DropdownMenuItem>
+                ) : user.role === "owner" ? (
+                  <DropdownMenuItem onClick={() => navigate("/owner")}>
+                    Dashboard
+                  </DropdownMenuItem>
                 ) : (
-                  <>
-                    <DropdownMenuItem onClick={() => navigate("/dashboard")}>
-                      My Dashboard
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/dashboard/applications")}>
-                      My Applications
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/dashboard/payments")}>
-                      Payments
-                    </DropdownMenuItem>
-                  </>
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                    Dashboard
+                  </DropdownMenuItem>
                 )}
+                <DropdownMenuItem onClick={() => navigate("/dashboard/profile")}>
+                  Profile
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
-                  Log Out
+                  Sign Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
