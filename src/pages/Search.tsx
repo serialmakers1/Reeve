@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import Layout from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,8 +22,6 @@ import {
   SlidersHorizontal,
   X,
   AlertTriangle,
-  Home,
-  ChevronDown,
 } from "lucide-react";
 import { useFavourites } from "@/hooks/useFavourites";
 import FavouriteHeart from "@/components/FavouriteHeart";
@@ -733,113 +732,83 @@ export default function SearchPage() {
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Login Drawer */}
-      <LoginDrawerPrimitive open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen}>
-        <LoginDrawerContent>
-          <LoginDrawerHeader>
-            <LoginDrawerTitle>Please log in to save properties</LoginDrawerTitle>
-          </LoginDrawerHeader>
-          <div className="px-4 pb-2 text-sm text-muted-foreground">
-            You need to be logged in to favourite properties.
-          </div>
-          <LoginDrawerFooter>
-            <Button asChild className="min-h-[44px]">
-              <Link to={`/login?returnTo=${encodeURIComponent('/search')}`}>Log In</Link>
-            </Button>
-            <LoginDrawerClose asChild>
-              <Button variant="outline" className="min-h-[44px]">Cancel</Button>
-            </LoginDrawerClose>
-          </LoginDrawerFooter>
-        </LoginDrawerContent>
-      </LoginDrawerPrimitive>
-      {/* ─── NAV ─── */}
-      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
-          <Link
-            to="/"
-            className="flex-shrink-0 text-xl font-bold tracking-tight text-primary"
-          >
-            REEVE
-          </Link>
+    <Layout>
+      <div className="min-h-screen bg-gray-100">
+        {/* Login Drawer */}
+        <LoginDrawerPrimitive open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen}>
+          <LoginDrawerContent>
+            <LoginDrawerHeader>
+              <LoginDrawerTitle>Please log in to save properties</LoginDrawerTitle>
+            </LoginDrawerHeader>
+            <div className="px-4 pb-2 text-sm text-muted-foreground">
+              You need to be logged in to favourite properties.
+            </div>
+            <LoginDrawerFooter>
+              <Button asChild className="min-h-[44px]">
+                <Link to={`/login?returnTo=${encodeURIComponent('/search')}`}>Log In</Link>
+              </Button>
+              <LoginDrawerClose asChild>
+                <Button variant="outline" className="min-h-[44px]">Cancel</Button>
+              </LoginDrawerClose>
+            </LoginDrawerFooter>
+          </LoginDrawerContent>
+        </LoginDrawerPrimitive>
 
-          {/* Search bar */}
-          <div className="relative flex-1 max-w-xl">
-            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search by locality..."
-              value={searchText}
-              onChange={(e) => {
-                setSearchText(e.target.value);
-                setShowSuggestions(true);
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-8 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            {searchText && (
-              <button
-                onClick={() => {
-                  setSearchText("");
-                  searchInputRef.current?.focus();
+        {/* ─── Search Bar ─── */}
+        <div className="sticky top-[57px] z-30 border-b border-gray-200 bg-white">
+          <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
+            {/* Search input */}
+            <div className="relative flex-1 max-w-xl">
+              <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search by locality..."
+                value={searchText}
+                onChange={(e) => {
+                  setSearchText(e.target.value);
+                  setShowSuggestions(true);
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-            {/* Suggestions dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-                {suggestions.map((loc) => (
-                  <button
-                    key={loc}
-                    onMouseDown={() => selectSuggestion(loc)}
-                    className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    <SearchIcon className="mr-2 h-3.5 w-3.5 text-gray-400" />
-                    {loc}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-8 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              {searchText && (
+                <button
+                  onClick={() => {
+                    setSearchText("");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              {/* Suggestions dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                  {suggestions.map((loc) => (
+                    <button
+                      key={loc}
+                      onMouseDown={() => selectSuggestion(loc)}
+                      className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <SearchIcon className="mr-2 h-3.5 w-3.5 text-gray-400" />
+                      {loc}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* View toggle */}
-          <div className="hidden items-center rounded-lg border border-gray-200 bg-gray-50 p-0.5 md:flex">
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`rounded-md p-1.5 transition-colors ${
-                viewMode === "grid"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-400 hover:text-gray-600"
-              }`}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("list")}
-              className={`rounded-md p-1.5 transition-colors ${
-                viewMode === "list"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-400 hover:text-gray-600"
-              }`}
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Mobile: View toggle + Filters button */}
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+            {/* View toggle — desktop */}
+            <div className="hidden items-center rounded-lg border border-gray-200 bg-gray-50 p-0.5 md:flex">
               <button
                 onClick={() => setViewMode("grid")}
                 className={`rounded-md p-1.5 transition-colors ${
                   viewMode === "grid"
                     ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-400"
+                    : "text-gray-400 hover:text-gray-600"
                 }`}
               >
                 <LayoutGrid className="h-4 w-4" />
@@ -849,25 +818,43 @@ export default function SearchPage() {
                 className={`rounded-md p-1.5 transition-colors ${
                   viewMode === "list"
                     ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-400"
+                    : "text-gray-400 hover:text-gray-600"
                 }`}
               >
                 <List className="h-4 w-4" />
               </button>
             </div>
+
+            {/* View toggle — mobile */}
+            <div className="flex items-center gap-2 md:hidden">
+              <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`rounded-md p-1.5 transition-colors ${
+                    viewMode === "grid"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-400"
+                  }`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`rounded-md p-1.5 transition-colors ${
+                    viewMode === "list"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-400"
+                  }`}
+                >
+                  <List className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Desktop tagline */}
-        <div className="hidden border-t border-gray-100 bg-gray-50 lg:block">
-          <p className="mx-auto max-w-7xl px-4 py-1.5 text-center text-xs text-gray-500">
-            Zero Brokerage. One Month Deposit. Hassle-Free Renting.
-          </p>
-        </div>
-      </header>
-
-      {/* ─── BODY ─── */}
-      <div className="mx-auto max-w-7xl lg:flex">
+        {/* ─── BODY ─── */}
+        <div className="mx-auto max-w-7xl lg:flex">
         {/* Desktop sidebar */}
         <aside className="hidden w-72 flex-shrink-0 border-r border-gray-200 bg-white p-5 lg:block">
           <div className="sticky top-32">
@@ -1058,7 +1045,8 @@ export default function SearchPage() {
           {/* Sentinel for infinite scroll */}
           <div ref={sentinelRef} className="h-px" />
         </main>
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 }
