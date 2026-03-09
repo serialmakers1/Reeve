@@ -73,19 +73,19 @@ const Header = () => {
           ) : (
             <>
               <Button
-                variant="ghost"
-                size="sm"
-                className="hidden min-h-[40px] sm:inline-flex"
-                onClick={() => navigate(loginUrl)}
-              >
-                Log In
-              </Button>
-              <Button
                 size="sm"
                 className="min-h-[40px]"
-                onClick={() => navigate(loginUrl)}
+                onClick={() => navigate("/login?role=owner")}
               >
-                Sign Up
+                List Your Property
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="min-h-[40px]"
+                onClick={() => navigate("/login")}
+              >
+                Sign In
               </Button>
             </>
           )}

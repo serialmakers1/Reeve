@@ -213,7 +213,7 @@ export default function LoginPage() {
 
     const { error: updateError } = await supabase
       .from("users")
-      .update({ full_name: name, updated_at: new Date().toISOString() })
+      .update({ full_name: name, role: intendedRole, updated_at: new Date().toISOString() })
       .eq("id", verifiedUserIdRef.current);
 
     if (updateError) {
