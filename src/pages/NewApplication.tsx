@@ -140,10 +140,10 @@ const STAY_LABELS: Record<string, string> = {
 
 const CIBIL_OPTIONS = [
   { value: "below_550", label: "Below 550", note: null },
-  { value: "550_649", label: "550 – 649", note: null },
-  { value: "650_749", label: "650 – 749", note: null },
-  { value: "750_900", label: "750 – 900", note: "Excellent" },
-  { value: "no_history", label: "No credit history", note: "Common for first-time borrowers" },
+  { value: "550_to_649", label: "550 – 649", note: null },
+  { value: "650_to_749", label: "650 – 749", note: null },
+  { value: "750_to_900", label: "750 – 900", note: "Excellent" },
+  { value: "no_credit_history", label: "No credit history", note: "Common for first-time borrowers" },
   { value: "not_sure", label: "Not sure", note: "That's okay, you can check at CIBIL.com" },
 ];
 
@@ -1034,7 +1034,7 @@ export default function NewApplicationPage() {
             }`}
           >
             <span className="text-sm font-medium text-foreground">{opt.label}</span>
-            {opt.value === "750_900" && cibilRange === opt.value && (
+            {opt.value === "750_to_900" && cibilRange === opt.value && (
               <Badge className="ml-2 bg-green-100 text-green-700 border-green-200">Excellent</Badge>
             )}
             {opt.note && (
@@ -1357,7 +1357,7 @@ export default function NewApplicationPage() {
             )}
             <Button
               className={`min-h-[44px] ${step === 1 ? "w-full" : "flex-1"}`}
-              disabled={saving}
+              disabled={saving || (step === 4 && !cibilRange)}
               onClick={goNext}
             >
               {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <>Continue <ArrowRight className="ml-1 h-4 w-4" /></>}
