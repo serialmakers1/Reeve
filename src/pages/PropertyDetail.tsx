@@ -901,12 +901,15 @@ const PropertyDetail: React.FC = () => {
                   >
                     {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : existingVisit ? "Manage Visit" : "Schedule a Visit"}
                   </Button>
-                  <Button
-                    onClick={handleApplyNow}
-                    className="w-full min-h-[44px]"
-                  >
-                    Apply Now
-                  </Button>
+                  {alreadyApplied ? (
+                    <Button disabled className="w-full min-h-[44px] bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
+                      ✓ Already Applied
+                    </Button>
+                  ) : (
+                    <Button onClick={handleApplyNow} className="w-full min-h-[44px]">
+                      Apply Now
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>
