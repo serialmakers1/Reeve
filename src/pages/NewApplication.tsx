@@ -243,21 +243,33 @@ export default function NewApplicationPage() {
     }
     setEligibility(elig as EligibilityData);
 
-    // Check for existing draft
-    const { data: draft } = await supabase
+    // Check for ANY existing application (not just drafts)
+    const { data: existing } = await supabase
       .from("applications")
-      .select("*")
+      .select("*, application_residents(id)")
       .eq("property_id", propertyId)
       .eq("tenant_id", user.id)
-      .eq("status", "draft")
       .maybeSingle();
 
-    if (draft) {
-      setApplicationId(draft.id);
-      loadDraft(draft, prop as PropertyInfo);
+    if (existing) {
+      const NON_DRAFT_STATUSES = [
+        "submitted", "platform_review", "sent_to_owner",
+        "owner_accepted", "owner_countered", "payment_pending",
+        "kyc_pending", "kyc_passed", "agreement_pending", "lease_active",
+      ];
+      if (NON_DRAFT_STATUSES.includes(existing.status)) {
+        setProperty(prop as PropertyInfo);
+        setAlreadySubmittedBlock(true);
+        setPageLoading(false);
+        return;
+      }
+
+      // Draft exists — resume
+      setApplicationId(existing.id);
+      loadDraft(existing as Record<string, unknown>, prop as PropertyInfo);
       setResumeBanner(true);
     } else {
-      // Create new draft
+      // Fresh start — INSERT one new draft row
       const { data: newApp, error } = await supabase
         .from("applications")
         .insert({
