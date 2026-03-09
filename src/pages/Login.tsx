@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { getSafeReturnTo, getDefaultRouteForRole } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,6 @@ interface LoginState {
   otp: string;
   fullName: string;
   step: LoginStep;
-  isNewUser: boolean;
   isLoading: boolean;
   error: string | null;
   resendCooldown: number;
@@ -39,13 +39,13 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
+  const { user, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth();
 
   const [state, setState] = useState<LoginState>({
     email: "",
     otp: "",
     fullName: "",
     step: "email",
-    isNewUser: false,
     isLoading: false,
     error: null,
     resendCooldown: 0,
@@ -64,15 +64,25 @@ export default function LoginPage() {
     if (state.step === "name") nameRef.current?.focus();
   }, [state.step]);
 
-  // Check if already logged in
+  // Redirect if already authenticated with a name
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        redirectByRoleFromSession(session.user.id);
-      }
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (authLoading) return;
+    if (!isAuthenticated || !user) return;
+
+    // If name is empty, show name step
+    if (!user.full_name || user.full_name.trim() === "") {
+      setState((prev) => ({ ...prev, step: "name" }));
+      return;
+    }
+
+    // Otherwise redirect by role
+    const safeReturn = getSafeReturnTo(returnTo);
+    if (returnTo) {
+      navigate(safeReturn, { replace: true });
+    } else {
+      navigate(getDefaultRouteForRole(user.role), { replace: true });
+    }
+  }, [authLoading, isAuthenticated, user, navigate, returnTo]);
 
   // Cleanup cooldown
   useEffect(() => {
@@ -108,18 +118,6 @@ export default function LoginPage() {
       navigate(getDefaultRouteForRole(role), { replace: true });
     },
     [navigate, returnTo]
-  );
-
-  const redirectByRoleFromSession = useCallback(
-    async (userId: string) => {
-      const { data: user } = await supabase
-        .from("users")
-        .select("role")
-        .eq("id", userId)
-        .single();
-      redirectByRole(user?.role);
-    },
-    [redirectByRole]
   );
 
   // ─── Step 1: Send OTP ─────────────────────────────────────────────
@@ -173,19 +171,9 @@ export default function LoginPage() {
       return;
     }
 
-    // Check if user has a name in the users table
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("full_name, role")
-      .eq("id", data.user.id)
-      .single();
-
-    if (!userRow?.full_name || userRow.full_name.trim() === "") {
-      update({ isLoading: false, step: "name", isNewUser: true });
-    } else {
-      update({ isLoading: false });
-      redirectByRole(userRow.role);
-    }
+    // Auth is now set — useAuth will detect SIGNED_IN and load user data.
+    // The useEffect above will handle redirect or show name step.
+    update({ isLoading: false });
   };
 
   // ─── Step 2: Resend OTP ───────────────────────────────────────────
@@ -211,33 +199,26 @@ export default function LoginPage() {
       update({ error: "Name must be at least 2 characters." });
       return;
     }
-
-    update({ isLoading: true, error: null });
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      update({ isLoading: false, error: "Session expired. Please start over." });
+    if (!user) {
+      update({ error: "Session expired. Please start over." });
       return;
     }
+
+    update({ isLoading: true, error: null });
 
     const { error: updateError } = await supabase
       .from("users")
       .update({ full_name: name, updated_at: new Date().toISOString() })
-      .eq("id", session.user.id);
+      .eq("id", user.id);
 
     if (updateError) {
       update({ isLoading: false, error: "Could not save your name. Please try again." });
       return;
     }
 
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", session.user.id)
-      .single();
-
     update({ isLoading: false });
-    redirectByRole(userRow?.role);
+    // Refresh user data in the auth hook so the redirect useEffect fires
+    await refreshUser();
   };
 
   // ─── OTP input handler ────────────────────────────────────────────
@@ -250,6 +231,15 @@ export default function LoginPage() {
   };
 
   const isEmailValid = EMAIL_REGEX.test(state.email.trim());
+
+  // Show nothing while auth is bootstrapping
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
