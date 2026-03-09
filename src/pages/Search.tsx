@@ -1047,7 +1047,8 @@ export default function SearchPage() {
           {/* Sentinel for infinite scroll */}
           <div ref={sentinelRef} className="h-px" />
         </main>
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 }
