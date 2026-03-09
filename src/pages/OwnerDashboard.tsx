@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -122,16 +123,8 @@ export default function OwnerDashboard() {
       : selectedSlot;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex items-center px-4 py-3 sm:py-4">
-          <Link to="/" className="text-2xl font-bold tracking-tight text-primary">
-            REEVE
-          </Link>
-        </div>
-      </header>
-
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-2xl">
+    <Layout>
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Welcome, {userName}</h1>
@@ -262,7 +255,7 @@ export default function OwnerDashboard() {
             </Card>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </Layout>
   );
 }
