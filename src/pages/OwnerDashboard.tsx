@@ -34,6 +34,8 @@ export default function OwnerDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [callbackSubmitted, setCallbackSubmitted] = useState(false);
 
+  const [existingSlot, setExistingSlot] = useState("");
+
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       navigate("/login", { replace: true });
@@ -42,10 +44,11 @@ export default function OwnerDashboard() {
 
     if (!authLoading && session?.user?.id) {
       (async () => {
+        const userId = session.user.id;
         const { data } = await supabase
           .from("users")
           .select("full_name, phone, role")
-          .eq("id", session.user.id)
+          .eq("id", userId)
           .single();
 
         if (data) {
@@ -56,6 +59,22 @@ export default function OwnerDashboard() {
           setUserName(data.full_name || "Owner");
           setUserPhone(data.phone || "");
         }
+
+        // Check for existing callback request
+        const { data: existingCallback } = await supabase
+          .from("callback_requests")
+          .select("preferred_slot, created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingCallback) {
+          setExistingSlot(existingCallback.preferred_slot);
+          setSelectedSlot(existingCallback.preferred_slot);
+          setCallbackSubmitted(true);
+        }
+
         setLoadingProfile(false);
       })();
     }
@@ -79,8 +98,8 @@ export default function OwnerDashboard() {
       custom_slot: selectedSlot === "Other (specify)" ? customSlot.trim() : null,
     });
 
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
       return;
     }
@@ -96,8 +115,9 @@ export default function OwnerDashboard() {
     );
   }
 
-  const displaySlot =
-    selectedSlot === "Other (specify)" && customSlot.trim()
+  const displaySlot = existingSlot
+    ? existingSlot
+    : selectedSlot === "Other (specify)" && customSlot.trim()
       ? customSlot.trim()
       : selectedSlot;
 
