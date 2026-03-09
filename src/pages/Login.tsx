@@ -74,8 +74,14 @@ export default function LoginPage() {
     }
   }, [navigate, location.state]);
 
+  const isRateLimitError = (msg: string) =>
+    /429|security purposes|rate.?limit/i.test(msg);
+
+  const RATE_LIMIT_MSG =
+    "Please wait a moment before requesting a new code. Try again in 60 seconds.";
+
   const startCooldown = () => {
-    setResendCooldown(30);
+    setResendCooldown(60);
     if (cooldownRef.current) clearInterval(cooldownRef.current);
     cooldownRef.current = setInterval(() => {
       setResendCooldown((prev) => {
@@ -109,7 +115,12 @@ export default function LoginPage() {
 
     if (otpError) {
       setIsLoading(false);
-      setError("Something went wrong. Please try again.");
+      if (isRateLimitError(otpError.message || "")) {
+        setError(RATE_LIMIT_MSG);
+        startCooldown();
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
       return;
     }
 
@@ -173,7 +184,12 @@ export default function LoginPage() {
     });
     setIsLoading(false);
     if (resendError) {
-      setError("Something went wrong. Please try again.");
+      if (isRateLimitError(resendError.message || "")) {
+        setError(RATE_LIMIT_MSG);
+        startCooldown();
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
       return;
     }
     setOtp("");
