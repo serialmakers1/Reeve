@@ -414,6 +414,25 @@ const PropertyDetail: React.FC = () => {
 
       const fetchedImages = (imgRes.data ?? []) as PropertyImage[];
       setImages(fetchedImages.length > 0 ? fetchedImages : PLACEHOLDER_IMAGES);
+
+      // Check if user already applied
+      const sess = await supabase.auth.getSession();
+      if (sess.data.session?.user?.id) {
+        const { data: existingApp } = await supabase
+          .from("applications")
+          .select("status")
+          .eq("property_id", id)
+          .eq("tenant_id", sess.data.session.user.id)
+          .maybeSingle();
+
+        const applied = existingApp && [
+          "submitted", "platform_review", "sent_to_owner",
+          "owner_accepted", "owner_countered", "payment_pending",
+          "kyc_pending", "kyc_passed", "agreement_pending", "lease_active",
+        ].includes(existingApp.status);
+        setAlreadyApplied(!!applied);
+      }
+
       setLoading(false);
     };
 
