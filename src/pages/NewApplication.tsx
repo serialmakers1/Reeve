@@ -165,6 +165,7 @@ export default function NewApplicationPage() {
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [resumeBanner, setResumeBanner] = useState(false);
+  const [alreadySubmittedBlock, setAlreadySubmittedBlock] = useState(false);
 
   // Step 2 — Residents
   const [residents, setResidents] = useState<Resident[]>([]);
