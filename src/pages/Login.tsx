@@ -244,13 +244,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <Link to="/" className="text-3xl font-bold tracking-tight text-primary">
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto flex items-center px-4 py-3 sm:py-4">
+          <Link to="/" className="text-2xl font-bold tracking-tight text-primary">
             REEVE
           </Link>
         </div>
+      </header>
+
+      <div className="flex flex-1 items-center justify-center px-4 py-12">
+      <div className="w-full max-w-sm">
 
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           {/* Step 1: Email */}
