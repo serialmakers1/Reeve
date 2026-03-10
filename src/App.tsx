@@ -20,6 +20,8 @@ import DashboardFavourites from "./pages/DashboardFavourites";
 import Login from "./pages/Login";
 import NewApplication from "./pages/NewApplication";
 import Dashboard from "./pages/Dashboard";
+import ApplicationsList from "./pages/ApplicationsList";
+import ApplicationDetail from "./pages/ApplicationDetail";
 import OwnerOnboarding from "./pages/OwnerOnboarding";
 import OwnerDashboard from "./pages/OwnerDashboard";
 
