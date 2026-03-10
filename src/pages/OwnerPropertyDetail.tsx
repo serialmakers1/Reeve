@@ -61,9 +61,8 @@ export default function OwnerPropertyDetail() {
       navigate("/login", { replace: true });
       return;
     }
-    if (!authLoading && userId && id) {
-      fetchData();
-    }
+    if (!userId || !id) return;
+    fetchData();
   }, [authLoading, isAuthenticated, userId, id]);
 
   const fetchData = async () => {
