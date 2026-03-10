@@ -30,6 +30,7 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(true);
 
   // Store role + userId from OTP verification for use in Step 3
@@ -110,6 +111,19 @@ export default function LoginPage() {
       setError("Please accept the Terms of Service and Privacy Policy.");
       return;
     }
+    if (!suggestionDismissed) {
+      let hasSuggestion = false;
+      Mailcheck.run({
+        email: trimmedEmail,
+        suggested: (suggestion: { full: string }) => {
+          setEmailSuggestion(suggestion.full);
+          hasSuggestion = true;
+        },
+        empty: () => setEmailSuggestion(null),
+      });
+      if (hasSuggestion) return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -291,7 +305,7 @@ export default function LoginPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailError(null); setEmailSuggestion(null); }}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailError(null); setEmailSuggestion(null); setSuggestionDismissed(false); }}
                   onBlur={() => {
                     if (!email.trim()) return;
                     Mailcheck.run({
@@ -316,11 +330,22 @@ export default function LoginPage() {
                       onClick={() => {
                         setEmail(emailSuggestion);
                         setEmailSuggestion(null);
+                        setSuggestionDismissed(false);
                       }}
                     >
                       {emailSuggestion}
                     </button>
-                    ?
+                    ?{' '}
+                    <button
+                      type="button"
+                      className="text-gray-400 underline text-xs ml-2"
+                      onClick={() => {
+                        setEmailSuggestion(null);
+                        setSuggestionDismissed(true);
+                      }}
+                    >
+                      No, this is correct
+                    </button>
                   </p>
                 )}
                 {emailError && <p className="text-sm text-destructive">{emailError}</p>}
