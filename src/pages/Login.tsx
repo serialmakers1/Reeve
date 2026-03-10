@@ -9,7 +9,7 @@ import { Loader2, ArrowLeft } from "lucide-react";
 
 type LoginStep = "email" | "otp" | "name";
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export default function LoginPage() {
   const navigate = useNavigate();
