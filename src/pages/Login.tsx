@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(true);
 
