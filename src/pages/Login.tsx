@@ -67,17 +67,16 @@ export default function LoginPage() {
     };
   }, []);
 
-  const redirectByRole = useCallback((role: string | null | undefined) => {
-    const from = (location.state as any)?.from as string | undefined;
+  const redirectByRole = useCallback(async (role: string | null | undefined) => {
     const safeRole = role || "tenant";
-    if (safeRole === "admin" || safeRole === "super_admin") {
-      navigate(from || "/admin", { replace: true });
-    } else if (safeRole === "owner") {
-      navigate(from || "/owner", { replace: true });
+    if (safeRole === "owner") {
+      const { data: ownerUser } = await supabase
+        .from('users').select('phone').eq('id', user?.id ?? '').single();
+      navigate(ownerUser?.phone ? '/owner' : '/owner/onboarding', { replace: true });
     } else {
-      navigate(from || "/dashboard", { replace: true });
+      navigate('/search', { replace: true });
     }
-  }, [navigate, location.state]);
+  }, [navigate, user?.id]);
 
   const isRateLimitError = (msg: string) =>
     /429|security purposes|rate.?limit/i.test(msg);
@@ -177,28 +176,26 @@ export default function LoginPage() {
           .eq("id", data.user.id)
           .single();
 
-        const effectiveRole = intendedRole === 'owner' ? 'owner' : (userData?.role ?? 'tenant');
-        verifiedRoleRef.current = effectiveRole;
-
-        if (effectiveRole === 'owner') {
-          if (userData?.role !== 'owner') {
-            await supabase.from('users').update({ role: 'owner' as any }).eq('id', data.user.id);
-          }
-          await refreshUser();
-          if (!userData?.phone) {
-            navigate("/owner/onboarding", { replace: true });
-          } else {
-            navigate("/owner", { replace: true });
-          }
-          return;
+        // Fix 1: Never override an existing role
+        const existingRole = userData?.role;
+        if (!existingRole && intendedRole) {
+          await supabase.from('users').update({ role: intendedRole as any }).eq('id', data.user.id);
         }
+        const effectiveRole = existingRole ?? intendedRole;
+        verifiedRoleRef.current = effectiveRole;
 
         const fullNameVal = userData?.full_name ?? "";
         if (!fullNameVal || fullNameVal.trim() === "") {
           setStep("name");
+          return;
+        }
+
+        // Fix 2: Post-login routing
+        await refreshUser();
+        if (effectiveRole === 'owner') {
+          navigate(userData?.phone ? '/owner' : '/owner/onboarding', { replace: true });
         } else {
-          await refreshUser();
-          redirectByRole(effectiveRole);
+          navigate('/search', { replace: true });
         }
       }
     } finally {
@@ -242,9 +239,10 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
 
+    // Don't override role here — it was already set in OTP step
     const { error: updateError } = await supabase
       .from("users")
-      .update({ full_name: name, role: intendedRole, updated_at: new Date().toISOString() })
+      .update({ full_name: name, updated_at: new Date().toISOString() })
       .eq("id", verifiedUserIdRef.current);
 
     if (updateError) {
@@ -255,7 +253,16 @@ export default function LoginPage() {
 
     setIsLoading(false);
     await refreshUser();
-    redirectByRole(verifiedRoleRef.current);
+
+    // Fix 2: Post-login routing after name save
+    const effectiveRole = verifiedRoleRef.current;
+    if (effectiveRole === 'owner') {
+      const { data: ownerUser } = await supabase
+        .from('users').select('phone').eq('id', verifiedUserIdRef.current!).single();
+      navigate(ownerUser?.phone ? '/owner' : '/owner/onboarding', { replace: true });
+    } else {
+      navigate('/search', { replace: true });
+    }
   };
 
   // OTP input change — NO auto-submit
