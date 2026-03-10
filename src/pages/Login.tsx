@@ -30,6 +30,7 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(true);
 
   // Store role + userId from OTP verification for use in Step 3
