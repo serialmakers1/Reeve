@@ -293,6 +293,7 @@ export default function LoginPage() {
                   onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
                   className="min-h-[44px]"
                 />
+                {emailError && <p className="text-sm text-destructive">{emailError}</p>}
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </div>
 
