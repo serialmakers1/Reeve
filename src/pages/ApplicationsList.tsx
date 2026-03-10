@@ -64,7 +64,6 @@ export default function ApplicationsList() {
            properties(building_name, locality, city, bhk, listed_rent)`
         )
         .eq("tenant_id", user.id)
-        .neq("status", "draft")
         .order("submitted_at", { ascending: false });
 
       setApps((data as unknown as ApplicationRow[]) || []);
