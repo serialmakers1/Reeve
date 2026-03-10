@@ -26,6 +26,7 @@ import OwnerOnboarding from "./pages/OwnerOnboarding";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import OwnerPropertyDetail from "./pages/OwnerPropertyDetail";
 import OwnerAddProperty from "./pages/OwnerAddProperty";
+import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import VisitsList from "./pages/VisitsList";
 
 const queryClient = new QueryClient();
