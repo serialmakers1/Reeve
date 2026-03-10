@@ -67,7 +67,9 @@ function AppInner() {
       <Route path="/owner/onboarding" element={<OwnerOnboarding />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
+      <Route path="/dashboard/applications" element={<ApplicationsList />} />
       <Route path="/dashboard/applications/new" element={<NewApplication />} />
+      <Route path="/dashboard/applications/:id" element={<ApplicationDetail />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -1,11 +1,12 @@
-import { FileText, Heart, CreditCard, Wrench, FolderOpen } from "lucide-react";
+import { FileText, Heart, CreditCard, Wrench, FolderOpen, ShieldCheck } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const tiles = [
-  { label: "Applications", icon: FileText },
+  { label: "Applications", icon: FileText, href: "/dashboard/applications" },
   { label: "Favourites", icon: Heart, href: "/dashboard/favourites" },
+  { label: "Eligibility", icon: ShieldCheck, href: "/eligibility" },
   { label: "Payments", icon: CreditCard },
   { label: "Maintenance", icon: Wrench },
   { label: "Documents", icon: FolderOpen },

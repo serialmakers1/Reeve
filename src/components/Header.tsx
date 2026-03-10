@@ -61,9 +61,6 @@ const Header = () => {
                     Dashboard
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => navigate("/dashboard/profile")}>
-                  Profile
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   Sign Out
