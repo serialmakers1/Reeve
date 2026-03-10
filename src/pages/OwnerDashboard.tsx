@@ -126,9 +126,7 @@ export default function OwnerDashboard() {
             </TabsContent>
 
             <TabsContent value="applications">
-              <div className="py-8 text-center text-muted-foreground text-sm">
-                No applications yet.
-              </div>
+              <OwnerApplicationsTab userId={userId} />
             </TabsContent>
 
             <TabsContent value="profile">
