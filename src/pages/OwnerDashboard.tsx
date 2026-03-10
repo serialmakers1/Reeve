@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import OwnerProfileTab from "@/components/owner/OwnerProfileTab";
 import OwnerInspectionTab from "@/components/owner/OwnerInspectionTab";
 import OwnerPropertiesTab from "@/components/owner/OwnerPropertiesTab";
+import OwnerApplicationsTab from "@/components/owner/OwnerApplicationsTab";
 
 export default function OwnerDashboard() {
   const navigate = useNavigate();
@@ -125,9 +126,7 @@ export default function OwnerDashboard() {
             </TabsContent>
 
             <TabsContent value="applications">
-              <div className="py-8 text-center text-muted-foreground text-sm">
-                No applications yet.
-              </div>
+              <OwnerApplicationsTab userId={userId} />
             </TabsContent>
 
             <TabsContent value="profile">

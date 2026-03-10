@@ -26,6 +26,7 @@ import OwnerOnboarding from "./pages/OwnerOnboarding";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import OwnerPropertyDetail from "./pages/OwnerPropertyDetail";
 import OwnerAddProperty from "./pages/OwnerAddProperty";
+import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import VisitsList from "./pages/VisitsList";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ function AppInner() {
       <Route path="/owner" element={<OwnerDashboard />} />
       <Route path="/owner/properties/new" element={<OwnerAddProperty />} />
       <Route path="/owner/properties/:id" element={<OwnerPropertyDetail />} />
+      <Route path="/owner/applications/:id" element={<OwnerApplicationDetail />} />
       <Route path="/owner/onboarding" element={<OwnerOnboarding />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
