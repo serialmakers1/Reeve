@@ -111,6 +111,19 @@ export default function LoginPage() {
       setError("Please accept the Terms of Service and Privacy Policy.");
       return;
     }
+    if (!suggestionDismissed) {
+      let hasSuggestion = false;
+      Mailcheck.run({
+        email: trimmedEmail,
+        suggested: (suggestion: { full: string }) => {
+          setEmailSuggestion(suggestion.full);
+          hasSuggestion = true;
+        },
+        empty: () => setEmailSuggestion(null),
+      });
+      if (hasSuggestion) return;
+    }
+
     setIsLoading(true);
     setError(null);
 
