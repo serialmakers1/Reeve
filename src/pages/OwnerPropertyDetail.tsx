@@ -142,7 +142,7 @@ export default function OwnerPropertyDetail() {
       if (insertError) throw insertError;
 
       setDocFiles((prev) => ({ ...prev, [docType]: null }));
-      await fetchData();
+      await refetchData();
       toast({ title: "Document submitted" });
     } catch {
       toast({ title: "Upload failed. Please try again.", variant: "destructive" });
