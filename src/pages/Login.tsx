@@ -292,7 +292,7 @@ export default function LoginPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailError(null); setEmailSuggestion(null); }}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailError(null); setEmailSuggestion(null); setSuggestionDismissed(false); }}
                   onBlur={() => {
                     if (!email.trim()) return;
                     Mailcheck.run({
