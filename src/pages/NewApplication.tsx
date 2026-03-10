@@ -352,6 +352,8 @@ export default function NewApplicationPage() {
         if (d.document_type === "salary_slip") slips.push(f);
         else if (d.document_type === "itr") setItrFile(f);
         else if (d.document_type === "bank_statement") setBankStatement(f);
+        else if (d.document_type === "aadhaar") setAadhaarFile(f);
+        else if (d.document_type === "pan") setPanFile(f);
       });
       if (slips.length) setSalarySlips(slips);
     }
