@@ -99,8 +99,9 @@ export default function LoginPage() {
   // Step 1: Send OTP
   const handleSendOtp = async () => {
     const trimmedEmail = email.trim().toLowerCase();
-    if (!EMAIL_REGEX.test(trimmedEmail)) {
-      setError("Please enter a valid email address.");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setEmailError("Please enter a valid email address");
       return;
     }
     if (!termsAccepted) {
