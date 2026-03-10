@@ -289,7 +289,7 @@ export default function LoginPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(null); }}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailError(null); }}
                   onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
                   className="min-h-[44px]"
                 />
