@@ -38,6 +38,8 @@ interface ApplicationRow {
   proposed_rent: number;
   owner_counter_rent: number | null;
   submitted_at: string | null;
+  created_at: string;
+  property_id: string;
   properties: {
     building_name: string;
     locality: string | null;
