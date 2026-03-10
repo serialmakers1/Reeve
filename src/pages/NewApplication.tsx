@@ -176,7 +176,10 @@ export default function NewApplicationPage() {
   const [salarySlips, setSalarySlips] = useState<UploadedFile[]>([]);
   const [itrFile, setItrFile] = useState<UploadedFile | null>(null);
   const [bankStatement, setBankStatement] = useState<UploadedFile | null>(null);
+  const [aadhaarFile, setAadhaarFile] = useState<UploadedFile | null>(null);
+  const [panFile, setPanFile] = useState<UploadedFile | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   // Step 4 — CIBIL
   const [cibilRange, setCibilRange] = useState("");
@@ -349,6 +352,8 @@ export default function NewApplicationPage() {
         if (d.document_type === "salary_slip") slips.push(f);
         else if (d.document_type === "itr") setItrFile(f);
         else if (d.document_type === "bank_statement") setBankStatement(f);
+        else if (d.document_type === "aadhaar") setAadhaarFile(f);
+        else if (d.document_type === "pan") setPanFile(f);
       });
       if (slips.length) setSalarySlips(slips);
     }
@@ -457,6 +462,8 @@ export default function NewApplicationPage() {
       if (!employerName.trim()) errs.employer_name = "Employer name is required";
       if (monthlyIncome === "" || Number(monthlyIncome) <= 0)
         errs.monthly_income = "Please enter your monthly income";
+      if (!aadhaarFile) errs.aadhaar = "Please upload your Aadhaar card";
+      if (!panFile) errs.pan = "Please upload your PAN card";
       if (salarySlips.length === 0) errs.salary_slips = "Please upload at least one salary slip";
     }
 
@@ -914,10 +921,54 @@ export default function NewApplicationPage() {
             setItrFile(result);
           } else if (docType === "bank_statement") {
             setBankStatement(result);
+          } else if (docType === "aadhaar") {
+            setAadhaarFile(result);
+          } else if (docType === "pan") {
+            setPanFile(result);
           }
         }
       }
       e.target.value = "";
+    };
+
+    const handleRemoveFile = async (docType: string, file: UploadedFile, fileIndex?: number) => {
+      setRemoving(`${docType}_${fileIndex ?? 0}`);
+      try {
+        // Delete from storage
+        const { error: storageErr } = await supabase.storage
+          .from("tenant-documents")
+          .remove([file.url]);
+
+        // Delete from documents table
+        const { error: dbErr } = await supabase
+          .from("documents")
+          .delete()
+          .eq("application_id", applicationId!)
+          .eq("document_type", docType as "aadhaar" | "pan" | "salary_slip" | "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other")
+          .eq("file_name", file.name);
+
+        if (storageErr || dbErr) {
+          toast({ title: "Could not remove file. Please try again.", variant: "destructive" });
+          setRemoving(null);
+          return;
+        }
+
+        // Reset state
+        if (docType === "salary_slip") {
+          setSalarySlips((prev) => prev.filter((_, i) => i !== fileIndex));
+        } else if (docType === "itr") {
+          setItrFile(null);
+        } else if (docType === "bank_statement") {
+          setBankStatement(null);
+        } else if (docType === "aadhaar") {
+          setAadhaarFile(null);
+        } else if (docType === "pan") {
+          setPanFile(null);
+        }
+      } catch {
+        toast({ title: "Could not remove file. Please try again.", variant: "destructive" });
+      }
+      setRemoving(null);
     };
 
     const FileUploadField = ({
@@ -927,6 +978,9 @@ export default function NewApplicationPage() {
       files,
       multiple,
       maxFiles,
+      acceptPdfOnly,
+      helperText,
+      errorField,
     }: {
       label: string;
       required?: boolean;
@@ -934,6 +988,9 @@ export default function NewApplicationPage() {
       files: UploadedFile[];
       multiple?: boolean;
       maxFiles?: number;
+      acceptPdfOnly?: boolean;
+      helperText?: string;
+      errorField?: string;
     }) => {
       const inputRef = useRef<HTMLInputElement>(null);
       const canUpload = !maxFiles || files.length < maxFiles;
@@ -951,6 +1008,22 @@ export default function NewApplicationPage() {
                 <p className="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
               </div>
               <Check className="h-4 w-4 text-green-600 shrink-0" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                disabled={removing === `${docType}_${i}`}
+                onClick={() => handleRemoveFile(docType, f, i)}
+              >
+                {removing === `${docType}_${i}` ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <>
+                    <X className="mr-1 h-3 w-3" /> Remove
+                  </>
+                )}
+              </Button>
             </div>
           ))}
           {canUpload && (
@@ -958,7 +1031,7 @@ export default function NewApplicationPage() {
               <input
                 ref={inputRef}
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept={acceptPdfOnly ? ".pdf" : ".pdf,.jpg,.jpeg,.png"}
                 multiple={multiple}
                 className="hidden"
                 onChange={(e) => handleFileUpload(e, docType)}
@@ -978,8 +1051,8 @@ export default function NewApplicationPage() {
               </Button>
             </>
           )}
-          <p className="text-xs text-muted-foreground">PDF, JPG, PNG — max 10MB</p>
-          {docType === "salary_slip" && <FieldError field="salary_slips" />}
+          <p className="text-xs text-muted-foreground">{helperText || "PDF, JPG, PNG — max 10MB"}</p>
+          {errorField && <FieldError field={errorField} />}
         </div>
       );
     };
@@ -1031,12 +1104,33 @@ export default function NewApplicationPage() {
 
         <div className="space-y-4 pt-2">
           <FileUploadField
+            label="Aadhaar Card"
+            required
+            docType="aadhaar"
+            files={aadhaarFile ? [aadhaarFile] : []}
+            maxFiles={1}
+            acceptPdfOnly
+            helperText="PDF — max 10MB"
+            errorField="aadhaar"
+          />
+          <FileUploadField
+            label="PAN Card"
+            required
+            docType="pan"
+            files={panFile ? [panFile] : []}
+            maxFiles={1}
+            acceptPdfOnly
+            helperText="PDF — max 10MB"
+            errorField="pan"
+          />
+          <FileUploadField
             label="Income Proof (Salary slips (last 3 months) / Latest ITR)"
             required
             docType="salary_slip"
             files={salarySlips}
             multiple
             maxFiles={3}
+            errorField="salary_slips"
           />
           <FileUploadField
             label="ITR (Income Tax Return)"
@@ -1397,7 +1491,7 @@ export default function NewApplicationPage() {
             )}
             <Button
               className={`min-h-[44px] ${step === 1 ? "w-full" : "flex-1"}`}
-              disabled={saving || (step === 4 && !cibilRange)}
+              disabled={saving || (step === 4 && !cibilRange) || (step === 3 && (!aadhaarFile || !panFile || salarySlips.length === 0))}
               onClick={goNext}
             >
               {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <>Continue <ArrowRight className="ml-1 h-4 w-4" /></>}
