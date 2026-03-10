@@ -121,9 +121,7 @@ export default function OwnerDashboard() {
             </TabsList>
 
             <TabsContent value="properties">
-              <div className="py-8 text-center text-muted-foreground text-sm">
-                Your properties will appear here once listed.
-              </div>
+              <OwnerPropertiesTab userId={userId} />
             </TabsContent>
 
             <TabsContent value="applications">
