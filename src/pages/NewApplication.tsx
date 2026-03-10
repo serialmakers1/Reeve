@@ -176,7 +176,10 @@ export default function NewApplicationPage() {
   const [salarySlips, setSalarySlips] = useState<UploadedFile[]>([]);
   const [itrFile, setItrFile] = useState<UploadedFile | null>(null);
   const [bankStatement, setBankStatement] = useState<UploadedFile | null>(null);
+  const [aadhaarFile, setAadhaarFile] = useState<UploadedFile | null>(null);
+  const [panFile, setPanFile] = useState<UploadedFile | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   // Step 4 — CIBIL
   const [cibilRange, setCibilRange] = useState("");
