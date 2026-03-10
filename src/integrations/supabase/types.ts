@@ -427,6 +427,7 @@ export type Database = {
           mime_type: string | null
           owner_user_id: string
           property_id: string | null
+          submitted_at: string | null
           updated_at: string
           uploaded_by: string
           verification_notes: string | null
@@ -449,6 +450,7 @@ export type Database = {
           mime_type?: string | null
           owner_user_id: string
           property_id?: string | null
+          submitted_at?: string | null
           updated_at?: string
           uploaded_by: string
           verification_notes?: string | null
@@ -471,6 +473,7 @@ export type Database = {
           mime_type?: string | null
           owner_user_id?: string
           property_id?: string | null
+          submitted_at?: string | null
           updated_at?: string
           uploaded_by?: string
           verification_notes?: string | null
@@ -1255,6 +1258,50 @@ export type Database = {
             foreignKeyName: "maintenance_requests_raised_by_fkey"
             columns: ["raised_by"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_bank_details: {
+        Row: {
+          account_number: string
+          account_type: string
+          bank_name: string
+          created_at: string
+          id: string
+          ifsc_code: string
+          is_verified: boolean
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_number: string
+          account_type: string
+          bank_name: string
+          created_at?: string
+          id?: string
+          ifsc_code: string
+          is_verified?: boolean
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string
+          account_type?: string
+          bank_name?: string
+          created_at?: string
+          id?: string
+          ifsc_code?: string
+          is_verified?: boolean
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_bank_details_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2201,6 +2248,7 @@ export type Database = {
         | "receipt"
         | "inspection_report"
         | "other"
+        | "electricity_bill"
       eligibility_status: "pending" | "passed" | "disqualified"
       external_query_category:
         | "noise"
@@ -2524,6 +2572,7 @@ export const Constants = {
         "receipt",
         "inspection_report",
         "other",
+        "electricity_bill",
       ],
       eligibility_status: ["pending", "passed", "disqualified"],
       external_query_category: [
