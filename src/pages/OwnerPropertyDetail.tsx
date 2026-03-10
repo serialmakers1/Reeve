@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,11 +42,14 @@ interface DocRecord {
 export default function OwnerPropertyDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const { session, isAuthenticated, isLoading: authLoading } = useAuth();
 
-  const [property, setProperty] = useState<any>(null);
+  const stateProperty = (location.state as any)?.property ?? null;
+
+  const [property, setProperty] = useState<any>(stateProperty);
   const [docs, setDocs] = useState<DocRecord[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const [loadingData, setLoadingData] = useState(stateProperty === null);
 
   // Per-doc file and submitting state
   const [docFiles, setDocFiles] = useState<Record<string, File | null>>({});
@@ -60,7 +63,19 @@ export default function OwnerPropertyDetail() {
     }
 
     if (!authLoading && session?.user?.id && id) {
-      const fetchData = async () => {
+      (async () => {
+        if (stateProperty) {
+          // Property already in router state — only fetch docs
+          const { data } = await supabase
+            .from("documents")
+            .select("id, document_type, file_name, submitted_at")
+            .eq("property_id", id)
+            .in("document_type", ["sale_deed", "society_noc", "electricity_bill", "property_papers"]);
+          if (data) setDocs(data as DocRecord[]);
+          return;
+        }
+
+        // Direct URL access — fetch everything after auth is confirmed
         setLoadingData(true);
 
         const [propRes, docsRes] = await Promise.all([
@@ -76,18 +91,10 @@ export default function OwnerPropertyDetail() {
             .in("document_type", ["sale_deed", "society_noc", "electricity_bill", "property_papers"]),
         ]);
 
-        if (propRes.error) {
-          console.error("Property fetch error:", propRes.error);
-          setProperty(null);
-        } else {
-          setProperty(propRes.data);
-        }
-
+        if (!propRes.error) setProperty(propRes.data);
         if (docsRes.data) setDocs(docsRes.data as DocRecord[]);
         setLoadingData(false);
-      };
-
-      fetchData();
+      })();
     }
   }, [authLoading, isAuthenticated, session, id, navigate]);
 

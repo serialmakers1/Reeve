@@ -88,7 +88,7 @@ export default function OwnerPropertiesTab({ userId }: OwnerPropertiesTabProps) 
               <Card
                 key={p.id}
                 className="cursor-pointer transition-shadow hover:shadow-md"
-                onClick={() => navigate(`/owner/properties/${p.id}`)}
+                onClick={() => navigate(`/owner/properties/${p.id}`, { state: { property: p } })}
               >
                 <CardContent className="py-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
