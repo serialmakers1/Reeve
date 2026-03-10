@@ -1491,7 +1491,7 @@ export default function NewApplicationPage() {
             )}
             <Button
               className={`min-h-[44px] ${step === 1 ? "w-full" : "flex-1"}`}
-              disabled={saving || (step === 4 && !cibilRange)}
+              disabled={saving || (step === 4 && !cibilRange) || (step === 3 && (!aadhaarFile || !panFile || salarySlips.length === 0))}
               onClick={goNext}
             >
               {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <>Continue <ArrowRight className="ml-1 h-4 w-4" /></>}
