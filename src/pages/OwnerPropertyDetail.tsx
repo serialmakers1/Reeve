@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,11 +42,11 @@ interface DocRecord {
 export default function OwnerPropertyDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { session, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [property, setProperty] = useState<any>(null);
   const [docs, setDocs] = useState<DocRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sessionUserId, setSessionUserId] = useState<string>("");
+  const [loadingData, setLoadingData] = useState(true);
 
   // Per-doc file and submitting state
   const [docFiles, setDocFiles] = useState<Record<string, File | null>>({});
@@ -53,48 +54,44 @@ export default function OwnerPropertyDetail() {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    if (!id) return;
+    if (!authLoading && !isAuthenticated) {
+      navigate("/login", { replace: true });
+      return;
+    }
 
-    const fetchData = async () => {
-      setLoading(true);
+    if (!authLoading && session?.user?.id && id) {
+      const fetchData = async () => {
+        setLoadingData(true);
 
-      // Step 1: explicitly get the current session
-      const { data: { session } } = await supabase.auth.getSession();
+        const [propRes, docsRes] = await Promise.all([
+          supabase
+            .from("properties")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle(),
+          supabase
+            .from("documents")
+            .select("id, document_type, file_name, submitted_at")
+            .eq("property_id", id)
+            .in("document_type", ["sale_deed", "society_noc", "electricity_bill", "property_papers"]),
+        ]);
 
-      if (!session) {
-        navigate("/login", { replace: true });
-        return;
-      }
+        if (propRes.error) {
+          console.error("Property fetch error:", propRes.error);
+          setProperty(null);
+        } else {
+          setProperty(propRes.data);
+        }
 
-      setSessionUserId(session.user.id);
+        if (docsRes.data) setDocs(docsRes.data as DocRecord[]);
+        setLoadingData(false);
+      };
 
-      // Step 2: fetch property and docs in parallel
-      const [propRes, docsRes] = await Promise.all([
-        supabase
-          .from("properties")
-          .select("*")
-          .eq("id", id)
-          .maybeSingle(),
-        supabase
-          .from("documents")
-          .select("id, document_type, file_name, submitted_at")
-          .eq("property_id", id)
-          .in("document_type", ["sale_deed", "society_noc", "electricity_bill", "property_papers"]),
-      ]);
+      fetchData();
+    }
+  }, [authLoading, isAuthenticated, session, id, navigate]);
 
-      if (propRes.error) {
-        console.error("Property fetch error:", propRes.error);
-        setProperty(null);
-      } else {
-        setProperty(propRes.data);
-      }
-
-      if (docsRes.data) setDocs(docsRes.data as DocRecord[]);
-      setLoading(false);
-    };
-
-    fetchData();
-  }, [id, navigate]);
+  const userId = session?.user?.id || "";
 
   const refetchData = async () => {
     if (!id) return;
@@ -112,12 +109,12 @@ export default function OwnerPropertyDetail() {
 
   const handleSubmitDoc = async (docType: string) => {
     const file = docFiles[docType];
-    if (!file || !id || !sessionUserId) return;
+    if (!file || !id || !userId) return;
 
     setDocSubmitting((prev) => ({ ...prev, [docType]: true }));
 
     try {
-      const uploadPath = `${sessionUserId}/property/${id}/${docType}/${file.name}`;
+      const uploadPath = `${userId}/property/${id}/${docType}/${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("owner-documents")
         .upload(uploadPath, file);
@@ -125,8 +122,8 @@ export default function OwnerPropertyDetail() {
       if (uploadError) throw uploadError;
 
       const { error: insertError } = await supabase.from("documents").insert({
-        uploaded_by: sessionUserId,
-        owner_user_id: sessionUserId,
+        uploaded_by: userId,
+        owner_user_id: userId,
         property_id: id,
         document_type: docType as any,
         category: "tenant_kyc" as any,
@@ -151,7 +148,7 @@ export default function OwnerPropertyDetail() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loadingData) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
