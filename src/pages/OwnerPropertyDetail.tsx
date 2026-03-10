@@ -109,7 +109,7 @@ export default function OwnerPropertyDetail() {
 
   const handleSubmitDoc = async (docType: string) => {
     const file = docFiles[docType];
-    if (!file || !id || !sessionUserId) return;
+    if (!file || !id || !userId) return;
 
     setDocSubmitting((prev) => ({ ...prev, [docType]: true }));
 
