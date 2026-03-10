@@ -330,11 +330,22 @@ export default function LoginPage() {
                       onClick={() => {
                         setEmail(emailSuggestion);
                         setEmailSuggestion(null);
+                        setSuggestionDismissed(false);
                       }}
                     >
                       {emailSuggestion}
                     </button>
-                    ?
+                    ?{' '}
+                    <button
+                      type="button"
+                      className="text-gray-400 underline text-xs ml-2"
+                      onClick={() => {
+                        setEmailSuggestion(null);
+                        setSuggestionDismissed(true);
+                      }}
+                    >
+                      No, this is correct
+                    </button>
                   </p>
                 )}
                 {emailError && <p className="text-sm text-destructive">{emailError}</p>}
