@@ -114,7 +114,7 @@ export default function OwnerPropertyDetail() {
     setDocSubmitting((prev) => ({ ...prev, [docType]: true }));
 
     try {
-      const uploadPath = `${sessionUserId}/property/${id}/${docType}/${file.name}`;
+      const uploadPath = `${userId}/property/${id}/${docType}/${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("owner-documents")
         .upload(uploadPath, file);
