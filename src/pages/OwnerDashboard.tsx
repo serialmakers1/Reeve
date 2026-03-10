@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 import OwnerProfileTab from "@/components/owner/OwnerProfileTab";
 import OwnerInspectionTab from "@/components/owner/OwnerInspectionTab";
 import OwnerPropertiesTab from "@/components/owner/OwnerPropertiesTab";
@@ -16,16 +15,7 @@ export default function OwnerDashboard() {
   const { user, session, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [userName, setUserName] = useState("");
-  const [userPhone, setUserPhone] = useState("");
   const [loadingProfile, setLoadingProfile] = useState(true);
-
-  // Callback state (kept here so it persists across tab switches)
-  const [showCallbackForm, setShowCallbackForm] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState("");
-  const [customSlot, setCustomSlot] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [callbackSubmitted, setCallbackSubmitted] = useState(false);
-  const [existingSlot, setExistingSlot] = useState("");
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -48,54 +38,12 @@ export default function OwnerDashboard() {
             return;
           }
           setUserName(data.full_name || "Owner");
-          setUserPhone(data.phone || "");
-        }
-
-        const { data: existingCallback } = await supabase
-          .from("callback_requests")
-          .select("preferred_slot, created_at")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (existingCallback) {
-          setExistingSlot(existingCallback.preferred_slot);
-          setSelectedSlot(existingCallback.preferred_slot);
-          setCallbackSubmitted(true);
         }
 
         setLoadingProfile(false);
       })();
     }
   }, [authLoading, isAuthenticated, session, navigate]);
-
-  const handleCallbackSubmit = async () => {
-    if (!selectedSlot) return;
-    setSubmitting(true);
-
-    const userId = session?.user?.id;
-    if (!userId) {
-      toast({ title: "Session expired", description: "Please log in again.", variant: "destructive" });
-      setSubmitting(false);
-      return;
-    }
-
-    const { error } = await supabase.from("callback_requests").insert({
-      user_id: userId,
-      phone: userPhone,
-      preferred_slot: selectedSlot,
-      custom_slot: selectedSlot === "Other (specify)" ? customSlot.trim() : null,
-    });
-
-    if (error) {
-      setSubmitting(false);
-      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
-      return;
-    }
-
-    setCallbackSubmitted(true);
-  };
 
   if (authLoading || loadingProfile) {
     return (
@@ -134,20 +82,7 @@ export default function OwnerDashboard() {
             </TabsContent>
 
             <TabsContent value="inspection">
-              <OwnerInspectionTab
-                userId={userId}
-                userPhone={userPhone}
-                showCallbackForm={showCallbackForm}
-                setShowCallbackForm={setShowCallbackForm}
-                selectedSlot={selectedSlot}
-                setSelectedSlot={setSelectedSlot}
-                customSlot={customSlot}
-                setCustomSlot={setCustomSlot}
-                submitting={submitting}
-                callbackSubmitted={callbackSubmitted}
-                existingSlot={existingSlot}
-                handleCallbackSubmit={handleCallbackSubmit}
-              />
+              <OwnerInspectionTab userId={userId} />
             </TabsContent>
           </Tabs>
         </div>
