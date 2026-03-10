@@ -24,6 +24,7 @@ import ApplicationsList from "./pages/ApplicationsList";
 import ApplicationDetail from "./pages/ApplicationDetail";
 import OwnerOnboarding from "./pages/OwnerOnboarding";
 import OwnerDashboard from "./pages/OwnerDashboard";
+import VisitsList from "./pages/VisitsList";
 
 const queryClient = new QueryClient();
 
