@@ -7,6 +7,7 @@ const tiles = [
   { label: "Applications", icon: FileText, href: "/dashboard/applications" },
   { label: "Favourites", icon: Heart, href: "/dashboard/favourites" },
   { label: "Eligibility", icon: ShieldCheck, href: "/eligibility" },
+  { label: "My Visits", icon: CalendarDays, href: "/dashboard/visits" },
   { label: "Payments", icon: CreditCard },
   { label: "Maintenance", icon: Wrench },
   { label: "Documents", icon: FolderOpen },

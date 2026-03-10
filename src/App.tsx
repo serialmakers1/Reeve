@@ -70,6 +70,7 @@ function AppInner() {
       <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
       <Route path="/dashboard/applications" element={<ApplicationsList />} />
       <Route path="/dashboard/applications/new" element={<NewApplication />} />
+      <Route path="/dashboard/visits" element={<VisitsList />} />
       <Route path="/dashboard/applications/:id" element={<ApplicationDetail />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
