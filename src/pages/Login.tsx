@@ -67,17 +67,16 @@ export default function LoginPage() {
     };
   }, []);
 
-  const redirectByRole = useCallback((role: string | null | undefined) => {
-    const from = (location.state as any)?.from as string | undefined;
+  const redirectByRole = useCallback(async (role: string | null | undefined) => {
     const safeRole = role || "tenant";
-    if (safeRole === "admin" || safeRole === "super_admin") {
-      navigate(from || "/admin", { replace: true });
-    } else if (safeRole === "owner") {
-      navigate(from || "/owner", { replace: true });
+    if (safeRole === "owner") {
+      const { data: ownerUser } = await supabase
+        .from('users').select('phone').eq('id', user?.id ?? '').single();
+      navigate(ownerUser?.phone ? '/owner' : '/owner/onboarding', { replace: true });
     } else {
-      navigate(from || "/dashboard", { replace: true });
+      navigate('/search', { replace: true });
     }
-  }, [navigate, location.state]);
+  }, [navigate, user?.id]);
 
   const isRateLimitError = (msg: string) =>
     /429|security purposes|rate.?limit/i.test(msg);

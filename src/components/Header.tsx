@@ -18,7 +18,7 @@ const Header = () => {
 
   const handleLogout = async () => {
     await signOut();
-    navigate("/");
+    navigate("/search");
   };
 
   const loginUrl = `/login?returnTo=${encodeURIComponent(location.pathname)}`;
