@@ -151,7 +151,7 @@ export default function OwnerPropertyDetail() {
     }
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -159,7 +159,7 @@ export default function OwnerPropertyDetail() {
     );
   }
 
-  if (notFound) {
+  if (!property) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-8 max-w-2xl text-center">
