@@ -921,10 +921,54 @@ export default function NewApplicationPage() {
             setItrFile(result);
           } else if (docType === "bank_statement") {
             setBankStatement(result);
+          } else if (docType === "aadhaar") {
+            setAadhaarFile(result);
+          } else if (docType === "pan") {
+            setPanFile(result);
           }
         }
       }
       e.target.value = "";
+    };
+
+    const handleRemoveFile = async (docType: string, file: UploadedFile, fileIndex?: number) => {
+      setRemoving(`${docType}_${fileIndex ?? 0}`);
+      try {
+        // Delete from storage
+        const { error: storageErr } = await supabase.storage
+          .from("tenant-documents")
+          .remove([file.url]);
+
+        // Delete from documents table
+        const { error: dbErr } = await supabase
+          .from("documents")
+          .delete()
+          .eq("application_id", applicationId!)
+          .eq("document_type", docType as "aadhaar" | "pan" | "salary_slip" | "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other")
+          .eq("file_name", file.name);
+
+        if (storageErr || dbErr) {
+          toast({ title: "Could not remove file. Please try again.", variant: "destructive" });
+          setRemoving(null);
+          return;
+        }
+
+        // Reset state
+        if (docType === "salary_slip") {
+          setSalarySlips((prev) => prev.filter((_, i) => i !== fileIndex));
+        } else if (docType === "itr") {
+          setItrFile(null);
+        } else if (docType === "bank_statement") {
+          setBankStatement(null);
+        } else if (docType === "aadhaar") {
+          setAadhaarFile(null);
+        } else if (docType === "pan") {
+          setPanFile(null);
+        }
+      } catch {
+        toast({ title: "Could not remove file. Please try again.", variant: "destructive" });
+      }
+      setRemoving(null);
     };
 
     const FileUploadField = ({
@@ -934,6 +978,9 @@ export default function NewApplicationPage() {
       files,
       multiple,
       maxFiles,
+      acceptPdfOnly,
+      helperText,
+      errorField,
     }: {
       label: string;
       required?: boolean;
@@ -941,6 +988,9 @@ export default function NewApplicationPage() {
       files: UploadedFile[];
       multiple?: boolean;
       maxFiles?: number;
+      acceptPdfOnly?: boolean;
+      helperText?: string;
+      errorField?: string;
     }) => {
       const inputRef = useRef<HTMLInputElement>(null);
       const canUpload = !maxFiles || files.length < maxFiles;
@@ -958,6 +1008,22 @@ export default function NewApplicationPage() {
                 <p className="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
               </div>
               <Check className="h-4 w-4 text-green-600 shrink-0" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                disabled={removing === `${docType}_${i}`}
+                onClick={() => handleRemoveFile(docType, f, i)}
+              >
+                {removing === `${docType}_${i}` ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <>
+                    <X className="mr-1 h-3 w-3" /> Remove
+                  </>
+                )}
+              </Button>
             </div>
           ))}
           {canUpload && (
@@ -965,7 +1031,7 @@ export default function NewApplicationPage() {
               <input
                 ref={inputRef}
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept={acceptPdfOnly ? ".pdf" : ".pdf,.jpg,.jpeg,.png"}
                 multiple={multiple}
                 className="hidden"
                 onChange={(e) => handleFileUpload(e, docType)}
@@ -985,8 +1051,8 @@ export default function NewApplicationPage() {
               </Button>
             </>
           )}
-          <p className="text-xs text-muted-foreground">PDF, JPG, PNG — max 10MB</p>
-          {docType === "salary_slip" && <FieldError field="salary_slips" />}
+          <p className="text-xs text-muted-foreground">{helperText || "PDF, JPG, PNG — max 10MB"}</p>
+          {errorField && <FieldError field={errorField} />}
         </div>
       );
     };
