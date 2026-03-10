@@ -177,28 +177,26 @@ export default function LoginPage() {
           .eq("id", data.user.id)
           .single();
 
-        const effectiveRole = intendedRole === 'owner' ? 'owner' : (userData?.role ?? 'tenant');
-        verifiedRoleRef.current = effectiveRole;
-
-        if (effectiveRole === 'owner') {
-          if (userData?.role !== 'owner') {
-            await supabase.from('users').update({ role: 'owner' as any }).eq('id', data.user.id);
-          }
-          await refreshUser();
-          if (!userData?.phone) {
-            navigate("/owner/onboarding", { replace: true });
-          } else {
-            navigate("/owner", { replace: true });
-          }
-          return;
+        // Fix 1: Never override an existing role
+        const existingRole = userData?.role;
+        if (!existingRole && intendedRole) {
+          await supabase.from('users').update({ role: intendedRole as any }).eq('id', data.user.id);
         }
+        const effectiveRole = existingRole ?? intendedRole;
+        verifiedRoleRef.current = effectiveRole;
 
         const fullNameVal = userData?.full_name ?? "";
         if (!fullNameVal || fullNameVal.trim() === "") {
           setStep("name");
+          return;
+        }
+
+        // Fix 2: Post-login routing
+        await refreshUser();
+        if (effectiveRole === 'owner') {
+          navigate(userData?.phone ? '/owner' : '/owner/onboarding', { replace: true });
         } else {
-          await refreshUser();
-          redirectByRole(effectiveRole);
+          navigate('/search', { replace: true });
         }
       }
     } finally {
