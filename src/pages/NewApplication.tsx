@@ -462,6 +462,8 @@ export default function NewApplicationPage() {
       if (!employerName.trim()) errs.employer_name = "Employer name is required";
       if (monthlyIncome === "" || Number(monthlyIncome) <= 0)
         errs.monthly_income = "Please enter your monthly income";
+      if (!aadhaarFile) errs.aadhaar = "Please upload your Aadhaar card";
+      if (!panFile) errs.pan = "Please upload your PAN card";
       if (salarySlips.length === 0) errs.salary_slips = "Please upload at least one salary slip";
     }
 
