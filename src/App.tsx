@@ -20,6 +20,8 @@ import DashboardFavourites from "./pages/DashboardFavourites";
 import Login from "./pages/Login";
 import NewApplication from "./pages/NewApplication";
 import Dashboard from "./pages/Dashboard";
+import ApplicationsList from "./pages/ApplicationsList";
+import ApplicationDetail from "./pages/ApplicationDetail";
 import OwnerOnboarding from "./pages/OwnerOnboarding";
 import OwnerDashboard from "./pages/OwnerDashboard";
 
@@ -65,7 +67,9 @@ function AppInner() {
       <Route path="/owner/onboarding" element={<OwnerOnboarding />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
+      <Route path="/dashboard/applications" element={<ApplicationsList />} />
       <Route path="/dashboard/applications/new" element={<NewApplication />} />
+      <Route path="/dashboard/applications/:id" element={<ApplicationDetail />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
