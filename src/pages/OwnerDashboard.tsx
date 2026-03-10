@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import OwnerProfileTab from "@/components/owner/OwnerProfileTab";
 import OwnerInspectionTab from "@/components/owner/OwnerInspectionTab";
+import OwnerPropertiesTab from "@/components/owner/OwnerPropertiesTab";
 
 export default function OwnerDashboard() {
   const navigate = useNavigate();
@@ -120,9 +121,7 @@ export default function OwnerDashboard() {
             </TabsList>
 
             <TabsContent value="properties">
-              <div className="py-8 text-center text-muted-foreground text-sm">
-                Your properties will appear here once listed.
-              </div>
+              <OwnerPropertiesTab userId={userId} />
             </TabsContent>
 
             <TabsContent value="applications">
