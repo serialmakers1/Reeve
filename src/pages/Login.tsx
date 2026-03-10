@@ -240,9 +240,10 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
 
+    // Don't override role here — it was already set in OTP step
     const { error: updateError } = await supabase
       .from("users")
-      .update({ full_name: name, role: intendedRole, updated_at: new Date().toISOString() })
+      .update({ full_name: name, updated_at: new Date().toISOString() })
       .eq("id", verifiedUserIdRef.current);
 
     if (updateError) {
@@ -253,7 +254,16 @@ export default function LoginPage() {
 
     setIsLoading(false);
     await refreshUser();
-    redirectByRole(verifiedRoleRef.current);
+
+    // Fix 2: Post-login routing after name save
+    const effectiveRole = verifiedRoleRef.current;
+    if (effectiveRole === 'owner') {
+      const { data: ownerUser } = await supabase
+        .from('users').select('phone').eq('id', verifiedUserIdRef.current!).single();
+      navigate(ownerUser?.phone ? '/owner' : '/owner/onboarding', { replace: true });
+    } else {
+      navigate('/search', { replace: true });
+    }
   };
 
   // OTP input change — NO auto-submit
