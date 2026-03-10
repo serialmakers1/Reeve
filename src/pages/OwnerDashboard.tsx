@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import OwnerProfileTab from "@/components/owner/OwnerProfileTab";
 import OwnerInspectionTab from "@/components/owner/OwnerInspectionTab";
 import OwnerPropertiesTab from "@/components/owner/OwnerPropertiesTab";
+import OwnerApplicationsTab from "@/components/owner/OwnerApplicationsTab";
 
 export default function OwnerDashboard() {
   const navigate = useNavigate();
