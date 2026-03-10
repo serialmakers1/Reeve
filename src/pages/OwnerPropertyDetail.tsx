@@ -72,7 +72,6 @@ export default function OwnerPropertyDetail() {
         .from("properties")
         .select("*")
         .eq("id", id!)
-        .eq("owner_id", userId)
         .single(),
       supabase
         .from("documents")
