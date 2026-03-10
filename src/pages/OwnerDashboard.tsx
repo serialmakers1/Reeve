@@ -1,24 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Phone, CheckCircle2, MessageCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
-const TIME_SLOTS = [
-  "9:00 AM – 12:00 PM",
-  "12:00 PM – 3:00 PM",
-  "3:00 PM – 6:00 PM",
-  "6:00 PM – 9:00 PM",
-  "Other (specify)",
-];
-
-const WHATSAPP_URL =
-  "https://wa.me/917899874281?text=Hi%2C%20I%27m%20interested%20in%20listing%20my%20property%20with%20Reeve";
+import OwnerProfileTab from "@/components/owner/OwnerProfileTab";
+import OwnerInspectionTab from "@/components/owner/OwnerInspectionTab";
 
 export default function OwnerDashboard() {
   const navigate = useNavigate();
@@ -28,13 +17,12 @@ export default function OwnerDashboard() {
   const [userPhone, setUserPhone] = useState("");
   const [loadingProfile, setLoadingProfile] = useState(true);
 
-  // Callback state
+  // Callback state (kept here so it persists across tab switches)
   const [showCallbackForm, setShowCallbackForm] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState("");
   const [customSlot, setCustomSlot] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [callbackSubmitted, setCallbackSubmitted] = useState(false);
-
   const [existingSlot, setExistingSlot] = useState("");
 
   useEffect(() => {
@@ -61,7 +49,6 @@ export default function OwnerDashboard() {
           setUserPhone(data.phone || "");
         }
 
-        // Check for existing callback request
         const { data: existingCallback } = await supabase
           .from("callback_requests")
           .select("preferred_slot, created_at")
@@ -116,144 +103,55 @@ export default function OwnerDashboard() {
     );
   }
 
-  const displaySlot = existingSlot
-    ? existingSlot
-    : selectedSlot === "Other (specify)" && customSlot.trim()
-      ? customSlot.trim()
-      : selectedSlot;
+  const userId = session?.user?.id || "";
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Welcome, {userName}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              We've received your property details. Our team will be in touch shortly to schedule an inspection.
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold text-foreground">Welcome, {userName}</h1>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* WhatsApp Card */}
-            <Card className="border-2" style={{ borderColor: "#25D366" }}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5" style={{ color: "#25D366" }} />
-                  <CardTitle className="text-base">Chat with Us on WhatsApp</CardTitle>
-                </div>
-                <CardDescription className="text-sm">
-                  Prefer to talk it through? Message us directly and our team will guide you.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="outline"
-                  className="w-full min-h-[44px] font-medium"
-                  style={{ borderColor: "#25D366", color: "#25D366" }}
-                  onClick={() => window.open(WHATSAPP_URL, "_blank")}
-                >
-                  Open WhatsApp
-                </Button>
-              </CardContent>
-            </Card>
+          <Tabs defaultValue="properties">
+            <TabsList className="w-full grid grid-cols-4">
+              <TabsTrigger value="properties" className="text-xs sm:text-sm">Properties</TabsTrigger>
+              <TabsTrigger value="applications" className="text-xs sm:text-sm">Applications</TabsTrigger>
+              <TabsTrigger value="profile" className="text-xs sm:text-sm">Profile</TabsTrigger>
+              <TabsTrigger value="inspection" className="text-xs sm:text-sm">Inspection</TabsTrigger>
+            </TabsList>
 
-            {/* Callback Card */}
-            <Card className="bg-primary text-primary-foreground">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Phone className="h-5 w-5" />
-                  <CardTitle className="text-base text-primary-foreground">Request a Callback</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {!showCallbackForm && !callbackSubmitted && (
-                  <Button
-                    variant="secondary"
-                    className="w-full min-h-[44px]"
-                    onClick={() => setShowCallbackForm(true)}
-                  >
-                    Schedule a Callback
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+            <TabsContent value="properties">
+              <div className="py-8 text-center text-muted-foreground text-sm">
+                Your properties will appear here once listed.
+              </div>
+            </TabsContent>
 
-          {/* Expanded callback form */}
-          {showCallbackForm && !callbackSubmitted && (
-            <Card className="animate-in fade-in slide-in-from-top-2 duration-300">
-              <CardContent className="pt-6 space-y-4">
-                <label className="text-sm font-medium text-card-foreground">
-                  Preferred Callback Time <span className="text-destructive">*</span>
-                </label>
+            <TabsContent value="applications">
+              <div className="py-8 text-center text-muted-foreground text-sm">
+                No applications yet.
+              </div>
+            </TabsContent>
 
-                <div className="flex flex-wrap gap-2">
-                  {TIME_SLOTS.map((slot) => (
-                    <button
-                      key={slot}
-                      onClick={() => { setSelectedSlot(slot); }}
-                      className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors min-h-[44px] ${
-                        selectedSlot === slot
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-background text-foreground hover:bg-accent"
-                      }`}
-                    >
-                      {slot}
-                    </button>
-                  ))}
-                </div>
+            <TabsContent value="profile">
+              <OwnerProfileTab userId={userId} />
+            </TabsContent>
 
-                {selectedSlot === "Other (specify)" && (
-                  <Input
-                    type="text"
-                    placeholder="Enter your preferred time"
-                    value={customSlot}
-                    onChange={(e) => setCustomSlot(e.target.value)}
-                    className="min-h-[44px]"
-                  />
-                )}
-
-                <p className="text-xs text-muted-foreground">
-                  We only call when you request it. No spam calls.
-                </p>
-
-                <Button
-                  onClick={handleCallbackSubmit}
-                  disabled={!selectedSlot || submitting || (selectedSlot === "Other (specify)" && !customSlot.trim())}
-                  className="w-full min-h-[44px]"
-                >
-                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Confirm Callback Request
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Callback success state */}
-          {callbackSubmitted && (
-            <Card className="animate-in fade-in duration-300">
-              <CardContent className="pt-6 text-center space-y-3">
-                <CheckCircle2 className="mx-auto h-10 w-10 text-green-500" />
-                <h3 className="text-lg font-bold text-card-foreground">We'll call you soon!</h3>
-                <p className="text-sm text-muted-foreground">
-                  Your callback request has been received. Our team will call you at{" "}
-                  <span className="font-medium text-card-foreground">{userPhone}</span> between{" "}
-                  <span className="font-medium text-card-foreground">{displaySlot}</span>.
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  In the meantime, feel free to chat with us on WhatsApp.
-                </p>
-                <Button
-                  variant="outline"
-                  className="min-h-[44px]"
-                  style={{ borderColor: "#25D366", color: "#25D366" }}
-                  onClick={() => window.open(WHATSAPP_URL, "_blank")}
-                >
-                  Open WhatsApp
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+            <TabsContent value="inspection">
+              <OwnerInspectionTab
+                userId={userId}
+                userPhone={userPhone}
+                showCallbackForm={showCallbackForm}
+                setShowCallbackForm={setShowCallbackForm}
+                selectedSlot={selectedSlot}
+                setSelectedSlot={setSelectedSlot}
+                customSlot={customSlot}
+                setCustomSlot={setCustomSlot}
+                submitting={submitting}
+                callbackSubmitted={callbackSubmitted}
+                existingSlot={existingSlot}
+                handleCallbackSubmit={handleCallbackSubmit}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </Layout>
