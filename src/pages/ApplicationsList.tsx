@@ -62,7 +62,7 @@ export default function ApplicationsList() {
       const { data } = await supabase
         .from("applications")
         .select(
-          `id, status, proposed_rent, owner_counter_rent, submitted_at,
+          `id, status, proposed_rent, owner_counter_rent, submitted_at, created_at, property_id,
            properties(building_name, locality, city, bhk, listed_rent)`
         )
         .eq("tenant_id", user.id)
