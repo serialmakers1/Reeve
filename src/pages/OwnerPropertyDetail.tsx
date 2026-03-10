@@ -125,8 +125,8 @@ export default function OwnerPropertyDetail() {
       if (uploadError) throw uploadError;
 
       const { error: insertError } = await supabase.from("documents").insert({
-        uploaded_by: userId,
-        owner_user_id: userId,
+        uploaded_by: sessionUserId,
+        owner_user_id: sessionUserId,
         property_id: id,
         document_type: docType as any,
         category: "tenant_kyc" as any,
