@@ -1031,7 +1031,7 @@ export default function NewApplicationPage() {
 
         <div className="space-y-4 pt-2">
           <FileUploadField
-            label="Salary slips (last 3 months)"
+            label="Income Proof (Salary slips (last 3 months) / Latest ITR)"
             required
             docType="salary_slip"
             files={salarySlips}
