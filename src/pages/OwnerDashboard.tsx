@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import OwnerProfileTab from "@/components/owner/OwnerProfileTab";
 import OwnerInspectionTab from "@/components/owner/OwnerInspectionTab";
+import OwnerPropertiesTab from "@/components/owner/OwnerPropertiesTab";
 
 export default function OwnerDashboard() {
   const navigate = useNavigate();
