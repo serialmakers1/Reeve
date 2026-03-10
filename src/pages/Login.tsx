@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, ArrowLeft } from "lucide-react";
+import Mailcheck from "mailcheck";
 
 type LoginStep = "email" | "otp" | "name";
 
