@@ -1,4 +1,4 @@
-import { FileText, Heart, CreditCard, Wrench, FolderOpen, ShieldCheck } from "lucide-react";
+import { FileText, Heart, CreditCard, Wrench, FolderOpen, ShieldCheck, CalendarDays } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
