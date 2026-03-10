@@ -42,11 +42,11 @@ interface DocRecord {
 export default function OwnerPropertyDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { session, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [property, setProperty] = useState<any>(null);
   const [docs, setDocs] = useState<DocRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sessionUserId, setSessionUserId] = useState<string>("");
+  const [loadingData, setLoadingData] = useState(true);
 
   // Per-doc file and submitting state
   const [docFiles, setDocFiles] = useState<Record<string, File | null>>({});
@@ -54,48 +54,44 @@ export default function OwnerPropertyDetail() {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    if (!id) return;
+    if (!authLoading && !isAuthenticated) {
+      navigate("/login", { replace: true });
+      return;
+    }
 
-    const fetchData = async () => {
-      setLoading(true);
+    if (!authLoading && session?.user?.id && id) {
+      const fetchData = async () => {
+        setLoadingData(true);
 
-      // Step 1: explicitly get the current session
-      const { data: { session } } = await supabase.auth.getSession();
+        const [propRes, docsRes] = await Promise.all([
+          supabase
+            .from("properties")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle(),
+          supabase
+            .from("documents")
+            .select("id, document_type, file_name, submitted_at")
+            .eq("property_id", id)
+            .in("document_type", ["sale_deed", "society_noc", "electricity_bill", "property_papers"]),
+        ]);
 
-      if (!session) {
-        navigate("/login", { replace: true });
-        return;
-      }
+        if (propRes.error) {
+          console.error("Property fetch error:", propRes.error);
+          setProperty(null);
+        } else {
+          setProperty(propRes.data);
+        }
 
-      setSessionUserId(session.user.id);
+        if (docsRes.data) setDocs(docsRes.data as DocRecord[]);
+        setLoadingData(false);
+      };
 
-      // Step 2: fetch property and docs in parallel
-      const [propRes, docsRes] = await Promise.all([
-        supabase
-          .from("properties")
-          .select("*")
-          .eq("id", id)
-          .maybeSingle(),
-        supabase
-          .from("documents")
-          .select("id, document_type, file_name, submitted_at")
-          .eq("property_id", id)
-          .in("document_type", ["sale_deed", "society_noc", "electricity_bill", "property_papers"]),
-      ]);
+      fetchData();
+    }
+  }, [authLoading, isAuthenticated, session, id, navigate]);
 
-      if (propRes.error) {
-        console.error("Property fetch error:", propRes.error);
-        setProperty(null);
-      } else {
-        setProperty(propRes.data);
-      }
-
-      if (docsRes.data) setDocs(docsRes.data as DocRecord[]);
-      setLoading(false);
-    };
-
-    fetchData();
-  }, [id, navigate]);
+  const userId = session?.user?.id || "";
 
   const refetchData = async () => {
     if (!id) return;
