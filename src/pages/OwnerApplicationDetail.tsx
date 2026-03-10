@@ -114,7 +114,7 @@ export default function OwnerApplicationDetail() {
     setActionLoading(newStatus);
     const { error } = await supabase
       .from("applications")
-      .update({ status: newStatus, owner_actioned_at: new Date().toISOString(), ...updates })
+      .update({ status: newStatus as any, owner_actioned_at: new Date().toISOString(), ...updates })
       .eq("id", id!);
 
     setActionLoading(null);
