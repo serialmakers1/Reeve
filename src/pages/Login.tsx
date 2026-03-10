@@ -291,10 +291,38 @@ export default function LoginPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailError(null); }}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailError(null); setEmailSuggestion(null); }}
+                  onBlur={() => {
+                    if (!email.trim()) return;
+                    Mailcheck.run({
+                      email: email.trim(),
+                      suggested: (suggestion: { full: string }) => {
+                        setEmailSuggestion(suggestion.full);
+                      },
+                      empty: () => {
+                        setEmailSuggestion(null);
+                      },
+                    });
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
                   className="min-h-[44px]"
                 />
+                {emailSuggestion && (
+                  <p className="text-sm text-amber-600 mt-1">
+                    Did you mean{' '}
+                    <button
+                      type="button"
+                      className="underline font-medium"
+                      onClick={() => {
+                        setEmail(emailSuggestion);
+                        setEmailSuggestion(null);
+                      }}
+                    >
+                      {emailSuggestion}
+                    </button>
+                    ?
+                  </p>
+                )}
                 {emailError && <p className="text-sm text-destructive">{emailError}</p>}
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </div>
