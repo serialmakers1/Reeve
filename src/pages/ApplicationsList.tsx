@@ -38,6 +38,8 @@ interface ApplicationRow {
   proposed_rent: number;
   owner_counter_rent: number | null;
   submitted_at: string | null;
+  created_at: string;
+  property_id: string;
   properties: {
     building_name: string;
     locality: string | null;
@@ -60,11 +62,10 @@ export default function ApplicationsList() {
       const { data } = await supabase
         .from("applications")
         .select(
-          `id, status, proposed_rent, owner_counter_rent, submitted_at,
+          `id, status, proposed_rent, owner_counter_rent, submitted_at, created_at, property_id,
            properties(building_name, locality, city, bhk, listed_rent)`
         )
         .eq("tenant_id", user.id)
-        .neq("status", "draft")
         .order("submitted_at", { ascending: false });
 
       setApps((data as unknown as ApplicationRow[]) || []);
@@ -125,38 +126,65 @@ export default function ApplicationsList() {
           <div className="space-y-3">
             {apps.map((app) => {
               const p = app.properties;
-              const badge = STATUS_MAP[app.status] || {
-                label: app.status,
-                color: "bg-muted text-muted-foreground",
-              };
+              const isDraft = app.status === "draft";
+              const badge = isDraft
+                ? { label: "Draft", color: "border-muted-foreground text-muted-foreground" }
+                : STATUS_MAP[app.status] || {
+                    label: app.status,
+                    color: "bg-muted text-muted-foreground",
+                  };
               return (
                 <button
                   key={app.id}
-                  onClick={() => navigate(`/dashboard/applications/${app.id}`)}
-                  className="w-full rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-shadow hover:shadow-md hover:shadow-primary/10"
+                  onClick={() =>
+                    isDraft
+                      ? navigate(`/dashboard/applications/new?property_id=${app.property_id}`)
+                      : navigate(`/dashboard/applications/${app.id}`)
+                  }
+                  className={`w-full rounded-xl border p-4 text-left shadow-sm transition-shadow hover:shadow-md hover:shadow-primary/10 ${
+                    isDraft
+                      ? "border-dashed border-muted-foreground/40 bg-card"
+                      : "border-border bg-card"
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-foreground truncate">
                         {p ? `${p.bhk} in ${p.building_name}` : "Property"}
                       </p>
+                      {isDraft && (
+                        <p className="mt-0.5 text-sm font-medium text-amber-600">
+                          Tap to continue your application →
+                        </p>
+                      )}
                       {p && (
                         <p className="mt-0.5 text-sm text-muted-foreground truncate">
                           {[p.locality, p.city].filter(Boolean).join(", ")}
                         </p>
                       )}
-                      {app.submitted_at && (
+                      {isDraft ? (
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Applied: {format(new Date(app.submitted_at), "dd MMM yyyy")}
+                          Started: {format(new Date(app.created_at), "dd MMM yyyy")}
                         </p>
-                      )}
-                      {app.proposed_rent && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Your offer: {formatRent(app.proposed_rent)}/month
-                        </p>
+                      ) : (
+                        <>
+                          {app.submitted_at && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Applied: {format(new Date(app.submitted_at), "dd MMM yyyy")}
+                            </p>
+                          )}
+                          {app.proposed_rent && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Your offer: {formatRent(app.proposed_rent)}/month
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
-                    <Badge className={`shrink-0 ${badge.color} border-0`}>
+                    <Badge
+                      variant={isDraft ? "outline" : "default"}
+                      className={`shrink-0 ${badge.color} ${isDraft ? "" : "border-0"}`}
+                    >
                       {badge.label}
                     </Badge>
                   </div>
