@@ -9,7 +9,7 @@ import { Loader2, ArrowLeft } from "lucide-react";
 
 type LoginStep = "email" | "otp" | "name";
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(true);
 
@@ -98,8 +99,9 @@ export default function LoginPage() {
   // Step 1: Send OTP
   const handleSendOtp = async () => {
     const trimmedEmail = email.trim().toLowerCase();
-    if (!EMAIL_REGEX.test(trimmedEmail)) {
-      setError("Please enter a valid email address.");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setEmailError("Please enter a valid email address");
       return;
     }
     if (!termsAccepted) {
@@ -287,10 +289,11 @@ export default function LoginPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(null); }}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailError(null); }}
                   onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
                   className="min-h-[44px]"
                 />
+                {emailError && <p className="text-sm text-destructive">{emailError}</p>}
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </div>
 
