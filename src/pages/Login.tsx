@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, ArrowLeft } from "lucide-react";
+import Mailcheck from "mailcheck";
 
 type LoginStep = "email" | "otp" | "name";
 
@@ -28,6 +29,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(true);
 
   // Store role + userId from OTP verification for use in Step 3
@@ -289,10 +291,38 @@ export default function LoginPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailError(null); }}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailError(null); setEmailSuggestion(null); }}
+                  onBlur={() => {
+                    if (!email.trim()) return;
+                    Mailcheck.run({
+                      email: email.trim(),
+                      suggested: (suggestion: { full: string }) => {
+                        setEmailSuggestion(suggestion.full);
+                      },
+                      empty: () => {
+                        setEmailSuggestion(null);
+                      },
+                    });
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
                   className="min-h-[44px]"
                 />
+                {emailSuggestion && (
+                  <p className="text-sm text-amber-600 mt-1">
+                    Did you mean{' '}
+                    <button
+                      type="button"
+                      className="underline font-medium"
+                      onClick={() => {
+                        setEmail(emailSuggestion);
+                        setEmailSuggestion(null);
+                      }}
+                    >
+                      {emailSuggestion}
+                    </button>
+                    ?
+                  </p>
+                )}
                 {emailError && <p className="text-sm text-destructive">{emailError}</p>}
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </div>
