@@ -1104,12 +1104,33 @@ export default function NewApplicationPage() {
 
         <div className="space-y-4 pt-2">
           <FileUploadField
+            label="Aadhaar Card"
+            required
+            docType="aadhaar"
+            files={aadhaarFile ? [aadhaarFile] : []}
+            maxFiles={1}
+            acceptPdfOnly
+            helperText="PDF — max 10MB"
+            errorField="aadhaar"
+          />
+          <FileUploadField
+            label="PAN Card"
+            required
+            docType="pan"
+            files={panFile ? [panFile] : []}
+            maxFiles={1}
+            acceptPdfOnly
+            helperText="PDF — max 10MB"
+            errorField="pan"
+          />
+          <FileUploadField
             label="Income Proof (Salary slips (last 3 months) / Latest ITR)"
             required
             docType="salary_slip"
             files={salarySlips}
             multiple
             maxFiles={3}
+            errorField="salary_slips"
           />
           <FileUploadField
             label="ITR (Income Tax Return)"
