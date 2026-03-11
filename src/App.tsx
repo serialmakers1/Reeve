@@ -23,7 +23,6 @@ import Dashboard from "./pages/Dashboard";
 import ApplicationsList from "./pages/ApplicationsList";
 import ApplicationDetail from "./pages/ApplicationDetail";
 import OwnerOnboarding from "./pages/OwnerOnboarding";
-import OwnerPropertyDetail from "./pages/OwnerPropertyDetail";
 import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import VisitsList from "./pages/VisitsList";
 import OwnerPipeline from "./pages/admin/OwnerPipeline";
