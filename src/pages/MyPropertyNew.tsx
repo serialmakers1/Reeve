@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,9 +16,9 @@ import {
 } from "@/components/ui/select";
 import { Loader2, ArrowLeft } from "lucide-react";
 
-export default function OwnerAddProperty() {
+export default function MyPropertyNew() {
   const navigate = useNavigate();
-  const { session, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { session, loading } = useRequireAuth();
 
   const [locality, setLocality] = useState("");
   const [buildingName, setBuildingName] = useState("");
@@ -28,9 +28,12 @@ export default function OwnerAddProperty() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  if (!authLoading && !isAuthenticated) {
-    navigate("/login", { replace: true });
-    return null;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   const userId = session?.user?.id || "";
@@ -73,14 +76,6 @@ export default function OwnerAddProperty() {
     navigate("/my-properties", { replace: true });
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -88,7 +83,7 @@ export default function OwnerAddProperty() {
           variant="ghost"
           size="sm"
           className="mb-4 min-h-[44px]"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/my-properties")}
         >
           <ArrowLeft className="mr-1.5 h-4 w-4" />
           Back
@@ -100,7 +95,7 @@ export default function OwnerAddProperty() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="city" className="text-sm">
+              <Label className="text-sm">
                 City <span className="text-destructive">*</span>
               </Label>
               <Select value="bangalore" disabled>
@@ -114,11 +109,10 @@ export default function OwnerAddProperty() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="locality" className="text-sm">
+              <Label className="text-sm">
                 Locality <span className="text-destructive">*</span>
               </Label>
               <Input
-                id="locality"
                 value={locality}
                 onChange={(e) => setLocality(e.target.value)}
                 placeholder="e.g. Koramangala"
@@ -127,11 +121,10 @@ export default function OwnerAddProperty() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="buildingName" className="text-sm">
+              <Label className="text-sm">
                 Building Name <span className="text-destructive">*</span>
               </Label>
               <Input
-                id="buildingName"
                 value={buildingName}
                 onChange={(e) => setBuildingName(e.target.value)}
                 placeholder="e.g. Prestige Lakeside Habitat"
@@ -140,11 +133,10 @@ export default function OwnerAddProperty() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="address" className="text-sm">
+              <Label className="text-sm">
                 Property Address <span className="text-destructive">*</span>
               </Label>
               <Input
-                id="address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Full street address"
@@ -187,9 +179,7 @@ export default function OwnerAddProperty() {
               </Select>
             </div>
 
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button
               onClick={handleSubmit}

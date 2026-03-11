@@ -63,6 +63,7 @@ import VisitSchedulingModal from "@/components/VisitSchedulingModal";
 
 interface PropertyData {
   id: string;
+  owner_id: string | null;
   building_name: string;
   floor_number: number | null;
   total_floors: number | null;
@@ -329,6 +330,9 @@ const PropertyDetail: React.FC = () => {
   // Already applied
   const [alreadyApplied, setAlreadyApplied] = useState(false);
 
+  // Own property detection
+  const [isOwnProperty, setIsOwnProperty] = useState(false);
+
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
 
@@ -385,13 +389,11 @@ const PropertyDetail: React.FC = () => {
 
       const [propRes, imgRes] = await Promise.all([
         supabase
-          .from("properties_public")
+          .from("properties")
           .select(
-            "id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type"
+            "id, owner_id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type"
           )
           .eq("id", id)
-          .eq("status", "listed")
-          .eq("is_active", true)
           .maybeSingle(),
         supabase
           .from("property_images")
@@ -415,14 +417,18 @@ const PropertyDetail: React.FC = () => {
       const fetchedImages = (imgRes.data ?? []) as PropertyImage[];
       setImages(fetchedImages.length > 0 ? fetchedImages : PLACEHOLDER_IMAGES);
 
-      // Check if user already applied
+      // Check session for own-property and already-applied
       const sess = await supabase.auth.getSession();
-      if (sess.data.session?.user?.id) {
+      const currentUserId = sess.data.session?.user?.id;
+      setIsOwnProperty(!!(currentUserId && raw.owner_id === currentUserId));
+
+      // Check if user already applied
+      if (currentUserId) {
         const { data: existingApp } = await supabase
           .from("applications")
           .select("status")
           .eq("property_id", id)
-          .eq("tenant_id", sess.data.session.user.id)
+          .eq("tenant_id", currentUserId)
           .maybeSingle();
 
         const applied = existingApp && [
@@ -693,13 +699,15 @@ const PropertyDetail: React.FC = () => {
                 <h1 className="text-xl font-bold text-foreground sm:text-2xl">
                   {bhkLabel(property.bhk)} in {property.building_name}
                 </h1>
-                <FavouriteHeart
-                  filled={id ? isFavourited(id) : false}
-                  onClick={() => {
-                    if (!favLoggedIn) { setLoginDrawerOpen(true); return; }
-                    if (id) toggleFavourite(id);
-                  }}
-                />
+                {!isOwnProperty && (
+                  <FavouriteHeart
+                    filled={id ? isFavourited(id) : false}
+                    onClick={() => {
+                      if (!favLoggedIn) { setLoginDrawerOpen(true); return; }
+                      if (id) toggleFavourite(id);
+                    }}
+                  />
+                )}
               </div>
               {property.floor_number != null && (
                 <p className="text-sm text-muted-foreground">
@@ -893,22 +901,28 @@ const PropertyDetail: React.FC = () => {
                   <p className="text-xs text-muted-foreground">
                     Security Deposit: {formatIndianRupee(depositAmount)} · 7% service fee
                   </p>
-                  <Button
-                    onClick={handleScheduleVisit}
-                    variant="outline"
-                    className="w-full min-h-[44px]"
-                    disabled={eligibilityChecking}
-                  >
-                    {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : existingVisit ? "Manage Visit" : "Schedule a Visit"}
-                  </Button>
-                  {alreadyApplied ? (
-                    <Button disabled className="w-full min-h-[44px] bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
-                      ✓ Already Applied
-                    </Button>
+                  {isOwnProperty ? (
+                    <p className="text-sm text-muted-foreground text-center py-2">This is your listed property.</p>
                   ) : (
-                    <Button onClick={handleApplyNow} className="w-full min-h-[44px]">
-                      Apply Now
-                    </Button>
+                    <>
+                      <Button
+                        onClick={handleScheduleVisit}
+                        variant="outline"
+                        className="w-full min-h-[44px]"
+                        disabled={eligibilityChecking}
+                      >
+                        {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : existingVisit ? "Manage Visit" : "Schedule a Visit"}
+                      </Button>
+                      {alreadyApplied ? (
+                        <Button disabled className="w-full min-h-[44px] bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
+                          ✓ Already Applied
+                        </Button>
+                      ) : (
+                        <Button onClick={handleApplyNow} className="w-full min-h-[44px]">
+                          Apply Now
+                        </Button>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -918,27 +932,29 @@ const PropertyDetail: React.FC = () => {
       </div>
 
       {/* ─── Mobile Sticky CTA Bar ───────────────────────────── */}
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background p-3 lg:hidden">
-        <div className="mx-auto flex max-w-4xl gap-3">
-          <Button
-            onClick={handleScheduleVisit}
-            variant="outline"
-            className="min-h-[44px] flex-1"
-            disabled={eligibilityChecking}
-          >
-            {eligibilityChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : existingVisit ? "Manage Visit" : "Schedule Visit"}
-          </Button>
-          {alreadyApplied ? (
-            <Button disabled className="min-h-[44px] flex-1 bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
-              ✓ Already Applied
+      {!isOwnProperty && (
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background p-3 lg:hidden">
+          <div className="mx-auto flex max-w-4xl gap-3">
+            <Button
+              onClick={handleScheduleVisit}
+              variant="outline"
+              className="min-h-[44px] flex-1"
+              disabled={eligibilityChecking}
+            >
+              {eligibilityChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : existingVisit ? "Manage Visit" : "Schedule Visit"}
             </Button>
-          ) : (
-            <Button onClick={handleApplyNow} className="min-h-[44px] flex-1">
-              Apply Now
-            </Button>
-          )}
+            {alreadyApplied ? (
+              <Button disabled className="min-h-[44px] flex-1 bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
+                ✓ Already Applied
+              </Button>
+            ) : (
+              <Button onClick={handleApplyNow} className="min-h-[44px] flex-1">
+                Apply Now
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ─── Eligibility Gate Modal ──────────────────────────── */}
       <Drawer open={eligibilityGateOpen} onOpenChange={setEligibilityGateOpen}>

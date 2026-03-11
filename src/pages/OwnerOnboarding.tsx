@@ -77,7 +77,6 @@ export default function OwnerOnboarding() {
       .update({
         full_name: trimmedName,
         phone: "+91" + trimmedPhone,
-        role: "owner" as any,
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId);
@@ -128,8 +127,9 @@ export default function OwnerOnboarding() {
       bhk: bhk as any,
       furnishing: furnishing as any,
       listed_rent: 0,
-      status: "inspection_proposed" as any,
+      status: "draft" as any,
       is_active: false,
+      draft_at: new Date().toISOString(),
     });
 
     if (propErr) {
@@ -139,7 +139,7 @@ export default function OwnerOnboarding() {
     }
 
     setSaving(false);
-    navigate("/owner", { replace: true });
+    navigate("/my-properties", { replace: true });
   };
 
   if (authLoading) {

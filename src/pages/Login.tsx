@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useSearchParams, useLocation, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -8,22 +8,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Mailcheck from "mailcheck";
 
-type LoginStep = "email" | "otp" | "name";
+type LoginStep = "email" | "otp";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
-  const intendedRole = new URLSearchParams(location.search).get('role') === 'owner' ? 'owner' : 'tenant';
-  const { user, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [step, setStep] = useState<LoginStep>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [fullName, setFullName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,32 +30,20 @@ export default function LoginPage() {
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(true);
 
-  // Store role + userId from OTP verification for use in Step 3
-  const verifiedUserIdRef = useRef<string | null>(null);
-  const verifiedRoleRef = useRef<string>("tenant");
-
   const emailRef = useRef<HTMLInputElement>(null);
   const otpRef = useRef<HTMLInputElement>(null);
-  const nameRef = useRef<HTMLInputElement>(null);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (step === "email") emailRef.current?.focus();
     if (step === "otp") otpRef.current?.focus();
-    if (step === "name") nameRef.current?.focus();
   }, [step]);
 
-  // Redirect if already authenticated with a name
+  // Redirect if already authenticated
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated || !user) return;
-    if (!user.full_name || user.full_name.trim() === "") {
-      setStep("name");
-      verifiedUserIdRef.current = user.id;
-      verifiedRoleRef.current = user.role || "tenant";
-      return;
-    }
-    redirectByRole(user.role);
+    redirectByRole(user.role, user.onboarding_completed);
   }, [authLoading, isAuthenticated, user]);
 
   useEffect(() => {
@@ -67,16 +52,21 @@ export default function LoginPage() {
     };
   }, []);
 
-  const redirectByRole = useCallback(async (role: string | null | undefined) => {
-    const safeRole = role || "tenant";
-    if (safeRole === "owner") {
-      const { data: ownerUser } = await supabase
-        .from('users').select('phone').eq('id', user?.id ?? '').single();
-      navigate(ownerUser?.phone ? '/owner' : '/owner/onboarding', { replace: true });
-    } else {
-      navigate('/search', { replace: true });
+  const redirectByRole = useCallback((role: string | null | undefined, onboardingCompleted: boolean) => {
+    if (!onboardingCompleted) {
+      const dest = returnTo ? `/onboarding?redirectTo=${encodeURIComponent(returnTo)}` : '/onboarding';
+      navigate(dest, { replace: true });
+      return;
     }
-  }, [navigate, user?.id]);
+    const safeRole = role || "user";
+    if (safeRole === "admin" || safeRole === "super_admin") {
+      navigate('/admin/owners', { replace: true });
+    } else if (safeRole === "owner") {
+      navigate('/my-properties', { replace: true });
+    } else {
+      navigate(returnTo || '/dashboard', { replace: true });
+    }
+  }, [navigate, returnTo]);
 
   const isRateLimitError = (msg: string) =>
     /429|security purposes|rate.?limit/i.test(msg);
@@ -101,8 +91,7 @@ export default function LoginPage() {
   // Step 1: Send OTP
   const handleSendOtp = async () => {
     const trimmedEmail = email.trim().toLowerCase();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-    if (!emailRegex.test(trimmedEmail)) {
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
       setEmailError("Please enter a valid email address");
       return;
     }
@@ -168,42 +157,27 @@ export default function LoginPage() {
       }
 
       if (data?.user) {
-        verifiedUserIdRef.current = data.user.id;
+        // Ensure user row exists in public.users
+        const { error: rpcError } = await supabase.rpc('ensure_user_exists');
+        if (rpcError) console.error('ensure_user_exists failed:', rpcError);
 
+        // Fetch user record
         const { data: userData } = await supabase
-          .from("users")
-          .select("full_name, phone, role")
-          .eq("id", data.user.id)
-          .single();
+          .from('users')
+          .select('role, onboarding_completed')
+          .eq('id', data.user.id)
+          .maybeSingle();
 
-        // Fix 1: Never override an existing role
-        const existingRole = userData?.role;
-        if (!existingRole && intendedRole) {
-          await supabase.from('users').update({ role: intendedRole as any }).eq('id', data.user.id);
-        }
-        const effectiveRole = existingRole ?? intendedRole;
-        verifiedRoleRef.current = effectiveRole;
-
-        const fullNameVal = userData?.full_name ?? "";
-        if (!fullNameVal || fullNameVal.trim() === "") {
-          setStep("name");
-          return;
-        }
-
-        // Fix 2: Post-login routing
-        await refreshUser();
-        if (effectiveRole === 'owner') {
-          navigate(userData?.phone ? '/owner' : '/owner/onboarding', { replace: true });
-        } else {
-          navigate('/search', { replace: true });
-        }
+        const effectiveRole = userData?.role ?? 'user';
+        const onboardingCompleted = userData?.onboarding_completed ?? false;
+        redirectByRole(effectiveRole, onboardingCompleted);
       }
     } finally {
       setIsVerifying(false);
     }
   };
 
-  // Resend OTP — never calls verifyOtp
+  // Resend OTP
   const handleResend = async () => {
     setIsLoading(true);
     setError(null);
@@ -225,47 +199,6 @@ export default function LoginPage() {
     startCooldown();
   };
 
-  // Step 3: Save name
-  const handleSaveName = async () => {
-    const name = fullName.trim();
-    if (name.length < 2) {
-      setError("Name must be at least 2 characters.");
-      return;
-    }
-    if (!verifiedUserIdRef.current) {
-      setError("Session expired. Please start over.");
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-
-    // Don't override role here — it was already set in OTP step
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({ full_name: name, updated_at: new Date().toISOString() })
-      .eq("id", verifiedUserIdRef.current);
-
-    if (updateError) {
-      setIsLoading(false);
-      setError("Could not save your name. Please try again.");
-      return;
-    }
-
-    setIsLoading(false);
-    await refreshUser();
-
-    // Fix 2: Post-login routing after name save
-    const effectiveRole = verifiedRoleRef.current;
-    if (effectiveRole === 'owner') {
-      const { data: ownerUser } = await supabase
-        .from('users').select('phone').eq('id', verifiedUserIdRef.current!).single();
-      navigate(ownerUser?.phone ? '/owner' : '/owner/onboarding', { replace: true });
-    } else {
-      navigate('/search', { replace: true });
-    }
-  };
-
-  // OTP input change — NO auto-submit
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/\D/g, "").slice(0, 6);
     setOtp(val);
@@ -446,38 +379,6 @@ export default function LoginPage() {
                   </button>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* Step 3: Name */}
-          {step === "name" && (
-            <div className="space-y-5 animate-in fade-in duration-300">
-              <div className="text-center">
-                <h1 className="text-xl font-bold text-card-foreground">What should we call you?</h1>
-                <p className="mt-1 text-sm text-muted-foreground">Enter your full name to get started</p>
-              </div>
-
-              <div className="space-y-3">
-                <Input
-                  ref={nameRef}
-                  type="text"
-                  placeholder="Your full name"
-                  value={fullName}
-                  onChange={(e) => { setFullName(e.target.value); setError(null); }}
-                  onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
-                  className="min-h-[44px]"
-                />
-                {error && <p className="text-sm text-destructive">{error}</p>}
-              </div>
-
-              <Button
-                onClick={handleSaveName}
-                disabled={fullName.trim().length < 2 || isLoading}
-                className="w-full min-h-[44px]"
-              >
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Continue
-              </Button>
             </div>
           )}
         </div>
