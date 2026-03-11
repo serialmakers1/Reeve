@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { formatDistanceToNow } from "date-fns";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Plus, Building2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Plus, Building2, ChevronRight, AlertCircle } from "lucide-react";
+import { getStatusDisplay, getPropertyDisplayId, formatBhk, getFurnishingLabel } from "@/lib/propertyStatus";
 
 interface Property {
   id: string;
@@ -15,34 +16,26 @@ interface Property {
   bhk: string | null;
   furnishing: string | null;
   status: string | null;
+  city: string | null;
   listed_rent: number | null;
-  draft_at: string | null;
-  inspection_proposed_at: string | null;
-  inspection_date: string | null;
-  inspected_at: string | null;
-  listed_at: string | null;
   created_at: string | null;
 }
 
-function getPropertyDateLine(p: Property): string {
-  const ago = (d: string | null) =>
-    d ? formatDistanceToNow(new Date(d), { addSuffix: true }) : "";
-  switch (p.status) {
-    case "draft":
-      return `Draft started ${ago(p.draft_at ?? p.created_at)}`;
-    case "inspection_proposed":
-      return `Inspection proposed ${ago(p.inspection_proposed_at)}`;
-    case "inspection_scheduled":
-      return p.inspection_date
-        ? `Inspection on ${new Date(p.inspection_date).toLocaleDateString()}`
-        : "";
-    case "inspected":
-      return `Inspected ${ago(p.inspected_at)}`;
-    case "listed":
-      return `Listed ${ago(p.listed_at)}`;
-    default:
-      return "";
+interface PendingAction {
+  propertyId: string;
+  propertyLabel: string;
+  action: string;
+}
+
+function derivePendingActions(properties: Property[]): PendingAction[] {
+  const actions: PendingAction[] = [];
+  for (const p of properties) {
+    const label = p.building_name || "Property";
+    if (p.status === "draft") {
+      actions.push({ propertyId: p.id, propertyLabel: label, action: "Upload documents & request inspection" });
+    }
   }
+  return actions;
 }
 
 export default function MyProperties() {
@@ -57,7 +50,7 @@ export default function MyProperties() {
     (async () => {
       const { data } = await supabase
         .from("properties")
-        .select("id, locality, building_name, bhk, furnishing, status, listed_rent, draft_at, inspection_proposed_at, inspection_date, inspected_at, listed_at, created_at")
+        .select("id, locality, building_name, bhk, furnishing, status, city, listed_rent, created_at")
         .eq("owner_id", userId)
         .order("created_at", { ascending: false });
       setProperties(data ?? []);
@@ -75,9 +68,12 @@ export default function MyProperties() {
     );
   }
 
+  const pendingActions = derivePendingActions(properties);
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-2xl">
+        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-foreground">My Properties</h1>
           <Button onClick={() => navigate("/my-properties/new")} className="min-h-[40px]">
@@ -86,6 +82,30 @@ export default function MyProperties() {
           </Button>
         </div>
 
+        {/* Pending Actions */}
+        {pendingActions.length > 0 && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <p className="text-sm font-semibold text-amber-800">Pending Actions</p>
+            </div>
+            <ul className="space-y-1.5">
+              {pendingActions.map((a) => (
+                <li key={a.propertyId} className="text-sm text-amber-700">
+                  <button
+                    onClick={() => navigate(`/my-properties/${a.propertyId}`)}
+                    className="underline font-medium hover:text-amber-900"
+                  >
+                    {a.propertyLabel}
+                  </button>
+                  {" — "}{a.action}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Property List */}
         {properties.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
             <Building2 className="mb-4 h-10 w-10 text-muted-foreground" />
@@ -102,30 +122,46 @@ export default function MyProperties() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {properties.map((p) => (
-              <Card key={p.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-semibold text-foreground">{p.building_name ?? "—"}</p>
-                      <p className="text-sm text-muted-foreground">{p.locality ?? "—"}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {(p.bhk ?? "").replace("_plus", "+").replace(/(\d)(BHK)/, "$1 BHK")} &middot; {(p.furnishing ?? "").replace(/_/g, " ")}
-                      </p>
+          <div className="space-y-3">
+            {properties.map((p) => {
+              const status = getStatusDisplay(p.status);
+              const displayId = getPropertyDisplayId(p.id);
+
+              return (
+                <Card
+                  key={p.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate(`/my-properties/${p.id}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="font-semibold text-foreground truncate">
+                            {p.building_name ?? "—"}
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {displayId} · {p.locality ?? p.city ?? "—"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatBhk(p.bhk)} · {getFurnishingLabel(p.furnishing)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1.5 italic">
+                          {status.nextAction}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <Badge variant="outline" className={status.color}>
+                          {status.label}
+                        </Badge>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground capitalize">
-                        {(p.status ?? "").replace(/_/g, " ")}
-                      </span>
-                      {getPropertyDateLine(p) && (
-                        <p className="text-xs text-gray-500 mt-1">{getPropertyDateLine(p)}</p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
