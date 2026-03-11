@@ -1579,6 +1579,7 @@ export type Database = {
       }
       properties: {
         Row: {
+          agreement_pending_at: string | null
           amenities: Json | null
           auto_accept_enabled: boolean
           available_from: string | null
@@ -1592,12 +1593,21 @@ export type Database = {
           city: string
           created_at: string
           description: string | null
+          draft_at: string | null
           flat_number: string | null
           flat_number_revealed: boolean
           floor_number: number | null
           floor_plan_url: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"]
           id: string
+          inspected_at: string | null
+          inspection_accepted_at: string | null
+          inspection_date: string | null
+          inspection_end_time: string | null
+          inspection_notes: string | null
+          inspection_proposed_at: string | null
+          inspection_scheduled_at: string | null
+          inspection_start_time: string | null
           is_active: boolean
           last_leased_at: string | null
           latitude: number | null
@@ -1631,6 +1641,7 @@ export type Database = {
           vacancy_review_day21_at: string | null
         }
         Insert: {
+          agreement_pending_at?: string | null
           amenities?: Json | null
           auto_accept_enabled?: boolean
           available_from?: string | null
@@ -1644,12 +1655,21 @@ export type Database = {
           city: string
           created_at?: string
           description?: string | null
+          draft_at?: string | null
           flat_number?: string | null
           flat_number_revealed?: boolean
           floor_number?: number | null
           floor_plan_url?: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"]
           id?: string
+          inspected_at?: string | null
+          inspection_accepted_at?: string | null
+          inspection_date?: string | null
+          inspection_end_time?: string | null
+          inspection_notes?: string | null
+          inspection_proposed_at?: string | null
+          inspection_scheduled_at?: string | null
+          inspection_start_time?: string | null
           is_active?: boolean
           last_leased_at?: string | null
           latitude?: number | null
@@ -1683,6 +1703,7 @@ export type Database = {
           vacancy_review_day21_at?: string | null
         }
         Update: {
+          agreement_pending_at?: string | null
           amenities?: Json | null
           auto_accept_enabled?: boolean
           available_from?: string | null
@@ -1696,12 +1717,21 @@ export type Database = {
           city?: string
           created_at?: string
           description?: string | null
+          draft_at?: string | null
           flat_number?: string | null
           flat_number_revealed?: boolean
           floor_number?: number | null
           floor_plan_url?: string | null
           furnishing?: Database["public"]["Enums"]["furnishing_type"]
           id?: string
+          inspected_at?: string | null
+          inspection_accepted_at?: string | null
+          inspection_date?: string | null
+          inspection_end_time?: string | null
+          inspection_notes?: string | null
+          inspection_proposed_at?: string | null
+          inspection_scheduled_at?: string | null
+          inspection_start_time?: string | null
           is_active?: boolean
           last_leased_at?: string | null
           latitude?: number | null
