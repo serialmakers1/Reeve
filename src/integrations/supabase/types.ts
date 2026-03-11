@@ -1946,6 +1946,7 @@ export type Database = {
           id: string
           is_active: boolean
           last_login_at: string | null
+          onboarding_completed: boolean
           phone: string | null
           phone_verified: boolean
           role: Database["public"]["Enums"]["user_role"]
@@ -1960,6 +1961,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
+          onboarding_completed?: boolean
           phone?: string | null
           phone_verified?: boolean
           role?: Database["public"]["Enums"]["user_role"]
@@ -1974,6 +1976,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
+          onboarding_completed?: boolean
           phone?: string | null
           phone_verified?: boolean
           role?: Database["public"]["Enums"]["user_role"]
@@ -2269,6 +2272,7 @@ export type Database = {
     }
     Functions: {
       earth: { Args: never; Returns: number }
+      ensure_user_exists: { Args: Record<never, never>; Returns: undefined }
       get_user_role: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_property_owner: { Args: { prop_id: string }; Returns: boolean }
@@ -2450,6 +2454,7 @@ export type Database = {
         | "2_to_3_years"
         | "3_plus_years"
       user_role:
+        | "user"
         | "tenant"
         | "owner"
         | "admin"

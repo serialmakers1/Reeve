@@ -18,11 +18,12 @@ const Header = () => {
 
   const handleLogout = async () => {
     await signOut();
-    navigate("/search");
+    navigate("/");
   };
 
   const loginUrl = `/login?returnTo=${encodeURIComponent(location.pathname)}`;
   const displayName = user?.full_name?.split(" ")[0] || user?.email || "Account";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -48,18 +49,22 @@ const Header = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                {user.role === "admin" || user.role === "super_admin" ? (
-                  <DropdownMenuItem onClick={() => navigate("/admin")}>
-                    Dashboard
-                  </DropdownMenuItem>
-                ) : user.role === "owner" ? (
-                  <DropdownMenuItem onClick={() => navigate("/owner")}>
-                    Dashboard
+                {isAdmin ? (
+                  <DropdownMenuItem onClick={() => navigate("/admin/owners")}>
+                    Admin Dashboard
                   </DropdownMenuItem>
                 ) : (
-                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
-                    Dashboard
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                      Rent Properties
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/my-properties")}>
+                      List Properties
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/profile")}>
+                      My Profile
+                    </DropdownMenuItem>
+                  </>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
@@ -72,7 +77,7 @@ const Header = () => {
               <Button
                 size="sm"
                 className="min-h-[40px]"
-                onClick={() => navigate("/login?role=owner")}
+                onClick={() => navigate("/login")}
               >
                 List Your Property
               </Button>

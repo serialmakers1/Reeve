@@ -23,12 +23,15 @@ import Dashboard from "./pages/Dashboard";
 import ApplicationsList from "./pages/ApplicationsList";
 import ApplicationDetail from "./pages/ApplicationDetail";
 import OwnerOnboarding from "./pages/OwnerOnboarding";
-import OwnerDashboard from "./pages/OwnerDashboard";
 import OwnerPropertyDetail from "./pages/OwnerPropertyDetail";
-import OwnerAddProperty from "./pages/OwnerAddProperty";
 import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import VisitsList from "./pages/VisitsList";
 import OwnerPipeline from "./pages/admin/OwnerPipeline";
+import Onboarding from "./pages/Onboarding";
+import MyProperties from "./pages/MyProperties";
+import MyPropertyNew from "./pages/MyPropertyNew";
+import MyPropertyDetail from "./pages/MyPropertyDetail";
+import Profile from "./pages/Profile";
 import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
@@ -69,8 +72,14 @@ function AppInner() {
       <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
       <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
       <Route path="/eligibility" element={<Eligibility />} />
-      <Route path="/owner" element={<OwnerDashboard />} />
-      <Route path="/owner/properties/new" element={<OwnerAddProperty />} />
+      <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/my-properties" element={<MyProperties />} />
+      <Route path="/my-properties/new" element={<MyPropertyNew />} />
+      <Route path="/my-properties/:id" element={<MyPropertyDetail />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/owner" element={<Navigate to="/my-properties" replace />} />
+      <Route path="/owner/dashboard" element={<Navigate to="/my-properties" replace />} />
+      <Route path="/owner/properties/new" element={<Navigate to="/my-properties/new" replace />} />
       <Route path="/owner/properties/:id" element={<OwnerPropertyDetail />} />
       <Route path="/owner/applications/:id" element={<OwnerApplicationDetail />} />
       <Route path="/owner/onboarding" element={<OwnerOnboarding />} />

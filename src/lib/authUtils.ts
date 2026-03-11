@@ -16,9 +16,10 @@ export function getDefaultRouteForRole(role: string | null | undefined): string 
   switch (role) {
     case 'admin':
     case 'super_admin':
-      return '/admin';
+      return '/admin/owners';
     case 'owner':
-      return '/owner';
+      return '/my-properties';
+    case 'user':
     case 'tenant':
     default:
       return '/dashboard';

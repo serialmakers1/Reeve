@@ -2,13 +2,15 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type UserRole = "tenant" | "owner" | "admin" | "super_admin";
+type UserRole = "user" | "tenant" | "owner" | "admin" | "super_admin";
 
 export interface AppUser {
   id: string;
   email: string | null;
   full_name: string;
+  phone: string | null;
   role: UserRole;
+  onboarding_completed: boolean;
 }
 
 interface AuthState {
@@ -21,7 +23,7 @@ interface AuthState {
 async function fetchUserRow(userId: string): Promise<AppUser | null> {
   const { data } = await supabase
     .from("users")
-    .select("id, email, full_name, role")
+    .select("id, email, full_name, phone, role, onboarding_completed")
     .eq("id", userId)
     .maybeSingle();
 
@@ -30,7 +32,9 @@ async function fetchUserRow(userId: string): Promise<AppUser | null> {
     id: data.id,
     email: data.email ?? null,
     full_name: data.full_name ?? "",
+    phone: data.phone ?? null,
     role: data.role as UserRole,
+    onboarding_completed: data.onboarding_completed ?? false,
   };
 }
 
