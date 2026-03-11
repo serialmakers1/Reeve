@@ -28,6 +28,8 @@ import OwnerPropertyDetail from "./pages/OwnerPropertyDetail";
 import OwnerAddProperty from "./pages/OwnerAddProperty";
 import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import VisitsList from "./pages/VisitsList";
+import OwnerPipeline from "./pages/admin/OwnerPipeline";
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
