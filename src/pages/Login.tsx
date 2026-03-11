@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getDefaultRouteForRole } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -52,20 +53,22 @@ export default function LoginPage() {
     };
   }, []);
 
+  const REGULAR_USER_ROLES = new Set(['user', 'tenant', 'owner']);
+
   const redirectByRole = useCallback((role: string | null | undefined, onboardingCompleted: boolean) => {
+    const safeRole = role || "user";
+    // Non-regular roles (admin, super_admin) bypass onboarding entirely
+    if (!REGULAR_USER_ROLES.has(safeRole)) {
+      navigate(returnTo || getDefaultRouteForRole(safeRole), { replace: true });
+      return;
+    }
+    // Regular users: check onboarding first
     if (!onboardingCompleted) {
       const dest = returnTo ? `/onboarding?redirectTo=${encodeURIComponent(returnTo)}` : '/onboarding';
       navigate(dest, { replace: true });
       return;
     }
-    const safeRole = role || "user";
-    if (safeRole === "admin" || safeRole === "super_admin") {
-      navigate('/admin/owners', { replace: true });
-    } else if (safeRole === "owner") {
-      navigate('/my-properties', { replace: true });
-    } else {
-      navigate(returnTo || '/dashboard', { replace: true });
-    }
+    navigate(returnTo || getDefaultRouteForRole(safeRole), { replace: true });
   }, [navigate, returnTo]);
 
   const isRateLimitError = (msg: string) =>

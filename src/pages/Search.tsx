@@ -591,7 +591,7 @@ export default function SearchPage() {
         const to = from + PAGE_SIZE - 1;
 
         let query = supabase
-          .from("properties_public")
+          .from("properties")
           .select(
             "id, building_name, floor_number, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type",
             { count: "exact" }

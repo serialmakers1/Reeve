@@ -11,6 +11,8 @@ import { useState, useEffect } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+// TODO: consolidate with useRequireAuth
+
 interface AuthSessionState {
   session: Session | null;
   user: User | null;

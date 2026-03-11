@@ -371,7 +371,7 @@ const PropertyDetail: React.FC = () => {
         .from("properties_with_flat_number")
         .select("flat_number")
         .eq("id", id)
-        .single();
+        .maybeSingle();
       if (data?.flat_number) {
         setRevealedFlatNumber(data.flat_number);
       }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -15,6 +16,33 @@ interface Property {
   furnishing: string | null;
   status: string | null;
   listed_rent: number | null;
+  draft_at: string | null;
+  inspection_proposed_at: string | null;
+  inspection_date: string | null;
+  inspected_at: string | null;
+  listed_at: string | null;
+  created_at: string | null;
+}
+
+function getPropertyDateLine(p: Property): string {
+  const ago = (d: string | null) =>
+    d ? formatDistanceToNow(new Date(d), { addSuffix: true }) : "";
+  switch (p.status) {
+    case "draft":
+      return `Draft started ${ago(p.draft_at ?? p.created_at)}`;
+    case "inspection_proposed":
+      return `Inspection proposed ${ago(p.inspection_proposed_at)}`;
+    case "inspection_scheduled":
+      return p.inspection_date
+        ? `Inspection on ${new Date(p.inspection_date).toLocaleDateString()}`
+        : "";
+    case "inspected":
+      return `Inspected ${ago(p.inspected_at)}`;
+    case "listed":
+      return `Listed ${ago(p.listed_at)}`;
+    default:
+      return "";
+  }
 }
 
 export default function MyProperties() {
@@ -29,7 +57,7 @@ export default function MyProperties() {
     (async () => {
       const { data } = await supabase
         .from("properties")
-        .select("id, locality, building_name, bhk, furnishing, status, listed_rent")
+        .select("id, locality, building_name, bhk, furnishing, status, listed_rent, draft_at, inspection_proposed_at, inspection_date, inspected_at, listed_at, created_at")
         .eq("owner_id", userId)
         .order("created_at", { ascending: false });
       setProperties(data ?? []);
@@ -86,9 +114,14 @@ export default function MyProperties() {
                         {(p.bhk ?? "").replace("_plus", "+").replace(/(\d)(BHK)/, "$1 BHK")} &middot; {(p.furnishing ?? "").replace(/_/g, " ")}
                       </p>
                     </div>
-                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground capitalize">
-                      {(p.status ?? "").replace(/_/g, " ")}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground capitalize">
+                        {(p.status ?? "").replace(/_/g, " ")}
+                      </span>
+                      {getPropertyDateLine(p) && (
+                        <p className="text-xs text-gray-500 mt-1">{getPropertyDateLine(p)}</p>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

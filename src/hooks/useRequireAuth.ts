@@ -23,7 +23,10 @@ export function useRequireAuth({ requireAdmin = false }: { requireAdmin?: boolea
     }
 
     // Ensure user row exists in DB (idempotent)
-    supabase.rpc('ensure_user_exists').catch(() => {});
+    (async () => {
+      const { error: rpcError } = await supabase.rpc('ensure_user_exists');
+      if (rpcError) console.error('ensure_user_exists error:', rpcError);
+    })();
 
     // Admin-only guard
     if (requireAdmin) {

@@ -75,7 +75,7 @@ export default function OwnerApplicationDetail() {
         application_notes(note_type, description, photo_url)
       `)
       .eq("id", id)
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       setNotFound(true);

@@ -217,10 +217,10 @@ export default function NewApplicationPage() {
 
     // Fetch property
     const { data: prop } = await supabase
-      .from("properties_public")
+      .from("properties")
       .select("id, building_name, bhk, listed_rent, locality")
       .eq("id", propertyId)
-      .single();
+      .maybeSingle();
 
     if (!prop) {
       toast({ title: "Property not found", variant: "destructive" });
@@ -283,7 +283,7 @@ export default function NewApplicationPage() {
           eligibility_id: elig.id,
         })
         .select("id")
-        .single();
+        .maybeSingle();
 
       if (error || !newApp) {
         toast({ title: "Could not start application", variant: "destructive" });
