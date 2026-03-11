@@ -80,7 +80,7 @@ function AppInner() {
       <Route path="/owner" element={<Navigate to="/my-properties" replace />} />
       <Route path="/owner/dashboard" element={<Navigate to="/my-properties" replace />} />
       <Route path="/owner/properties/new" element={<Navigate to="/my-properties/new" replace />} />
-      <Route path="/owner/properties/:id" element={<OwnerPropertyDetail />} />
+      <Route path="/owner/properties/:id" element={<Navigate to="/my-properties" replace />} />
       <Route path="/owner/applications/:id" element={<OwnerApplicationDetail />} />
       <Route path="/owner/onboarding" element={<OwnerOnboarding />} />
       <Route path="/dashboard" element={<Dashboard />} />
