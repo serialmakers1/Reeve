@@ -1,0 +1,443 @@
+import { useState, useEffect, useMemo, useCallback } from "react";
+import AdminLayout from "@/components/admin/AdminLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useToast } from "@/hooks/use-toast";
+import { Search, MoreHorizontal, Users, X, Inbox } from "lucide-react";
+
+const STAGES = [
+  { label: "New", value: "draft" },
+  { label: "Inspection Proposed", value: "inspection_proposed" },
+  { label: "Inspection Accepted", value: "inspection_accepted" },
+  { label: "Inspection Scheduled", value: "inspection_scheduled" },
+  { label: "Inspected", value: "inspected" },
+  { label: "Agreement In Progress", value: "agreement_pending" },
+  { label: "Listed", value: "listed" },
+] as const;
+
+type StageValue = (typeof STAGES)[number]["value"];
+
+interface PropertyRow {
+  id: string;
+  status: string;
+  building_name: string;
+  locality: string | null;
+  city: string;
+  created_at: string;
+  listed_at: string | null;
+  owner_name: string;
+  owner_email: string | null;
+  owner_phone: string | null;
+  owner_id: string;
+}
+
+const STATUS_TRANSITIONS: { label: string; to: StageValue }[] = [
+  { label: "Propose Inspection Time", to: "inspection_proposed" },
+  { label: "Mark Inspection Accepted", to: "inspection_accepted" },
+  { label: "Schedule Inspection", to: "inspection_scheduled" },
+  { label: "Mark Inspected", to: "inspected" },
+  { label: "Mark Listed", to: "listed" },
+];
+
+export default function OwnerPipeline() {
+  const { toast } = useToast();
+  const [data, setData] = useState<PropertyRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<StageValue>("draft");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [detailDrawer, setDetailDrawer] = useState<string | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data: rows, error: err } = await supabase
+      .from("properties")
+      .select(`
+        id, status, building_name, locality, city, created_at, listed_at, owner_id,
+        users!inner(full_name, email, phone)
+      `);
+
+    if (err) {
+      setError("Failed to load properties. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    const mapped: PropertyRow[] = (rows ?? []).map((r: any) => ({
+      id: r.id,
+      status: r.status,
+      building_name: r.building_name,
+      locality: r.locality,
+      city: r.city,
+      created_at: r.created_at,
+      listed_at: r.listed_at,
+      owner_id: r.owner_id,
+      owner_name: r.users?.full_name ?? "",
+      owner_email: r.users?.email ?? null,
+      owner_phone: r.users?.phone ?? null,
+    }));
+
+    setData(mapped);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const daysSince = (dateStr: string) => {
+    const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+    return `${d} day${d !== 1 ? "s" : ""}`;
+  };
+
+  // Counts per stage
+  const stageCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    STAGES.forEach((s) => (counts[s.value] = 0));
+    data.forEach((r) => {
+      if (counts[r.status] !== undefined) counts[r.status]++;
+    });
+    return counts;
+  }, [data]);
+
+  // Filtered rows
+  const filtered = useMemo(() => {
+    let rows = data.filter((r) => r.status === activeTab);
+    if (statusFilter !== "all") rows = rows.filter((r) => r.status === statusFilter);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          r.owner_name.toLowerCase().includes(q) ||
+          r.building_name.toLowerCase().includes(q) ||
+          (r.locality ?? "").toLowerCase().includes(q)
+      );
+    }
+    if (dateFrom) rows = rows.filter((r) => r.created_at >= dateFrom);
+    if (dateTo) rows = rows.filter((r) => r.created_at <= dateTo + "T23:59:59");
+    return rows;
+  }, [data, activeTab, searchQuery, statusFilter, dateFrom, dateTo]);
+
+  const allSelected = filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((r) => r.id)));
+    }
+  };
+  const toggleSelect = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  };
+
+  const updateStatus = async (ids: string[], newStatus: StageValue) => {
+    const { error: err } = await supabase
+      .from("properties")
+      .update({ status: newStatus })
+      .in("id", ids);
+    if (err) {
+      toast({ title: "Update failed. Please try again.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Status updated successfully" });
+    await fetchData();
+    setSelected(new Set());
+  };
+
+  const handleBulkAction = async (newStatus: StageValue) => {
+    setBulkLoading(true);
+    await updateStatus(Array.from(selected), newStatus);
+    setBulkLoading(false);
+  };
+
+  // Detail drawer data
+  const drawerOwner = useMemo(() => {
+    if (!detailDrawer) return null;
+    const row = data.find((r) => r.id === detailDrawer);
+    if (!row) return null;
+    const ownerProps = data.filter((r) => r.owner_id === row.owner_id);
+    return { ...row, properties: ownerProps };
+  }, [detailDrawer, data]);
+
+  return (
+    <AdminLayout>
+      <div className="space-y-4">
+        <h1 className="text-xl font-bold text-foreground">Owner Pipeline</h1>
+
+        {/* Search & Filter bar */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search owner, building, locality…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 min-h-[44px]"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-48 min-h-[44px]">
+              <SelectValue placeholder="All stages" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All stages</SelectItem>
+              {STAGES.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex gap-2">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="min-h-[44px] w-full sm:w-auto"
+              placeholder="From"
+            />
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="min-h-[44px] w-full sm:w-auto"
+              placeholder="To"
+            />
+          </div>
+        </div>
+
+        {/* Stage tabs */}
+        <div className="flex gap-1 overflow-x-auto pb-1">
+          {STAGES.map((stage) => (
+            <button
+              key={stage.value}
+              onClick={() => { setActiveTab(stage.value); setSelected(new Set()); }}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors min-h-[44px] ${
+                activeTab === stage.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {stage.label}
+              <Badge
+                variant={activeTab === stage.value ? "secondary" : "outline"}
+                className="ml-1 text-xs"
+              >
+                {stageCounts[stage.value] ?? 0}
+              </Badge>
+            </button>
+          ))}
+        </div>
+
+        {/* Error state */}
+        {error && (
+          <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        {/* Loading state */}
+        {loading && (
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-14 w-full" />
+            ))}
+          </div>
+        )}
+
+        {/* Table */}
+        {!loading && !error && filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+            <Inbox className="h-12 w-12 mb-3 opacity-40" />
+            <p className="text-sm">No owners in this stage yet.</p>
+          </div>
+        )}
+
+        {!loading && !error && filtered.length > 0 && (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
+                  <TableHead>Owner Name</TableHead>
+                  <TableHead className="hidden sm:table-cell">Phone</TableHead>
+                  <TableHead>Building Name</TableHead>
+                  <TableHead className="hidden md:table-cell">Locality</TableHead>
+                  <TableHead className="hidden lg:table-cell">Date Added</TableHead>
+                  <TableHead>Days in Stage</TableHead>
+                  <TableHead className="w-16">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      const tag = (e.target as HTMLElement).closest("button, [role=menuitem], [role=checkbox]");
+                      if (!tag) setDetailDrawer(row.id);
+                    }}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selected.has(row.id)}
+                        onCheckedChange={() => toggleSelect(row.id)}
+                        aria-label={`Select ${row.owner_name}`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{row.owner_name || "—"}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{row.owner_phone || "—"}</TableCell>
+                    <TableCell>{row.building_name}</TableCell>
+                    <TableCell className="hidden md:table-cell">{row.locality || "—"}</TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {new Date(row.created_at).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </TableCell>
+                    <TableCell>{daysSince(row.created_at)}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {STATUS_TRANSITIONS.map((t) => (
+                            <DropdownMenuItem
+                              key={t.to}
+                              onClick={() => updateStatus([row.id], t.to)}
+                              className="min-h-[44px]"
+                            >
+                              {t.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {/* Bulk action bar */}
+        {selected.size > 0 && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-lg border bg-background px-4 py-3 shadow-lg">
+            <span className="text-sm font-medium text-foreground">
+              {selected.size} selected
+            </span>
+            <Button
+              size="sm"
+              className="min-h-[44px]"
+              disabled={bulkLoading}
+              onClick={() => handleBulkAction("inspection_proposed")}
+            >
+              Propose Inspection Time
+            </Button>
+            <Button
+              size="sm"
+              className="min-h-[44px]"
+              disabled={bulkLoading}
+              onClick={() => handleBulkAction("inspection_scheduled")}
+            >
+              Schedule Inspection
+            </Button>
+          </div>
+        )}
+
+        {/* Detail drawer */}
+        <Sheet open={!!detailDrawer} onOpenChange={(o) => !o && setDetailDrawer(null)}>
+          <SheetContent side="right" className="w-full sm:w-96 overflow-y-auto">
+            {drawerOwner && (
+              <div className="space-y-5 pt-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">{drawerOwner.owner_name || "Owner"}</h2>
+                    <p className="text-sm text-muted-foreground">{drawerOwner.owner_email || "No email"}</p>
+                    <p className="text-sm text-muted-foreground">{drawerOwner.owner_phone || "No phone"}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Properties</h3>
+                  <div className="space-y-3">
+                    {drawerOwner.properties.map((p) => (
+                      <div key={p.id} className="rounded-md border p-3 space-y-1">
+                        <p className="text-sm font-medium text-foreground">{p.building_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {p.locality ? `${p.locality}, ` : ""}{p.city}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-xs">{p.status}</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Added {new Date(p.created_at).toLocaleDateString("en-IN", {
+                              day: "numeric", month: "short", year: "numeric"
+                            })}
+                          </span>
+                          {p.listed_at && (
+                            <span className="text-xs text-muted-foreground">
+                              Listed {new Date(p.listed_at).toLocaleDateString("en-IN", {
+                                day: "numeric", month: "short", year: "numeric"
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
+      </div>
+    </AdminLayout>
+  );
+}

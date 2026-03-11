@@ -28,6 +28,8 @@ import OwnerPropertyDetail from "./pages/OwnerPropertyDetail";
 import OwnerAddProperty from "./pages/OwnerAddProperty";
 import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import VisitsList from "./pages/VisitsList";
+import OwnerPipeline from "./pages/admin/OwnerPipeline";
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +80,8 @@ function AppInner() {
       <Route path="/dashboard/applications/new" element={<NewApplication />} />
       <Route path="/dashboard/visits" element={<VisitsList />} />
       <Route path="/dashboard/applications/:id" element={<ApplicationDetail />} />
+      <Route path="/admin" element={<Navigate to="/admin/owners" replace />} />
+      <Route path="/admin/owners" element={<OwnerPipeline />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
