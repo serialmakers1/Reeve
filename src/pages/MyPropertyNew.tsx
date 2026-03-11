@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -40,11 +41,11 @@ export default function MyPropertyNew() {
 
   const canSubmit =
     !!userId &&
-    locality.trim() &&
-    buildingName.trim() &&
-    address.trim() &&
-    bhk &&
-    furnishing &&
+    !!locality.trim() &&
+    !!buildingName.trim() &&
+    !!address.trim() &&
+    !!bhk &&
+    !!furnishing &&
     !submitting;
 
   const handleSubmit = async () => {
@@ -52,8 +53,17 @@ export default function MyPropertyNew() {
     setSubmitting(true);
     setError("");
 
-    const { error: insertError } = await supabase.from("properties").insert({
-      owner_id: userId,
+    // Refresh session to ensure a valid token
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session) {
+      console.error("Session refresh failed:", sessionError);
+      setError("Session expired. Please log in again.");
+      setSubmitting(false);
+      return;
+    }
+
+    const payload = {
+      owner_id: sessionData.session.user.id,
       city: "Bangalore",
       state: "Karnataka",
       locality: locality.trim(),
@@ -62,21 +72,27 @@ export default function MyPropertyNew() {
       bhk: bhk as any,
       furnishing: furnishing as any,
       listed_rent: 0,
-      status: "draft" as any,
       is_active: false,
       draft_at: new Date().toISOString(),
-    });
+    };
+
+    console.log("[AddProperty] inserting into properties:", payload);
+
+    const { error: insertError } = await supabase
+      .from("properties")
+      .insert(payload);
 
     setSubmitting(false);
 
     if (insertError) {
-      console.error("Property insert error:", insertError);
+      console.error("[AddProperty] Supabase error:", insertError);
       setError(insertError.message || "Could not save. Please try again.");
       return;
     }
 
+    console.log("[AddProperty] success — redirecting");
+    toast.success("Property added");
     navigate("/my-properties", { replace: true });
-  };
 
   return (
     <Layout>
