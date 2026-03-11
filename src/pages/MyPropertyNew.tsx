@@ -36,9 +36,10 @@ export default function MyPropertyNew() {
     );
   }
 
-  const userId = session?.user?.id || "";
+  const userId = session?.user?.id;
 
   const canSubmit =
+    !!userId &&
     locality.trim() &&
     buildingName.trim() &&
     address.trim() &&
@@ -47,7 +48,7 @@ export default function MyPropertyNew() {
     !submitting;
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || !userId) return;
     setSubmitting(true);
     setError("");
 
@@ -69,7 +70,8 @@ export default function MyPropertyNew() {
     setSubmitting(false);
 
     if (insertError) {
-      setError("Could not save. Please try again.");
+      console.error("Property insert error:", insertError);
+      setError(insertError.message || "Could not save. Please try again.");
       return;
     }
 
