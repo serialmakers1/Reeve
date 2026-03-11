@@ -137,11 +137,24 @@ export default function OwnerPipeline() {
     const { data: rows, error: err } = await supabase
       .from("properties")
       .select(`
-        id, status, building_name, locality, city, created_at, listed_at, owner_id,
-        inspection_proposed_at, inspection_accepted_at, inspection_scheduled_at,
-        inspected_at, agreement_pending_at,
-        inspection_date, inspection_start_time, inspection_end_time, inspection_notes,
-        users!inner(full_name, email, phone)
+        id,
+        status,
+        building_name,
+        locality,
+        city,
+        created_at,
+        listed_at,
+        inspection_date,
+        inspection_start_time,
+        inspection_end_time,
+        inspection_notes,
+        draft_at,
+        inspection_proposed_at,
+        inspection_accepted_at,
+        inspection_scheduled_at,
+        inspected_at,
+        agreement_pending_at,
+        owner:users!properties_owner_id_fkey(full_name, email, phone)
       `);
 
     if (err) {
@@ -167,10 +180,10 @@ export default function OwnerPipeline() {
       inspection_start_time: r.inspection_start_time,
       inspection_end_time: r.inspection_end_time,
       inspection_notes: r.inspection_notes,
-      owner_id: r.owner_id,
-      owner_name: r.users?.full_name ?? "",
-      owner_email: r.users?.email ?? null,
-      owner_phone: r.users?.phone ?? null,
+      owner_id: r.owner_id ?? "",
+      owner_name: r.owner?.full_name ?? "",
+      owner_email: r.owner?.email ?? null,
+      owner_phone: r.owner?.phone ?? null,
     }));
 
     setData(mapped);
