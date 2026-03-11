@@ -33,6 +33,7 @@ import MyPropertyNew from "./pages/MyPropertyNew";
 import MyPropertyDetail from "./pages/MyPropertyDetail";
 import Profile from "./pages/Profile";
 import { Navigate } from "react-router-dom";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -102,7 +103,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppInner />
+        <ErrorBoundary>
+          <AppInner />
+        </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
