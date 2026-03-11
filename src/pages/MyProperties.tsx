@@ -9,12 +9,12 @@ import { Loader2, Plus, Building2 } from "lucide-react";
 
 interface Property {
   id: string;
-  locality: string;
-  building_name: string;
-  bhk: string;
-  furnishing: string;
-  status: string;
-  listed_rent: number;
+  locality: string | null;
+  building_name: string | null;
+  bhk: string | null;
+  furnishing: string | null;
+  status: string | null;
+  listed_rent: number | null;
 }
 
 export default function MyProperties() {
@@ -80,14 +80,14 @@ export default function MyProperties() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-semibold text-foreground">{p.building_name}</p>
-                      <p className="text-sm text-muted-foreground">{p.locality}</p>
+                      <p className="font-semibold text-foreground">{p.building_name ?? "—"}</p>
+                      <p className="text-sm text-muted-foreground">{p.locality ?? "—"}</p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {p.bhk.replace("_plus", "+").replace(/(\d)(BHK)/, "$1 BHK")} &middot; {p.furnishing.replace(/_/g, " ")}
+                        {(p.bhk ?? "").replace("_plus", "+").replace(/(\d)(BHK)/, "$1 BHK")} &middot; {(p.furnishing ?? "").replace(/_/g, " ")}
                       </p>
                     </div>
                     <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground capitalize">
-                      {p.status.replace(/_/g, " ")}
+                      {(p.status ?? "").replace(/_/g, " ")}
                     </span>
                   </div>
                 </CardContent>
