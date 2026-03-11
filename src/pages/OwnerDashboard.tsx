@@ -30,7 +30,7 @@ export default function OwnerDashboard() {
           .from("users")
           .select("full_name, phone, role")
           .eq("id", userId)
-          .single();
+          .maybeSingle();
 
         if (data) {
           if (!data.phone) {
@@ -59,6 +59,15 @@ export default function OwnerDashboard() {
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="space-y-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <span className="text-amber-600 text-lg">⚠️</span>
+            <div>
+              <p className="text-amber-800 font-medium">This page is being replaced</p>
+              <p className="text-amber-700 text-sm mt-1">
+                Use <a href="/my-properties" className="underline font-medium">My Properties</a> instead — it has everything here and more.
+              </p>
+            </div>
+          </div>
           <h1 className="text-2xl font-bold text-foreground">Welcome, {userName}</h1>
 
           <Tabs defaultValue="properties">

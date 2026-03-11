@@ -102,7 +102,7 @@ export default function ApplicationDetail() {
         )
         .eq("id", id)
         .eq("tenant_id", user.id)
-        .single();
+        .maybeSingle();
 
       setApp(data as unknown as AppDetail | null);
       setLoading(false);

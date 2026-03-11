@@ -57,8 +57,8 @@ export default function OwnerProfileTab({ userId }: OwnerProfileTabProps) {
   const fetchData = async () => {
     setLoading(true);
     const [userRes, profileRes, bankRes, docsRes] = await Promise.all([
-      supabase.from("users").select("full_name, email, phone").eq("id", userId).single(),
-      supabase.from("profiles").select("is_foreign_citizen").eq("user_id", userId).single(),
+      supabase.from("users").select("full_name, email, phone").eq("id", userId).maybeSingle(),
+      supabase.from("profiles").select("is_foreign_citizen").eq("user_id", userId).maybeSingle(),
       supabase.from("owner_bank_details").select("*").eq("owner_id", userId).maybeSingle(),
       supabase
         .from("documents")

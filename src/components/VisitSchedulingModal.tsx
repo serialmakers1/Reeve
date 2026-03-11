@@ -188,15 +188,15 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
       // Fetch property details from public view + flat number from gated view
       const [pubRes, flatRes] = await Promise.all([
         supabase
-          .from("properties_public")
+          .from("properties")
           .select("floor_number, building_name, street_address, locality, city, pincode, bhk")
           .eq("id", propertyId)
-          .single(),
+          .maybeSingle(),
         supabase
           .from("properties_with_flat_number")
           .select("flat_number")
           .eq("id", propertyId)
-          .single(),
+          .maybeSingle(),
       ]);
 
       if (pubRes.data) {

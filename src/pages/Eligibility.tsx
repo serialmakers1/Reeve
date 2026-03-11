@@ -136,10 +136,10 @@ export default function EligibilityPage() {
     if (!propertyIdParam) return;
     const fetchProperty = async () => {
       const { data } = await supabase
-        .from('properties_public')
+        .from('properties')
         .select('id, building_name, bhk, listed_rent, locality')
         .eq('id', propertyIdParam)
-        .single();
+        .maybeSingle();
       if (data) {
         setPropertyContext(data as PropertyContext);
       }
