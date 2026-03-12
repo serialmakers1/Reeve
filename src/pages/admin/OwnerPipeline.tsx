@@ -384,7 +384,7 @@ export default function OwnerPipeline() {
                     className="cursor-pointer"
                     onClick={(e) => {
                       const tag = (e.target as HTMLElement).closest("button, [role=menuitem], [role=checkbox]");
-                      if (!tag) setDetailDrawer(row.id);
+                      if (!tag) navigate(`/admin/properties/${row.id}`);
                     }}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
