@@ -22,8 +22,6 @@ import NewApplication from "./pages/NewApplication";
 import Dashboard from "./pages/Dashboard";
 import ApplicationsList from "./pages/ApplicationsList";
 import ApplicationDetail from "./pages/ApplicationDetail";
-import OwnerOnboarding from "./pages/OwnerOnboarding";
-import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import VisitsList from "./pages/VisitsList";
 import OwnerPipeline from "./pages/admin/OwnerPipeline";
 import Onboarding from "./pages/Onboarding";
@@ -81,8 +79,8 @@ function AppInner() {
       <Route path="/owner/dashboard" element={<Navigate to="/my-properties" replace />} />
       <Route path="/owner/properties/new" element={<Navigate to="/my-properties/new" replace />} />
       <Route path="/owner/properties/:id" element={<Navigate to="/my-properties" replace />} />
-      <Route path="/owner/applications/:id" element={<OwnerApplicationDetail />} />
-      <Route path="/owner/onboarding" element={<OwnerOnboarding />} />
+      <Route path="/owner/applications/:id" element={<Navigate to="/dashboard/applications" replace />} />
+      <Route path="/owner/onboarding" element={<Navigate to="/onboarding" replace />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
       <Route path="/dashboard/applications" element={<ApplicationsList />} />
