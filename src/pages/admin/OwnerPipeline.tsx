@@ -40,8 +40,7 @@ import { Search, MoreHorizontal, X, Inbox } from "lucide-react";
 
 const STAGES = [
   { label: "New", value: "draft" },
-  { label: "Inspection Proposed", value: "inspection_proposed" },
-  { label: "Inspection Accepted", value: "inspection_accepted" },
+  { label: "Inspection Requested", value: "inspection_proposed" },
   { label: "Inspection Scheduled", value: "inspection_scheduled" },
   { label: "Inspected", value: "inspected" },
   { label: "Agreement In Progress", value: "agreement_pending" },
