@@ -96,8 +96,7 @@ const formatTime12 = (t: string) => {
 };
 
 const STATUS_ACTIONS: { label: string; to: StageValue; atCol: string }[] = [
-  { label: "Propose Inspection Time", to: "inspection_proposed", atCol: "inspection_proposed_at" },
-  { label: "Mark Inspection Accepted", to: "inspection_accepted", atCol: "inspection_accepted_at" },
+  { label: "Request Inspection Time", to: "inspection_proposed", atCol: "inspection_proposed_at" },
   { label: "Schedule Inspection", to: "inspection_scheduled", atCol: "inspection_scheduled_at" },
   { label: "Mark Inspected", to: "inspected", atCol: "inspected_at" },
   { label: "Move to Agreement", to: "agreement_pending", atCol: "agreement_pending_at" },
