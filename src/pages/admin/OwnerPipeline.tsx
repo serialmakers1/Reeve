@@ -106,6 +106,7 @@ const STATUS_ACTIONS: { label: string; to: StageValue; atCol: string }[] = [
 
 export default function OwnerPipeline() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [data, setData] = useState<PropertyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
