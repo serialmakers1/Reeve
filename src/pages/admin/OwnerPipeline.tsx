@@ -36,6 +36,7 @@ import {
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import { Search, MoreHorizontal, X, Inbox } from "lucide-react";
 
 const STAGES = [
@@ -105,6 +106,7 @@ const STATUS_ACTIONS: { label: string; to: StageValue; atCol: string }[] = [
 
 export default function OwnerPipeline() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [data, setData] = useState<PropertyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -382,7 +384,7 @@ export default function OwnerPipeline() {
                     className="cursor-pointer"
                     onClick={(e) => {
                       const tag = (e.target as HTMLElement).closest("button, [role=menuitem], [role=checkbox]");
-                      if (!tag) setDetailDrawer(row.id);
+                      if (!tag) navigate(`/admin/properties/${row.id}`);
                     }}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
