@@ -1509,6 +1509,7 @@ export type Database = {
           longitude: number | null
           main_door_lock_type: string | null
           map_pin_url: string | null
+          occupied_at: string | null
           off_market_at: string | null
           owner_id: string
           parking_2w: Database["public"]["Enums"]["parking_availability"]
@@ -1571,6 +1572,7 @@ export type Database = {
           longitude?: number | null
           main_door_lock_type?: string | null
           map_pin_url?: string | null
+          occupied_at?: string | null
           off_market_at?: string | null
           owner_id: string
           parking_2w?: Database["public"]["Enums"]["parking_availability"]
@@ -1633,6 +1635,7 @@ export type Database = {
           longitude?: number | null
           main_door_lock_type?: string | null
           map_pin_url?: string | null
+          occupied_at?: string | null
           off_market_at?: string | null
           owner_id?: string
           parking_2w?: Database["public"]["Enums"]["parking_availability"]
