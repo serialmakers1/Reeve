@@ -36,6 +36,7 @@ import {
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import { Search, MoreHorizontal, X, Inbox } from "lucide-react";
 
 const STAGES = [
