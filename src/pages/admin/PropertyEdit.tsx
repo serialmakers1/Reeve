@@ -83,8 +83,9 @@ const BUILDING_AMENITIES = [
 
 const PARKING_OPTIONS = [
   { value: "none", label: "None" },
-  { value: "available", label: "Available" },
-  { value: "included", label: "Included" },
+  { value: "covered", label: "Covered" },
+  { value: "uncovered", label: "Uncovered" },
+  { value: "both", label: "Both" },
 ];
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
