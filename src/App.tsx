@@ -24,6 +24,7 @@ import ApplicationsList from "./pages/ApplicationsList";
 import ApplicationDetail from "./pages/ApplicationDetail";
 import VisitsList from "./pages/VisitsList";
 import OwnerPipeline from "./pages/admin/OwnerPipeline";
+import PropertyEdit from "./pages/admin/PropertyEdit";
 import Onboarding from "./pages/Onboarding";
 import MyProperties from "./pages/MyProperties";
 import MyPropertyNew from "./pages/MyPropertyNew";
