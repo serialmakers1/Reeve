@@ -318,7 +318,7 @@ export default function PropertyEdit() {
             <p className="text-xs text-muted-foreground">When enabled, property appears in tenant search results</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", isActive ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground")}>
+            <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
               {isActive ? "Live" : "Hidden"}
             </span>
             <Switch checked={isActive} onCheckedChange={setIsActive} />
