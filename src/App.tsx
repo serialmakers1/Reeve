@@ -32,6 +32,7 @@ import MyProperties from "./pages/MyProperties";
 import MyPropertyNew from "./pages/MyPropertyNew";
 import MyPropertyDetail from "./pages/MyPropertyDetail";
 import Profile from "./pages/Profile";
+import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import { Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
