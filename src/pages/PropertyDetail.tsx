@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFavourites } from "@/hooks/useFavourites";
@@ -320,7 +321,6 @@ const PropertyDetail: React.FC = () => {
   // Visit scheduling
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [existingVisit, setExistingVisit] = useState<{ id: string; scheduled_at: string; status: string } | null>(null);
-  const [visitLoading, setVisitLoading] = useState(false);
   const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
   const [eligibilityChecking, setEligibilityChecking] = useState(false);
 
@@ -345,19 +345,18 @@ const PropertyDetail: React.FC = () => {
 
   // Check for existing visit
   const fetchExistingVisit = useCallback(async () => {
-    if (!session || !id) { setExistingVisit(null); return; }
-    setVisitLoading(true);
+    if (!id) { setExistingVisit(null); return; }
+    const { data: { session: s } } = await supabase.auth.getSession();
+    if (!s) { setExistingVisit(null); return; }
     const { data } = await supabase
       .from("visits")
       .select("id, scheduled_at, status")
       .eq("property_id", id)
-      .eq("tenant_id", session.user.id)
-      .in("status", ["scheduled", "confirmed"])
-      .limit(1)
+      .eq("tenant_id", s.user.id)
+      .in("status", ["scheduled", "rescheduled", "confirmed"])
       .maybeSingle();
     setExistingVisit(data ?? null);
-    setVisitLoading(false);
-  }, [session, id]);
+  }, [id]);
 
   useEffect(() => {
     fetchExistingVisit();
@@ -476,11 +475,6 @@ const PropertyDetail: React.FC = () => {
   const handleScheduleVisit = async () => {
     if (!session) {
       setLoginDrawerOpen(true);
-      return;
-    }
-    // If managing an existing visit, skip eligibility gate
-    if (existingVisit) {
-      setVisitModalOpen(true);
       return;
     }
     // Check eligibility before opening scheduling modal
@@ -905,14 +899,28 @@ const PropertyDetail: React.FC = () => {
                     <p className="text-sm text-muted-foreground text-center py-2">This is your listed property.</p>
                   ) : (
                     <>
-                      <Button
-                        onClick={handleScheduleVisit}
-                        variant="outline"
-                        className="w-full min-h-[44px]"
-                        disabled={eligibilityChecking}
-                      >
-                        {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : existingVisit ? "Manage Visit" : "Schedule a Visit"}
-                      </Button>
+                      {existingVisit ? (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <p className="text-sm text-blue-800 font-medium">
+                            Visit scheduled for {format(new Date(existingVisit.scheduled_at), "EEE, d MMM yyyy · h:mm a")}
+                          </p>
+                          <a
+                            href="/dashboard/visits"
+                            className="text-sm text-blue-600 underline mt-1 inline-block"
+                          >
+                            Manage your visit →
+                          </a>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={handleScheduleVisit}
+                          variant="outline"
+                          className="w-full min-h-[44px]"
+                          disabled={eligibilityChecking}
+                        >
+                          {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : "Schedule a Visit"}
+                        </Button>
+                      )}
                       {alreadyApplied ? (
                         <Button disabled className="w-full min-h-[44px] bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
                           ✓ Already Applied
@@ -935,14 +943,25 @@ const PropertyDetail: React.FC = () => {
       {!isOwnProperty && (
         <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background p-3 lg:hidden">
           <div className="mx-auto flex max-w-4xl gap-3">
-            <Button
-              onClick={handleScheduleVisit}
-              variant="outline"
-              className="min-h-[44px] flex-1"
-              disabled={eligibilityChecking}
-            >
-              {eligibilityChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : existingVisit ? "Manage Visit" : "Schedule Visit"}
-            </Button>
+            {existingVisit ? (
+              <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                <p className="text-xs text-blue-800 font-medium leading-tight">
+                  {format(new Date(existingVisit.scheduled_at), "EEE, d MMM · h:mm a")}
+                </p>
+                <a href="/dashboard/visits" className="text-xs text-blue-600 underline">
+                  Manage →
+                </a>
+              </div>
+            ) : (
+              <Button
+                onClick={handleScheduleVisit}
+                variant="outline"
+                className="min-h-[44px] flex-1"
+                disabled={eligibilityChecking}
+              >
+                {eligibilityChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Schedule Visit"}
+              </Button>
+            )}
             {alreadyApplied ? (
               <Button disabled className="min-h-[44px] flex-1 bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
                 ✓ Already Applied
