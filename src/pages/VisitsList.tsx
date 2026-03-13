@@ -56,7 +56,8 @@ export default function VisitsList() {
   const [activePanel, setActivePanel] = useState<{ id: string; type: "reschedule" | "cancel" } | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
-  const [cancelReason, setCancelReason] = useState("");
+  const [selectedReason, setSelectedReason] = useState("");
+  const [otherText, setOtherText] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fetchVisits = useCallback(async () => {
@@ -97,7 +98,8 @@ export default function VisitsList() {
       setRescheduleDate(format(d, "yyyy-MM-dd"));
       setRescheduleTime(format(d, "HH:mm"));
     }
-    setCancelReason("");
+    setSelectedReason("");
+    setOtherText("");
     setActivePanel({ id, type });
   };
 
@@ -130,13 +132,17 @@ export default function VisitsList() {
   };
 
   const handleCancel = async (visitId: string) => {
+    const reason = selectedReason === "Other" && otherText
+      ? `Other: ${otherText}`
+      : selectedReason;
     setSaving(true);
     const { error } = await supabase
       .from("visits")
       .update({
         status: "cancelled" as any,
         cancelled_at: new Date().toISOString(),
-        cancellation_reason: cancelReason || null,
+        cancellation_reason: reason || null,
+        updated_at: new Date().toISOString(),
       })
       .eq("id", visitId);
     setSaving(false);
@@ -146,7 +152,7 @@ export default function VisitsList() {
       setVisits((prev) =>
         prev.map((v) =>
           v.id === visitId
-            ? { ...v, status: "cancelled", cancelled_at: new Date().toISOString(), cancellation_reason: cancelReason || null }
+            ? { ...v, status: "cancelled", cancelled_at: new Date().toISOString(), cancellation_reason: reason || null }
             : v
         )
       );
@@ -248,17 +254,42 @@ export default function VisitsList() {
         {/* Cancel panel */}
         {panelOpen && activePanel.type === "cancel" && (
           <div className="rounded-b-xl border border-t-0 border-border bg-muted/30 p-4 space-y-3">
-            <p className="text-sm text-foreground">Are you sure you want to cancel this visit?</p>
-            <Input
-              placeholder="Reason (optional)"
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-            />
-            <div className="flex gap-2">
-              <Button size="sm" variant="destructive" disabled={saving} onClick={() => handleCancel(visit.id)}>
-                {saving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />} Yes, Cancel
+            <label className="block text-sm font-medium text-foreground">Reason for cancelling</label>
+            <select
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={selectedReason}
+              onChange={(e) => setSelectedReason(e.target.value)}
+            >
+              <option value="">Select a reason…</option>
+              <option value="I'm no longer interested in this property">I'm no longer interested in this property</option>
+              <option value="I found another property">I found another property</option>
+              <option value="Scheduling conflict — I'll reschedule instead">Scheduling conflict — I'll reschedule instead</option>
+              <option value="The property didn't match the listing">The property didn't match the listing</option>
+              <option value="Other">Other</option>
+            </select>
+            {selectedReason === "Other" && (
+              <Input
+                placeholder="Please specify (optional)"
+                value={otherText}
+                onChange={(e) => setOtherText(e.target.value)}
+              />
+            )}
+            <div className="flex gap-2 items-center">
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={saving || !selectedReason}
+                onClick={() => handleCancel(visit.id)}
+              >
+                {saving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />} Confirm Cancellation
               </Button>
-              <Button size="sm" variant="ghost" disabled={saving} onClick={closePanel}>Keep Visit</Button>
+              <button
+                type="button"
+                className="text-sm text-muted-foreground underline"
+                onClick={closePanel}
+              >
+                Go back
+              </button>
             </div>
           </div>
         )}
