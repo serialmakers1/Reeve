@@ -1,14 +1,22 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Check } from "lucide-react";
+import { ArrowLeft, Loader2, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   submitted: { label: "Submitted", color: "bg-blue-100 text-blue-800" },
@@ -68,6 +76,7 @@ function formatRent(val: number) {
 interface AppDetail {
   id: string;
   status: string;
+  attempt_number: number | null;
   proposed_rent: number;
   owner_counter_rent: number | null;
   submitted_at: string | null;
@@ -89,6 +98,15 @@ export default function ApplicationDetail() {
   const [app, setApp] = useState<AppDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [selectedReason, setSelectedReason] = useState("");
+  const [otherText, setOtherText] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
+
+  const WITHDRAWABLE_STATUSES = [
+    "submitted", "platform_review", "sent_to_owner",
+    "owner_countered", "tenant_countered",
+  ];
 
   useEffect(() => {
     if (!user || !id) return;
@@ -97,7 +115,7 @@ export default function ApplicationDetail() {
       const { data } = await supabase
         .from("applications")
         .select(
-          `id, status, proposed_rent, owner_counter_rent, submitted_at, updated_at,
+          `id, status, attempt_number, proposed_rent, owner_counter_rent, submitted_at, updated_at,
            properties(building_name, locality, city, bhk, listed_rent)`
         )
         .eq("id", id)
@@ -159,6 +177,30 @@ export default function ApplicationDetail() {
     }
   };
 
+  const handleWithdraw = async () => {
+    if (!app || !selectedReason) return;
+    setWithdrawing(true);
+    const reason =
+      selectedReason === "Other" && otherText
+        ? `Other: ${otherText}`
+        : selectedReason;
+    const { error } = await supabase
+      .from("applications")
+      .update({
+        status: "withdrawn" as any,
+        withdrawal_reason: reason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", app.id);
+    setWithdrawing(false);
+    if (error) {
+      toast({ title: "Something went wrong. Please try again.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Application withdrawn." });
+    navigate("/dashboard/applications");
+  };
+
   if (authLoading || loading) {
     return (
       <Layout>
@@ -214,6 +256,11 @@ export default function ApplicationDetail() {
             <p className="text-sm text-muted-foreground">
               Submitted: {format(new Date(app.submitted_at), "dd MMM yyyy, h:mm a")}
             </p>
+          )}
+          {app.attempt_number != null && app.attempt_number > 1 && (
+            <span className="inline-block text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">
+              Attempt {app.attempt_number} of 3
+            </span>
           )}
         </div>
 
@@ -298,7 +345,67 @@ export default function ApplicationDetail() {
             </div>
           </div>
         )}
+        {/* Withdraw button */}
+        {WITHDRAWABLE_STATUSES.includes(app.status) && (
+          <button
+            onClick={() => setShowWithdrawModal(true)}
+            className="text-sm text-red-500 underline mt-6"
+          >
+            Withdraw this application
+          </button>
+        )}
       </div>
+
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-background p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground">Withdraw Application?</h2>
+              <button onClick={() => setShowWithdrawModal(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Reason for withdrawing</label>
+              <Select value={selectedReason} onValueChange={setSelectedReason}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="I found another property">I found another property</SelectItem>
+                  <SelectItem value="Change of plans">Change of plans</SelectItem>
+                  <SelectItem value="I want to update my application details">I want to update my application details</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedReason === "Other" && (
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">Please specify (optional)</label>
+                <Input
+                  value={otherText}
+                  onChange={(e) => setOtherText(e.target.value)}
+                  placeholder="Tell us more..."
+                />
+              </div>
+            )}
+            <Button
+              className="w-full min-h-[44px] bg-red-600 hover:bg-red-700 text-white"
+              disabled={!selectedReason || withdrawing}
+              onClick={handleWithdraw}
+            >
+              {withdrawing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Withdrawing...</> : "Confirm Withdrawal"}
+            </Button>
+            <button
+              onClick={() => setShowWithdrawModal(false)}
+              className="w-full text-sm text-muted-foreground hover:text-foreground text-center"
+            >
+              Go back
+            </button>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

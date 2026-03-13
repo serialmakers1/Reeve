@@ -166,6 +166,29 @@ function amenityLabel(a: string): string {
   return a.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function getFriendlyStatus(status: string): string {
+  const map: Record<string, string> = {
+    submitted: "Submitted",
+    platform_review: "Under Review",
+    platform_rejected: "Not Approved",
+    sent_to_owner: "Sent to Owner",
+    owner_accepted: "Owner Accepted",
+    owner_rejected: "Owner Rejected",
+    owner_countered: "Owner Made Counter Offer",
+    tenant_countered: "Counter Offer Sent",
+    payment_pending: "Payment Pending",
+    payment_received: "Payment Received",
+    kyc_pending: "KYC Pending",
+    kyc_passed: "KYC Passed",
+    kyc_failed: "KYC Failed",
+    agreement_pending: "Agreement Pending",
+    lease_active: "Active Tenant",
+    withdrawn: "Withdrawn",
+    expired: "Expired",
+  };
+  return map[status] ?? status;
+}
+
 // ─── Placeholder images ─────────────────────────────────────────────────────
 
 const PLACEHOLDER_IMAGES: PropertyImage[] = Array.from({ length: 5 }, (_, i) => ({
@@ -327,8 +350,16 @@ const PropertyDetail: React.FC = () => {
   // Flat number reveal
   const [revealedFlatNumber, setRevealedFlatNumber] = useState<string | null>(null);
 
-  // Already applied
-  const [alreadyApplied, setAlreadyApplied] = useState(false);
+  // Application history
+  type AppHistoryEntry = {
+    id: string;
+    status: string;
+    attempt_number: number | null;
+    reapplication_eligible_from: string | null;
+    proposed_rent: number;
+    created_at: string;
+  };
+  const [applicationHistory, setApplicationHistory] = useState<AppHistoryEntry[]>([]);
 
   // Own property detection
   const [isOwnProperty, setIsOwnProperty] = useState(false);
@@ -421,21 +452,15 @@ const PropertyDetail: React.FC = () => {
       const currentUserId = sess.data.session?.user?.id;
       setIsOwnProperty(!!(currentUserId && raw.owner_id === currentUserId));
 
-      // Check if user already applied
+      // Fetch application history for this tenant+property
       if (currentUserId) {
-        const { data: existingApp } = await supabase
+        const { data: appHistory } = await supabase
           .from("applications")
-          .select("status")
+          .select("id, status, attempt_number, reapplication_eligible_from, proposed_rent, created_at")
           .eq("property_id", id)
           .eq("tenant_id", currentUserId)
-          .maybeSingle();
-
-        const applied = existingApp && [
-          "submitted", "platform_review", "sent_to_owner",
-          "owner_accepted", "owner_countered", "payment_pending",
-          "kyc_pending", "kyc_passed", "agreement_pending", "lease_active",
-        ].includes(existingApp.status);
-        setAlreadyApplied(!!applied);
+          .order("attempt_number", { ascending: false });
+        setApplicationHistory(appHistory ?? []);
       }
 
       setLoading(false);
@@ -495,7 +520,7 @@ const PropertyDetail: React.FC = () => {
     }
   };
 
-  const handleApplyNow = async () => {
+  const handleApply = async () => {
     if (!session) {
       setLoginDrawerOpen(true);
       return;
@@ -549,6 +574,100 @@ const PropertyDetail: React.FC = () => {
   const hasFloorPlan = floorPlanImages.length > 0;
   const activeImages = galleryTab === "floorplan" ? floorPlanImages : photoImages;
   const depositAmount = property.listed_rent * property.security_deposit_months;
+
+  // ─── Application history derived state ────────────────────────────────────
+  const latestApp = applicationHistory[0] ?? null;
+
+  const ACTIVE_STATUSES = [
+    "submitted", "platform_review", "sent_to_owner",
+    "owner_countered", "tenant_countered",
+    "payment_pending", "payment_received",
+    "kyc_pending", "kyc_passed", "kyc_failed",
+    "agreement_pending", "lease_active",
+  ];
+  const DECIDED_STATUSES = ["owner_rejected", "platform_rejected", "owner_accepted"];
+
+  const decidedCount = applicationHistory.filter((a) =>
+    DECIDED_STATUSES.includes(a.status)
+  ).length;
+
+  const hasDraft = latestApp?.status === "draft";
+  const isActive = latestApp != null && ACTIVE_STATUSES.includes(latestApp.status);
+  const isRejected = latestApp != null && ["owner_rejected", "platform_rejected"].includes(latestApp.status);
+  const isExpiredOrWithdrawn = latestApp != null && ["expired", "withdrawn"].includes(latestApp.status);
+  const maxReached = decidedCount >= 3;
+  const withinCooldown =
+    isRejected &&
+    latestApp?.reapplication_eligible_from != null &&
+    new Date() < new Date(latestApp.reapplication_eligible_from);
+
+  const renderApplySection = (mobile: boolean) => {
+    const btnClass = mobile ? "min-h-[44px] flex-1" : "w-full min-h-[44px]";
+
+    if (hasDraft && latestApp) {
+      return (
+        <Button
+          onClick={() => navigate(`/dashboard/applications/${latestApp.id}`)}
+          className={btnClass}
+        >
+          Continue your saved draft →
+        </Button>
+      );
+    }
+
+    if (isActive && latestApp) {
+      return (
+        <p className="text-sm text-gray-600 text-center py-2">
+          Application in progress · {getFriendlyStatus(latestApp.status)}
+        </p>
+      );
+    }
+
+    if (maxReached) {
+      return (
+        <p className="text-sm text-gray-500 text-center py-2">
+          You've reached the maximum applications for this property. Please explore other listings.
+        </p>
+      );
+    }
+
+    if (withinCooldown && latestApp?.reapplication_eligible_from) {
+      const eligibleDate = new Date(latestApp.reapplication_eligible_from).toLocaleDateString(
+        "en-IN",
+        { day: "numeric", month: "long", year: "numeric" }
+      );
+      return (
+        <p className="text-sm text-gray-500 text-center py-2">
+          Your application was not successful. You may reapply after {eligibleDate}.
+        </p>
+      );
+    }
+
+    if ((isExpiredOrWithdrawn || (isRejected && !withinCooldown)) && latestApp) {
+      const attemptLabel =
+        decidedCount === 1
+          ? "This will be your 2nd application"
+          : decidedCount === 2
+          ? "This will be your 3rd and final application"
+          : "";
+      return (
+        <>
+          <Button onClick={handleApply} className={btnClass}>
+            Apply Again
+          </Button>
+          {attemptLabel && (
+            <p className="text-xs text-gray-400 mt-1 text-center">{attemptLabel}</p>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <Button onClick={handleApply} className={btnClass}>
+        Apply Now
+      </Button>
+    );
+  };
 
   // Details grid items
   const detailItems: { icon: React.ReactNode; label: string; value: string }[] = [];
@@ -921,15 +1040,7 @@ const PropertyDetail: React.FC = () => {
                           {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : "Schedule a Visit"}
                         </Button>
                       )}
-                      {alreadyApplied ? (
-                        <Button disabled className="w-full min-h-[44px] bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
-                          ✓ Already Applied
-                        </Button>
-                      ) : (
-                        <Button onClick={handleApplyNow} className="w-full min-h-[44px]">
-                          Apply Now
-                        </Button>
-                      )}
+                      {renderApplySection(false)}
                     </>
                   )}
                 </CardContent>
@@ -962,15 +1073,7 @@ const PropertyDetail: React.FC = () => {
                 {eligibilityChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Schedule Visit"}
               </Button>
             )}
-            {alreadyApplied ? (
-              <Button disabled className="min-h-[44px] flex-1 bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default">
-                ✓ Already Applied
-              </Button>
-            ) : (
-              <Button onClick={handleApplyNow} className="min-h-[44px] flex-1">
-                Apply Now
-              </Button>
-            )}
+            {renderApplySection(true)}
           </div>
         </div>
       )}
