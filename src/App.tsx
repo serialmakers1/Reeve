@@ -25,6 +25,8 @@ import ApplicationDetail from "./pages/ApplicationDetail";
 import VisitsList from "./pages/VisitsList";
 import OwnerPipeline from "./pages/admin/OwnerPipeline";
 import PropertyEdit from "./pages/admin/PropertyEdit";
+import TenantPipeline from "./pages/admin/TenantPipeline";
+import AdminApplicationDetail from "./pages/admin/ApplicationDetail";
 import Onboarding from "./pages/Onboarding";
 import MyProperties from "./pages/MyProperties";
 import MyPropertyNew from "./pages/MyPropertyNew";
@@ -91,6 +93,8 @@ function AppInner() {
       <Route path="/admin" element={<Navigate to="/admin/owners" replace />} />
       <Route path="/admin/owners" element={<OwnerPipeline />} />
       <Route path="/admin/properties/:id" element={<PropertyEdit />} />
+      <Route path="/admin/applications" element={<TenantPipeline />} />
+      <Route path="/admin/applications/:id" element={<AdminApplicationDetail />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
