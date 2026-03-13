@@ -669,7 +669,8 @@ export default function MyPropertyDetail() {
               applications.map((app) => (
                 <div
                   key={app.id}
-                  className="rounded-xl border border-border p-4 space-y-2"
+                  onClick={() => navigate(`/my-properties/${id}/applications/${app.id}`)}
+                  className="rounded-xl border border-border p-4 space-y-2 cursor-pointer hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-medium text-sm text-foreground">

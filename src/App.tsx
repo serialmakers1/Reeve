@@ -32,6 +32,7 @@ import MyProperties from "./pages/MyProperties";
 import MyPropertyNew from "./pages/MyPropertyNew";
 import MyPropertyDetail from "./pages/MyPropertyDetail";
 import Profile from "./pages/Profile";
+import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import { Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -77,6 +78,7 @@ function AppInner() {
       <Route path="/my-properties" element={<MyProperties />} />
       <Route path="/my-properties/new" element={<MyPropertyNew />} />
       <Route path="/my-properties/:id" element={<MyPropertyDetail />} />
+      <Route path="/my-properties/:propertyId/applications/:applicationId" element={<OwnerApplicationDetail />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/owner" element={<Navigate to="/my-properties" replace />} />
       <Route path="/owner/dashboard" element={<Navigate to="/my-properties" replace />} />
