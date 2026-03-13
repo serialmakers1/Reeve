@@ -593,12 +593,25 @@ export default function NewApplicationPage() {
     if (!validate(8)) return;
     setSaving(true);
 
+    const { data: { session: sess } } = await supabase.auth.getSession();
+    const userId = sess?.user?.id;
+
+    const { data: prevApp } = await supabase
+      .from("applications")
+      .select("id")
+      .eq("property_id", propertyId!)
+      .eq("tenant_id", userId!)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const rent = rentChoice === "accept" ? property!.listed_rent : Number(proposedRent);
     const success = await saveApplicationField({
       service_fee_terms_confirmed: true,
       status: "submitted",
       submitted_at: new Date().toISOString(),
       tds_applicable: rent > 50000,
+      previous_application_id: prevApp?.id ?? null,
     });
 
     setSaving(false);
@@ -608,6 +621,11 @@ export default function NewApplicationPage() {
     } else {
       toast({ title: "Submission failed. Please try again.", variant: "destructive" });
     }
+  };
+
+  const handleSaveDraft = () => {
+    toast({ title: "Application saved as draft. You can continue from My Applications." });
+    navigate("/dashboard/applications");
   };
 
   // ─── Resident helpers ──────────────────────────────────────────────────────
@@ -1424,6 +1442,14 @@ export default function NewApplicationPage() {
           onClick={handleSubmit}
         >
           {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</> : "Submit Application"}
+        </Button>
+        <Button
+          variant="ghost"
+          className="min-h-[44px] w-full text-muted-foreground"
+          disabled={saving}
+          onClick={handleSaveDraft}
+        >
+          Save as Draft
         </Button>
       </div>
     );
