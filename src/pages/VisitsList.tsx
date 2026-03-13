@@ -107,9 +107,15 @@ export default function VisitsList() {
     if (!rescheduleDate || !rescheduleTime) return;
     setSaving(true);
     const newDatetime = new Date(`${rescheduleDate}T${rescheduleTime}`).toISOString();
+    const currentVisit = visits.find((v) => v.id === visitId);
     const { error } = await supabase
       .from("visits")
-      .update({ scheduled_at: newDatetime, status: "rescheduled" as any })
+      .update({
+        scheduled_at: newDatetime,
+        previous_scheduled_at: currentVisit?.scheduled_at ?? null,
+        status: "rescheduled" as any,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", visitId);
     setSaving(false);
     if (error) {

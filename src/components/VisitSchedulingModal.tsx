@@ -155,28 +155,37 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
     scheduledAt.setHours(slotInfo.hour, 0, 0, 0);
 
     try {
-      if (isRescheduling && existingVisit) {
-        // Mark old visit as rescheduled
-        await supabase
-          .from("visits")
-          .update({ status: "rescheduled" as "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show" | "rescheduled" })
-          .eq("id", existingVisit.id);
+      // Check if tenant already has an active visit for this property
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id ?? userId;
 
-        // Insert new visit
-        const { error } = await supabase.from("visits").insert({
-          property_id: propertyId,
-          tenant_id: userId,
-          scheduled_at: scheduledAt.toISOString(),
-          status: "scheduled",
-          full_address_sent: true,
-        });
+      const { data: activeVisit } = await supabase
+        .from("visits")
+        .select("id, scheduled_at")
+        .eq("property_id", propertyId)
+        .eq("tenant_id", currentUserId)
+        .neq("status", "cancelled")
+        .maybeSingle();
+
+      if (activeVisit) {
+        // UPDATE existing visit, preserve old time
+        const { error } = await supabase
+          .from("visits")
+          .update({
+            scheduled_at: scheduledAt.toISOString(),
+            previous_scheduled_at: activeVisit.scheduled_at,
+            status: "rescheduled" as "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show" | "rescheduled",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", activeVisit.id);
 
         if (error) throw error;
         toast({ title: "Visit rescheduled successfully" });
       } else {
+        // INSERT only if no active visit exists
         const { error } = await supabase.from("visits").insert({
           property_id: propertyId,
-          tenant_id: userId,
+          tenant_id: currentUserId,
           scheduled_at: scheduledAt.toISOString(),
           status: "scheduled",
           full_address_sent: true,
