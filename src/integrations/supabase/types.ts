@@ -1879,6 +1879,7 @@ export type Database = {
           notes: string | null
           platform_rep_name: string | null
           platform_rep_phone: string | null
+          previous_scheduled_at: string | null
           property_id: string
           reminder_sent_24h: boolean
           reminder_sent_2h: boolean
@@ -1900,6 +1901,7 @@ export type Database = {
           notes?: string | null
           platform_rep_name?: string | null
           platform_rep_phone?: string | null
+          previous_scheduled_at?: string | null
           property_id: string
           reminder_sent_24h?: boolean
           reminder_sent_2h?: boolean
@@ -1921,6 +1923,7 @@ export type Database = {
           notes?: string | null
           platform_rep_name?: string | null
           platform_rep_phone?: string | null
+          previous_scheduled_at?: string | null
           property_id?: string
           reminder_sent_24h?: boolean
           reminder_sent_2h?: boolean
