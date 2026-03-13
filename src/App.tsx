@@ -93,6 +93,8 @@ function AppInner() {
       <Route path="/admin" element={<Navigate to="/admin/owners" replace />} />
       <Route path="/admin/owners" element={<OwnerPipeline />} />
       <Route path="/admin/properties/:id" element={<PropertyEdit />} />
+      <Route path="/admin/applications" element={<TenantPipeline />} />
+      <Route path="/admin/applications/:id" element={<AdminApplicationDetail />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
