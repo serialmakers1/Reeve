@@ -114,6 +114,13 @@ export default function AdminApplicationDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [tokenRef, setTokenRef] = useState("");
+  const [tokenAmount, setTokenAmount] = useState("5000");
+  const [tokenSaving, setTokenSaving] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundSaving, setRefundSaving] = useState(false);
 
   const fetchApp = useCallback(async () => {
     if (!id) return;
