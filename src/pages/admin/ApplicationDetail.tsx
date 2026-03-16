@@ -406,6 +406,28 @@ export default function AdminApplicationDetail() {
           </Card>
         )}
 
+        {/* Section — Mark Token Received */}
+        {app.status === "payment_pending" && (
+          <Card>
+            <CardContent className="pt-6">
+              <Button className="min-h-[44px] w-full" onClick={() => setShowTokenModal(true)}>
+                Mark Token Received
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Section — Mark Payment Refunded */}
+        {app.status === "payment_received" && (
+          <Card>
+            <CardContent className="pt-6">
+              <Button variant="outline" className="min-h-[44px] w-full border-red-300 text-red-600 hover:bg-red-50" onClick={() => setShowRefundModal(true)}>
+                Mark Payment Refunded
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Section 6 — Admin Notes */}
         <Card>
           <CardHeader><CardTitle className="text-base">Admin Notes</CardTitle></CardHeader>
