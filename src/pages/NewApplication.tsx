@@ -723,7 +723,7 @@ export default function NewApplicationPage() {
             eligibility_id: eligibility?.id,
             employer_name: employerName.trim() || null,
             monthly_income: monthlyIncome !== "" ? Number(monthlyIncome) : null,
-            cibil_range: cibilRange || null,
+            cibil_range: (cibilRange || null) as "550_to_649" | "650_to_749" | "750_to_900" | "below_550" | "no_credit_history" | "not_sure" | null,
             crime_record_self_attest: crimeAttest || null,
             proposed_rent: rent,
             property_notes_text: [noteAdd, noteRemove, noteIssue].filter(Boolean).join(" | ") || null,
