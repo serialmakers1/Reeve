@@ -444,9 +444,6 @@ export default function AdminApplicationDetail() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
-  );
-}
 
       {/* Token Payment Modal */}
       {showTokenModal && (
@@ -563,3 +560,4 @@ function Row({ label, value }: { label: string; value: string | null | undefined
       <span className="font-medium">{value || "—"}</span>
     </div>
   );
+}
