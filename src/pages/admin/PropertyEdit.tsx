@@ -79,6 +79,7 @@ const BUILDING_AMENITIES = [
   { value: "intercom", label: "Intercom" },
   { value: "park", label: "Park" },
   { value: "maintenance_staff", label: "Maintenance Staff" },
+  { value: "gated_access", label: "Gated Access" },
 ];
 
 const PARKING_OPTIONS = [
@@ -153,6 +154,17 @@ export default function PropertyEdit() {
   // Publish toggle
   const [isActive, setIsActive] = useState(false);
 
+  // Section 7: Owner Profile
+  const [ownerOnlyRental, setOwnerOnlyRental] = useState<boolean | null>(null);
+  const [ownerIncomeDependent, setOwnerIncomeDependent] = useState<boolean | null>(null);
+  const [ownerCommitted12, setOwnerCommitted12] = useState<boolean | null>(null);
+  const [ownerWantsControl, setOwnerWantsControl] = useState<boolean | null>(null); // inverted from auto_accept_enabled
+  const [ownerHasLocalRep, setOwnerHasLocalRep] = useState<boolean | null>(null);
+  const [ownerRepName, setOwnerRepName] = useState("");
+  const [ownerRepPhone, setOwnerRepPhone] = useState("");
+  const [ownerLivesSameCity, setOwnerLivesSameCity] = useState<boolean | null>(null);
+  const [ownerPrefersPhone, setOwnerPrefersPhone] = useState<boolean | null>(null);
+
   useEffect(() => {
     if (!id || authLoading) return;
     const fetchProperty = async () => {
@@ -200,6 +212,20 @@ export default function PropertyEdit() {
       setTitle((data as Record<string, unknown>).title as string || "");
       setDescription((data as Record<string, unknown>).description as string || "");
       setIsActive(!!(data as Record<string, unknown>).is_active);
+
+      // Owner profile fields
+      const d = data as Record<string, unknown>;
+      setOwnerOnlyRental(d.owner_only_rental_property as boolean | null);
+      setOwnerIncomeDependent(d.owner_income_dependent as boolean | null);
+      setOwnerCommitted12(d.owner_committed_12_months as boolean | null);
+      // auto_accept_enabled: false = owner wants control (Yes), true = platform handles (No)
+      const autoAccept = d.auto_accept_enabled as boolean;
+      setOwnerWantsControl(autoAccept === true ? false : autoAccept === false ? true : null);
+      setOwnerHasLocalRep(d.owner_has_local_rep as boolean | null);
+      setOwnerRepName(d.owner_rep_name as string || "");
+      setOwnerRepPhone(d.owner_rep_phone as string || "");
+      setOwnerLivesSameCity(d.owner_lives_in_same_city as boolean | null);
+      setOwnerPrefersPhone(d.owner_prefers_phone_calls as boolean | null);
 
       // Parse amenities
       const amenities = (data as Record<string, unknown>).amenities as Record<string, unknown> || {};
@@ -254,6 +280,15 @@ export default function PropertyEdit() {
         title: title || null,
         description: description || null,
         is_active: isActive,
+        owner_only_rental_property: ownerOnlyRental,
+        owner_income_dependent: ownerIncomeDependent,
+        owner_committed_12_months: ownerCommitted12,
+        auto_accept_enabled: ownerWantsControl === null ? false : !ownerWantsControl,
+        owner_has_local_rep: ownerHasLocalRep,
+        owner_rep_name: ownerHasLocalRep ? (ownerRepName || null) : null,
+        owner_rep_phone: ownerHasLocalRep ? (ownerRepPhone || null) : null,
+        owner_lives_in_same_city: ownerLivesSameCity,
+        owner_prefers_phone_calls: ownerPrefersPhone,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id);
@@ -365,7 +400,7 @@ export default function PropertyEdit() {
             <Field label="Total Floors">
               <Input type="number" value={totalFloors} onChange={(e) => setTotalFloors(e.target.value)} className="min-h-[44px]" />
             </Field>
-            <Field label="Square Footage">
+            <Field label="Carpet Area (in sq ft)">
               <Input type="number" value={squareFootage} onChange={(e) => setSquareFootage(e.target.value)} className="min-h-[44px]" />
             </Field>
           </div>
@@ -508,6 +543,35 @@ export default function PropertyEdit() {
           </div>
         </Section>
 
+        {/* Section 7 — Owner Profile */}
+        <div className="rounded-lg border bg-card p-4 md:p-6 space-y-4">
+          <div>
+            <h2 className="text-base font-medium text-foreground">Owner Profile</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Internal notes collected during inspection — not visible to tenants or owners.</p>
+          </div>
+          <div className="space-y-5">
+            <TriStateQuestion label="Is this the owner's only rental property?" value={ownerOnlyRental} onChange={setOwnerOnlyRental} />
+            <TriStateQuestion label="Is rental income from this property important for the owner's monthly financial commitments?" value={ownerIncomeDependent} onChange={setOwnerIncomeDependent} />
+            <TriStateQuestion label="Does the owner expect to keep this property available for rent for at least 12 months?" value={ownerCommitted12} onChange={setOwnerCommitted12} />
+            <TriStateQuestion label="Does the owner want to make the final accept/reject/counter decision on tenant applications themselves?" value={ownerWantsControl} onChange={setOwnerWantsControl} />
+            <div className="space-y-2">
+              <TriStateQuestion label="Does the owner have a local representative who can coordinate access and communication?" value={ownerHasLocalRep} onChange={(v) => { setOwnerHasLocalRep(v); if (v !== true) { setOwnerRepName(""); setOwnerRepPhone(""); } }} />
+              {ownerHasLocalRep === true && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-4 border-l-2 border-muted ml-2">
+                  <Field label="Representative Name">
+                    <Input value={ownerRepName} onChange={(e) => setOwnerRepName(e.target.value)} className="min-h-[44px]" />
+                  </Field>
+                  <Field label="Representative Phone">
+                    <Input value={ownerRepPhone} onChange={(e) => setOwnerRepPhone(e.target.value)} className="min-h-[44px]" />
+                  </Field>
+                </div>
+              )}
+            </div>
+            <TriStateQuestion label="Is the owner currently living in the same city as the property?" value={ownerLivesSameCity} onChange={setOwnerLivesSameCity} />
+            <TriStateQuestion label="Does the owner prefer phone calls over WhatsApp/email for urgent decisions?" value={ownerPrefersPhone} onChange={setOwnerPrefersPhone} />
+          </div>
+        </div>
+
         {/* Bottom save */}
         <div className="flex justify-end pb-8">
           <Button onClick={handleSave} disabled={saving} className="min-h-[44px]">
@@ -533,6 +597,46 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="space-y-1.5">
       <Label className="text-sm font-medium">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+function TriStateQuestion({ label, value, onChange }: { label: string; value: boolean | null; onChange: (v: boolean | null) => void }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+      <p className="text-sm text-foreground flex-1">{label}</p>
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className={cn(
+            "px-2.5 py-1 text-xs font-medium rounded-l-md border min-h-[32px] transition-colors",
+            value === null ? "bg-muted text-foreground border-border" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+          )}
+        >
+          —
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(true)}
+          className={cn(
+            "px-3 py-1 text-xs font-medium border-y border-r min-h-[32px] transition-colors",
+            value === true ? "bg-primary/10 text-primary border-primary/30" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+          )}
+        >
+          Yes
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(false)}
+          className={cn(
+            "px-3 py-1 text-xs font-medium rounded-r-md border-y border-r min-h-[32px] transition-colors",
+            value === false ? "bg-destructive/10 text-destructive border-destructive/30" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+          )}
+        >
+          No
+        </button>
+      </div>
     </div>
   );
 }

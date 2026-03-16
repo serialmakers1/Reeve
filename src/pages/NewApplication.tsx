@@ -717,13 +717,13 @@ export default function NewApplicationPage() {
         // DO NOT set previous_application_id or attempt_number — DB trigger handles them
         const { error } = await supabase
           .from("applications")
-          .insert({
+          .insert([{
             property_id: propertyId,
             tenant_id: userId,
             eligibility_id: eligibility?.id,
             employer_name: employerName.trim() || null,
             monthly_income: monthlyIncome !== "" ? Number(monthlyIncome) : null,
-            cibil_range: cibilRange || null,
+            cibil_range: (cibilRange || null) as "550_to_649" | "650_to_749" | "750_to_900" | "below_550" | "no_credit_history" | "not_sure" | null,
             crime_record_self_attest: crimeAttest || null,
             proposed_rent: rent,
             property_notes_text: [noteAdd, noteRemove, noteIssue].filter(Boolean).join(" | ") || null,
@@ -733,7 +733,7 @@ export default function NewApplicationPage() {
             created_at: now,
             updated_at: now,
             tds_applicable: rent > 50000,
-          });
+          }]);
         if (error) throw error;
       }
 
