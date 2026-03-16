@@ -366,7 +366,7 @@ export default function PropertyEdit() {
             <Field label="Total Floors">
               <Input type="number" value={totalFloors} onChange={(e) => setTotalFloors(e.target.value)} className="min-h-[44px]" />
             </Field>
-            <Field label="Square Footage">
+            <Field label="Carpet Area (in sq ft)">
               <Input type="number" value={squareFootage} onChange={(e) => setSquareFootage(e.target.value)} className="min-h-[44px]" />
             </Field>
           </div>

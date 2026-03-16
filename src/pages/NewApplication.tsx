@@ -717,7 +717,7 @@ export default function NewApplicationPage() {
         // DO NOT set previous_application_id or attempt_number — DB trigger handles them
         const { error } = await supabase
           .from("applications")
-          .insert({
+          .insert([{
             property_id: propertyId,
             tenant_id: userId,
             eligibility_id: eligibility?.id,
@@ -733,7 +733,7 @@ export default function NewApplicationPage() {
             created_at: now,
             updated_at: now,
             tds_applicable: rent > 50000,
-          });
+          }]);
         if (error) throw error;
       }
 
