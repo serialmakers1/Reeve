@@ -280,6 +280,15 @@ export default function PropertyEdit() {
         title: title || null,
         description: description || null,
         is_active: isActive,
+        owner_only_rental_property: ownerOnlyRental,
+        owner_income_dependent: ownerIncomeDependent,
+        owner_committed_12_months: ownerCommitted12,
+        auto_accept_enabled: ownerWantsControl === null ? false : !ownerWantsControl,
+        owner_has_local_rep: ownerHasLocalRep,
+        owner_rep_name: ownerHasLocalRep ? (ownerRepName || null) : null,
+        owner_rep_phone: ownerHasLocalRep ? (ownerRepPhone || null) : null,
+        owner_lives_in_same_city: ownerLivesSameCity,
+        owner_prefers_phone_calls: ownerPrefersPhone,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id);
