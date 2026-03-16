@@ -600,3 +600,43 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+
+function TriStateQuestion({ label, value, onChange }: { label: string; value: boolean | null; onChange: (v: boolean | null) => void }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+      <p className="text-sm text-foreground flex-1">{label}</p>
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className={cn(
+            "px-2.5 py-1 text-xs font-medium rounded-l-md border min-h-[32px] transition-colors",
+            value === null ? "bg-muted text-foreground border-border" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+          )}
+        >
+          —
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(true)}
+          className={cn(
+            "px-3 py-1 text-xs font-medium border-y border-r min-h-[32px] transition-colors",
+            value === true ? "bg-primary/10 text-primary border-primary/30" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+          )}
+        >
+          Yes
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(false)}
+          className={cn(
+            "px-3 py-1 text-xs font-medium rounded-r-md border-y border-r min-h-[32px] transition-colors",
+            value === false ? "bg-destructive/10 text-destructive border-destructive/30" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+          )}
+        >
+          No
+        </button>
+      </div>
+    </div>
+  );
+}
