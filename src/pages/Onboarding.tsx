@@ -70,11 +70,12 @@ export default function Onboarding() {
         .eq('id', userId);
 
       if (error) {
-        console.error('Onboarding save error:', error.message, (error as any).details, (error as any).hint);
+        console.error('Onboarding save error:', error.message, (error as any).code, (error as any).details, (error as any).hint);
         throw error;
       }
 
-      navigate('/');
+      const redirectTo = new URLSearchParams(window.location.search).get('redirectTo') ?? '/';
+      navigate(redirectTo, { replace: true });
     } catch (err: any) {
       console.error('Onboarding failed:', err);
       setError('Could not save your details. Please try again.');
