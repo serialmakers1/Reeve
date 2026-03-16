@@ -171,9 +171,7 @@ export default function LoginPage() {
           .eq('id', data.user.id)
           .maybeSingle();
 
-        const effectiveRole = userData?.role ?? 'user';
-        const onboardingCompleted = userData?.onboarding_completed ?? false;
-        redirectByRole(effectiveRole, onboardingCompleted);
+        navigate('/', { replace: true });
       }
     } finally {
       setIsVerifying(false);
