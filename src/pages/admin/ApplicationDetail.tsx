@@ -114,6 +114,13 @@ export default function AdminApplicationDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [tokenRef, setTokenRef] = useState("");
+  const [tokenAmount, setTokenAmount] = useState("5000");
+  const [tokenSaving, setTokenSaving] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundSaving, setRefundSaving] = useState(false);
 
   const fetchApp = useCallback(async () => {
     if (!id) return;
@@ -399,6 +406,28 @@ export default function AdminApplicationDetail() {
           </Card>
         )}
 
+        {/* Section — Mark Token Received */}
+        {app.status === "payment_pending" && (
+          <Card>
+            <CardContent className="pt-6">
+              <Button className="min-h-[44px] w-full" onClick={() => setShowTokenModal(true)}>
+                Mark Token Received
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Section — Mark Payment Refunded */}
+        {app.status === "payment_received" && (
+          <Card>
+            <CardContent className="pt-6">
+              <Button variant="outline" className="min-h-[44px] w-full border-red-300 text-red-600 hover:bg-red-50" onClick={() => setShowRefundModal(true)}>
+                Mark Payment Refunded
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Section 6 — Admin Notes */}
         <Card>
           <CardHeader><CardTitle className="text-base">Admin Notes</CardTitle></CardHeader>
@@ -415,6 +444,111 @@ export default function AdminApplicationDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Token Payment Modal */}
+      {showTokenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-background p-6 space-y-4 shadow-xl">
+            <h2 className="text-lg font-bold text-foreground">Mark Token Payment Received</h2>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">UPI / Transaction Reference</label>
+              <Input value={tokenRef} onChange={(e) => setTokenRef(e.target.value)} placeholder="e.g. UPI123456789" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Amount Received (₹)</label>
+              <Input type="number" value={tokenAmount} onChange={(e) => setTokenAmount(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1 min-h-[44px]"
+                disabled={!tokenRef.trim() || !tokenAmount || tokenSaving}
+                onClick={async () => {
+                  setTokenSaving(true);
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (!session || !id) { setTokenSaving(false); return; }
+                  const { error: payErr } = await supabase.from("payments").insert({
+                    application_id: id,
+                    payer_id: (app as any).tenant_id ?? session.user.id,
+                    payment_type: "token_deposit" as any,
+                    method: "upi" as any,
+                    status: "success" as any,
+                    amount: Number(tokenAmount),
+                    gateway_reference: tokenRef.trim(),
+                    paid_at: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  });
+                  if (payErr) {
+                    toast({ title: "Failed to record payment", description: payErr.message, variant: "destructive" });
+                    setTokenSaving(false);
+                    return;
+                  }
+                  await supabase.from("applications").update({ status: "payment_received" as any, updated_at: new Date().toISOString() }).eq("id", id);
+                  toast({ title: "Token payment recorded. Other applicants have been put on hold." });
+                  setShowTokenModal(false);
+                  setTokenRef("");
+                  setTokenAmount("5000");
+                  setTokenSaving(false);
+                  await fetchApp();
+                }}
+              >
+                {tokenSaving ? "Saving…" : "Confirm"}
+              </Button>
+              <Button variant="outline" className="min-h-[44px]" onClick={() => { setShowTokenModal(false); setTokenRef(""); setTokenAmount("5000"); }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refund Modal */}
+      {showRefundModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-background p-6 space-y-4 shadow-xl">
+            <h2 className="text-lg font-bold text-foreground">Refund Token Payment</h2>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Reason for refund</label>
+              <Input value={refundReason} onChange={(e) => setRefundReason(e.target.value)} placeholder="e.g. Owner backed out" />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                className="flex-1 min-h-[44px]"
+                disabled={!refundReason.trim() || refundSaving}
+                onClick={async () => {
+                  setRefundSaving(true);
+                  const { data: payment } = await supabase
+                    .from("payments")
+                    .select("id")
+                    .eq("application_id", id!)
+                    .eq("payment_type", "token_deposit" as any)
+                    .eq("status", "success" as any)
+                    .maybeSingle();
+                  if (payment) {
+                    await supabase.from("payments").update({
+                      status: "refunded" as any,
+                      refunded_at: new Date().toISOString(),
+                      refund_reason: refundReason.trim(),
+                      updated_at: new Date().toISOString(),
+                    }).eq("id", payment.id);
+                  }
+                  toast({ title: "Refund recorded. Held applicants have been restored." });
+                  setShowRefundModal(false);
+                  setRefundReason("");
+                  setRefundSaving(false);
+                  await fetchApp();
+                }}
+              >
+                {refundSaving ? "Processing…" : "Confirm Refund"}
+              </Button>
+              <Button variant="outline" className="min-h-[44px]" onClick={() => { setShowRefundModal(false); setRefundReason(""); }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
