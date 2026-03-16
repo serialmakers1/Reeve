@@ -168,23 +168,25 @@ function amenityLabel(a: string): string {
 
 function getFriendlyStatus(status: string): string {
   const map: Record<string, string> = {
-    submitted: "Submitted",
-    platform_review: "Under Review",
-    platform_rejected: "Not Approved",
-    sent_to_owner: "Sent to Owner",
-    owner_accepted: "Owner Accepted",
-    owner_rejected: "Owner Rejected",
-    owner_countered: "Owner Made Counter Offer",
-    tenant_countered: "Counter Offer Sent",
-    payment_pending: "Payment Pending",
-    payment_received: "Payment Received",
-    kyc_pending: "KYC Pending",
-    kyc_passed: "KYC Passed",
-    kyc_failed: "KYC Failed",
-    agreement_pending: "Agreement Pending",
-    lease_active: "Active Tenant",
-    withdrawn: "Withdrawn",
-    expired: "Expired",
+    draft: 'Draft',
+    submitted: 'Submitted',
+    platform_review: 'Under Review',
+    platform_rejected: 'Rejected by Platform',
+    sent_to_owner: 'Sent to Owner',
+    owner_accepted: 'Owner Accepted',
+    owner_rejected: 'Owner Rejected',
+    owner_countered: 'Owner Countered',
+    tenant_countered: 'Tenant Countered',
+    payment_pending: 'Payment Pending',
+    payment_received: 'Payment Received',
+    kyc_pending: 'KYC Pending',
+    kyc_passed: 'KYC Passed',
+    kyc_failed: 'KYC Failed',
+    agreement_pending: 'Agreement Pending',
+    lease_active: 'Lease Active',
+    withdrawn: 'Withdrawn',
+    expired: 'Expired',
+    on_hold: 'On Hold',
   };
   return map[status] ?? status;
 }
@@ -593,6 +595,7 @@ const PropertyDetail: React.FC = () => {
 
   const hasDraft = latestApp?.status === "draft";
   const isActive = latestApp != null && ACTIVE_STATUSES.includes(latestApp.status);
+  const isOnHold = latestApp?.status === "on_hold";
   const isRejected = latestApp != null && ["owner_rejected", "platform_rejected"].includes(latestApp.status);
   const isExpiredOrWithdrawn = latestApp != null && ["expired", "withdrawn"].includes(latestApp.status);
   const maxReached = decidedCount >= 3;
@@ -607,7 +610,7 @@ const PropertyDetail: React.FC = () => {
     if (hasDraft && latestApp) {
       return (
         <Button
-          onClick={() => navigate(`/dashboard/applications/${latestApp.id}`)}
+          onClick={() => navigate(`/dashboard/applications/new?resume=${latestApp.id}`)}
           className={btnClass}
         >
           Continue your saved draft →
@@ -623,6 +626,14 @@ const PropertyDetail: React.FC = () => {
       );
     }
 
+    if (isOnHold) {
+      return (
+        <p className="text-sm text-gray-600 text-center py-2">
+          Another applicant has secured this property. You'll be notified if anything changes.
+        </p>
+      );
+    }
+
     if (maxReached) {
       return (
         <p className="text-sm text-gray-500 text-center py-2">
@@ -632,40 +643,30 @@ const PropertyDetail: React.FC = () => {
     }
 
     if (withinCooldown && latestApp?.reapplication_eligible_from) {
-      const eligibleDate = new Date(latestApp.reapplication_eligible_from).toLocaleDateString(
-        "en-IN",
-        { day: "numeric", month: "long", year: "numeric" }
-      );
       return (
         <p className="text-sm text-gray-500 text-center py-2">
-          Your application was not successful. You may reapply after {eligibleDate}.
+          Your application was not successful. You may reapply after {format(new Date(latestApp.reapplication_eligible_from), 'd MMM yyyy')}.
         </p>
       );
     }
 
-    if ((isExpiredOrWithdrawn || (isRejected && !withinCooldown)) && latestApp) {
-      const attemptLabel =
-        decidedCount === 1
-          ? "This will be your 2nd application"
-          : decidedCount === 2
-          ? "This will be your 3rd and final application"
-          : "";
-      return (
-        <>
-          <Button onClick={handleApply} className={btnClass}>
-            Apply Again
-          </Button>
-          {attemptLabel && (
-            <p className="text-xs text-gray-400 mt-1 text-center">{attemptLabel}</p>
-          )}
-        </>
-      );
-    }
+    const buttonLabel = applicationHistory.length > 0 ? "Apply Again" : "Apply Now";
+    const attemptLabel =
+      decidedCount === 1
+        ? "This will be your 2nd application for this property."
+        : decidedCount === 2
+        ? "This is your 3rd and final application for this property."
+        : "";
 
     return (
-      <Button onClick={handleApply} className={btnClass}>
-        Apply Now
-      </Button>
+      <>
+        <Button onClick={handleApply} className={btnClass}>
+          {buttonLabel}
+        </Button>
+        {attemptLabel && (
+          <p className="text-xs text-gray-400 mt-1 text-center">{attemptLabel}</p>
+        )}
+      </>
     );
   };
 
