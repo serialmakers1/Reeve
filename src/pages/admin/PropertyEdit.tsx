@@ -213,6 +213,20 @@ export default function PropertyEdit() {
       setDescription((data as Record<string, unknown>).description as string || "");
       setIsActive(!!(data as Record<string, unknown>).is_active);
 
+      // Owner profile fields
+      const d = data as Record<string, unknown>;
+      setOwnerOnlyRental(d.owner_only_rental_property as boolean | null);
+      setOwnerIncomeDependent(d.owner_income_dependent as boolean | null);
+      setOwnerCommitted12(d.owner_committed_12_months as boolean | null);
+      // auto_accept_enabled: false = owner wants control (Yes), true = platform handles (No)
+      const autoAccept = d.auto_accept_enabled as boolean;
+      setOwnerWantsControl(autoAccept === true ? false : autoAccept === false ? true : null);
+      setOwnerHasLocalRep(d.owner_has_local_rep as boolean | null);
+      setOwnerRepName(d.owner_rep_name as string || "");
+      setOwnerRepPhone(d.owner_rep_phone as string || "");
+      setOwnerLivesSameCity(d.owner_lives_in_same_city as boolean | null);
+      setOwnerPrefersPhone(d.owner_prefers_phone_calls as boolean | null);
+
       // Parse amenities
       const amenities = (data as Record<string, unknown>).amenities as Record<string, unknown> || {};
       setFurnishingItems(Array.isArray(amenities.furnishing_items) ? amenities.furnishing_items as string[] : []);
