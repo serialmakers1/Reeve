@@ -360,6 +360,7 @@ export default function NewApplicationPage() {
         return;
       }
       setApplicationId(newApp.id);
+      setExistingApplicationId(newApp.id);
       setProposedRent((prop as PropertyInfo).listed_rent);
     }
 
