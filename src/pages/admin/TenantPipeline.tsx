@@ -60,6 +60,9 @@ const STATUS_COLORS: Record<string, string> = {
   kyc_failed: "bg-red-100 text-red-800",
   agreement_pending: "bg-purple-100 text-purple-800",
   lease_active: "bg-green-100 text-green-800",
+  platform_rejected: "bg-red-100 text-red-700",
+  tenant_countered: "bg-orange-100 text-orange-800",
+  on_hold: "bg-amber-100 text-amber-800",
   withdrawn: "bg-muted text-muted-foreground",
   expired: "bg-muted text-muted-foreground",
 };
