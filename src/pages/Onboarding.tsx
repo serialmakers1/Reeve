@@ -48,7 +48,8 @@ export default function Onboarding() {
       return;
     }
 
-    const userId = session?.user?.id;
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const userId = currentSession?.user?.id;
     if (!userId) {
       setError("Session expired. Please log in again.");
       return;
@@ -57,25 +58,29 @@ export default function Onboarding() {
     setSaving(true);
     setError(null);
 
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({
-        full_name: trimmedName,
-        phone: "+91" + trimmedPhone,
-        onboarding_completed: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          full_name: fullName.trim(),
+          phone: "+91" + trimmedPhone,
+          onboarding_completed: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
 
-    if (updateError) {
+      if (error) {
+        console.error('Onboarding save error:', error.message, (error as any).details, (error as any).hint);
+        throw error;
+      }
+
+      navigate('/');
+    } catch (err: any) {
+      console.error('Onboarding failed:', err);
+      setError('Could not save your details. Please try again.');
+    } finally {
       setSaving(false);
-      setError("Could not save. Please try again.");
-      return;
     }
-
-    await refreshUser();
-    setSaving(false);
-    navigate(redirectTo, { replace: true });
   };
 
   if (authLoading) {
