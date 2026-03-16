@@ -13,13 +13,14 @@ import { Search, Inbox, ChevronRight, AlertTriangle } from "lucide-react";
 const STAGE_TABS = [
   { label: "New", statuses: ["draft", "submitted"] },
   { label: "Platform Review", statuses: ["platform_review"] },
+  { label: "Rejected by Platform", statuses: ["platform_rejected"] },
   { label: "Sent to Owner", statuses: ["sent_to_owner"] },
-  { label: "Owner Actioned", statuses: ["owner_accepted", "owner_rejected", "owner_countered"] },
+  { label: "Owner Actioned", statuses: ["owner_accepted", "owner_rejected", "owner_countered", "tenant_countered"] },
   { label: "Payment", statuses: ["payment_pending", "payment_received"] },
   { label: "KYC", statuses: ["kyc_pending", "kyc_passed", "kyc_failed"] },
   { label: "Agreement", statuses: ["agreement_pending"] },
   { label: "Active", statuses: ["lease_active"] },
-  { label: "Closed", statuses: ["withdrawn", "expired"] },
+  { label: "Closed", statuses: ["withdrawn", "expired", "on_hold"] },
 ] as const;
 
 const STATUS_LABELS: Record<string, string> = {
