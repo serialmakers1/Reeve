@@ -78,6 +78,7 @@ const formatCurrency = (n: number | null) =>
 interface AppData {
   id: string;
   status: string;
+  property_id: string;
   monthly_income: number | null;
   proposed_rent: number;
   cibil_range: string | null;
@@ -121,6 +122,9 @@ export default function AdminApplicationDetail() {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundReason, setRefundReason] = useState("");
   const [refundSaving, setRefundSaving] = useState(false);
+  const [showLeaseModal, setShowLeaseModal] = useState(false);
+  const [leaseLoading, setLeaseLoading] = useState(false);
+  const [holdLoading, setHoldLoading] = useState(false);
 
   const fetchApp = useCallback(async () => {
     if (!id) return;
@@ -201,6 +205,54 @@ export default function AdminApplicationDetail() {
       await fetchApp();
     }
     setActionLoading(false);
+  };
+
+  const handleMarkLeaseActive = async () => {
+    if (!id || !app) return;
+    setLeaseLoading(true);
+    const { error: appErr } = await supabase
+      .from("applications")
+      .update({ status: "lease_active" as any, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (appErr) {
+      toast({ title: "Failed to update application", description: appErr.message, variant: "destructive" });
+      setLeaseLoading(false);
+      return;
+    }
+    const { error: propErr } = await supabase
+      .from("properties")
+      .update({
+        status: "occupied" as any,
+        is_active: false,
+        occupied_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", app.property_id);
+    if (propErr) {
+      toast({ title: "Failed to update property", description: propErr.message, variant: "destructive" });
+      setLeaseLoading(false);
+      return;
+    }
+    toast({ title: "Lease marked active. Property is now occupied." });
+    setShowLeaseModal(false);
+    setLeaseLoading(false);
+    await fetchApp();
+  };
+
+  const handleAgreementOnHold = async () => {
+    if (!id) return;
+    setHoldLoading(true);
+    const { error } = await supabase
+      .from("applications")
+      .update({ status: "payment_received" as any, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Failed to update application", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Application moved back to Payment Received." });
+      await fetchApp();
+    }
+    setHoldLoading(false);
   };
 
   const handleSaveNotes = async () => {
@@ -428,6 +480,25 @@ export default function AdminApplicationDetail() {
           </Card>
         )}
 
+        {/* Section — Agreement Pending Actions */}
+        {app.status === "agreement_pending" && (
+          <Card>
+            <CardContent className="pt-6 flex flex-wrap gap-2">
+              <Button className="min-h-[44px]" onClick={() => setShowLeaseModal(true)}>
+                Mark Lease Active
+              </Button>
+              <Button
+                variant="outline"
+                className="min-h-[44px]"
+                disabled={holdLoading}
+                onClick={handleAgreementOnHold}
+              >
+                {holdLoading ? "Updating…" : "Put Agreement on Hold"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Section 6 — Admin Notes */}
         <Card>
           <CardHeader><CardTitle className="text-base">Admin Notes</CardTitle></CardHeader>
@@ -495,6 +566,35 @@ export default function AdminApplicationDetail() {
                 {tokenSaving ? "Saving…" : "Confirm"}
               </Button>
               <Button variant="outline" className="min-h-[44px]" onClick={() => { setShowTokenModal(false); setTokenRef(""); setTokenAmount("5000"); }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lease Active Confirmation Modal */}
+      {showLeaseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-background p-6 space-y-4 shadow-xl">
+            <h2 className="text-lg font-bold text-foreground">Confirm Lease Activation</h2>
+            <p className="text-sm text-muted-foreground">
+              Confirm that the agreement has been signed by all parties and the lease is now active.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1 min-h-[44px]"
+                disabled={leaseLoading}
+                onClick={handleMarkLeaseActive}
+              >
+                {leaseLoading ? "Confirming…" : "Confirm"}
+              </Button>
+              <Button
+                variant="outline"
+                className="min-h-[44px]"
+                disabled={leaseLoading}
+                onClick={() => setShowLeaseModal(false)}
+              >
                 Cancel
               </Button>
             </div>
