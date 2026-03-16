@@ -155,19 +155,31 @@ export default function ApplicationDetail() {
            submitted_at, updated_at, withdrawn_at, withdrawal_reason, rejection_reason,
            platform_rejection_reason, employer_name, monthly_income, cibil_range,
            crime_record_self_attest, property_id,
-           properties(building_name, locality, city, bhk, listed_rent),
            application_residents(id, full_name, age, relationship)`
         )
         .eq("id", id)
         .eq("tenant_id", user.id)
         .maybeSingle();
 
-      if (data && (data as any).status === "draft") {
+      if (!data) {
+        setLoading(false);
+        return;
+      }
+
+      if ((data as any).status === "draft") {
         navigate(`/dashboard/applications/new?resume=${id}`, { replace: true });
         return;
       }
 
-      setApp(data as unknown as AppDetail | null);
+      // Fetch property separately — no is_active filter — so tenants always see
+      // property details even after the property is taken off market.
+      const { data: propertyData } = await supabase
+        .from("properties")
+        .select("building_name, locality, city, bhk, listed_rent")
+        .eq("id", (data as any).property_id)
+        .maybeSingle();
+
+      setApp({ ...data, properties: propertyData } as unknown as AppDetail);
       setLoading(false);
     };
     load();
