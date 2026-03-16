@@ -237,11 +237,13 @@ export type Database = {
       }
       applications: {
         Row: {
+          attempt_number: number
           cibil_range: Database["public"]["Enums"]["cibil_range_type"] | null
           created_at: string
           crime_record_self_attest: boolean
           eligibility_id: string | null
           employer_name: string | null
+          expired_at: string | null
           final_agreed_rent: number | null
           id: string
           id_verification_done: boolean
@@ -251,10 +253,17 @@ export type Database = {
           owner_actioned_at: string | null
           owner_counter_rent: number | null
           platform_approved: boolean | null
+          platform_rejected_at: string | null
+          platform_rejection_reason: string | null
           platform_review_notes: string | null
+          pre_hold_status:
+            | Database["public"]["Enums"]["application_status"]
+            | null
+          previous_application_id: string | null
           property_id: string
           property_notes_text: string | null
           proposed_rent: number
+          reapplication_eligible_from: string | null
           rejection_reason: string | null
           service_fee_terms_confirmed: boolean
           status: Database["public"]["Enums"]["application_status"]
@@ -263,13 +272,17 @@ export type Database = {
           tenant_id: string
           updated_at: string
           visit_id: string | null
+          withdrawal_reason: string | null
+          withdrawn_at: string | null
         }
         Insert: {
+          attempt_number?: number
           cibil_range?: Database["public"]["Enums"]["cibil_range_type"] | null
           created_at?: string
           crime_record_self_attest?: boolean
           eligibility_id?: string | null
           employer_name?: string | null
+          expired_at?: string | null
           final_agreed_rent?: number | null
           id?: string
           id_verification_done?: boolean
@@ -279,10 +292,17 @@ export type Database = {
           owner_actioned_at?: string | null
           owner_counter_rent?: number | null
           platform_approved?: boolean | null
+          platform_rejected_at?: string | null
+          platform_rejection_reason?: string | null
           platform_review_notes?: string | null
+          pre_hold_status?:
+            | Database["public"]["Enums"]["application_status"]
+            | null
+          previous_application_id?: string | null
           property_id: string
           property_notes_text?: string | null
           proposed_rent: number
+          reapplication_eligible_from?: string | null
           rejection_reason?: string | null
           service_fee_terms_confirmed?: boolean
           status?: Database["public"]["Enums"]["application_status"]
@@ -291,13 +311,17 @@ export type Database = {
           tenant_id: string
           updated_at?: string
           visit_id?: string | null
+          withdrawal_reason?: string | null
+          withdrawn_at?: string | null
         }
         Update: {
+          attempt_number?: number
           cibil_range?: Database["public"]["Enums"]["cibil_range_type"] | null
           created_at?: string
           crime_record_self_attest?: boolean
           eligibility_id?: string | null
           employer_name?: string | null
+          expired_at?: string | null
           final_agreed_rent?: number | null
           id?: string
           id_verification_done?: boolean
@@ -307,10 +331,17 @@ export type Database = {
           owner_actioned_at?: string | null
           owner_counter_rent?: number | null
           platform_approved?: boolean | null
+          platform_rejected_at?: string | null
+          platform_rejection_reason?: string | null
           platform_review_notes?: string | null
+          pre_hold_status?:
+            | Database["public"]["Enums"]["application_status"]
+            | null
+          previous_application_id?: string | null
           property_id?: string
           property_notes_text?: string | null
           proposed_rent?: number
+          reapplication_eligible_from?: string | null
           rejection_reason?: string | null
           service_fee_terms_confirmed?: boolean
           status?: Database["public"]["Enums"]["application_status"]
@@ -319,6 +350,8 @@ export type Database = {
           tenant_id?: string
           updated_at?: string
           visit_id?: string | null
+          withdrawal_reason?: string | null
+          withdrawn_at?: string | null
         }
         Relationships: [
           {
@@ -326,6 +359,13 @@ export type Database = {
             columns: ["eligibility_id"]
             isOneToOne: false
             referencedRelation: "eligibility"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_previous_application_id_fkey"
+            columns: ["previous_application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
             referencedColumns: ["id"]
           },
           {
@@ -2011,6 +2051,7 @@ export type Database = {
         | "draft"
         | "submitted"
         | "platform_review"
+        | "platform_rejected"
         | "sent_to_owner"
         | "owner_accepted"
         | "owner_rejected"
@@ -2025,6 +2066,7 @@ export type Database = {
         | "lease_active"
         | "withdrawn"
         | "expired"
+        | "on_hold"
       auth_provider: "phone_otp" | "google" | "apple" | "email_otp"
       bhk_type: "1BHK" | "2BHK" | "3BHK" | "4BHK" | "5BHK_plus" | "studio"
       bill_compliance_status:
@@ -2145,6 +2187,7 @@ export type Database = {
         | "disputed"
       payment_type:
         | "confirmation_first_month_rent"
+        | "token_deposit"
         | "security_deposit"
         | "monthly_rent"
         | "service_fee"
@@ -2331,6 +2374,7 @@ export const Constants = {
         "draft",
         "submitted",
         "platform_review",
+        "platform_rejected",
         "sent_to_owner",
         "owner_accepted",
         "owner_rejected",
@@ -2345,6 +2389,7 @@ export const Constants = {
         "lease_active",
         "withdrawn",
         "expired",
+        "on_hold",
       ],
       auth_provider: ["phone_otp", "google", "apple", "email_otp"],
       bhk_type: ["1BHK", "2BHK", "3BHK", "4BHK", "5BHK_plus", "studio"],
@@ -2479,6 +2524,7 @@ export const Constants = {
       ],
       payment_type: [
         "confirmation_first_month_rent",
+        "token_deposit",
         "security_deposit",
         "monthly_rent",
         "service_fee",
