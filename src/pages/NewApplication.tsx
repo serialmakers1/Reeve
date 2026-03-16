@@ -342,6 +342,34 @@ export default function NewApplicationPage() {
     } else {
       // Fresh start OR reapplication after withdrawal/rejection — always INSERT a new draft
       // (existingApplicationId intentionally left null so submit uses INSERT path)
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      const userId = freshSession?.user?.id;
+      if (!userId) { setPageLoading(false); return; }
+
+      // Second guard: check if a draft already exists (race condition safety)
+      const { data: existingDraft } = await supabase
+        .from('applications')
+        .select('id')
+        .eq('property_id', propertyId)
+        .eq('tenant_id', userId)
+        .eq('status', 'draft')
+        .maybeSingle();
+
+      if (existingDraft) {
+        // Draft already exists — resume it, don't create another
+        setApplicationId(existingDraft.id);
+        setExistingApplicationId(existingDraft.id);
+        const { data: fullDraft } = await supabase
+          .from('applications')
+          .select('*, application_residents(*)')
+          .eq('id', existingDraft.id)
+          .maybeSingle();
+        if (fullDraft) loadDraft(fullDraft as Record<string, unknown>, prop as PropertyInfo);
+        setResumeBanner(true);
+        setPageLoading(false);
+        return;
+      }
+
       const { data: newApp, error } = await supabase
         .from("applications")
         .insert({
