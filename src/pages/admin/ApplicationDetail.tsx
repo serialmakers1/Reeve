@@ -45,6 +45,33 @@ const STATUS_ACTIONS: Record<string, { label: string; newStatus: string; extra?:
   kyc_passed: [{ label: "Mark Agreement Pending", newStatus: "agreement_pending" }],
 };
 
+const TERMINAL_STATUSES = ['withdrawn', 'owner_rejected', 'platform_rejected', 'expired', 'on_hold'];
+
+function getFriendlyStatus(status: string): string {
+  const map: Record<string, string> = {
+    draft: 'Draft',
+    submitted: 'Submitted',
+    platform_review: 'Under Review',
+    platform_rejected: 'Rejected by Platform',
+    sent_to_owner: 'Sent to Owner',
+    owner_accepted: 'Owner Accepted',
+    owner_rejected: 'Owner Rejected',
+    owner_countered: 'Owner Countered',
+    tenant_countered: 'Tenant Countered',
+    payment_pending: 'Payment Pending',
+    payment_received: 'Payment Received',
+    kyc_pending: 'KYC Pending',
+    kyc_passed: 'KYC Passed',
+    kyc_failed: 'KYC Failed',
+    agreement_pending: 'Agreement Pending',
+    lease_active: 'Lease Active',
+    withdrawn: 'Withdrawn',
+    expired: 'Expired',
+    on_hold: 'On Hold',
+  };
+  return map[status] ?? status;
+}
+
 const formatCurrency = (n: number | null) =>
   n != null ? `₹${n.toLocaleString("en-IN")}` : "—";
 
@@ -151,8 +178,9 @@ export default function AdminApplicationDetail() {
     const { error } = await supabase
       .from("applications")
       .update({
-        status: "withdrawn" as any,
-        rejection_reason: rejectReason.trim(),
+        status: "platform_rejected" as any,
+        platform_rejection_reason: rejectReason.trim(),
+        platform_rejected_at: new Date().toISOString(),
         platform_approved: false,
         updated_at: new Date().toISOString(),
       })
@@ -208,8 +236,9 @@ export default function AdminApplicationDetail() {
     app.monthly_income && app.property?.listed_rent
       ? app.monthly_income < app.property.listed_rent * 2.5
       : false;
-  const actions = STATUS_ACTIONS[app.status] ?? [];
-  const showRejectBtn = app.status === "platform_review";
+  const isTerminal = TERMINAL_STATUSES.includes(app.status);
+  const actions = isTerminal ? [] : (STATUS_ACTIONS[app.status] ?? []);
+  const showRejectBtn = !isTerminal && app.status === "platform_review";
 
   return (
     <AdminLayout>
@@ -314,49 +343,57 @@ export default function AdminApplicationDetail() {
         </Card>
 
         {/* Section 5 — Admin Actions */}
-        {(actions.length > 0 || showRejectBtn) && (
+        {(isTerminal || actions.length > 0 || showRejectBtn) && (
           <Card>
             <CardHeader><CardTitle className="text-base">Admin Actions</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {actions.map((a) => (
-                  <Button
-                    key={a.newStatus}
-                    className="min-h-[44px]"
-                    disabled={actionLoading}
-                    onClick={() => handleStatusChange(a.newStatus, a.extra)}
-                  >
-                    {a.label}
-                  </Button>
-                ))}
-                {showRejectBtn && !rejectMode && (
-                  <Button
-                    variant="destructive"
-                    className="min-h-[44px]"
-                    disabled={actionLoading}
-                    onClick={() => setRejectMode(true)}
-                  >
-                    Reject Application
-                  </Button>
-                )}
-              </div>
-              {rejectMode && (
-                <div className="space-y-2 pt-2">
-                  <Input
-                    placeholder="Rejection reason…"
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    className="min-h-[44px]"
-                  />
-                  <div className="flex gap-2">
-                    <Button variant="destructive" className="min-h-[44px]" disabled={!rejectReason.trim() || actionLoading} onClick={handleReject}>
-                      Confirm Rejection
-                    </Button>
-                    <Button variant="outline" className="min-h-[44px]" onClick={() => { setRejectMode(false); setRejectReason(""); }}>
-                      Cancel
-                    </Button>
+              {isTerminal ? (
+                <p className="text-sm text-muted-foreground">
+                  This application is closed ({getFriendlyStatus(app.status)}) — no further actions available.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {actions.map((a) => (
+                      <Button
+                        key={a.newStatus}
+                        className="min-h-[44px]"
+                        disabled={actionLoading}
+                        onClick={() => handleStatusChange(a.newStatus, a.extra)}
+                      >
+                        {a.label}
+                      </Button>
+                    ))}
+                    {showRejectBtn && !rejectMode && (
+                      <Button
+                        variant="destructive"
+                        className="min-h-[44px]"
+                        disabled={actionLoading}
+                        onClick={() => setRejectMode(true)}
+                      >
+                        Reject Application
+                      </Button>
+                    )}
                   </div>
-                </div>
+                  {rejectMode && (
+                    <div className="space-y-2 pt-2">
+                      <Input
+                        placeholder="Rejection reason…"
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        className="min-h-[44px]"
+                      />
+                      <div className="flex gap-2">
+                        <Button variant="destructive" className="min-h-[44px]" disabled={!rejectReason.trim() || actionLoading} onClick={handleReject}>
+                          Confirm Rejection
+                        </Button>
+                        <Button variant="outline" className="min-h-[44px]" onClick={() => { setRejectMode(false); setRejectReason(""); }}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
