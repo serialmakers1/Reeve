@@ -153,6 +153,7 @@ export default function NewApplicationPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const propertyId = searchParams.get("property_id");
+  const resumeId = searchParams.get("resume");
   const { session, user, loading: authLoading } = useRequireAuth();
 
   // Core state
@@ -204,16 +205,79 @@ export default function NewApplicationPage() {
 
   useEffect(() => {
     if (authLoading || !user) return;
-    if (!propertyId) {
+    if (!propertyId && !resumeId) {
       navigate("/search");
       return;
     }
     initPage();
-  }, [authLoading, user, propertyId]);
+  }, [authLoading, user, propertyId, resumeId]);
 
   const initPage = useCallback(async () => {
-    if (!user || !propertyId) return;
+    if (!user) return;
     setPageLoading(true);
+
+    if (resumeId) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) { setPageLoading(false); return; }
+
+      const { data: draft } = await supabase
+        .from("applications")
+        .select("*")
+        .eq("id", resumeId)
+        .eq("tenant_id", userId)
+        .eq("status", "draft")
+        .maybeSingle();
+
+      if (!draft) {
+        toast({ title: "Draft not found", variant: "destructive" });
+        navigate("/dashboard/applications");
+        setPageLoading(false);
+        return;
+      }
+
+      const { data: resumeProp } = await supabase
+        .from("properties")
+        .select("id, building_name, bhk, listed_rent, locality")
+        .eq("id", draft.property_id)
+        .maybeSingle();
+
+      if (!resumeProp) {
+        toast({ title: "Property not found", variant: "destructive" });
+        navigate("/search");
+        setPageLoading(false);
+        return;
+      }
+      setProperty(resumeProp as PropertyInfo);
+
+      const { data: resumeElig } = await supabase
+        .from("eligibility")
+        .select("id, full_name, age, gender, marital_status, occupation, expected_stay, resident_count, has_pets, pet_type, diet, is_foreign_citizen")
+        .eq("user_id", userId)
+        .eq("status", "passed")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!resumeElig) {
+        toast({ title: "Please complete eligibility first", variant: "destructive" });
+        navigate(`/eligibility?property_id=${draft.property_id}`);
+        return;
+      }
+      setEligibility(resumeElig as EligibilityData);
+
+      setApplicationId(draft.id);
+      loadDraft(draft as unknown as Record<string, unknown>, resumeProp as PropertyInfo);
+      setResumeBanner(true);
+      setPageLoading(false);
+      return;
+    }
+
+    if (!propertyId) {
+      navigate("/search");
+      setPageLoading(false);
+      return;
+    }
 
     // Fetch property
     const { data: prop } = await supabase
@@ -295,7 +359,7 @@ export default function NewApplicationPage() {
     }
 
     setPageLoading(false);
-  }, [user, propertyId, navigate]);
+  }, [user, propertyId, resumeId, navigate]);
 
   const loadDraft = async (draft: Record<string, unknown>, prop: PropertyInfo) => {
     // Pre-fill from draft
@@ -593,38 +657,41 @@ export default function NewApplicationPage() {
     if (!validate(8)) return;
     setSaving(true);
 
-    const { data: { session: sess } } = await supabase.auth.getSession();
-    const userId = sess?.user?.id;
-
-    const { data: prevApp } = await supabase
-      .from("applications")
-      .select("id")
-      .eq("property_id", propertyId!)
-      .eq("tenant_id", userId!)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
     const rent = rentChoice === "accept" ? property!.listed_rent : Number(proposedRent);
     const success = await saveApplicationField({
       service_fee_terms_confirmed: true,
       status: "submitted",
       submitted_at: new Date().toISOString(),
       tds_applicable: rent > 50000,
-      previous_application_id: prevApp?.id ?? null,
     });
 
     setSaving(false);
     if (success) {
-      setSubmitted(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      toast({ title: "Application submitted successfully." });
+      navigate("/dashboard/applications");
     } else {
       toast({ title: "Submission failed. Please try again.", variant: "destructive" });
     }
   };
 
-  const handleSaveDraft = () => {
-    toast({ title: "Application saved as draft. You can continue from My Applications." });
+  const handleSaveDraft = async () => {
+    if (!applicationId) return;
+    setSaving(true);
+    const rent = rentChoice === "accept" ? property!.listed_rent : (proposedRent !== "" ? Number(proposedRent) : property!.listed_rent);
+    const success = await saveApplicationField({
+      employer_name: employerName.trim() || null,
+      monthly_income: monthlyIncome !== "" ? Number(monthlyIncome) : null,
+      cibil_range: cibilRange || null,
+      crime_record_self_attest: crimeAttest ? true : null,
+      proposed_rent: rent,
+      updated_at: new Date().toISOString(),
+    });
+    setSaving(false);
+    if (!success) {
+      toast({ title: "Could not save draft. Please try again.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Draft saved. You can continue from My Applications." });
     navigate("/dashboard/applications");
   };
 
