@@ -543,6 +543,35 @@ export default function PropertyEdit() {
           </div>
         </Section>
 
+        {/* Section 7 — Owner Profile */}
+        <div className="rounded-lg border bg-card p-4 md:p-6 space-y-4">
+          <div>
+            <h2 className="text-base font-medium text-foreground">Owner Profile</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Internal notes collected during inspection — not visible to tenants or owners.</p>
+          </div>
+          <div className="space-y-5">
+            <TriStateQuestion label="Is this the owner's only rental property?" value={ownerOnlyRental} onChange={setOwnerOnlyRental} />
+            <TriStateQuestion label="Is rental income from this property important for the owner's monthly financial commitments?" value={ownerIncomeDependent} onChange={setOwnerIncomeDependent} />
+            <TriStateQuestion label="Does the owner expect to keep this property available for rent for at least 12 months?" value={ownerCommitted12} onChange={setOwnerCommitted12} />
+            <TriStateQuestion label="Does the owner want to make the final accept/reject/counter decision on tenant applications themselves?" value={ownerWantsControl} onChange={setOwnerWantsControl} />
+            <div className="space-y-2">
+              <TriStateQuestion label="Does the owner have a local representative who can coordinate access and communication?" value={ownerHasLocalRep} onChange={(v) => { setOwnerHasLocalRep(v); if (v !== true) { setOwnerRepName(""); setOwnerRepPhone(""); } }} />
+              {ownerHasLocalRep === true && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-4 border-l-2 border-muted ml-2">
+                  <Field label="Representative Name">
+                    <Input value={ownerRepName} onChange={(e) => setOwnerRepName(e.target.value)} className="min-h-[44px]" />
+                  </Field>
+                  <Field label="Representative Phone">
+                    <Input value={ownerRepPhone} onChange={(e) => setOwnerRepPhone(e.target.value)} className="min-h-[44px]" />
+                  </Field>
+                </div>
+              )}
+            </div>
+            <TriStateQuestion label="Is the owner currently living in the same city as the property?" value={ownerLivesSameCity} onChange={setOwnerLivesSameCity} />
+            <TriStateQuestion label="Does the owner prefer phone calls over WhatsApp/email for urgent decisions?" value={ownerPrefersPhone} onChange={setOwnerPrefersPhone} />
+          </div>
+        </div>
+
         {/* Bottom save */}
         <div className="flex justify-end pb-8">
           <Button onClick={handleSave} disabled={saving} className="min-h-[44px]">
