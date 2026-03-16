@@ -38,6 +38,9 @@ const STATUS_LABELS: Record<string, string> = {
   kyc_failed: "KYC Failed",
   agreement_pending: "Agreement Pending",
   lease_active: "Active Tenant",
+  platform_rejected: "Rejected by Platform",
+  tenant_countered: "Tenant Countered",
+  on_hold: "On Hold",
   withdrawn: "Withdrawn",
   expired: "Expired",
 };
