@@ -79,6 +79,7 @@ const BUILDING_AMENITIES = [
   { value: "intercom", label: "Intercom" },
   { value: "park", label: "Park" },
   { value: "maintenance_staff", label: "Maintenance Staff" },
+  { value: "gated_access", label: "Gated Access" },
 ];
 
 const PARKING_OPTIONS = [
