@@ -154,6 +154,17 @@ export default function PropertyEdit() {
   // Publish toggle
   const [isActive, setIsActive] = useState(false);
 
+  // Section 7: Owner Profile
+  const [ownerOnlyRental, setOwnerOnlyRental] = useState<boolean | null>(null);
+  const [ownerIncomeDependent, setOwnerIncomeDependent] = useState<boolean | null>(null);
+  const [ownerCommitted12, setOwnerCommitted12] = useState<boolean | null>(null);
+  const [ownerWantsControl, setOwnerWantsControl] = useState<boolean | null>(null); // inverted from auto_accept_enabled
+  const [ownerHasLocalRep, setOwnerHasLocalRep] = useState<boolean | null>(null);
+  const [ownerRepName, setOwnerRepName] = useState("");
+  const [ownerRepPhone, setOwnerRepPhone] = useState("");
+  const [ownerLivesSameCity, setOwnerLivesSameCity] = useState<boolean | null>(null);
+  const [ownerPrefersPhone, setOwnerPrefersPhone] = useState<boolean | null>(null);
+
   useEffect(() => {
     if (!id || authLoading) return;
     const fetchProperty = async () => {
