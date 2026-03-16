@@ -161,6 +161,8 @@ export default function NewApplicationPage() {
   const [property, setProperty] = useState<PropertyInfo | null>(null);
   const [eligibility, setEligibility] = useState<EligibilityData | null>(null);
   const [applicationId, setApplicationId] = useState<string | null>(null);
+  // Set only when the tenant is resuming a pre-existing draft (not for fresh or reapplication)
+  const [existingApplicationId, setExistingApplicationId] = useState<string | null>(null);
   const [step, setStep] = useState<ApplicationStep>(1);
   const [errors, setErrors] = useState<StepErrors>({});
   const [saving, setSaving] = useState(false);
@@ -267,6 +269,7 @@ export default function NewApplicationPage() {
       setEligibility(resumeElig as EligibilityData);
 
       setApplicationId(draft.id);
+      setExistingApplicationId(draft.id);
       loadDraft(draft as unknown as Record<string, unknown>, resumeProp as PropertyInfo);
       setResumeBanner(true);
       setPageLoading(false);
@@ -318,25 +321,27 @@ export default function NewApplicationPage() {
       .eq("tenant_id", user.id)
       .maybeSingle();
 
-    if (existing) {
-      const NON_DRAFT_STATUSES = [
-        "submitted", "platform_review", "sent_to_owner",
-        "owner_accepted", "owner_countered", "payment_pending",
-        "kyc_pending", "kyc_passed", "agreement_pending", "lease_active",
-      ];
-      if (NON_DRAFT_STATUSES.includes(existing.status)) {
-        setProperty(prop as PropertyInfo);
-        setAlreadySubmittedBlock(true);
-        setPageLoading(false);
-        return;
-      }
+    const NON_DRAFT_STATUSES = [
+      "submitted", "platform_review", "sent_to_owner",
+      "owner_accepted", "owner_countered", "payment_pending",
+      "kyc_pending", "kyc_passed", "agreement_pending", "lease_active",
+    ];
 
-      // Draft exists — resume
+    if (existing && existing.status === "draft") {
+      // Genuine draft — resume it
       setApplicationId(existing.id);
+      setExistingApplicationId(existing.id);
       loadDraft(existing as Record<string, unknown>, prop as PropertyInfo);
       setResumeBanner(true);
+    } else if (existing && NON_DRAFT_STATUSES.includes(existing.status)) {
+      // Active in-flight application — block
+      setProperty(prop as PropertyInfo);
+      setAlreadySubmittedBlock(true);
+      setPageLoading(false);
+      return;
     } else {
-      // Fresh start — INSERT one new draft row
+      // Fresh start OR reapplication after withdrawal/rejection — always INSERT a new draft
+      // (existingApplicationId intentionally left null so submit uses INSERT path)
       const { data: newApp, error } = await supabase
         .from("applications")
         .insert({
@@ -657,20 +662,67 @@ export default function NewApplicationPage() {
     if (!validate(8)) return;
     setSaving(true);
 
-    const rent = rentChoice === "accept" ? property!.listed_rent : Number(proposedRent);
-    const success = await saveApplicationField({
-      service_fee_terms_confirmed: true,
-      status: "submitted",
-      submitted_at: new Date().toISOString(),
-      tds_applicable: rent > 50000,
-    });
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const userId = currentSession?.user?.id;
 
-    setSaving(false);
-    if (success) {
+    const rent = rentChoice === "accept" ? property!.listed_rent : Number(proposedRent);
+    const now = new Date().toISOString();
+
+    try {
+      if (existingApplicationId) {
+        // Resuming a saved draft — UPDATE that row only if it is still a draft
+        const { error } = await supabase
+          .from("applications")
+          .update({
+            service_fee_terms_confirmed: true,
+            status: "submitted",
+            submitted_at: now,
+            updated_at: now,
+            tds_applicable: rent > 50000,
+          })
+          .eq("id", existingApplicationId)
+          .eq("status", "draft"); // safety: only update if still a draft
+        if (error) throw error;
+      } else {
+        // Fresh submission or reapplication — INSERT a new submitted row
+        // DO NOT set previous_application_id or attempt_number — DB trigger handles them
+        const { error } = await supabase
+          .from("applications")
+          .insert({
+            property_id: propertyId,
+            tenant_id: userId,
+            eligibility_id: eligibility?.id,
+            employer_name: employerName.trim() || null,
+            monthly_income: monthlyIncome !== "" ? Number(monthlyIncome) : null,
+            cibil_range: cibilRange || null,
+            crime_record_self_attest: crimeAttest || null,
+            proposed_rent: rent,
+            property_notes_text: [noteAdd, noteRemove, noteIssue].filter(Boolean).join(" | ") || null,
+            service_fee_terms_confirmed: true,
+            status: "submitted",
+            submitted_at: now,
+            created_at: now,
+            updated_at: now,
+            tds_applicable: rent > 50000,
+          });
+        if (error) throw error;
+      }
+
+      setSaving(false);
       toast({ title: "Application submitted successfully." });
       navigate("/dashboard/applications");
-    } else {
-      toast({ title: "Submission failed. Please try again.", variant: "destructive" });
+    } catch (error: any) {
+      setSaving(false);
+      console.error("Application submit error:", error);
+      const msg = error?.message ?? "";
+      if (msg.includes("Maximum applications")) {
+        toast({ title: "You have reached the maximum applications for this property.", variant: "destructive" });
+      } else if (msg.includes("Reapplication not allowed until")) {
+        const date = msg.split("until ")[1];
+        toast({ title: `You can reapply after ${date ? new Date(date).toLocaleDateString("en-IN") : "the cooldown period"}.`, variant: "destructive" });
+      } else {
+        toast({ title: "Submission failed. Please try again.", variant: "destructive" });
+      }
     }
   };
 
