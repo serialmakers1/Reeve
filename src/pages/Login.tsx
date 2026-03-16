@@ -164,14 +164,25 @@ export default function LoginPage() {
         const { error: rpcError } = await supabase.rpc('ensure_user_exists');
         if (rpcError) console.error('ensure_user_exists failed:', rpcError);
 
-        // Fetch user record
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+
+        if (!userId) {
+          navigate('/login', { replace: true });
+          return;
+        }
+
         const { data: userData } = await supabase
           .from('users')
-          .select('role, onboarding_completed')
-          .eq('id', data.user.id)
+          .select('onboarding_completed')
+          .eq('id', userId)
           .maybeSingle();
 
-        navigate('/', { replace: true });
+        if (userData?.onboarding_completed === true) {
+          navigate('/', { replace: true });
+        } else {
+          navigate('/onboarding', { replace: true });
+        }
       }
     } finally {
       setIsVerifying(false);
