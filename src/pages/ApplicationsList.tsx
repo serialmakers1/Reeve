@@ -106,18 +106,56 @@ export default function ApplicationsList() {
 
   const handleDeleteDraft = async (appId: string) => {
     setDeletingId(appId);
-    const { error } = await supabase
-      .from("applications")
-      .delete()
-      .eq("id", appId)
-      .eq("status", "draft" as any);
-    setDeletingId(null);
-    setConfirmDeleteId(null);
-    if (error) {
-      toast({ title: "Could not delete draft. Please try again.", variant: "destructive" });
-    } else {
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) throw new Error('No session');
+
+      // Step 1 — delete documents linked to this draft
+      const { error: docError } = await supabase
+        .from('documents')
+        .delete()
+        .eq('application_id', appId)
+        .eq('uploaded_by', userId);
+
+      if (docError) {
+        console.error('Draft delete — documents error:', docError.message, docError.details);
+        throw docError;
+      }
+
+      // Step 2 — delete application_residents linked to this draft
+      const { error: resError } = await supabase
+        .from('application_residents')
+        .delete()
+        .eq('application_id', appId);
+
+      if (resError) {
+        console.error('Draft delete — residents error:', resError.message, resError.details);
+        throw resError;
+      }
+
+      // Step 3 — delete the application row itself
+      const { error: appError } = await supabase
+        .from('applications')
+        .delete()
+        .eq('id', appId)
+        .eq('status', 'draft')
+        .eq('tenant_id', userId);
+
+      if (appError) {
+        console.error('Draft delete — application error:', appError.message, appError.details);
+        throw appError;
+      }
+
       setApps((prev) => prev.filter((a) => a.id !== appId));
-      toast({ title: "Draft deleted." });
+      setConfirmDeleteId(null);
+      toast({ title: 'Draft deleted.' });
+    } catch (err: any) {
+      console.error('Draft delete failed:', err);
+      toast({ title: 'Could not delete draft. Please try again.', variant: 'destructive' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
