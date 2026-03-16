@@ -563,11 +563,3 @@ function Row({ label, value }: { label: string; value: string | null | undefined
       <span className="font-medium">{value || "—"}</span>
     </div>
   );
-}
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-muted-foreground w-36 shrink-0">{label}</span>
-      <span className="font-medium">{value || "—"}</span>
-    </div>
-  );
-}
