@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -21,6 +22,9 @@ interface ApplicationData {
   submitted_at: string | null;
   rejection_reason: string | null;
   owner_actioned_at: string | null;
+  attempt_number: number | null;
+  previous_application_id: string | null;
+  tenant_id: string;
   tenant: { full_name: string } | null;
   property: {
     building_name: string;
@@ -40,6 +44,18 @@ interface ApplicationData {
     resident_count: number;
     expected_stay: string;
   }[] | null;
+}
+
+interface HistoryRow {
+  id: string;
+  status: string;
+  attempt_number: number | null;
+  proposed_rent: number;
+  submitted_at: string | null;
+  rejection_reason: string | null;
+  platform_rejection_reason: string | null;
+  withdrawn_at: string | null;
+  withdrawal_reason: string | null;
 }
 
 /* ─── Helpers ─── */
@@ -90,6 +106,7 @@ const statusBadge = (s: string) => {
     lease_active: "Active Tenant",
     withdrawn: "Withdrawn",
     expired: "Expired",
+    platform_rejected: "Not Approved",
   };
   const colors: Record<string, string> = {
     sent_to_owner: "bg-blue-100 text-blue-700",
@@ -99,6 +116,7 @@ const statusBadge = (s: string) => {
     lease_active: "bg-green-100 text-green-700",
     withdrawn: "bg-gray-100 text-gray-500",
     expired: "bg-gray-100 text-gray-500",
+    platform_rejected: "bg-red-100 text-red-700",
   };
   return {
     label: labels[s] ?? s,
@@ -126,6 +144,8 @@ export default function OwnerApplicationDetail() {
   const [app, setApp] = useState<ApplicationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Action state
   const [showReject, setShowReject] = useState(false);
@@ -143,7 +163,7 @@ export default function OwnerApplicationDetail() {
         id, status, proposed_rent, owner_counter_rent, final_agreed_rent,
         monthly_income, cibil_range, employer_name, crime_record_self_attest,
         income_check_passed, platform_approved, submitted_at,
-        rejection_reason, owner_actioned_at,
+        rejection_reason, owner_actioned_at, attempt_number, previous_application_id, tenant_id,
         tenant:users!applications_tenant_id_fkey(full_name),
         property:properties!applications_property_id_fkey(
           building_name, locality, bhk, listed_rent
@@ -158,30 +178,40 @@ export default function OwnerApplicationDetail() {
       return;
     }
 
+    const tenantId = (data as any).tenant_id;
+
     // Fetch eligibility separately via tenant_id
     let eligibility: ApplicationData["eligibility"] = null;
-    // We need tenant_id to fetch eligibility - get it from applications
-    const { data: appFull } = await supabase
-      .from("applications")
-      .select("tenant_id")
-      .eq("id", applicationId)
-      .maybeSingle();
-
-    if (appFull?.tenant_id) {
+    if (tenantId) {
       const { data: eligData } = await supabase
         .from("eligibility")
         .select("age, gender, occupation, marital_status, diet, has_pets, pet_type, resident_count, expected_stay")
-        .eq("user_id", appFull.tenant_id)
+        .eq("user_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(1);
 
       eligibility = (eligData as ApplicationData["eligibility"]) ?? null;
     }
 
-    setApp({
+    const appData = {
       ...(data as unknown as Omit<ApplicationData, "eligibility">),
       eligibility,
-    });
+    };
+    setApp(appData);
+
+    // Fetch history if reapplication
+    if (appData.attempt_number != null && appData.attempt_number > 1 && tenantId && propertyId) {
+      const { data: historyData } = await supabase
+        .from("applications")
+        .select("id, status, attempt_number, proposed_rent, submitted_at, rejection_reason, platform_rejection_reason, withdrawn_at, withdrawal_reason")
+        .eq("property_id", propertyId)
+        .eq("tenant_id", tenantId)
+        .neq("id", applicationId)
+        .order("attempt_number", { ascending: true });
+
+      setHistory((historyData as unknown as HistoryRow[]) || []);
+    }
+
     setLoading(false);
   };
 
@@ -257,7 +287,7 @@ export default function OwnerApplicationDetail() {
           ← Back to {buildingName}
         </button>
 
-        <div className="flex items-start justify-between gap-3 mb-6">
+        <div className="flex items-start justify-between gap-3 mb-2">
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-foreground leading-tight">
               Application from {app.tenant?.full_name ?? "Applicant"}
@@ -273,6 +303,15 @@ export default function OwnerApplicationDetail() {
             {badge.label}
           </span>
         </div>
+
+        {/* Attempt badge */}
+        {app.attempt_number != null && app.attempt_number > 1 && (
+          <span className="inline-block text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium mb-4">
+            Reapplication — Attempt {app.attempt_number} of 3
+          </span>
+        )}
+
+        <div className="mb-6" />
 
         {/* Platform review notice */}
         {app.platform_approved === false && app.status !== "owner_rejected" && (
@@ -402,6 +441,45 @@ export default function OwnerApplicationDetail() {
             </div>
           )}
         </section>
+
+        {/* SECTION — Application History (reapplications) */}
+        {history.length > 0 && (
+          <section className="rounded-xl border border-border bg-card mb-4">
+            <button
+              onClick={() => setHistoryOpen(!historyOpen)}
+              className="w-full flex items-center justify-between p-5 text-sm font-semibold text-foreground"
+            >
+              Application History ({history.length} previous {history.length === 1 ? "attempt" : "attempts"})
+              {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {historyOpen && (
+              <div className="px-5 pb-5 space-y-3 border-t pt-3">
+                {history.map((h) => {
+                  const hBadge = statusBadge(h.status);
+                  const reason = h.rejection_reason || h.platform_rejection_reason || h.withdrawal_reason;
+                  return (
+                    <div key={h.id} className="flex items-start justify-between gap-2 text-sm">
+                      <div className="min-w-0">
+                        <p className="text-foreground font-medium">
+                          Attempt {h.attempt_number ?? "—"} · {fmt(h.proposed_rent)}
+                        </p>
+                        {h.submitted_at && (
+                          <p className="text-xs text-muted-foreground">{formatDate(h.submitted_at)}</p>
+                        )}
+                        {reason && (
+                          <p className="text-xs text-muted-foreground mt-0.5">Reason: {reason}</p>
+                        )}
+                      </div>
+                      <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${hBadge.className}`}>
+                        {hBadge.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* SECTION 4 — Owner Actions */}
         <section className="rounded-xl border border-border bg-card p-5">
