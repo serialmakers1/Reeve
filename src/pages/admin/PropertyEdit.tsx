@@ -124,6 +124,7 @@ export default function PropertyEdit() {
 
   // Form state — Section 1: Basic Details
   const [buildingName, setBuildingName] = useState("");
+  const [legalOwnerName, setLegalOwnerName] = useState("");
   const [streetAddress, setStreetAddress] = useState("");
   const [locality, setLocality] = useState("");
   const [city, setCity] = useState("");
