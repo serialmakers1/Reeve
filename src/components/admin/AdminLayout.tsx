@@ -8,7 +8,6 @@ import { Users, Home, FileText, Building2, Menu, X } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Owner Pipeline", path: "/admin/owners", icon: Users },
-  { label: "Tenant Pipeline", path: "/admin/tenants", icon: Home },
   { label: "Applications", path: "/admin/applications", icon: FileText },
   { label: "Properties", path: "/admin/properties", icon: Building2 },
 ];

@@ -117,6 +117,7 @@ function AppInner() {
       <Route path="/dashboard/visits" element={<OnboardingGuard><VisitsList /></OnboardingGuard>} />
       <Route path="/dashboard/applications/:id" element={<OnboardingGuard><ApplicationDetail /></OnboardingGuard>} />
       <Route path="/admin" element={<Navigate to="/admin/owners" replace />} />
+      <Route path="/admin/tenants" element={<Navigate to="/admin/applications" replace />} />
       <Route path="/admin/owners" element={<OnboardingGuard><OwnerPipeline /></OnboardingGuard>} />
       <Route path="/admin/properties/:id" element={<OnboardingGuard><PropertyEdit /></OnboardingGuard>} />
       <Route path="/admin/applications" element={<OnboardingGuard><TenantPipeline /></OnboardingGuard>} />
