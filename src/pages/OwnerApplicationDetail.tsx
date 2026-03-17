@@ -149,7 +149,8 @@ export default function OwnerApplicationDetail() {
 
   // Action state
   const [showReject, setShowReject] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [selectedRejectionReason, setSelectedRejectionReason] = useState<string>('');
+  const [otherRejectionText, setOtherRejectionText] = useState<string>('');
   const [showCounter, setShowCounter] = useState(false);
   const [counterRent, setCounterRent] = useState("");
 
@@ -522,24 +523,56 @@ export default function OwnerApplicationDetail() {
                   Reject Application
                 </button>
               ) : (
-                <div className="border border-red-200 rounded-lg p-4 space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Reason for rejection (optional)"
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
+              <div className="border border-red-200 rounded-lg p-4 space-y-3">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-700">Reason for rejection *</p>
+                    {[
+                      'Prefer a different occupant profile',
+                      'Prefer a family / couple / single occupant',
+                      "Income or CIBIL doesn't meet my requirements",
+                      'Preferred rent not agreed',
+                      'Already selected another applicant',
+                      'Other'
+                    ].map(reason => (
+                      <button
+                        key={reason}
+                        onClick={() => {
+                          setSelectedRejectionReason(reason);
+                          if (reason !== 'Other') setOtherRejectionText('');
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded border text-sm ${
+                          selectedRejectionReason === reason
+                            ? 'border-red-500 bg-red-50 text-red-700'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
+                        }`}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+
+                    {selectedRejectionReason === 'Other' && (
+                      <textarea
+                        placeholder="Please specify your reason..."
+                        value={otherRejectionText}
+                        onChange={e => setOtherRejectionText(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm mt-2"
+                        rows={3}
+                      />
+                    )}
+                  </div>
                   <div className="flex gap-2">
                     <button
-                      disabled={actionLoading}
-                      onClick={() =>
+                      disabled={actionLoading || !(selectedRejectionReason !== '' && (selectedRejectionReason !== 'Other' || otherRejectionText.trim() !== ''))}
+                      onClick={() => {
+                        const finalRejectionReason = selectedRejectionReason === 'Other'
+                          ? `Other: ${otherRejectionText.trim()}`
+                          : selectedRejectionReason;
                         handleAction({
                           status: "owner_rejected",
-                          rejection_reason: rejectionReason || null,
+                          rejection_reason: finalRejectionReason,
                           owner_actioned_at: new Date().toISOString(),
-                        })
-                      }
+                        });
+                      }}
                       className="flex-1 min-h-[44px] rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                     >
                       Confirm Rejection
@@ -547,7 +580,8 @@ export default function OwnerApplicationDetail() {
                     <button
                       onClick={() => {
                         setShowReject(false);
-                        setRejectionReason("");
+                        setSelectedRejectionReason('');
+                        setOtherRejectionText('');
                       }}
                       className="min-h-[44px] px-4 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted"
                     >
