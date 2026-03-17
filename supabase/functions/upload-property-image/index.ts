@@ -167,6 +167,8 @@ Deno.serve(async (req: Request) => {
     const fileField = formData.get("file");
     const propertyId = formData.get("property_id");
     const section = formData.get("section") as string | null;
+    const isFloorPlanRaw = formData.get("is_floor_plan");
+    const isFloorPlan = isFloorPlanRaw === "true";
 
     if (!fileField || !propertyId) {
       return new Response(
@@ -251,7 +253,7 @@ Deno.serve(async (req: Request) => {
         url: publicUrl,
         thumbnail_url: null,
         caption: null,
-        is_floor_plan: false,
+        is_floor_plan: isFloorPlan,
         is_primary: false,
         sort_order: 0,
         section: section || null,
