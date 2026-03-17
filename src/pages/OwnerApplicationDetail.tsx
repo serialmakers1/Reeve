@@ -41,6 +41,7 @@ interface ApplicationData {
     diet: string | null;
     has_pets: boolean;
     pet_type: string | null;
+    pet_description: string | null;
     resident_count: number;
     expected_stay: string;
   }[] | null;
@@ -186,7 +187,7 @@ export default function OwnerApplicationDetail() {
     if (tenantId) {
       const { data: eligData } = await supabase
         .from("eligibility")
-        .select("age, gender, occupation, marital_status, diet, has_pets, pet_type, resident_count, expected_stay")
+        .select("age, gender, occupation, marital_status, diet, has_pets, pet_type, pet_description, resident_count, expected_stay")
         .eq("user_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(1);
@@ -339,9 +340,13 @@ export default function OwnerApplicationDetail() {
               { label: "Diet", value: capitalize(elig?.diet) },
               {
                 label: "Pets",
-                value: elig?.has_pets
-                  ? `Yes — ${capitalize(elig.pet_type)}`
-                  : "No",
+                value: !elig?.has_pets
+                  ? 'No'
+                  : elig.pet_type === 'other' && elig.pet_description
+                    ? `Other: ${elig.pet_description}`
+                    : elig.pet_type
+                      ? elig.pet_type.charAt(0).toUpperCase() + elig.pet_type.slice(1)
+                      : 'Yes',
               },
               {
                 label: "Expected Stay",

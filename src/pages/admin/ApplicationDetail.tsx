@@ -328,7 +328,15 @@ export default function AdminApplicationDetail() {
                 <Row label="Occupation" value={elig.occupation?.replace(/_/g, " ")} />
                 <Row label="Marital Status" value={elig.marital_status?.replace(/_/g, " ")} />
                 <Row label="Diet" value={elig.diet?.replace(/_/g, " ")} />
-                <Row label="Pets" value={elig.has_pets ? `Yes${elig.pet_type ? ` (${elig.pet_type})` : ""}` : "No"} />
+                <Row label="Pets" value={
+                  !elig.has_pets
+                    ? 'No'
+                    : elig.pet_type === 'other' && (elig as any).pet_description
+                      ? `Other: ${(elig as any).pet_description}`
+                      : elig.pet_type
+                        ? elig.pet_type.charAt(0).toUpperCase() + elig.pet_type.slice(1)
+                        : 'Yes'
+                } />
                 <Row label="Residents" value={String(elig.resident_count)} />
                 <Row label="Expected Stay" value={elig.expected_stay?.replace(/_/g, " ")} />
                 <Row label="Foreign Citizen" value={elig.is_foreign_citizen ? "Yes" : "No"} />
