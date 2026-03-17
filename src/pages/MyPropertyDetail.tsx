@@ -351,6 +351,8 @@ export default function MyPropertyDetail() {
   const [notFound, setNotFound] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [faqOpen, setFaqOpen] = useState<Record<number, boolean>>({});
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   const userId = session?.user?.id ?? "";
 
