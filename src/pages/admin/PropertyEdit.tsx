@@ -353,7 +353,7 @@ export default function PropertyEdit() {
     return groups;
   }, [images]);
 
-  const handleUpload = async (files: FileList, section: string) => {
+  const handleUpload = async (files: File[], section: string) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
@@ -565,9 +565,10 @@ export default function PropertyEdit() {
                         multiple
                         className="hidden"
                         onChange={async e => {
-                          const files = e.target.files;
+                          if (!e.target.files || e.target.files.length === 0) return;
+                          const filesArray = Array.from(e.target.files);
                           e.target.value = "";
-                          if (files) await handleUpload(files, sectionName);
+                          await handleUpload(filesArray, sectionName);
                         }}
                       />
                     </label>
