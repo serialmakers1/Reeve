@@ -892,6 +892,12 @@ const PropertyDetail: React.FC = () => {
                   </p>
                   <div className="space-y-1.5 border-t border-border pt-3">
                     <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Service fee (7% + GST)</span>
+                      <span className="font-medium text-foreground">
+                        {formatIndianRupee(Math.round(property.listed_rent * 0.07 * 1.18))}/month
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Security Deposit</span>
                       <span className="font-medium text-foreground">
                         {formatIndianRupee(depositAmount)} ({property.security_deposit_months} month only) — held by Reeve
