@@ -149,7 +149,8 @@ export default function OwnerApplicationDetail() {
 
   // Action state
   const [showReject, setShowReject] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [selectedRejectionReason, setSelectedRejectionReason] = useState<string>('');
+  const [otherRejectionText, setOtherRejectionText] = useState<string>('');
   const [showCounter, setShowCounter] = useState(false);
   const [counterRent, setCounterRent] = useState("");
 
