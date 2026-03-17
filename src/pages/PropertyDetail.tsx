@@ -329,6 +329,7 @@ const PropertyDetail: React.FC = () => {
   const navigate = useNavigate();
 
   const [property, setProperty] = useState<PropertyData | null>(null);
+  const [rawAmenities, setRawAmenities] = useState<{ furnishing_items?: string[]; building?: string[] } | null>(null);
   const [images, setImages] = useState<PropertyImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
