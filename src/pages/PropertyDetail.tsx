@@ -1020,33 +1020,62 @@ const PropertyDetail: React.FC = () => {
                 ))}
               </div>
 
-              {/* Furnishing Items */}
+              {/* Furnishing Included */}
               {rawAmenities?.furnishing_items && rawAmenities.furnishing_items.length > 0 && (
                 <div className="mt-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Furnishing</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Furnishing Included</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {rawAmenities.furnishing_items.map((item: string) => (
-                      <span key={item} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700 text-center">
-                        {FURNISHING_LABELS[item] ?? item}
-                      </span>
+                      <div
+                        key={item}
+                        className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs justify-center bg-green-50 border border-green-200 text-green-700"
+                      >
+                        <span>✓</span>
+                        <span>{FURNISHING_LABELS[item] ?? item}</span>
+                      </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Building Amenities */}
-              {rawAmenities?.building && rawAmenities.building.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Building Amenities</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {rawAmenities.building.map((item: string) => (
-                      <span key={item} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700 text-center">
-                        {BUILDING_AMENITY_LABELS[item] ?? item}
-                      </span>
-                    ))}
-                  </div>
+              {/* Building Amenities — full inventory */}
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Building Amenities</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { key: 'lift', label: 'Lift' },
+                    { key: 'security_24hr', label: '24hr Security' },
+                    { key: 'power_backup', label: 'Power Backup' },
+                    { key: 'gym', label: 'Gym' },
+                    { key: 'swimming_pool', label: 'Swimming Pool' },
+                    { key: 'clubhouse', label: 'Clubhouse' },
+                    { key: 'visitor_parking', label: 'Visitor Parking' },
+                    { key: 'cctv', label: 'CCTV' },
+                    { key: 'children_play_area', label: "Children's Play Area" },
+                    { key: 'intercom', label: 'Intercom' },
+                    { key: 'park', label: 'Park' },
+                    { key: 'maintenance_staff', label: 'Maintenance Staff' },
+                    { key: 'gated_access', label: 'Gated Access' },
+                  ].map(({ key, label }) => {
+                    const present = rawAmenities?.building?.includes(key) ?? false;
+                    return (
+                      <div
+                        key={key}
+                        className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs text-center justify-center ${
+                          present
+                            ? 'bg-green-50 border border-green-200 text-green-700'
+                            : 'bg-gray-50 border border-gray-100 text-gray-300'
+                        }`}
+                      >
+                        <span className={`text-base ${present ? '' : 'grayscale opacity-40'}`}>
+                          {present ? '✓' : '✗'}
+                        </span>
+                        <span className="leading-tight">{label}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
             </section>
 
             {/* 7. Amenities */}
