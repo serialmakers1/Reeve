@@ -163,6 +163,22 @@ const AMENITY_ICONS: Record<string, React.ReactNode> = {
   jogging_track: <CircleDot className="h-3.5 w-3.5" />,
 };
 
+const FURNISHING_LABELS: Record<string, string> = {
+  ac: 'AC', bed: 'Bed', wardrobe: 'Wardrobe', sofa: 'Sofa',
+  dining_table: 'Dining Table', tv: 'TV', fridge: 'Fridge',
+  washing_machine: 'Washing Machine', geyser: 'Geyser',
+  microwave: 'Microwave', modular_kitchen: 'Modular Kitchen',
+  curtains: 'Curtains', water_purifier: 'Water Purifier'
+};
+
+const BUILDING_AMENITY_LABELS: Record<string, string> = {
+  lift: 'Lift', security_24hr: '24hr Security', power_backup: 'Power Backup',
+  gym: 'Gym', swimming_pool: 'Swimming Pool', clubhouse: 'Clubhouse',
+  visitor_parking: 'Visitor Parking', cctv: 'CCTV',
+  children_play_area: "Children's Play Area", intercom: 'Intercom',
+  park: 'Park', maintenance_staff: 'Maintenance Staff', gated_access: 'Gated Access'
+};
+
 function amenityLabel(a: string): string {
   return a.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -329,6 +345,7 @@ const PropertyDetail: React.FC = () => {
   const navigate = useNavigate();
 
   const [property, setProperty] = useState<PropertyData | null>(null);
+  const [rawAmenities, setRawAmenities] = useState<{ furnishing_items?: string[]; building?: string[] } | null>(null);
   const [images, setImages] = useState<PropertyImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -448,6 +465,11 @@ const PropertyDetail: React.FC = () => {
         ...raw,
         amenities: Array.isArray(raw.amenities) ? (raw.amenities as string[]) : null,
       } as PropertyData);
+
+      // Store raw amenities jsonb for furnishing/building display
+      if (raw.amenities && typeof raw.amenities === 'object' && !Array.isArray(raw.amenities)) {
+        setRawAmenities(raw.amenities as { furnishing_items?: string[]; building?: string[] });
+      }
 
       const fetchedImages = (imgRes.data ?? []) as unknown as PropertyImage[];
       setImages(fetchedImages.length > 0 ? fetchedImages : PLACEHOLDER_IMAGES);
@@ -886,6 +908,12 @@ const PropertyDetail: React.FC = () => {
                   </p>
                   <div className="space-y-1.5 border-t border-border pt-3">
                     <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Service fee (7% + GST)</span>
+                      <span className="font-medium text-foreground">
+                        {formatIndianRupee(Math.round(property.listed_rent * 0.07 * 1.18))}/month
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Security Deposit</span>
                       <span className="font-medium text-foreground">
                         {formatIndianRupee(depositAmount)} ({property.security_deposit_months} month only) — held by Reeve
@@ -976,6 +1004,34 @@ const PropertyDetail: React.FC = () => {
                   </div>
                 ))}
               </div>
+
+              {/* Furnishing Items */}
+              {rawAmenities?.furnishing_items && rawAmenities.furnishing_items.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Furnishing</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {rawAmenities.furnishing_items.map((item: string) => (
+                      <span key={item} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700 text-center">
+                        {FURNISHING_LABELS[item] ?? item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Building Amenities */}
+              {rawAmenities?.building && rawAmenities.building.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Building Amenities</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {rawAmenities.building.map((item: string) => (
+                      <span key={item} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700 text-center">
+                        {BUILDING_AMENITY_LABELS[item] ?? item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* 7. Amenities */}
