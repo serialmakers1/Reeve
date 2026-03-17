@@ -77,6 +77,7 @@ const formatCurrency = (n: number | null) =>
 
 interface AppData {
   id: string;
+  tenant_id: string;
   status: string;
   property_id: string;
   monthly_income: number | null;
@@ -125,6 +126,8 @@ export default function AdminApplicationDetail() {
   const [showLeaseModal, setShowLeaseModal] = useState(false);
   const [leaseLoading, setLeaseLoading] = useState(false);
   const [holdLoading, setHoldLoading] = useState(false);
+  const [docFiles, setDocFiles] = useState<{ name: string; path: string }[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
 
   const fetchApp = useCallback(async () => {
     if (!id) return;
@@ -166,6 +169,31 @@ export default function AdminApplicationDetail() {
   }, [id, toast]);
 
   useEffect(() => { fetchApp(); }, [fetchApp]);
+
+  useEffect(() => {
+    if (!app?.tenant_id || !id) return;
+    const fetchDocs = async () => {
+      setDocsLoading(true);
+      const { data: files, error } = await supabase.storage
+        .from('tenant-documents')
+        .list(`${app.tenant_id}/${id}`, {
+          limit: 20,
+          sortBy: { column: 'created_at', order: 'asc' },
+        });
+      if (!error && files) {
+        setDocFiles(
+          files
+            .filter(f => f.name !== '.emptyFolderPlaceholder')
+            .map(f => ({
+              name: f.name,
+              path: `${app.tenant_id}/${id}/${f.name}`,
+            }))
+        );
+      }
+      setDocsLoading(false);
+    };
+    fetchDocs();
+  }, [app?.tenant_id, id]);
 
   const handleStatusChange = async (newStatus: string, extra?: Record<string, unknown>) => {
     if (!id) return;
@@ -253,6 +281,17 @@ export default function AdminApplicationDetail() {
       await fetchApp();
     }
     setHoldLoading(false);
+  };
+
+  const handleViewDoc = async (path: string) => {
+    const { data, error } = await supabase.storage
+      .from('tenant-documents')
+      .createSignedUrl(path, 120);
+    if (error || !data?.signedUrl) {
+      toast({ title: 'Could not open document. Please try again.', variant: 'destructive' });
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
   };
 
   const handleSaveNotes = async () => {
@@ -397,6 +436,39 @@ export default function AdminApplicationDetail() {
             )}
           </CardContent>
         </Card>
+
+        {/* Section — KYC Documents */}
+        <div className="bg-white rounded-lg border p-6">
+          <h2 className="text-lg font-semibold mb-4">KYC Documents</h2>
+          {docsLoading ? (
+            <p className="text-sm text-gray-500">Loading documents...</p>
+          ) : docFiles.length === 0 ? (
+            <p className="text-sm text-gray-400">No documents uploaded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {docFiles.map(doc => {
+                const label = doc.name
+                  .replace(/_\d+\.pdf$/, '')
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, c => c.toUpperCase());
+                return (
+                  <div key={doc.path} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-700">{label}</span>
+                      <span className="text-xs text-gray-400">PDF</span>
+                    </div>
+                    <button
+                      onClick={() => handleViewDoc(doc.path)}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      View →
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Section 4 — Property */}
         <Card>
