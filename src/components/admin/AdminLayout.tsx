@@ -4,7 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Users, Home, FileText, Building2, Menu, X } from "lucide-react";
+import { Users, Home, FileText, Building2, Menu, X, User, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const NAV_ITEMS = [
   { label: "Owner Pipeline", path: "/admin/owners", icon: Users },
@@ -61,6 +67,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
+
   const NavLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
     <nav className="flex flex-col gap-1 p-3">
       {NAV_ITEMS.map((item) => {
@@ -114,7 +125,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </Sheet>
             <span className="md:hidden text-foreground font-bold">Reeve Admin</span>
           </div>
-          <span className="text-sm text-muted-foreground truncate max-w-[200px]">{userEmail}</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1.5 min-h-[40px]">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline truncate max-w-[150px]">
+                  {userEmail ?? "Admin"}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
 
         {/* Main content */}
