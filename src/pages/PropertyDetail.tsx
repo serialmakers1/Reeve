@@ -545,6 +545,13 @@ const PropertyDetail: React.FC = () => {
     }
   };
 
+  const sections = useMemo(() => {
+    const names = images
+      .filter(img => !img.is_floor_plan && img.section)
+      .map(img => img.section as string);
+    return Array.from(new Set(names));
+  }, [images]);
+
   // ─── Render states ────────────────────────────────────────────────────────
 
   if (loading) {
@@ -582,13 +589,6 @@ const PropertyDetail: React.FC = () => {
     : galleryTab === "all" || galleryTab === "photos"
       ? photoImages
       : images.filter(img => img.section === galleryTab && !img.is_floor_plan);
-
-  const sections = useMemo(() => {
-    const names = images
-      .filter(img => !img.is_floor_plan && img.section)
-      .map(img => img.section as string);
-    return Array.from(new Set(names));
-  }, [images]);
 
   const depositAmount = property.listed_rent * property.security_deposit_months;
 

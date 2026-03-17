@@ -496,12 +496,52 @@ export default function PropertyEdit() {
                   <button
                     key={s}
                     type="button"
-                    onClick={() => setNewSectionName(s)}
+                    onClick={() => {
+                      const trimmed = s.trim();
+                      if (!groupedImages.has(trimmed)) {
+                        setImages(prev => [...prev, {
+                          id: "__placeholder__" + Date.now(),
+                          url: "",
+                          caption: null,
+                          is_primary: false,
+                          is_floor_plan: false,
+                          sort_order: 0,
+                          section: trimmed,
+                        }]);
+                      }
+                      setNewSectionName("");
+                      setShowSectionInput(false);
+                    }}
                     className="text-xs px-2 py-1 bg-background border border-border rounded hover:bg-accent text-muted-foreground"
                   >
                     {s}
                   </button>
                 ))}
+              </div>
+              <div className="flex justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const trimmed = newSectionName.trim();
+                    if (!trimmed) return;
+                    if (!groupedImages.has(trimmed)) {
+                      setImages(prev => [...prev, {
+                        id: "__placeholder__" + Date.now(),
+                        url: "",
+                        caption: null,
+                        is_primary: false,
+                        is_floor_plan: false,
+                        sort_order: 0,
+                        section: trimmed,
+                      }]);
+                    }
+                    setNewSectionName("");
+                    setShowSectionInput(false);
+                  }}
+                  className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded hover:bg-primary/90 font-medium"
+                >
+                  Add Section
+                </button>
               </div>
             </div>
           )}
@@ -524,9 +564,10 @@ export default function PropertyEdit() {
                         accept="image/jpeg,image/png,image/webp"
                         multiple
                         className="hidden"
-                        onChange={e => {
-                          if (e.target.files) handleUpload(e.target.files, sectionName);
+                        onChange={async e => {
+                          const files = e.target.files;
                           e.target.value = "";
+                          if (files) await handleUpload(files, sectionName);
                         }}
                       />
                     </label>
@@ -580,19 +621,9 @@ export default function PropertyEdit() {
                         </div>
                       ))}
                     {sectionImages.filter(img => !img.id.startsWith("__placeholder__")).length === 0 && (
-                      <label className="aspect-square rounded border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary col-span-1">
-                        <span className="text-xs text-muted-foreground text-center px-2">Click to upload</span>
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          multiple
-                          className="hidden"
-                          onChange={e => {
-                            if (e.target.files) handleUpload(e.target.files, sectionName);
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
+                      <div className="col-span-full py-6 text-center">
+                        <p className="text-xs text-muted-foreground">No photos yet. Click &ldquo;Upload Photos&rdquo; above to add images.</p>
+                      </div>
                     )}
                     {Object.entries(uploadingFiles)
                       .filter(([key]) => key.startsWith(sectionName))
