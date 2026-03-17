@@ -187,7 +187,7 @@ export default function OwnerApplicationDetail() {
     if (tenantId) {
       const { data: eligData } = await supabase
         .from("eligibility")
-        .select("age, gender, occupation, marital_status, diet, has_pets, pet_type, resident_count, expected_stay")
+        .select("age, gender, occupation, marital_status, diet, has_pets, pet_type, pet_description, resident_count, expected_stay")
         .eq("user_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(1);
