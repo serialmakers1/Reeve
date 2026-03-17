@@ -23,6 +23,7 @@ export default function MyPropertyNew() {
 
   const [locality, setLocality] = useState("");
   const [buildingName, setBuildingName] = useState("");
+  const [legalOwnerName, setLegalOwnerName] = useState("");
   const [address, setAddress] = useState("");
   const [bhk, setBhk] = useState("");
   const [furnishing, setFurnishing] = useState("");
@@ -43,6 +44,7 @@ export default function MyPropertyNew() {
     !!userId &&
     !!locality.trim() &&
     !!buildingName.trim() &&
+    !!legalOwnerName.trim() &&
     !!address.trim() &&
     !!bhk &&
     !!furnishing &&
@@ -68,6 +70,7 @@ export default function MyPropertyNew() {
       state: "Karnataka",
       locality: locality.trim(),
       building_name: buildingName.trim(),
+      legal_owner_name: legalOwnerName.trim(),
       street_address: address.trim(),
       bhk: bhk as any,
       furnishing: furnishing as any,
@@ -147,6 +150,18 @@ export default function MyPropertyNew() {
                 value={buildingName}
                 onChange={(e) => setBuildingName(e.target.value)}
                 placeholder="e.g. Prestige Lakeside Habitat"
+                className="min-h-[44px]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">
+                Property Legal Owner Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={legalOwnerName}
+                onChange={(e) => setLegalOwnerName(e.target.value)}
+                placeholder="e.g. Rajesh Kumar Sharma"
                 className="min-h-[44px]"
               />
             </div>

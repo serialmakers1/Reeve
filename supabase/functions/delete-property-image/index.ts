@@ -13,16 +13,17 @@ const R2_PUBLIC_URL = "https://images.reeve.in";
 
 // ── AWS SigV4 helpers ──────────────────────────────────────────────────────────
 
-async function sha256Hex(data: ArrayBuffer | string): Promise<string> {
+async function sha256Hex(data: ArrayBuffer | Uint8Array | string): Promise<string> {
   const buf = typeof data === "string" ? new TextEncoder().encode(data) : data;
   const hash = await crypto.subtle.digest("SHA-256", buf);
   return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function hmacSha256(key: ArrayBuffer, msg: string): Promise<ArrayBuffer> {
+async function hmacSha256(key: ArrayBuffer | Uint8Array, msg: string): Promise<ArrayBuffer> {
+  const keyBuf = key instanceof Uint8Array ? key.buffer as ArrayBuffer : key;
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
-    key,
+    keyBuf,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -36,7 +37,7 @@ async function deriveSigningKey(
   region: string,
   service: string,
 ): Promise<ArrayBuffer> {
-  const kDate = await hmacSha256(new TextEncoder().encode("AWS4" + secret), date);
+  const kDate = await hmacSha256(new TextEncoder().encode("AWS4" + secret).buffer as ArrayBuffer, date);
   const kRegion = await hmacSha256(kDate, region);
   const kService = await hmacSha256(kRegion, service);
   return hmacSha256(kService, "aws4_request");

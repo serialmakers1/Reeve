@@ -124,6 +124,7 @@ export default function PropertyEdit() {
 
   // Form state — Section 1: Basic Details
   const [buildingName, setBuildingName] = useState("");
+  const [legalOwnerName, setLegalOwnerName] = useState("");
   const [streetAddress, setStreetAddress] = useState("");
   const [locality, setLocality] = useState("");
   const [city, setCity] = useState("");
@@ -203,6 +204,7 @@ export default function PropertyEdit() {
 
       // Pre-fill form
       setBuildingName((data as Record<string, unknown>).building_name as string || "");
+      setLegalOwnerName((data as Record<string, unknown>).legal_owner_name as string || "");
       setStreetAddress((data as Record<string, unknown>).street_address as string || "");
       setLocality((data as Record<string, unknown>).locality as string || "");
       setCity((data as Record<string, unknown>).city as string || "");
@@ -265,7 +267,7 @@ export default function PropertyEdit() {
       .order("section", { ascending: true, nullsFirst: true })
       .order("sort_order", { ascending: true })
       .then(({ data, error }) => {
-        if (!error && data) setImages(data as PropertyImage[]);
+        if (!error && data) setImages(data as unknown as PropertyImage[]);
         setImagesLoading(false);
       });
   }, [id]);
@@ -287,6 +289,7 @@ export default function PropertyEdit() {
       .from("properties")
       .update({
         building_name: buildingName,
+        legal_owner_name: legalOwnerName || null,
         street_address: streetAddress,
         locality: locality || null,
         city,
@@ -691,6 +694,9 @@ export default function PropertyEdit() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Building Name">
               <Input value={buildingName} onChange={(e) => setBuildingName(e.target.value)} className="min-h-[44px]" />
+            </Field>
+            <Field label="Property Legal Owner Name">
+              <Input value={legalOwnerName} onChange={(e) => setLegalOwnerName(e.target.value)} placeholder="e.g. Rajesh Kumar Sharma" className="min-h-[44px]" />
             </Field>
             <Field label="Street Address">
               <Input value={streetAddress} onChange={(e) => setStreetAddress(e.target.value)} className="min-h-[44px]" />

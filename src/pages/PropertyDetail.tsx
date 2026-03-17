@@ -449,7 +449,7 @@ const PropertyDetail: React.FC = () => {
         amenities: Array.isArray(raw.amenities) ? (raw.amenities as string[]) : null,
       } as PropertyData);
 
-      const fetchedImages = (imgRes.data ?? []) as PropertyImage[];
+      const fetchedImages = (imgRes.data ?? []) as unknown as PropertyImage[];
       setImages(fetchedImages.length > 0 ? fetchedImages : PLACEHOLDER_IMAGES);
 
       // Check session for own-property and already-applied
