@@ -204,6 +204,7 @@ export default function PropertyEdit() {
 
       // Pre-fill form
       setBuildingName((data as Record<string, unknown>).building_name as string || "");
+      setLegalOwnerName((data as Record<string, unknown>).legal_owner_name as string || "");
       setStreetAddress((data as Record<string, unknown>).street_address as string || "");
       setLocality((data as Record<string, unknown>).locality as string || "");
       setCity((data as Record<string, unknown>).city as string || "");
