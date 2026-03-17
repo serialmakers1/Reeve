@@ -41,6 +41,7 @@ interface ApplicationData {
     diet: string | null;
     has_pets: boolean;
     pet_type: string | null;
+    pet_description: string | null;
     resident_count: number;
     expected_stay: string;
   }[] | null;
