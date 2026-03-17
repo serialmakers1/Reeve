@@ -695,6 +695,9 @@ export default function PropertyEdit() {
             <Field label="Building Name">
               <Input value={buildingName} onChange={(e) => setBuildingName(e.target.value)} className="min-h-[44px]" />
             </Field>
+            <Field label="Property Legal Owner Name">
+              <Input value={legalOwnerName} onChange={(e) => setLegalOwnerName(e.target.value)} placeholder="e.g. Rajesh Kumar Sharma" className="min-h-[44px]" />
+            </Field>
             <Field label="Street Address">
               <Input value={streetAddress} onChange={(e) => setStreetAddress(e.target.value)} className="min-h-[44px]" />
             </Field>
