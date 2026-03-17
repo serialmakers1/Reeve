@@ -289,6 +289,7 @@ export default function PropertyEdit() {
       .from("properties")
       .update({
         building_name: buildingName,
+        legal_owner_name: legalOwnerName || null,
         street_address: streetAddress,
         locality: locality || null,
         city,
