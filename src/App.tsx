@@ -49,6 +49,7 @@ import ApplicationDetail from "./pages/ApplicationDetail";
 import VisitsList from "./pages/VisitsList";
 import OwnerPipeline from "./pages/admin/OwnerPipeline";
 import PropertyEdit from "./pages/admin/PropertyEdit";
+import AdminProperties from "./pages/admin/Properties";
 import TenantPipeline from "./pages/admin/TenantPipeline";
 import AdminApplicationDetail from "./pages/admin/ApplicationDetail";
 import Onboarding from "./pages/Onboarding";
@@ -119,6 +120,7 @@ function AppInner() {
       <Route path="/admin" element={<Navigate to="/admin/owners" replace />} />
       <Route path="/admin/tenants" element={<Navigate to="/admin/applications" replace />} />
       <Route path="/admin/owners" element={<OnboardingGuard><OwnerPipeline /></OnboardingGuard>} />
+      <Route path="/admin/properties" element={<OnboardingGuard><AdminProperties /></OnboardingGuard>} />
       <Route path="/admin/properties/:id" element={<OnboardingGuard><PropertyEdit /></OnboardingGuard>} />
       <Route path="/admin/applications" element={<OnboardingGuard><TenantPipeline /></OnboardingGuard>} />
       <Route path="/admin/applications/:id" element={<OnboardingGuard><AdminApplicationDetail /></OnboardingGuard>} />
