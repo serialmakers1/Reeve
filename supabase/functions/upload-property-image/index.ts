@@ -15,7 +15,7 @@ const R2_PUBLIC_URL = "https://images.reeve.in";
 
 // ── AWS SigV4 helpers ──────────────────────────────────────────────────────────
 
-async function sha256Hex(data: ArrayBuffer | string): Promise<string> {
+async function sha256Hex(data: ArrayBuffer | Uint8Array | string): Promise<string> {
   const buf = typeof data === "string" ? new TextEncoder().encode(data) : data;
   const hash = await crypto.subtle.digest("SHA-256", buf);
   return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
