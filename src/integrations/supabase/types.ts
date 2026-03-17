@@ -1543,6 +1543,7 @@ export type Database = {
           is_active: boolean
           last_leased_at: string | null
           latitude: number | null
+          legal_owner_name: string | null
           listed_at: string | null
           listed_rent: number
           locality: string | null
@@ -1614,6 +1615,7 @@ export type Database = {
           is_active?: boolean
           last_leased_at?: string | null
           latitude?: number | null
+          legal_owner_name?: string | null
           listed_at?: string | null
           listed_rent?: number
           locality?: string | null
@@ -1685,6 +1687,7 @@ export type Database = {
           is_active?: boolean
           last_leased_at?: string | null
           latitude?: number | null
+          legal_owner_name?: string | null
           listed_at?: string | null
           listed_rent?: number
           locality?: string | null
@@ -1828,6 +1831,7 @@ export type Database = {
           is_floor_plan: boolean
           is_primary: boolean
           property_id: string
+          section: string | null
           sort_order: number
           thumbnail_url: string | null
           uploaded_by: string
@@ -1840,6 +1844,7 @@ export type Database = {
           is_floor_plan?: boolean
           is_primary?: boolean
           property_id: string
+          section?: string | null
           sort_order?: number
           thumbnail_url?: string | null
           uploaded_by: string
@@ -1852,6 +1857,7 @@ export type Database = {
           is_floor_plan?: boolean
           is_primary?: boolean
           property_id?: string
+          section?: string | null
           sort_order?: number
           thumbnail_url?: string | null
           uploaded_by?: string
