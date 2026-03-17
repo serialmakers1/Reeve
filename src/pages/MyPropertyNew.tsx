@@ -23,6 +23,7 @@ export default function MyPropertyNew() {
 
   const [locality, setLocality] = useState("");
   const [buildingName, setBuildingName] = useState("");
+  const [legalOwnerName, setLegalOwnerName] = useState("");
   const [address, setAddress] = useState("");
   const [bhk, setBhk] = useState("");
   const [furnishing, setFurnishing] = useState("");
