@@ -163,6 +163,22 @@ const AMENITY_ICONS: Record<string, React.ReactNode> = {
   jogging_track: <CircleDot className="h-3.5 w-3.5" />,
 };
 
+const FURNISHING_LABELS: Record<string, string> = {
+  ac: 'AC', bed: 'Bed', wardrobe: 'Wardrobe', sofa: 'Sofa',
+  dining_table: 'Dining Table', tv: 'TV', fridge: 'Fridge',
+  washing_machine: 'Washing Machine', geyser: 'Geyser',
+  microwave: 'Microwave', modular_kitchen: 'Modular Kitchen',
+  curtains: 'Curtains', water_purifier: 'Water Purifier'
+};
+
+const BUILDING_AMENITY_LABELS: Record<string, string> = {
+  lift: 'Lift', security_24hr: '24hr Security', power_backup: 'Power Backup',
+  gym: 'Gym', swimming_pool: 'Swimming Pool', clubhouse: 'Clubhouse',
+  visitor_parking: 'Visitor Parking', cctv: 'CCTV',
+  children_play_area: "Children's Play Area", intercom: 'Intercom',
+  park: 'Park', maintenance_staff: 'Maintenance Staff', gated_access: 'Gated Access'
+};
+
 function amenityLabel(a: string): string {
   return a.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
