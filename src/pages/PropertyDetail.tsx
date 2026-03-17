@@ -450,6 +450,11 @@ const PropertyDetail: React.FC = () => {
         amenities: Array.isArray(raw.amenities) ? (raw.amenities as string[]) : null,
       } as PropertyData);
 
+      // Store raw amenities jsonb for furnishing/building display
+      if (raw.amenities && typeof raw.amenities === 'object' && !Array.isArray(raw.amenities)) {
+        setRawAmenities(raw.amenities as { furnishing_items?: string[]; building?: string[] });
+      }
+
       const fetchedImages = (imgRes.data ?? []) as unknown as PropertyImage[];
       setImages(fetchedImages.length > 0 ? fetchedImages : PLACEHOLDER_IMAGES);
 
