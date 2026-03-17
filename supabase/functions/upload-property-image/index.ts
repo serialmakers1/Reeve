@@ -166,6 +166,7 @@ Deno.serve(async (req: Request) => {
     const formData = await req.formData();
     const fileField = formData.get("file");
     const propertyId = formData.get("property_id");
+    const section = formData.get("section") as string | null;
 
     if (!fileField || !propertyId) {
       return new Response(
@@ -253,6 +254,7 @@ Deno.serve(async (req: Request) => {
         is_floor_plan: false,
         is_primary: false,
         sort_order: 0,
+        section: section || null,
       }),
     });
 

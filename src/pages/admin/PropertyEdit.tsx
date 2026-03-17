@@ -102,6 +102,16 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secon
 
 type PropertyData = Record<string, unknown>;
 
+interface PropertyImage {
+  id: string;
+  url: string;
+  caption: string | null;
+  is_primary: boolean;
+  is_floor_plan: boolean;
+  sort_order: number;
+  section: string | null;
+}
+
 export default function PropertyEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -164,6 +174,14 @@ export default function PropertyEdit() {
   const [ownerRepPhone, setOwnerRepPhone] = useState("");
   const [ownerLivesSameCity, setOwnerLivesSameCity] = useState<boolean | null>(null);
   const [ownerPrefersPhone, setOwnerPrefersPhone] = useState<boolean | null>(null);
+
+  // Photos
+  const [images, setImages] = useState<PropertyImage[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
+  const [newSectionName, setNewSectionName] = useState("");
+  const [showSectionInput, setShowSectionInput] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!id || authLoading) return;
@@ -237,6 +255,21 @@ export default function PropertyEdit() {
     fetchProperty();
   }, [id, authLoading, navigate, toast]);
 
+  useEffect(() => {
+    if (!id) return;
+    setImagesLoading(true);
+    supabase
+      .from("property_images")
+      .select("id, url, caption, is_primary, is_floor_plan, sort_order, section")
+      .eq("property_id", id)
+      .order("section", { ascending: true, nullsFirst: true })
+      .order("sort_order", { ascending: true })
+      .then(({ data, error }) => {
+        if (!error && data) setImages(data as PropertyImage[]);
+        setImagesLoading(false);
+      });
+  }, [id]);
+
   const toggleItem = (list: string[], setList: (v: string[]) => void, value: string) => {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   };
@@ -304,6 +337,103 @@ export default function PropertyEdit() {
 
   const statusInfo = property ? STATUS_LABELS[(property.status as string) || "draft"] || { label: property.status as string, variant: "outline" as const } : null;
 
+  const SECTION_SUGGESTIONS = [
+    "Living Room", "Master Bedroom", "Bedroom 2", "Bedroom 3",
+    "Kitchen", "Bathrooms", "Balcony", "Building Exterior",
+    "Common Areas", "Floor Plan"
+  ];
+
+  const groupedImages = useMemo(() => {
+    const groups = new Map<string, PropertyImage[]>();
+    images.forEach(img => {
+      const key = img.section || "Uncategorised";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(img);
+    });
+    return groups;
+  }, [images]);
+
+  const handleUpload = async (files: FileList, section: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    for (const file of Array.from(files)) {
+      const fileKey = `${section}-${file.name}-${Date.now()}`;
+      setUploadingFiles(prev => ({ ...prev, [fileKey]: true }));
+      setUploadErrors(prev => { const n = { ...prev }; delete n[fileKey]; return n; });
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("property_id", id!);
+        formData.append("section", section);
+
+        const res = await fetch(
+          "https://tfutuqqcxqqbirnsdpvz.supabase.co/functions/v1/upload-property-image",
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${session.access_token}` },
+            body: formData,
+          }
+        );
+        const json = await res.json();
+        if (json.success) {
+          setImages(prev => [...prev, {
+            id: json.id,
+            url: json.url,
+            caption: null,
+            is_primary: false,
+            is_floor_plan: false,
+            sort_order: 0,
+            section: section,
+          }]);
+        } else {
+          setUploadErrors(prev => ({ ...prev, [fileKey]: json.error || "Upload failed" }));
+        }
+      } catch (e) {
+        setUploadErrors(prev => ({ ...prev, [fileKey]: "Network error" }));
+      } finally {
+        setUploadingFiles(prev => { const n = { ...prev }; delete n[fileKey]; return n; });
+      }
+    }
+  };
+
+  const handleDelete = async (imageId: string, propertyId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    try {
+      const res = await fetch(
+        "https://tfutuqqcxqqbirnsdpvz.supabase.co/functions/v1/delete-property-image",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ image_id: imageId, property_id: propertyId }),
+        }
+      );
+      const json = await res.json();
+      if (json.success) {
+        setImages(prev => prev.filter(img => img.id !== imageId));
+      }
+    } catch (e) {
+      console.error("Delete failed", e);
+    }
+  };
+
+  const handleSetPrimary = async (imageId: string) => {
+    await supabase.from("property_images").update({ is_primary: false }).eq("property_id", id!);
+    await supabase.from("property_images").update({ is_primary: true }).eq("id", imageId);
+    setImages(prev => prev.map(img => ({ ...img, is_primary: img.id === imageId })));
+  };
+
+  const handleToggleFloorPlan = async (imageId: string, current: boolean) => {
+    await supabase.from("property_images").update({ is_floor_plan: !current }).eq("id", imageId);
+    setImages(prev => prev.map(img => img.id === imageId ? { ...img, is_floor_plan: !current } : img));
+  };
+
   if (authLoading || loading) {
     return (
       <AdminLayout>
@@ -320,6 +450,169 @@ export default function PropertyEdit() {
   return (
     <AdminLayout>
       <div className="max-w-4xl space-y-6">
+        {/* Photos */}
+        <div className="rounded-lg border bg-card p-4 md:p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-medium text-foreground">Property Photos</h2>
+            <button
+              type="button"
+              onClick={() => setShowSectionInput(true)}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              + Add Section
+            </button>
+          </div>
+          {showSectionInput && (
+            <div className="p-3 border border-border rounded-lg bg-muted/50">
+              <input
+                type="text"
+                value={newSectionName}
+                onChange={e => setNewSectionName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && newSectionName.trim()) {
+                    e.preventDefault();
+                    if (!groupedImages.has(newSectionName.trim())) {
+                      setImages(prev => [...prev, {
+                        id: "__placeholder__" + Date.now(),
+                        url: "",
+                        caption: null,
+                        is_primary: false,
+                        is_floor_plan: false,
+                        sort_order: 0,
+                        section: newSectionName.trim(),
+                      }]);
+                    }
+                    setNewSectionName("");
+                    setShowSectionInput(false);
+                  }
+                  if (e.key === "Escape") { setShowSectionInput(false); setNewSectionName(""); }
+                }}
+                placeholder="Section name, e.g. Living Room"
+                className="w-full border border-border rounded px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                autoFocus
+              />
+              <div className="flex flex-wrap gap-1">
+                {SECTION_SUGGESTIONS.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setNewSectionName(s)}
+                    className="text-xs px-2 py-1 bg-background border border-border rounded hover:bg-accent text-muted-foreground"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {imagesLoading ? (
+            <p className="text-sm text-muted-foreground">Loading photos...</p>
+          ) : groupedImages.size === 0 ? (
+            <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+              <p className="text-muted-foreground text-sm">No photos yet. Click &ldquo;+ Add Section&rdquo; to get started.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {Array.from(groupedImages.entries()).map(([sectionName, sectionImages]) => (
+                <div key={sectionName} className="border border-border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2 bg-muted border-b border-border">
+                    <span className="text-sm font-medium text-foreground">{sectionName}</span>
+                    <label className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer font-medium">
+                      Upload Photos
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        multiple
+                        className="hidden"
+                        onChange={e => {
+                          if (e.target.files) handleUpload(e.target.files, sectionName);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {sectionImages
+                      .filter(img => !img.id.startsWith("__placeholder__"))
+                      .map(img => (
+                        <div key={img.id} className="relative group aspect-square rounded overflow-hidden bg-muted">
+                          <img
+                            src={img.url}
+                            alt={img.caption || sectionName}
+                            className="w-full h-full object-cover"
+                          />
+                          {img.is_primary && (
+                            <span className="absolute top-1 left-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded font-medium">
+                              Cover
+                            </span>
+                          )}
+                          {img.is_floor_plan && (
+                            <span className="absolute top-1 right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded font-medium">
+                              Plan
+                            </span>
+                          )}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 flex-wrap p-1">
+                            <button
+                              type="button"
+                              onClick={() => handleSetPrimary(img.id)}
+                              className="text-xs bg-white text-gray-800 px-2 py-1 rounded hover:bg-yellow-100"
+                              title="Set as cover photo"
+                            >
+                              ★ Cover
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFloorPlan(img.id, img.is_floor_plan)}
+                              className="text-xs bg-white text-gray-800 px-2 py-1 rounded hover:bg-blue-100"
+                              title="Toggle floor plan"
+                            >
+                              {img.is_floor_plan ? "Unplan" : "Plan"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(img.id, id!)}
+                              className="text-xs bg-white text-red-600 px-2 py-1 rounded hover:bg-red-50"
+                              title="Delete image"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    {sectionImages.filter(img => !img.id.startsWith("__placeholder__")).length === 0 && (
+                      <label className="aspect-square rounded border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary col-span-1">
+                        <span className="text-xs text-muted-foreground text-center px-2">Click to upload</span>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          multiple
+                          className="hidden"
+                          onChange={e => {
+                            if (e.target.files) handleUpload(e.target.files, sectionName);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    )}
+                    {Object.entries(uploadingFiles)
+                      .filter(([key]) => key.startsWith(sectionName))
+                      .map(([key]) => (
+                        <div key={key} className="aspect-square rounded bg-muted flex items-center justify-center">
+                          <span className="text-xs text-muted-foreground">Uploading...</span>
+                        </div>
+                      ))}
+                  </div>
+                  {Object.entries(uploadErrors)
+                    .filter(([key]) => key.startsWith(sectionName))
+                    .map(([key, err]) => (
+                      <p key={key} className="text-xs text-red-500 px-4 pb-2">{err}</p>
+                    ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
