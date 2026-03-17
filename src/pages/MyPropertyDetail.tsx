@@ -653,6 +653,16 @@ export default function MyPropertyDetail() {
                 })}
               </div>
             </div>
+
+            {/* Remove Property link */}
+            {(property.status === 'draft' || property.status === 'inspection_proposed') && (
+              <button
+                onClick={() => setShowRemoveModal(true)}
+                className="text-sm text-destructive underline mt-8"
+              >
+                Remove this property
+              </button>
+            )}
           </div>
         )}
 
