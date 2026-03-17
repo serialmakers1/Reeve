@@ -52,6 +52,7 @@ export default function MyProperties() {
         .from("properties")
         .select("id, locality, building_name, bhk, furnishing, status, city, listed_rent, created_at")
         .eq("owner_id", userId)
+        .neq("status", "inactive")
         .order("created_at", { ascending: false });
       setProperties(data ?? []);
       setFetching(false);

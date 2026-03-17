@@ -351,6 +351,8 @@ export default function MyPropertyDetail() {
   const [notFound, setNotFound] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [faqOpen, setFaqOpen] = useState<Record<number, boolean>>({});
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   const userId = session?.user?.id ?? "";
 
@@ -651,6 +653,16 @@ export default function MyPropertyDetail() {
                 })}
               </div>
             </div>
+
+            {/* Remove Property link */}
+            {(property.status === 'draft' || property.status === 'inspection_proposed') && (
+              <button
+                onClick={() => setShowRemoveModal(true)}
+                className="text-sm text-destructive underline mt-8"
+              >
+                Remove this property
+              </button>
+            )}
           </div>
         )}
 
@@ -825,6 +837,47 @@ export default function MyPropertyDetail() {
           </div>
         )}
       </div>
+
+      {/* Remove Property Confirmation Modal */}
+      {showRemoveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg border border-border p-6 mx-4 max-w-sm w-full space-y-4">
+            <h3 className="text-lg font-semibold text-foreground">Remove Property?</h3>
+            <p className="text-sm text-muted-foreground">
+              This will remove the property from Reeve. This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowRemoveModal(false)}
+                disabled={removing}
+                className="min-h-[44px] px-4 py-2 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setRemoving(true);
+                  const { data: { session: currentSession } } = await supabase.auth.getSession();
+                  await supabase
+                    .from('properties')
+                    .update({
+                      status: 'inactive' as any,
+                      is_active: false,
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', property.id)
+                    .eq('owner_id', currentSession?.user?.id ?? '');
+                  navigate('/my-properties', { replace: true });
+                }}
+                disabled={removing}
+                className="min-h-[44px] px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors disabled:opacity-50"
+              >
+                {removing ? 'Removing…' : 'Yes, Remove'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
