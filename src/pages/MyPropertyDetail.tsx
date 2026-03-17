@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,14 @@ interface PropertyRow {
   created_at: string;
 }
 
+interface EligibilityRow {
+  age: number | null;
+  occupation: string | null;
+  diet: string | null;
+  marital_status: string | null;
+  has_pets: boolean | null;
+}
+
 interface ApplicationRow {
   id: string;
   status: string;
@@ -47,6 +55,7 @@ interface ApplicationRow {
   submitted_at: string | null;
   created_at: string;
   tenant: { full_name: string | null } | null;
+  eligibility: EligibilityRow | null;
 }
 
 /* ─────────────────────────────────────────
@@ -354,7 +363,38 @@ export default function MyPropertyDetail() {
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [removing, setRemoving] = useState(false);
 
+  const [filterOccupation, setFilterOccupation] = useState<string[]>([]);
+  const [filterDiet, setFilterDiet] = useState<string[]>([]);
+  const [filterMaritalStatus, setFilterMaritalStatus] = useState<string[]>([]);
+  const [filterPets, setFilterPets] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'latest' | 'highest_rent'>('latest');
+
   const userId = session?.user?.id ?? "";
+
+  const filteredApplications = useMemo(() => {
+    let result = [...(applications ?? [])];
+
+    if (filterOccupation.length > 0) {
+      result = result.filter(a => filterOccupation.includes(a.eligibility?.occupation ?? ''));
+    }
+    if (filterDiet.length > 0) {
+      result = result.filter(a => filterDiet.includes(a.eligibility?.diet ?? ''));
+    }
+    if (filterMaritalStatus.length > 0) {
+      result = result.filter(a => filterMaritalStatus.includes(a.eligibility?.marital_status ?? ''));
+    }
+    if (filterPets === 'yes') {
+      result = result.filter(a => a.eligibility?.has_pets === true);
+    } else if (filterPets === 'no') {
+      result = result.filter(a => a.eligibility?.has_pets === false);
+    }
+
+    if (sortBy === 'highest_rent') {
+      result.sort((a, b) => (b.proposed_rent ?? 0) - (a.proposed_rent ?? 0));
+    }
+
+    return result;
+  }, [applications, filterOccupation, filterDiet, filterMaritalStatus, filterPets, sortBy]);
 
   /* ─── Data fetching — fires only after auth resolves ─── */
   useEffect(() => {
@@ -396,7 +436,10 @@ export default function MyPropertyDetail() {
           .from("applications")
           .select(
             `id, status, proposed_rent, submitted_at, created_at,
-             tenant:users!applications_tenant_id_fkey(full_name)`
+             tenant:users!applications_tenant_id_fkey(full_name),
+             eligibility:eligibility!applications_eligibility_id_fkey(
+               age, occupation, diet, marital_status, has_pets
+             )`
           )
           .eq("property_id", id)
           .order("created_at", { ascending: false });
@@ -678,39 +721,139 @@ export default function MyPropertyDetail() {
                 </p>
               </div>
             ) : (
-              applications.map((app) => (
-                <div
-                  key={app.id}
-                  onClick={() => navigate(`/my-properties/${id}/applications/${app.id}`)}
-                  className="rounded-xl border border-border p-4 space-y-2 cursor-pointer hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-medium text-sm text-foreground">
-                      {tenantDisplayName(app.tenant?.full_name)}
-                    </p>
-                    <span className="shrink-0 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700">
-                      {applicationStatusLabel(app.status)}
-                    </span>
-                  </div>
-                  <div className="flex gap-4 text-xs text-muted-foreground">
-                    <span>
-                      Proposed: ₹
-                      {app.proposed_rent != null
-                        ? app.proposed_rent.toLocaleString("en-IN")
-                        : "—"}
-                    </span>
-                    <span>
-                      Listed: ₹
-                      {property.listed_rent != null
-                        ? property.listed_rent.toLocaleString("en-IN")
-                        : "—"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {formatTimestamp(app.submitted_at ?? app.created_at)}
-                  </p>
+              <>
+                {/* Filter bar */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {['salaried', 'self_employed', 'student', 'retired'].map(occ => (
+                    <button
+                      key={occ}
+                      onClick={() => setFilterOccupation(prev =>
+                        prev.includes(occ) ? prev.filter(x => x !== occ) : [...prev, occ]
+                      )}
+                      className={`px-3 py-1 rounded-full text-xs border ${
+                        filterOccupation.includes(occ)
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-600 border-gray-300'
+                      }`}
+                    >
+                      {occ === 'self_employed' ? 'Self-employed' : occ.charAt(0).toUpperCase() + occ.slice(1)}
+                    </button>
+                  ))}
+
+                  {['vegetarian', 'non_vegetarian'].map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setFilterDiet(prev =>
+                        prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
+                      )}
+                      className={`px-3 py-1 rounded-full text-xs border ${
+                        filterDiet.includes(d)
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-white text-gray-600 border-gray-300'
+                      }`}
+                    >
+                      {d === 'non_vegetarian' ? 'Non-veg' : 'Veg'}
+                    </button>
+                  ))}
+
+                  {['single', 'married', 'live_in'].map(ms => (
+                    <button
+                      key={ms}
+                      onClick={() => setFilterMaritalStatus(prev =>
+                        prev.includes(ms) ? prev.filter(x => x !== ms) : [...prev, ms]
+                      )}
+                      className={`px-3 py-1 rounded-full text-xs border ${
+                        filterMaritalStatus.includes(ms)
+                          ? 'bg-purple-600 text-white border-purple-600'
+                          : 'bg-white text-gray-600 border-gray-300'
+                      }`}
+                    >
+                      {ms === 'live_in' ? 'Live-in' : ms.charAt(0).toUpperCase() + ms.slice(1)}
+                    </button>
+                  ))}
+
+                  {[{ label: 'No Pets', value: 'no' }, { label: 'Has Pets', value: 'yes' }].map(p => (
+                    <button
+                      key={p.value}
+                      onClick={() => setFilterPets(prev => prev === p.value ? null : p.value)}
+                      className={`px-3 py-1 rounded-full text-xs border ${
+                        filterPets === p.value
+                          ? 'bg-amber-500 text-white border-amber-500'
+                          : 'bg-white text-gray-600 border-gray-300'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+
+                  <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value as 'latest' | 'highest_rent')}
+                    className="ml-auto px-3 py-1 text-xs border border-gray-300 rounded-full bg-white"
+                  >
+                    <option value="latest">Latest first</option>
+                    <option value="highest_rent">Highest rent first</option>
+                  </select>
+
+                  {(filterOccupation.length > 0 || filterDiet.length > 0 || filterMaritalStatus.length > 0 || filterPets !== null || sortBy !== 'latest') && (
+                    <button
+                      onClick={() => {
+                        setFilterOccupation([]);
+                        setFilterDiet([]);
+                        setFilterMaritalStatus([]);
+                        setFilterPets(null);
+                        setSortBy('latest');
+                      }}
+                      className="px-3 py-1 rounded-full text-xs border border-red-300 text-red-500"
+                    >
+                      Clear filters
+                    </button>
+                  )}
                 </div>
-              ))
+
+                {/* Application cards */}
+                {filteredApplications.length === 0 ? (
+                  <div className="rounded-xl border border-border p-8 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No applications match your filters.
+                    </p>
+                  </div>
+                ) : (
+                  filteredApplications.map((app) => (
+                    <div
+                      key={app.id}
+                      onClick={() => navigate(`/my-properties/${id}/applications/${app.id}`)}
+                      className="rounded-xl border border-border p-4 space-y-2 cursor-pointer hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium text-sm text-foreground">
+                          {tenantDisplayName(app.tenant?.full_name)}
+                        </p>
+                        <span className="shrink-0 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700">
+                          {applicationStatusLabel(app.status)}
+                        </span>
+                      </div>
+                      <div className="flex gap-4 text-xs text-muted-foreground">
+                        <span>
+                          Proposed: ₹
+                          {app.proposed_rent != null
+                            ? app.proposed_rent.toLocaleString("en-IN")
+                            : "—"}
+                        </span>
+                        <span>
+                          Listed: ₹
+                          {property.listed_rent != null
+                            ? property.listed_rent.toLocaleString("en-IN")
+                            : "—"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formatTimestamp(app.submitted_at ?? app.created_at)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </>
             )}
           </div>
         )}
