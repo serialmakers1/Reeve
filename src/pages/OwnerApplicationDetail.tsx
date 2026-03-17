@@ -340,9 +340,13 @@ export default function OwnerApplicationDetail() {
               { label: "Diet", value: capitalize(elig?.diet) },
               {
                 label: "Pets",
-                value: elig?.has_pets
-                  ? `Yes — ${capitalize(elig.pet_type)}`
-                  : "No",
+                value: !elig?.has_pets
+                  ? 'No'
+                  : elig.pet_type === 'other' && elig.pet_description
+                    ? `Other: ${elig.pet_description}`
+                    : elig.pet_type
+                      ? elig.pet_type.charAt(0).toUpperCase() + elig.pet_type.slice(1)
+                      : 'Yes',
               },
               {
                 label: "Expected Stay",
