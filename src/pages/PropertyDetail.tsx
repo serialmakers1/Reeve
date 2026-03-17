@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -98,6 +98,7 @@ interface PropertyImage {
   is_primary: boolean;
   is_floor_plan: boolean;
   sort_order: number;
+  section: string | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -200,6 +201,7 @@ const PLACEHOLDER_IMAGES: PropertyImage[] = Array.from({ length: 5 }, (_, i) => 
   is_primary: i === 0,
   is_floor_plan: false,
   sort_order: i,
+  section: null,
 }));
 
 // ─── Skeleton Loader ─────────────────────────────────────────────────────────
@@ -336,7 +338,7 @@ const PropertyDetail: React.FC = () => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [totalSlides, setTotalSlides] = useState(0);
-  const [galleryTab, setGalleryTab] = useState<"photos" | "floorplan">("photos");
+  const [galleryTab, setGalleryTab] = useState<"all" | "floorplan" | string>("all");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
@@ -429,8 +431,9 @@ const PropertyDetail: React.FC = () => {
           .maybeSingle(),
         supabase
           .from("property_images")
-          .select("id, url, caption, is_primary, is_floor_plan, sort_order")
+          .select("id, url, caption, is_primary, is_floor_plan, sort_order, section")
           .eq("property_id", id)
+          .order("section", { ascending: true, nullsFirst: true })
           .order("sort_order", { ascending: true }),
       ]);
 
@@ -574,7 +577,19 @@ const PropertyDetail: React.FC = () => {
   const photoImages = images.filter((img) => !img.is_floor_plan);
   const floorPlanImages = images.filter((img) => img.is_floor_plan);
   const hasFloorPlan = floorPlanImages.length > 0;
-  const activeImages = galleryTab === "floorplan" ? floorPlanImages : photoImages;
+  const activeImages = galleryTab === "floorplan"
+    ? floorPlanImages
+    : galleryTab === "all" || galleryTab === "photos"
+      ? photoImages
+      : images.filter(img => img.section === galleryTab && !img.is_floor_plan);
+
+  const sections = useMemo(() => {
+    const names = images
+      .filter(img => !img.is_floor_plan && img.section)
+      .map(img => img.section as string);
+    return Array.from(new Set(names));
+  }, [images]);
+
   const depositAmount = property.listed_rent * property.security_deposit_months;
 
   // ─── Application history derived state ────────────────────────────────────
@@ -743,18 +758,31 @@ const PropertyDetail: React.FC = () => {
 
             {/* 1. Photo Gallery */}
             <section>
-              {hasFloorPlan && (
-                <div className="flex gap-1 px-4 pb-2 lg:px-0">
+              {(hasFloorPlan || sections.length > 0) && (
+                <div className="flex gap-1 px-4 pb-2 lg:px-0 overflow-x-auto">
                   <button
-                    onClick={() => setGalleryTab("photos")}
+                    onClick={() => setGalleryTab("all")}
                     className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      galleryTab === "photos"
+                      galleryTab === "all"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    Photos
+                    All Photos
                   </button>
+                  {sections.map(section => (
+                    <button
+                      key={section}
+                      onClick={() => setGalleryTab(section)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap ${
+                        galleryTab === section
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {section}
+                    </button>
+                  ))}
                   <button
                     onClick={() => setGalleryTab("floorplan")}
                     className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
