@@ -896,40 +896,55 @@ const PropertyDetail: React.FC = () => {
             {/* 3. Rent & Fees */}
             <section className="px-4 lg:px-0">
               <Card className="border-border">
-                <CardContent className="space-y-3 p-4">
-                  <div>
-                    <span className="text-2xl font-bold text-foreground">
-                      {formatIndianRupee(property.listed_rent)}
+                <CardContent className="p-4">
+                  {/* Rent header */}
+                  <div className="mb-4">
+                    <span className="text-3xl font-bold text-gray-900">
+                      ₹{property.listed_rent.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-sm text-muted-foreground">/month</span>
+                    <span className="text-gray-500 text-sm ml-1">/month</span>
                   </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    Service fee: 7% of rent for the first 11-month term. Reduces to 4% on renewal.
-                  </p>
-                  <div className="space-y-1.5 border-t border-border pt-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Service fee (7% + GST)</span>
-                      <span className="font-medium text-foreground">
-                        {formatIndianRupee(Math.round(property.listed_rent * 0.07 * 1.18))}/month
+
+                  {/* Monthly costs table */}
+                  <div className="border border-gray-100 rounded-lg overflow-hidden mb-4">
+                    <div className="flex justify-between items-center px-4 py-2.5 bg-gray-50">
+                      <span className="text-sm text-gray-600">Rent</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        ₹{property.listed_rent.toLocaleString('en-IN')}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Security Deposit</span>
-                      <span className="font-medium text-foreground">
-                        {formatIndianRupee(depositAmount)} ({property.security_deposit_months} month only) — held by Reeve
+                    <div className="flex justify-between items-center px-4 py-2.5 border-t border-gray-100">
+                      <span className="text-sm text-gray-600">Service Fee (7% + 18% GST)</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        ₹{Math.round(property.listed_rent * 0.07 * 1.18).toLocaleString('en-IN')}
                       </span>
                     </div>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Society Maintenance: </span>
-                      <span className="font-medium text-foreground">
-                        {property.society_maintenance_approx
-                          ? `~${formatIndianRupee(property.society_maintenance_approx)}/month (approx)`
-                          : "To be confirmed"}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {" "}— paid directly by tenant, in addition to rent & service fee
+                    <div className="flex justify-between items-center px-4 py-2.5 border-t border-gray-200 bg-blue-50">
+                      <span className="text-sm font-semibold text-gray-800">Monthly Total</span>
+                      <span className="text-sm font-bold text-blue-700">
+                        ₹{Math.round(property.listed_rent * 1.0826).toLocaleString('en-IN')}
                       </span>
                     </div>
+                  </div>
+
+                  {/* One-time and additional costs */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start text-sm">
+                      <span className="text-gray-500">Security Deposit</span>
+                      <span className="text-gray-700 text-right font-medium">
+                        ₹{(property.listed_rent * (property.security_deposit_months ?? 1)).toLocaleString('en-IN')}
+                        <span className="text-gray-400 font-normal"> · held by Reeve</span>
+                      </span>
+                    </div>
+                    {property.society_maintenance_approx && (
+                      <div className="flex justify-between items-start text-sm">
+                        <span className="text-gray-500">Society Maintenance</span>
+                        <span className="text-gray-700 text-right">
+                          ~₹{Number(property.society_maintenance_approx).toLocaleString('en-IN')}
+                          <span className="text-gray-400"> · paid by tenant</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
