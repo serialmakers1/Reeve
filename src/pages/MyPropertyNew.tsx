@@ -44,6 +44,7 @@ export default function MyPropertyNew() {
     !!userId &&
     !!locality.trim() &&
     !!buildingName.trim() &&
+    !!legalOwnerName.trim() &&
     !!address.trim() &&
     !!bhk &&
     !!furnishing &&
