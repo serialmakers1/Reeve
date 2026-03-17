@@ -70,6 +70,7 @@ export default function MyPropertyNew() {
       state: "Karnataka",
       locality: locality.trim(),
       building_name: buildingName.trim(),
+      legal_owner_name: legalOwnerName.trim(),
       street_address: address.trim(),
       bhk: bhk as any,
       furnishing: furnishing as any,
