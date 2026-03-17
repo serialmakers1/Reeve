@@ -547,7 +547,7 @@ const PropertyDetail: React.FC = () => {
 
   const sections = useMemo(() => {
     const names = images
-      .filter(img => !img.is_floor_plan && img.section)
+      .filter(img => !img.is_floor_plan && img.section && img.section.toLowerCase() !== "floor plan")
       .map(img => img.section as string);
     return Array.from(new Set(names));
   }, [images]);

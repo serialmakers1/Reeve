@@ -367,6 +367,7 @@ export default function PropertyEdit() {
         formData.append("file", file);
         formData.append("property_id", id!);
         formData.append("section", section);
+        formData.append("is_floor_plan", section.toLowerCase() === "floor plan" ? "true" : "false");
 
         const res = await fetch(
           "https://tfutuqqcxqqbirnsdpvz.supabase.co/functions/v1/upload-property-image",
@@ -383,7 +384,7 @@ export default function PropertyEdit() {
             url: json.url,
             caption: null,
             is_primary: false,
-            is_floor_plan: false,
+            is_floor_plan: section.toLowerCase() === "floor plan",
             sort_order: 0,
             section: section,
           }]);
