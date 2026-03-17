@@ -988,6 +988,34 @@ const PropertyDetail: React.FC = () => {
                   </div>
                 ))}
               </div>
+
+              {/* Furnishing Items */}
+              {rawAmenities?.furnishing_items && rawAmenities.furnishing_items.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Furnishing</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {rawAmenities.furnishing_items.map((item: string) => (
+                      <span key={item} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700 text-center">
+                        {FURNISHING_LABELS[item] ?? item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Building Amenities */}
+              {rawAmenities?.building && rawAmenities.building.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Building Amenities</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {rawAmenities.building.map((item: string) => (
+                      <span key={item} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700 text-center">
+                        {BUILDING_AMENITY_LABELS[item] ?? item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* 7. Amenities */}
