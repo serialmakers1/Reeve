@@ -267,7 +267,7 @@ export default function PropertyEdit() {
       .order("section", { ascending: true, nullsFirst: true })
       .order("sort_order", { ascending: true })
       .then(({ data, error }) => {
-        if (!error && data) setImages(data as PropertyImage[]);
+        if (!error && data) setImages(data as unknown as PropertyImage[]);
         setImagesLoading(false);
       });
   }, [id]);

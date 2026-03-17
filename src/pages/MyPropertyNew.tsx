@@ -156,6 +156,18 @@ export default function MyPropertyNew() {
 
             <div className="space-y-1.5">
               <Label className="text-sm">
+                Property Legal Owner Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={legalOwnerName}
+                onChange={(e) => setLegalOwnerName(e.target.value)}
+                placeholder="e.g. Rajesh Kumar Sharma"
+                className="min-h-[44px]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">
                 Property Address <span className="text-destructive">*</span>
               </Label>
               <Input
