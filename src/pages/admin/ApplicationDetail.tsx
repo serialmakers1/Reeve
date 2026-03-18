@@ -414,7 +414,22 @@ export default function AdminApplicationDetail() {
             <p className="text-sm text-muted-foreground">Application {app.id.slice(0, 8).toUpperCase()}</p>
           </div>
           <Badge className="text-sm">{STATUS_LABELS[app.status] ?? app.status}</Badge>
+          {app.owner_action_by_admin && (
+            <span className="text-xs bg-amber-100 text-amber-700 border border-amber-200 px-2 py-1 rounded-full">
+              ⚠ Actioned by Reeve team on owner's behalf
+            </span>
+          )}
         </div>
+
+        {/* Owner action audit log */}
+        {app.owner_action_by_admin && actionLog && (
+          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded p-3 space-y-1">
+            <div>Confirmed via: {CONFIRMED_VIA_OPTIONS.find(o => o.value === actionLog.confirmed_via)?.label ?? actionLog.confirmed_via}</div>
+            <div>Team member: {actionLog.team_member?.full_name ?? '—'}</div>
+            <div>Conversation on: {format(new Date(actionLog.conversation_at), 'd MMM yyyy, h:mm a')}</div>
+            <div>Summary: {actionLog.summary}</div>
+          </div>
+        )}
 
         {/* Section 1 — Tenant Profile */}
         <Card>
