@@ -1578,22 +1578,27 @@ export type Database = {
           amenities: Json | null
           auto_accept_enabled: boolean
           available_from: string | null
+          balconies: number | null
+          bathrooms: number | null
           bhk: Database["public"]["Enums"]["bhk_type"]
           board_installed_at: string | null
           board_qr_code: string | null
           board_removed_at: string | null
           board_status: Database["public"]["Enums"]["board_status"]
+          building_age_years: number | null
           building_name: string
           building_rules: string | null
           city: string
           created_at: string
           description: string | null
           draft_at: string | null
+          facing: string | null
           flat_number: string | null
           flat_number_revealed: boolean
           floor_number: number | null
           floor_plan_url: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"]
+          furnishing_detail: Json | null
           id: string
           inspected_at: string | null
           inspection_accepted_at: string | null
@@ -1650,22 +1655,27 @@ export type Database = {
           amenities?: Json | null
           auto_accept_enabled?: boolean
           available_from?: string | null
+          balconies?: number | null
+          bathrooms?: number | null
           bhk: Database["public"]["Enums"]["bhk_type"]
           board_installed_at?: string | null
           board_qr_code?: string | null
           board_removed_at?: string | null
           board_status?: Database["public"]["Enums"]["board_status"]
+          building_age_years?: number | null
           building_name: string
           building_rules?: string | null
           city: string
           created_at?: string
           description?: string | null
           draft_at?: string | null
+          facing?: string | null
           flat_number?: string | null
           flat_number_revealed?: boolean
           floor_number?: number | null
           floor_plan_url?: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"]
+          furnishing_detail?: Json | null
           id?: string
           inspected_at?: string | null
           inspection_accepted_at?: string | null
@@ -1722,22 +1732,27 @@ export type Database = {
           amenities?: Json | null
           auto_accept_enabled?: boolean
           available_from?: string | null
+          balconies?: number | null
+          bathrooms?: number | null
           bhk?: Database["public"]["Enums"]["bhk_type"]
           board_installed_at?: string | null
           board_qr_code?: string | null
           board_removed_at?: string | null
           board_status?: Database["public"]["Enums"]["board_status"]
+          building_age_years?: number | null
           building_name?: string
           building_rules?: string | null
           city?: string
           created_at?: string
           description?: string | null
           draft_at?: string | null
+          facing?: string | null
           flat_number?: string | null
           flat_number_revealed?: boolean
           floor_number?: number | null
           floor_plan_url?: string | null
           furnishing?: Database["public"]["Enums"]["furnishing_type"]
+          furnishing_detail?: Json | null
           id?: string
           inspected_at?: string | null
           inspection_accepted_at?: string | null
