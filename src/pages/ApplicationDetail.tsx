@@ -428,12 +428,8 @@ export default function ApplicationDetail() {
                       <span className="font-medium text-foreground">{formatRent(agreedRent)}/month</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Service Fee (7% × 11 months)</span>
-                      <span className="text-foreground">{formatRent(serviceFee)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">GST on Service Fee (18%)</span>
-                      <span className="text-foreground">{formatRent(gst)}</span>
+                      <span className="text-muted-foreground">Service Fee (7%)</span>
+                      <span className="text-foreground">{formatRent(serviceFeeMonthly)}/month</span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
                       <span className="font-medium text-foreground">Token Amount Due Now</span>
