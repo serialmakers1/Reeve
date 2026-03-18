@@ -56,6 +56,9 @@ import {
   CircleDot,
   ClipboardCheck,
   Loader2,
+  Wind,
+  Compass,
+  CalendarDays,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import VisitSchedulingModal from "@/components/VisitSchedulingModal";
@@ -89,6 +92,11 @@ interface PropertyData {
   utility_electricity_included: boolean;
   utility_gas_included: boolean;
   main_door_lock_type: string | null;
+  bathrooms: number | null;
+  balconies: number | null;
+  facing: string | null;
+  building_age_years: number | null;
+  furnishing_detail: unknown;
 }
 
 interface PropertyImage {
@@ -169,6 +177,21 @@ const FURNISHING_LABELS: Record<string, string> = {
   washing_machine: 'Washing Machine', geyser: 'Geyser',
   microwave: 'Microwave', modular_kitchen: 'Modular Kitchen',
   curtains: 'Curtains', water_purifier: 'Water Purifier'
+};
+
+interface FurnishingDetailItem {
+  item: string
+  count?: number
+  size?: string
+  rooms?: string
+}
+
+const FURNISHING_DETAIL_LABELS: Record<string, string> = {
+  bed: 'Bed', mattress: 'Mattress', ac: 'AC', wardrobe: 'Wardrobe',
+  geyser: 'Geyser', fridge: 'Fridge', washing_machine: 'Washing Machine',
+  tv: 'TV', sofa: 'Sofa', dining_table: 'Dining Table', microwave: 'Microwave',
+  modular_kitchen: 'Modular Kitchen', water_purifier: 'Water Purifier',
+  curtain_rod: 'Curtain Rod', curtains: 'Curtains'
 };
 
 const BUILDING_AMENITY_LABELS: Record<string, string> = {
@@ -448,7 +471,7 @@ const PropertyDetail: React.FC = () => {
         supabase
           .from("properties")
           .select(
-            "id, owner_id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type"
+            "id, owner_id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -724,6 +747,18 @@ const PropertyDetail: React.FC = () => {
   }
   if (property.total_floors != null) {
     detailItems.push({ icon: <Layers className="h-4 w-4" />, label: "Total Floors", value: String(property.total_floors) });
+  }
+  if (property.bathrooms) {
+    detailItems.push({ icon: <Droplets className="h-4 w-4" />, label: "Bathrooms", value: String(property.bathrooms) });
+  }
+  if (property.balconies) {
+    detailItems.push({ icon: <Wind className="h-4 w-4" />, label: "Balconies", value: String(property.balconies) });
+  }
+  if (property.facing) {
+    detailItems.push({ icon: <Compass className="h-4 w-4" />, label: "Facing", value: property.facing });
+  }
+  if (property.building_age_years) {
+    detailItems.push({ icon: <CalendarDays className="h-4 w-4" />, label: "Building Age", value: `~${property.building_age_years} yrs` });
   }
   detailItems.push({ icon: <Armchair className="h-4 w-4" />, label: "Furnishing", value: furnishingLabel(property.furnishing) });
   if (property.parking_4w && property.parking_4w !== "none") {
@@ -1027,17 +1062,40 @@ const PropertyDetail: React.FC = () => {
                 ))}
               </div>
 
-              {/* Furnishing Included */}
-              {rawAmenities?.furnishing_items && rawAmenities.furnishing_items.length > 0 && (
+              {/* Furnishing Included — new structured format */}
+              {property.furnishing_detail && Array.isArray(property.furnishing_detail) && (property.furnishing_detail as FurnishingDetailItem[]).length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Furnishing Included</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {(property.furnishing_detail as FurnishingDetailItem[]).map((f, idx) => {
+                      const label = FURNISHING_DETAIL_LABELS[f.item] ?? f.item
+                      const detail = [
+                        f.count && f.count > 1 ? `×${f.count}` : null,
+                        f.size ?? null,
+                        f.rooms ?? null,
+                      ].filter(Boolean).join(' · ')
+                      return (
+                        <div
+                          key={`${f.item}-${idx}`}
+                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-lg text-xs bg-white border border-gray-200 text-gray-700 text-center min-h-[52px] w-full"
+                        >
+                          <span className="font-medium">✓ {label}</span>
+                          {detail && <span className="text-gray-500 text-[10px]">{detail}</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Legacy fallback — shown only if furnishing_detail is absent and old items exist */}
+              {!property.furnishing_detail && rawAmenities?.furnishing_items && rawAmenities.furnishing_items.length > 0 && (
                 <div className="mt-6">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">Furnishing Included</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {rawAmenities.furnishing_items.map((item: string) => (
-                      <div
-                        key={item}
-                        className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs justify-center bg-green-50 border border-green-200 text-green-700"
-                      >
-                        <span>✓</span>
+                      <div key={item} className="flex items-center gap-1.5 px-2 py-2 rounded-lg text-xs justify-center bg-white border border-gray-200 text-gray-700 text-center min-h-[52px] w-full">
+                        <span className="text-gray-500">✓</span>
                         <span>{FURNISHING_LABELS[item] ?? item}</span>
                       </div>
                     ))}
@@ -1068,7 +1126,7 @@ const PropertyDetail: React.FC = () => {
                     return (
                       <div
                         key={key}
-                        className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs text-center justify-center ${
+                        className={`flex items-center gap-1.5 px-2 py-2 rounded-lg text-xs text-center justify-center min-h-[52px] w-full ${
                           present
                             ? 'bg-green-50 border border-green-200 text-green-700'
                             : 'bg-gray-50 border border-gray-100 text-gray-300'

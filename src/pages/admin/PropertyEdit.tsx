@@ -29,6 +29,30 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ArrowLeft, CalendarIcon, ExternalLink } from "lucide-react";
 
+interface FurnishingDetailItem {
+  item: string
+  count: number
+  size?: string
+  rooms?: string
+}
+
+const FURNISHING_ITEM_OPTIONS = [
+  { value: 'bed', label: 'Bed', hasSizeText: true, hasRooms: false },
+  { value: 'mattress', label: 'Mattress', hasSizeText: true, hasRooms: false },
+  { value: 'ac', label: 'AC', hasRooms: true },
+  { value: 'wardrobe', label: 'Wardrobe', hasRooms: false },
+  { value: 'geyser', label: 'Geyser', hasRooms: false },
+  { value: 'fridge', label: 'Fridge', yesNoOnly: true, hasRooms: false },
+  { value: 'washing_machine', label: 'Washing Machine', yesNoOnly: true, hasRooms: false },
+  { value: 'tv', label: 'TV', hasRooms: false },
+  { value: 'sofa', label: 'Sofa', yesNoOnly: true, hasRooms: false },
+  { value: 'dining_table', label: 'Dining Table', yesNoOnly: true, hasRooms: false },
+  { value: 'microwave', label: 'Microwave', yesNoOnly: true, hasRooms: false },
+  { value: 'modular_kitchen', label: 'Modular Kitchen', yesNoOnly: true, hasRooms: false },
+  { value: 'water_purifier', label: 'Water Purifier / RO', yesNoOnly: true, hasRooms: false },
+  { value: 'curtain_rod', label: 'Curtain Rods', hasRooms: false },
+];
+
 const BHK_OPTIONS = [
   { value: "studio", label: "Studio" },
   { value: "1BHK", label: "1 BHK" },
@@ -145,9 +169,16 @@ export default function PropertyEdit() {
   // Section 3: Furnishing
   const [furnishing, setFurnishing] = useState("");
   const [furnishingItems, setFurnishingItems] = useState<string[]>([]);
+  const [furnishingDetail, setFurnishingDetail] = useState<FurnishingDetailItem[]>([]);
 
   // Section 4: Building Amenities
   const [buildingAmenities, setBuildingAmenities] = useState<string[]>([]);
+
+  // New property columns
+  const [bathrooms, setBathrooms] = useState<string>('');
+  const [balconies, setBalconies] = useState<string>('');
+  const [facing, setFacing] = useState<string>('');
+  const [buildingAgeYears, setBuildingAgeYears] = useState<string>('');
 
   // Section 5: Utilities & Policies
   const [waterIncluded, setWaterIncluded] = useState(false);
@@ -252,6 +283,15 @@ export default function PropertyEdit() {
       setFurnishingItems(Array.isArray(amenities.furnishing_items) ? amenities.furnishing_items as string[] : []);
       setBuildingAmenities(Array.isArray(amenities.building) ? amenities.building as string[] : []);
 
+      // New columns
+      setBathrooms(d.bathrooms != null ? String(d.bathrooms) : '');
+      setBalconies(d.balconies != null ? String(d.balconies) : '');
+      setFacing(d.facing as string || '');
+      setBuildingAgeYears(d.building_age_years != null ? String(d.building_age_years) : '');
+      if (Array.isArray(d.furnishing_detail)) {
+        setFurnishingDetail(d.furnishing_detail as FurnishingDetailItem[]);
+      }
+
       setLoading(false);
     };
     fetchProperty();
@@ -306,6 +346,11 @@ export default function PropertyEdit() {
         available_from: availableFrom ? format(availableFrom, "yyyy-MM-dd") : null,
         furnishing: furnishing as "unfurnished" | "semi_furnished" | "fully_furnished",
         amenities: amenities as unknown as typeof amenities & Record<string, never>,
+        bathrooms: bathrooms ? Number(bathrooms) : null,
+        balconies: balconies ? Number(balconies) : null,
+        facing: facing || null,
+        building_age_years: buildingAgeYears ? Number(buildingAgeYears) : null,
+        furnishing_detail: furnishingDetail.length > 0 ? furnishingDetail : null,
         utility_water_included: waterIncluded,
         utility_gas_included: gasIncluded,
         utility_electricity_included: electricityIncluded,
@@ -735,6 +780,25 @@ export default function PropertyEdit() {
             <Field label="Carpet Area (in sq ft)">
               <Input type="number" value={squareFootage} onChange={(e) => setSquareFootage(e.target.value)} className="min-h-[44px]" />
             </Field>
+            <Field label="Bathrooms">
+              <Input type="number" min={1} max={10} value={bathrooms} onChange={(e) => setBathrooms(e.target.value)} placeholder="e.g. 2" className="min-h-[44px]" />
+            </Field>
+            <Field label="Balconies">
+              <Input type="number" min={0} max={10} value={balconies} onChange={(e) => setBalconies(e.target.value)} placeholder="e.g. 1" className="min-h-[44px]" />
+            </Field>
+            <Field label="Building Facing Direction">
+              <Select value={facing} onValueChange={setFacing}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Select direction" /></SelectTrigger>
+                <SelectContent>
+                  {['North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'].map(d => (
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Building Age (years)">
+              <Input type="number" min={0} max={100} value={buildingAgeYears} onChange={(e) => setBuildingAgeYears(e.target.value)} placeholder="e.g. 5" className="min-h-[44px]" />
+            </Field>
           </div>
         </Section>
 
@@ -789,16 +853,68 @@ export default function PropertyEdit() {
             </Field>
             <div>
               <Label className="text-sm font-medium">Furnishing Items</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
-                {FURNISHING_ITEMS.map((item) => (
-                  <label key={item.value} className="flex items-center gap-2 cursor-pointer min-h-[44px]">
-                    <Checkbox
-                      checked={furnishingItems.includes(item.value)}
-                      onCheckedChange={() => toggleItem(furnishingItems, setFurnishingItems, item.value)}
-                    />
-                    <span className="text-sm">{item.label}</span>
-                  </label>
-                ))}
+              <div className="space-y-3 mt-2">
+                {FURNISHING_ITEM_OPTIONS.map(opt => {
+                  const added = furnishingDetail.some(f => f.item === opt.value);
+                  const detail = furnishingDetail.find(f => f.item === opt.value);
+                  const toggleFurnishingItem = (isYesNoOnly: boolean) => {
+                    if (added) {
+                      setFurnishingDetail(prev => prev.filter(f => f.item !== opt.value));
+                    } else {
+                      setFurnishingDetail(prev => [
+                        ...prev,
+                        isYesNoOnly ? { item: opt.value } : { item: opt.value, count: 1 }
+                      ]);
+                    }
+                  };
+                  const updateFurnishingItem = (updates: Partial<FurnishingDetailItem>) => {
+                    setFurnishingDetail(prev => prev.map(f =>
+                      f.item === opt.value ? { ...f, ...updates } : f
+                    ));
+                  };
+                  return (
+                    <div key={opt.value} className={`rounded-lg border p-3 transition-colors ${added ? 'border-primary bg-accent/30' : 'border-border'}`}>
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={added}
+                          onCheckedChange={() => toggleFurnishingItem(opt.yesNoOnly ?? false)}
+                        />
+                        <span className="text-sm font-medium flex-1">{opt.label}</span>
+                        {added && !opt.yesNoOnly && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Qty:</span>
+                            <Input
+                              type="number" min={1} max={20}
+                              value={detail?.count ?? 1}
+                              onChange={e => updateFurnishingItem({ count: Number(e.target.value) })}
+                              className="w-16 h-8 text-sm"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {added && opt.hasSizeText && (
+                        <div className="mt-2 ml-7">
+                          <Input
+                            value={detail?.size ?? ''}
+                            onChange={e => updateFurnishingItem({ size: e.target.value })}
+                            placeholder="e.g. Queen or 1 Queen + 1 Single"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      )}
+                      {added && opt.hasRooms && (
+                        <div className="mt-2 ml-7">
+                          <Input
+                            value={detail?.rooms ?? ''}
+                            onChange={e => updateFurnishingItem({ rooms: e.target.value })}
+                            placeholder="e.g. Master + Living Room"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
