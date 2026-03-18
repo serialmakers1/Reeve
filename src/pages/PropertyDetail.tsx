@@ -365,6 +365,7 @@ const PropertyDetail: React.FC = () => {
   // Visit scheduling
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [existingVisit, setExistingVisit] = useState<{ id: string; scheduled_at: string; status: string } | null>(null);
+  const [showVisitConfirmation, setShowVisitConfirmation] = useState(false);
   const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
   const [eligibilityChecking, setEligibilityChecking] = useState(false);
 
@@ -409,6 +410,11 @@ const PropertyDetail: React.FC = () => {
       .maybeSingle();
     setExistingVisit(data ?? null);
   }, [id]);
+
+  const handleVisitScheduled = useCallback(() => {
+    fetchExistingVisit();
+    setShowVisitConfirmation(true);
+  }, [fetchExistingVisit]);
 
   useEffect(() => {
     fetchExistingVisit();
@@ -760,6 +766,7 @@ const PropertyDetail: React.FC = () => {
           bhk={property.bhk}
           existingVisit={existingVisit}
           onVisitChanged={fetchExistingVisit}
+          onVisitScheduled={handleVisitScheduled}
         />
       )}
 
@@ -1147,7 +1154,31 @@ const PropertyDetail: React.FC = () => {
                     <p className="text-sm text-muted-foreground text-center py-2">This is your listed property.</p>
                   ) : (
                     <>
-                      {existingVisit ? (
+                      {showVisitConfirmation ? (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-600 text-lg">✓</span>
+                            <p className="text-sm font-semibold text-green-800">Visit Scheduled!</p>
+                          </div>
+                          {existingVisit && (
+                            <p className="text-sm text-green-700">
+                              {format(new Date(existingVisit.scheduled_at), "EEE, d MMM yyyy · h:mm a")}
+                            </p>
+                          )}
+                          <div className="flex items-start gap-2 p-3 bg-white border border-green-100 rounded-lg">
+                            <span className="text-base mt-0.5">📋</span>
+                            <p className="text-xs text-gray-600">
+                              Please carry a valid government-issued photo ID for your visit — Aadhaar Card, Driving Licence, or Voter ID.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setShowVisitConfirmation(false)}
+                            className="w-full min-h-[44px] bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                          >
+                            Got it →
+                          </button>
+                        </div>
+                      ) : existingVisit ? (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                           <p className="text-sm text-blue-800 font-medium">
                             Visit scheduled for {format(new Date(existingVisit.scheduled_at), "EEE, d MMM yyyy · h:mm a")}
@@ -1183,7 +1214,17 @@ const PropertyDetail: React.FC = () => {
       {!isOwnProperty && (
         <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background p-3 lg:hidden">
           <div className="mx-auto flex max-w-4xl gap-3">
-            {existingVisit ? (
+            {showVisitConfirmation ? (
+              <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                <p className="text-xs text-green-800 font-semibold">✓ Visit Scheduled!</p>
+                <button
+                  onClick={() => setShowVisitConfirmation(false)}
+                  className="text-xs text-green-600 underline"
+                >
+                  Got it →
+                </button>
+              </div>
+            ) : existingVisit ? (
               <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
                 <p className="text-xs text-blue-800 font-medium leading-tight">
                   {format(new Date(existingVisit.scheduled_at), "EEE, d MMM · h:mm a")}
