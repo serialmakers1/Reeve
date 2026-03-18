@@ -202,10 +202,12 @@ export default function NewApplicationPage() {
   const [rentChoice, setRentChoice] = useState<"accept" | "counter">("accept");
   const [proposedRent, setProposedRent] = useState<number | "">("");
 
-  // Step 7 — Notes
+  // Step 7 — Notes & Move-in
   const [noteAdd, setNoteAdd] = useState("");
   const [noteRemove, setNoteRemove] = useState("");
   const [noteIssue, setNoteIssue] = useState("");
+  const [moveInAsap, setMoveInAsap] = useState<boolean | null>(null);
+  const [preferredMoveInDate, setPreferredMoveInDate] = useState<string>("");
 
   // Step 8 — Terms
   const [feeTermsAccepted, setFeeTermsAccepted] = useState(false);
