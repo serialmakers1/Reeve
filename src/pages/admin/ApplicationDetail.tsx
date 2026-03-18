@@ -10,7 +10,25 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Check, X, AlertTriangle } from "lucide-react";
+import { format } from "date-fns";
+
+const CONFIRMED_VIA_OPTIONS = [
+  { value: 'phone_call', label: 'Phone Call' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'sms', label: 'SMS' },
+  { value: 'email', label: 'Email' },
+];
+
+const OWNER_REJECTION_REASONS = [
+  'Prefer a different occupant profile',
+  'Prefer a family / couple / single occupant',
+  "Income or CIBIL doesn't meet my requirements",
+  'Preferred rent not agreed',
+  'Already selected another applicant',
+  'Other',
+];
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft", submitted: "Submitted", platform_review: "Under Review",
