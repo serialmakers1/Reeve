@@ -251,6 +251,7 @@ export type Database = {
           kyc_completed_at: string | null
           monthly_income: number | null
           move_in_asap: boolean | null
+          owner_action_by_admin: boolean | null
           owner_actioned_at: string | null
           owner_counter_rent: number | null
           platform_approved: boolean | null
@@ -292,6 +293,7 @@ export type Database = {
           kyc_completed_at?: string | null
           monthly_income?: number | null
           move_in_asap?: boolean | null
+          owner_action_by_admin?: boolean | null
           owner_actioned_at?: string | null
           owner_counter_rent?: number | null
           platform_approved?: boolean | null
@@ -333,6 +335,7 @@ export type Database = {
           kyc_completed_at?: string | null
           monthly_income?: number | null
           move_in_asap?: boolean | null
+          owner_action_by_admin?: boolean | null
           owner_actioned_at?: string | null
           owner_counter_rent?: number | null
           platform_approved?: boolean | null
@@ -1266,6 +1269,60 @@ export type Database = {
           {
             foreignKeyName: "maintenance_requests_raised_by_fkey"
             columns: ["raised_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_action_log: {
+        Row: {
+          action_taken: string
+          application_id: string
+          confirmed_via: string
+          conversation_at: string
+          counter_rent: number | null
+          created_at: string
+          id: string
+          rejection_reason: string | null
+          summary: string
+          team_member_id: string
+        }
+        Insert: {
+          action_taken: string
+          application_id: string
+          confirmed_via: string
+          conversation_at: string
+          counter_rent?: number | null
+          created_at?: string
+          id?: string
+          rejection_reason?: string | null
+          summary: string
+          team_member_id: string
+        }
+        Update: {
+          action_taken?: string
+          application_id?: string
+          confirmed_via?: string
+          conversation_at?: string
+          counter_rent?: number | null
+          created_at?: string
+          id?: string
+          rejection_reason?: string | null
+          summary?: string
+          team_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_action_log_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_action_log_team_member_id_fkey"
+            columns: ["team_member_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
