@@ -10,7 +10,25 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Check, X, AlertTriangle } from "lucide-react";
+import { format } from "date-fns";
+
+const CONFIRMED_VIA_OPTIONS = [
+  { value: 'phone_call', label: 'Phone Call' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'sms', label: 'SMS' },
+  { value: 'email', label: 'Email' },
+];
+
+const OWNER_REJECTION_REASONS = [
+  'Prefer a different occupant profile',
+  'Prefer a family / couple / single occupant',
+  "Income or CIBIL doesn't meet my requirements",
+  'Preferred rent not agreed',
+  'Already selected another applicant',
+  'Other',
+];
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft", submitted: "Submitted", platform_review: "Under Review",
@@ -90,6 +108,7 @@ interface AppData {
   rejection_reason: string | null;
   submitted_at: string | null;
   created_at: string;
+  owner_action_by_admin: boolean | null;
   tenant: { full_name: string; email: string | null; phone: string | null } | null;
   property: {
     building_name: string; locality: string | null; listed_rent: number;
@@ -128,6 +147,24 @@ export default function AdminApplicationDetail() {
   const [holdLoading, setHoldLoading] = useState(false);
   const [docFiles, setDocFiles] = useState<{ name: string; path: string }[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
+
+  // Owner proxy action state
+  const [staffUsers, setStaffUsers] = useState<{ id: string; full_name: string }[]>([]);
+  const [ownerProxyAction, setOwnerProxyAction] = useState<string>(''); // owner_accepted | owner_rejected | owner_countered
+  const [confirmedVia, setConfirmedVia] = useState('');
+  const [teamMemberId, setTeamMemberId] = useState('');
+  const [conversationAt, setConversationAt] = useState('');
+  const [ownerProxySummary, setOwnerProxySummary] = useState('');
+  const [ownerProxyCounterRent, setOwnerProxyCounterRent] = useState('');
+  const [ownerProxyRejectReason, setOwnerProxyRejectReason] = useState('');
+  const [ownerProxyOtherReject, setOwnerProxyOtherReject] = useState('');
+  const [ownerProxySaving, setOwnerProxySaving] = useState(false);
+  const [actionLog, setActionLog] = useState<{
+    confirmed_via: string;
+    conversation_at: string;
+    summary: string;
+    team_member: { full_name: string } | null;
+  } | null>(null);
 
   const fetchApp = useCallback(async () => {
     if (!id) return;
@@ -169,6 +206,32 @@ export default function AdminApplicationDetail() {
   }, [id, toast]);
 
   useEffect(() => { fetchApp(); }, [fetchApp]);
+
+  // Fetch staff users for proxy action dropdown
+  useEffect(() => {
+    const fetchStaff = async () => {
+      const { data } = await supabase
+        .from('users')
+        .select('id, full_name')
+        .in('role', ['admin', 'ops', 'field_team', 'customer_care'] as any);
+      if (data) setStaffUsers(data);
+    };
+    fetchStaff();
+  }, []);
+
+  // Fetch action log if owner_action_by_admin
+  useEffect(() => {
+    if (!id || !app?.owner_action_by_admin) return;
+    const fetchLog = async () => {
+      const { data } = await supabase
+        .from('owner_action_log')
+        .select('confirmed_via, conversation_at, summary, team_member:users!owner_action_log_team_member_id_fkey(full_name)')
+        .eq('application_id', id)
+        .maybeSingle();
+      if (data) setActionLog(data as any);
+    };
+    fetchLog();
+  }, [id, app?.owner_action_by_admin]);
 
   useEffect(() => {
     if (!app?.tenant_id || !id) return;
@@ -351,7 +414,22 @@ export default function AdminApplicationDetail() {
             <p className="text-sm text-muted-foreground">Application {app.id.slice(0, 8).toUpperCase()}</p>
           </div>
           <Badge className="text-sm">{STATUS_LABELS[app.status] ?? app.status}</Badge>
+          {app.owner_action_by_admin && (
+            <span className="text-xs bg-amber-100 text-amber-700 border border-amber-200 px-2 py-1 rounded-full">
+              ⚠ Actioned by Reeve team on owner's behalf
+            </span>
+          )}
         </div>
+
+        {/* Owner action audit log */}
+        {app.owner_action_by_admin && actionLog && (
+          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded p-3 space-y-1">
+            <div>Confirmed via: {CONFIRMED_VIA_OPTIONS.find(o => o.value === actionLog.confirmed_via)?.label ?? actionLog.confirmed_via}</div>
+            <div>Team member: {actionLog.team_member?.full_name ?? '—'}</div>
+            <div>Conversation on: {format(new Date(actionLog.conversation_at), 'd MMM yyyy, h:mm a')}</div>
+            <div>Summary: {actionLog.summary}</div>
+          </div>
+        )}
 
         {/* Section 1 — Tenant Profile */}
         <Card>
@@ -578,6 +656,211 @@ export default function AdminApplicationDetail() {
             </CardContent>
           </Card>
         )}
+
+        {/* Act on Owner's Behalf */}
+        {app.status === 'sent_to_owner' && (() => {
+          const finalRejectReason = ownerProxyRejectReason === 'Other'
+            ? ownerProxyOtherReject.trim()
+            : ownerProxyRejectReason;
+          const canConfirm =
+            confirmedVia &&
+            teamMemberId &&
+            conversationAt &&
+            ownerProxySummary.trim() &&
+            ownerProxyAction &&
+            (ownerProxyAction !== 'owner_rejected' || finalRejectReason) &&
+            (ownerProxyAction !== 'owner_countered' || (ownerProxyCounterRent && Number(ownerProxyCounterRent) > 0));
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+              <h2 className="text-base font-semibold text-amber-800 mb-1">Act on Owner's Behalf</h2>
+              <p className="text-sm text-amber-700 mb-4">
+                Use this only after receiving verbal or written confirmation from the owner.
+                All details will be permanently logged and visible to the owner.
+              </p>
+              <div className="space-y-4">
+                {/* Confirmed via */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Confirmed via *</label>
+                  <Select value={confirmedVia} onValueChange={setConfirmedVia}>
+                    <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      {CONFIRMED_VIA_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Team member */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Team member who spoke *</label>
+                  <Select value={teamMemberId} onValueChange={setTeamMemberId}>
+                    <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      {staffUsers.map(u => (
+                        <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Conversation date/time */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Date & time of conversation *</label>
+                  <Input
+                    type="datetime-local"
+                    value={conversationAt}
+                    onChange={(e) => setConversationAt(e.target.value)}
+                    max={new Date().toISOString().slice(0, 16)}
+                    className="min-h-[44px]"
+                  />
+                </div>
+                {/* Summary */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Brief summary *</label>
+                  <Textarea
+                    value={ownerProxySummary}
+                    onChange={(e) => setOwnerProxySummary(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. Owner confirmed acceptance over phone, said tenant profile looks good"
+                  />
+                </div>
+                {/* Action buttons */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Action to take *</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setOwnerProxyAction('owner_accepted')}
+                      className={`flex-1 min-h-[44px] rounded-lg border text-sm font-medium transition-colors ${
+                        ownerProxyAction === 'owner_accepted'
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => setOwnerProxyAction('owner_rejected')}
+                      className={`flex-1 min-h-[44px] rounded-lg border text-sm font-medium transition-colors ${
+                        ownerProxyAction === 'owner_rejected'
+                          ? 'border-red-500 bg-red-50 text-red-700'
+                          : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => setOwnerProxyAction('owner_countered')}
+                      className={`flex-1 min-h-[44px] rounded-lg border text-sm font-medium transition-colors ${
+                        ownerProxyAction === 'owner_countered'
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      Counter Offer
+                    </button>
+                  </div>
+                </div>
+                {/* Rejection reason */}
+                {ownerProxyAction === 'owner_rejected' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Rejection reason *</label>
+                    {OWNER_REJECTION_REASONS.map(reason => (
+                      <button
+                        key={reason}
+                        onClick={() => {
+                          setOwnerProxyRejectReason(reason);
+                          if (reason !== 'Other') setOwnerProxyOtherReject('');
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded border text-sm ${
+                          ownerProxyRejectReason === reason
+                            ? 'border-red-500 bg-red-50 text-red-700'
+                            : 'border-border text-muted-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                    {ownerProxyRejectReason === 'Other' && (
+                      <Input
+                        placeholder="Please specify…"
+                        value={ownerProxyOtherReject}
+                        onChange={(e) => setOwnerProxyOtherReject(e.target.value)}
+                        className="min-h-[44px]"
+                      />
+                    )}
+                  </div>
+                )}
+                {/* Counter rent */}
+                {ownerProxyAction === 'owner_countered' && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">Counter rent amount (₹) *</label>
+                    <Input
+                      type="number"
+                      value={ownerProxyCounterRent}
+                      onChange={(e) => setOwnerProxyCounterRent(e.target.value)}
+                      placeholder="e.g. 35000"
+                      className="min-h-[44px]"
+                    />
+                  </div>
+                )}
+                {/* Confirm button */}
+                <Button
+                  className="w-full min-h-[44px]"
+                  disabled={!canConfirm || ownerProxySaving}
+                  onClick={async () => {
+                    setOwnerProxySaving(true);
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session || !id) { setOwnerProxySaving(false); return; }
+
+                    const resolvedRejectReason = ownerProxyAction === 'owner_rejected' ? finalRejectReason : null;
+
+                    // Step 1 — Insert audit log
+                    const { error: logErr } = await supabase.from('owner_action_log').insert({
+                      application_id: id,
+                      action_taken: ownerProxyAction,
+                      confirmed_via: confirmedVia,
+                      team_member_id: teamMemberId,
+                      conversation_at: conversationAt,
+                      counter_rent: ownerProxyAction === 'owner_countered' ? Number(ownerProxyCounterRent) : null,
+                      rejection_reason: resolvedRejectReason,
+                      summary: ownerProxySummary.trim(),
+                    });
+                    if (logErr) {
+                      toast({ title: 'Failed to record action', description: logErr.message, variant: 'destructive' });
+                      setOwnerProxySaving(false);
+                      return;
+                    }
+
+                    // Step 2 — Update application
+                    const updatePayload: Record<string, unknown> = {
+                      status: ownerProxyAction,
+                      owner_actioned_at: new Date().toISOString(),
+                      owner_action_by_admin: true,
+                      updated_at: new Date().toISOString(),
+                    };
+                    if (ownerProxyAction === 'owner_rejected') updatePayload.rejection_reason = resolvedRejectReason;
+                    if (ownerProxyAction === 'owner_countered') updatePayload.owner_counter_rent = Number(ownerProxyCounterRent);
+
+                    const { error: appErr } = await supabase
+                      .from('applications')
+                      .update(updatePayload)
+                      .eq('id', id);
+                    if (appErr) {
+                      toast({ title: 'Failed to update application', description: appErr.message, variant: 'destructive' });
+                      setOwnerProxySaving(false);
+                      return;
+                    }
+
+                    toast({ title: 'Decision recorded. Owner has been notified.' });
+                    setOwnerProxySaving(false);
+                    await fetchApp();
+                  }}
+                >
+                  {ownerProxySaving ? 'Saving…' : 'Confirm & Apply Decision'}
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Section 6 — Admin Notes */}
         <Card>
