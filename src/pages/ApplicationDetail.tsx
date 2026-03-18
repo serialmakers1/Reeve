@@ -1,6 +1,19 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Check, X, ChevronDown, ChevronUp, AlertCircle, Clock, XCircle, Pause, MessageCircle, Phone } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  Check,
+  X,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  Clock,
+  XCircle,
+  Pause,
+  MessageCircle,
+  Phone,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -10,13 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   submitted: { label: "Submitted", color: "bg-blue-100 text-blue-800" },
@@ -74,8 +81,12 @@ const TIMELINE_STEPS = [
 const TERMINAL_STATUSES = ["withdrawn", "owner_rejected", "platform_rejected", "expired", "on_hold"];
 
 const WITHDRAWABLE_STATUSES = [
-  "submitted", "platform_review", "sent_to_owner",
-  "owner_countered", "tenant_countered", "payment_pending",
+  "submitted",
+  "platform_review",
+  "sent_to_owner",
+  "owner_countered",
+  "tenant_countered",
+  "payment_pending",
 ];
 
 function formatRent(val: number) {
@@ -155,7 +166,7 @@ export default function ApplicationDetail() {
            submitted_at, updated_at, withdrawn_at, withdrawal_reason, rejection_reason,
            platform_rejection_reason, employer_name, monthly_income, cibil_range,
            crime_record_self_attest, property_id,
-           application_residents(id, full_name, age, relationship)`
+           application_residents(id, full_name, age, relationship)`,
         )
         .eq("id", id)
         .eq("tenant_id", user.id)
@@ -196,7 +207,7 @@ export default function ApplicationDetail() {
         },
         (payload) => {
           setApp((prev) => (prev ? { ...prev, ...payload.new } : prev));
-        }
+        },
       )
       .subscribe();
 
@@ -237,10 +248,7 @@ export default function ApplicationDetail() {
   const handleWithdraw = async () => {
     if (!app || !selectedReason) return;
     setWithdrawing(true);
-    const reason =
-      selectedReason === "Other" && otherText
-        ? `Other: ${otherText}`
-        : selectedReason;
+    const reason = selectedReason === "Other" && otherText ? `Other: ${otherText}` : selectedReason;
     const { error } = await supabase
       .from("applications")
       .update({
@@ -312,10 +320,7 @@ export default function ApplicationDetail() {
             <h1 className="text-xl font-bold text-foreground">{propertyName}</h1>
             <Badge className={`shrink-0 ${badge.color} border-0`}>{badge.label}</Badge>
           </div>
-          <a
-            href={`/property/${app.property_id}`}
-            className="text-sm text-blue-600 underline"
-          >
+          <a href={`/property/${app.property_id}`} className="text-sm text-blue-600 underline">
             View property listing →
           </a>
           {app.submitted_at && (
@@ -339,9 +344,10 @@ export default function ApplicationDetail() {
             <div className="space-y-0">
               {TIMELINE_STEPS.map((step, idx) => {
                 const done = si >= step.minIndex;
-                const isCurrent = idx < TIMELINE_STEPS.length - 1
-                  ? si >= step.minIndex && si < TIMELINE_STEPS[idx + 1].minIndex
-                  : si >= step.minIndex;
+                const isCurrent =
+                  idx < TIMELINE_STEPS.length - 1
+                    ? si >= step.minIndex && si < TIMELINE_STEPS[idx + 1].minIndex
+                    : si >= step.minIndex;
                 return (
                   <div key={step.label} className="flex items-start gap-3">
                     <div className="flex flex-col items-center">
@@ -355,20 +361,12 @@ export default function ApplicationDetail() {
                         {done && <Check className="h-3.5 w-3.5" />}
                       </div>
                       {idx < TIMELINE_STEPS.length - 1 && (
-                        <div
-                          className={`w-0.5 h-8 ${
-                            done ? "bg-primary" : "bg-muted-foreground/20"
-                          }`}
-                        />
+                        <div className={`w-0.5 h-8 ${done ? "bg-primary" : "bg-muted-foreground/20"}`} />
                       )}
                     </div>
                     <p
                       className={`pt-0.5 text-sm font-medium ${
-                        isCurrent
-                          ? "text-primary"
-                          : done
-                          ? "text-foreground"
-                          : "text-muted-foreground"
+                        isCurrent ? "text-primary" : done ? "text-foreground" : "text-muted-foreground"
                       }`}
                     >
                       {step.label}
@@ -381,19 +379,12 @@ export default function ApplicationDetail() {
             {/* Counter offer section */}
             {app.status === "owner_countered" && app.owner_counter_rent && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 space-y-4">
-                <p className="text-sm font-medium text-amber-800">
-                  The owner has made a counter offer
-                </p>
+                <p className="text-sm font-medium text-amber-800">The owner has made a counter offer</p>
                 <div className="space-y-1 text-sm">
                   <p className="text-foreground">
-                    Owner's counter:{" "}
-                    <span className="font-semibold">
-                      {formatRent(app.owner_counter_rent)}/month
-                    </span>
+                    Owner's counter: <span className="font-semibold">{formatRent(app.owner_counter_rent)}/month</span>
                   </p>
-                  <p className="text-muted-foreground">
-                    Your original offer: {formatRent(app.proposed_rent)}/month
-                  </p>
+                  <p className="text-muted-foreground">Your original offer: {formatRent(app.proposed_rent)}/month</p>
                 </div>
                 <div className="flex gap-3">
                   <Button
@@ -435,21 +426,27 @@ export default function ApplicationDetail() {
                       <span className="font-medium text-foreground">Token Amount Due Now</span>
                       <span className="font-bold text-foreground">₹5,000</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">Adjusted against first month's rent</p>
+                    <p className="text-xs text-muted-foreground">Adjusted against security deposit amount</p>
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                   <p className="text-sm text-blue-800">
-                    Your application is confirmed only after the token payment is received. The property listing will be removed for other tenants once your token is received.
+                    Your application is confirmed only after the token payment is received. The property listing will be
+                    removed for other tenants once your token is received.
                   </p>
                 </div>
 
                 <div className="rounded-xl border bg-card p-4 space-y-2">
                   <h4 className="text-sm font-semibold text-foreground">Refund Conditions</h4>
                   <div className="space-y-1 text-sm">
-                    <p className="text-green-700">✅ Refundable: Owner backs out, property becomes unavailable, KYC fails due to platform error</p>
-                    <p className="text-red-600">❌ Non-refundable: You withdraw after paying, KYC fails due to your documents, KYC not completed within 7 days</p>
+                    <p className="text-green-700">
+                      ✅ Refundable: Owner backs out, property becomes unavailable, KYC fails due to platform error
+                    </p>
+                    <p className="text-red-600">
+                      ❌ Non-refundable: You withdraw after paying, KYC fails due to your documents, KYC not completed
+                      within 7 days
+                    </p>
                   </div>
                 </div>
 
@@ -493,9 +490,15 @@ export default function ApplicationDetail() {
             <div className="px-4 pb-4 space-y-3 text-sm border-t pt-3">
               <DetailRow label="Proposed Rent" value={formatRent(app.proposed_rent) + "/month"} />
               <DetailRow label="Employer" value={app.employer_name || "Not provided"} />
-              <DetailRow label="Monthly Income" value={app.monthly_income ? formatRent(app.monthly_income) : "Not provided"} />
+              <DetailRow
+                label="Monthly Income"
+                value={app.monthly_income ? formatRent(app.monthly_income) : "Not provided"}
+              />
               <DetailRow label="CIBIL Range" value={formatCibil(app.cibil_range)} />
-              <DetailRow label="No Criminal Record" value={app.crime_record_self_attest ? "Self-attested ✓" : "Not attested"} />
+              <DetailRow
+                label="No Criminal Record"
+                value={app.crime_record_self_attest ? "Self-attested ✓" : "Not attested"}
+              />
               {app.application_residents && app.application_residents.length > 0 ? (
                 <div>
                   <p className="text-muted-foreground mb-1">Co-Residents</p>
@@ -516,10 +519,7 @@ export default function ApplicationDetail() {
 
         {/* Withdraw button */}
         {isWithdrawable && (
-          <button
-            onClick={() => setShowWithdrawModal(true)}
-            className="text-sm text-red-500 underline mt-6"
-          >
+          <button onClick={() => setShowWithdrawModal(true)} className="text-sm text-red-500 underline mt-6">
             Withdraw this application
           </button>
         )}
@@ -531,7 +531,10 @@ export default function ApplicationDetail() {
           <div className="w-full max-w-md rounded-xl bg-background p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">Withdraw Application?</h2>
-              <button onClick={() => setShowWithdrawModal(false)} className="text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => setShowWithdrawModal(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -544,7 +547,9 @@ export default function ApplicationDetail() {
                 <SelectContent>
                   <SelectItem value="I found another property">I found another property</SelectItem>
                   <SelectItem value="Change of plans">Change of plans</SelectItem>
-                  <SelectItem value="I want to update my application details">I want to update my application details</SelectItem>
+                  <SelectItem value="I want to update my application details">
+                    I want to update my application details
+                  </SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
@@ -552,11 +557,7 @@ export default function ApplicationDetail() {
             {selectedReason === "Other" && (
               <div className="space-y-1">
                 <label className="text-sm text-muted-foreground">Please specify (optional)</label>
-                <Input
-                  value={otherText}
-                  onChange={(e) => setOtherText(e.target.value)}
-                  placeholder="Tell us more..."
-                />
+                <Input value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="Tell us more..." />
               </div>
             )}
             <Button
@@ -564,7 +565,13 @@ export default function ApplicationDetail() {
               disabled={!selectedReason || withdrawing}
               onClick={handleWithdraw}
             >
-              {withdrawing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Withdrawing...</> : "Confirm Withdrawal"}
+              {withdrawing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Withdrawing...
+                </>
+              ) : (
+                "Confirm Withdrawal"
+              )}
             </Button>
             <button
               onClick={() => setShowWithdrawModal(false)}
@@ -598,8 +605,8 @@ function TerminalCard({ app }: { app: AppDetail }) {
         </div>
         <p className="text-sm text-muted-foreground">
           You withdrew this application
-          {app.withdrawn_at ? ` on ${format(new Date(app.withdrawn_at), "d MMM yyyy")}` : ""}.
-          Reason: {app.withdrawal_reason ?? "Not specified"}
+          {app.withdrawn_at ? ` on ${format(new Date(app.withdrawn_at), "d MMM yyyy")}` : ""}. Reason:{" "}
+          {app.withdrawal_reason ?? "Not specified"}
         </p>
       </div>
     );
@@ -657,7 +664,8 @@ function TerminalCard({ app }: { app: AppDetail }) {
           <span className="font-medium">Application On Hold</span>
         </div>
         <p className="text-sm text-amber-700">
-          Another applicant has completed their token payment and secured this property. Your application is on hold and will automatically progress if their payment is reversed. We'll notify you.
+          Another applicant has completed their token payment and secured this property. Your application is on hold and
+          will automatically progress if their payment is reversed. We'll notify you.
         </p>
       </div>
     );
