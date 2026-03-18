@@ -215,6 +215,16 @@ export default function VisitsList() {
           )}
 
           {isUpcoming && (
+            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+              <span className="text-blue-500 text-base mt-0.5">📋</span>
+              <p className="text-sm text-blue-700">
+                Please carry a valid government-issued photo ID for your visit — 
+                Aadhaar Card, Driving Licence, or Voter ID.
+              </p>
+            </div>
+          )}
+
+          {isUpcoming && (
             <div className="flex gap-2 pt-2">
               <Button
                 size="sm"
