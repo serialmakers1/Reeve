@@ -293,8 +293,7 @@ export default function ApplicationDetail() {
   const isWithdrawable = WITHDRAWABLE_STATUSES.includes(app.status);
   const propertyName = p ? `${p.bhk} in ${p.building_name}, ${p.locality || p.city}` : "Application";
   const agreedRent = app.final_agreed_rent ?? app.proposed_rent;
-  const serviceFee = Math.round(agreedRent * 0.07 * 11);
-  const gst = Math.round(serviceFee * 0.18);
+  const serviceFeeMonthly = Math.round(agreedRent * 0.07);
 
   return (
     <Layout>
@@ -429,12 +428,8 @@ export default function ApplicationDetail() {
                       <span className="font-medium text-foreground">{formatRent(agreedRent)}/month</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Service Fee (7% × 11 months)</span>
-                      <span className="text-foreground">{formatRent(serviceFee)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">GST on Service Fee (18%)</span>
-                      <span className="text-foreground">{formatRent(gst)}</span>
+                      <span className="text-muted-foreground">Service Fee (7%)</span>
+                      <span className="text-foreground">{formatRent(serviceFeeMonthly)}/month</span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
                       <span className="font-medium text-foreground">Token Amount Due Now</span>
