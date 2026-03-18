@@ -1123,6 +1123,7 @@ export default function NewApplicationPage() {
         ) : (
           <p className="text-xs text-center text-muted-foreground">Maximum residents added</p>
         )}
+        <FieldError field="residents_count" />
       </div>
     );
   };
