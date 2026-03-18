@@ -1104,6 +1104,9 @@ export default function NewApplicationPage() {
                         placeholder="e.g. Cousin, Friend"
                         className="mt-1"
                       />
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2 mt-1">
+                        ⚠ Additional documents for KYC and income verification will be required for this co-resident.
+                      </p>
                     </div>
                   )}
                   <FieldError field={`res_${idx}_rel`} />
