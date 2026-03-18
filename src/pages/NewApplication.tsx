@@ -592,6 +592,11 @@ export default function NewApplicationPage() {
         errs.proposed_rent = "Please enter your proposed rent";
     }
 
+    if (s === 7) {
+      if (moveInAsap === null) errs.move_in = "Please select your preferred move-in date";
+      if (moveInAsap === false && !preferredMoveInDate) errs.move_in = "Please select your preferred move-in date";
+    }
+
     if (s === 8) {
       if (!feeTermsAccepted) errs.fee_terms = "Please accept the service fee terms";
       if (!dpdpaAccepted) errs.dpdpa = "Please provide DPDPA consent";
