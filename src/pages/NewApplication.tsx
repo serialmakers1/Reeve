@@ -130,6 +130,14 @@ const MARITAL_OPTIONS = [
   { value: "live_in", label: "Live-in" },
 ];
 
+const RELATIONSHIP_OPTIONS = [
+  { value: "Spouse / Partner", label: "Spouse / Partner" },
+  { value: "Parent", label: "Parent" },
+  { value: "Child", label: "Child" },
+  { value: "Sibling", label: "Sibling" },
+  { value: "other_specify", label: "Other (specify)" },
+];
+
 const STAY_LABELS: Record<string, string> = {
   "10_to_12_months": "10–12 months",
   "1_to_2_years": "1–2 years",
@@ -194,10 +202,12 @@ export default function NewApplicationPage() {
   const [rentChoice, setRentChoice] = useState<"accept" | "counter">("accept");
   const [proposedRent, setProposedRent] = useState<number | "">("");
 
-  // Step 7 — Notes
+  // Step 7 — Notes & Move-in
   const [noteAdd, setNoteAdd] = useState("");
   const [noteRemove, setNoteRemove] = useState("");
   const [noteIssue, setNoteIssue] = useState("");
+  const [moveInAsap, setMoveInAsap] = useState<boolean | null>(null);
+  const [preferredMoveInDate, setPreferredMoveInDate] = useState<string>("");
 
   // Step 8 — Terms
   const [feeTermsAccepted, setFeeTermsAccepted] = useState(false);
@@ -409,6 +419,8 @@ export default function NewApplicationPage() {
       setProposedRent(prop.listed_rent);
     }
     if (draft.service_fee_terms_confirmed) setFeeTermsAccepted(true);
+    if (draft.move_in_asap === true) { setMoveInAsap(true); setPreferredMoveInDate(""); }
+    else if (draft.move_in_asap === false) { setMoveInAsap(false); if (draft.preferred_move_in_date) setPreferredMoveInDate(draft.preferred_move_in_date as string); }
 
     // Load residents
     const { data: resData } = await supabase
@@ -549,10 +561,12 @@ export default function NewApplicationPage() {
     if (s === 2) {
       residents.forEach((r, i) => {
         if (!r.full_name.trim()) errs[`res_${i}_name`] = "Name required";
-        if (r.age === "" || Number(r.age) < 0) errs[`res_${i}_age`] = "Age required";
+        if (r.age === "" || Number(r.age) < 0 || Number(r.age) > 100) errs[`res_${i}_age`] = "Please enter a valid age between 0 and 100";
         if (!r.gender) errs[`res_${i}_gender`] = "Gender required";
         if (!r.occupation) errs[`res_${i}_occ`] = "Occupation required";
+        if (!r.marital_status) errs[`res_${i}_marital`] = "Marital status required";
         if (!r.relationship.trim()) errs[`res_${i}_rel`] = "Relationship required";
+        if (r.relationship === "other_specify") errs[`res_${i}_rel`] = "Please specify the relationship";
       });
     }
 
@@ -576,6 +590,11 @@ export default function NewApplicationPage() {
     if (s === 6) {
       if (rentChoice === "counter" && (proposedRent === "" || Number(proposedRent) <= 0))
         errs.proposed_rent = "Please enter your proposed rent";
+    }
+
+    if (s === 7) {
+      if (moveInAsap === null) errs.move_in = "Please select your preferred move-in date";
+      if (moveInAsap === false && !preferredMoveInDate) errs.move_in = "Please select your preferred move-in date";
     }
 
     if (s === 8) {
@@ -651,6 +670,11 @@ export default function NewApplicationPage() {
     }
 
     if (step === 7) {
+      // Save move-in preference
+      await saveApplicationField({
+        move_in_asap: moveInAsap ?? false,
+        preferred_move_in_date: moveInAsap ? null : (preferredMoveInDate || null),
+      });
       // Save notes
       if (applicationId) {
         await supabase.from("application_notes").delete().eq("application_id", applicationId);
@@ -1004,6 +1028,7 @@ export default function NewApplicationPage() {
                       placeholder="Age"
                       className="mt-1"
                       min={0}
+                      max={100}
                     />
                     <FieldError field={`res_${idx}_age`} />
                   </div>
@@ -1033,8 +1058,8 @@ export default function NewApplicationPage() {
                   <FieldError field={`res_${idx}_occ`} />
                 </div>
                 <div>
-                  <Label className="text-xs">Marital status <span className="text-muted-foreground">(optional)</span></Label>
-                  <Select value={r.marital_status} onValueChange={(v) => updateResident(idx, "marital_status", v)}>
+                  <Label className="text-xs">Marital status *</Label>
+                  <Select value={r.marital_status} onValueChange={(v) => { updateResident(idx, "marital_status", v); setErrors((p) => { const n = { ...p }; delete n[`res_${idx}_marital`]; return n; }); }}>
                     <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       {MARITAL_OPTIONS.map((m) => (
@@ -1042,15 +1067,39 @@ export default function NewApplicationPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <FieldError field={`res_${idx}_marital`} />
                 </div>
                 <div>
                   <Label className="text-xs">Relationship to you *</Label>
-                  <Input
-                    value={r.relationship}
-                    onChange={(e) => updateResident(idx, "relationship", e.target.value)}
-                    placeholder="e.g. Spouse, Child, Parent"
-                    className="mt-1"
-                  />
+                  <Select
+                    value={r.relationship.startsWith("Other: ") ? "other_specify" : RELATIONSHIP_OPTIONS.some(o => o.value === r.relationship) ? r.relationship : r.relationship ? "other_specify" : ""}
+                    onValueChange={(v) => {
+                      if (v === "other_specify") {
+                        updateResident(idx, "relationship", "other_specify");
+                      } else {
+                        updateResident(idx, "relationship", v);
+                      }
+                      setErrors((p) => { const n = { ...p }; delete n[`res_${idx}_rel`]; return n; });
+                    }}
+                  >
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {RELATIONSHIP_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {(r.relationship === "other_specify" || (r.relationship.startsWith("Other: "))) && (
+                    <div className="mt-2">
+                      <Label className="text-xs">Please specify *</Label>
+                      <Input
+                        value={r.relationship.startsWith("Other: ") ? r.relationship.replace("Other: ", "") : ""}
+                        onChange={(e) => updateResident(idx, "relationship", e.target.value ? `Other: ${e.target.value}` : "other_specify")}
+                        placeholder="e.g. Cousin, Friend"
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
                   <FieldError field={`res_${idx}_rel`} />
                 </div>
               </div>
@@ -1225,6 +1274,14 @@ export default function NewApplicationPage() {
 
     return (
       <div className="space-y-5">
+        <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg mb-4">
+          <span className="text-blue-500 text-base mt-0.5">🔒</span>
+          <p className="text-sm text-blue-700">
+            Your documents are collected for identity and income verification only. 
+            They will never be shared with property owners or any third party.
+          </p>
+        </div>
+
         <div>
           <h2 className="text-lg font-bold text-foreground">Employment & Income Details</h2>
           <p className="text-sm text-muted-foreground">This helps the owner assess your financial profile</p>
@@ -1455,47 +1512,93 @@ export default function NewApplicationPage() {
     );
   };
 
-  const renderStep7 = () => (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-bold text-foreground">Notes & Requests for this Property</h2>
-        <p className="text-sm text-muted-foreground">Let the owner know about any additions, removals, or issues you noticed</p>
-      </div>
+  const renderStep7 = () => {
+    const todayStr = new Date().toISOString().split("T")[0];
 
-      <div className="space-y-4">
+    return (
+      <div className="space-y-5">
         <div>
-          <Label className="text-sm">Request to Add <span className="text-muted-foreground">(optional)</span></Label>
-          <Textarea
-            value={noteAdd}
-            onChange={(e) => setNoteAdd(e.target.value)}
-            placeholder="I'd like to request the following additions..."
-            className="mt-1"
-            rows={3}
-          />
+          <h2 className="text-lg font-bold text-foreground">Notes & Requests for this Property</h2>
+          <p className="text-sm text-muted-foreground">Let the owner know about any additions, removals, or issues you noticed</p>
         </div>
-        <div>
-          <Label className="text-sm">Request to Remove <span className="text-muted-foreground">(optional)</span></Label>
-          <Textarea
-            value={noteRemove}
-            onChange={(e) => setNoteRemove(e.target.value)}
-            placeholder="I'd like the following items removed..."
-            className="mt-1"
-            rows={3}
-          />
+
+        {/* Move-in date */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">When are you looking to move in? *</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => { setMoveInAsap(true); setPreferredMoveInDate(""); setErrors((p) => { const n = { ...p }; delete n.move_in; return n; }); }}
+              className={`min-h-[44px] rounded-lg border-2 px-4 py-3 text-center transition-all ${
+                moveInAsap === true
+                  ? "border-primary bg-accent"
+                  : "border-border bg-card hover:border-muted-foreground/40"
+              }`}
+            >
+              <p className="text-sm font-medium text-foreground">As soon as possible</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMoveInAsap(false); setErrors((p) => { const n = { ...p }; delete n.move_in; return n; }); }}
+              className={`min-h-[44px] rounded-lg border-2 px-4 py-3 text-center transition-all ${
+                moveInAsap === false
+                  ? "border-primary bg-accent"
+                  : "border-border bg-card hover:border-muted-foreground/40"
+              }`}
+            >
+              <p className="text-sm font-medium text-foreground">Pick a date</p>
+            </button>
+          </div>
+          {moveInAsap === false && (
+            <div className="mt-2">
+              <Label className="text-xs">Preferred move-in date *</Label>
+              <Input
+                type="date"
+                value={preferredMoveInDate}
+                onChange={(e) => { setPreferredMoveInDate(e.target.value); setErrors((p) => { const n = { ...p }; delete n.move_in; return n; }); }}
+                min={todayStr}
+                className="mt-1"
+              />
+            </div>
+          )}
+          <FieldError field="move_in" />
         </div>
-        <div>
-          <Label className="text-sm">Report an Issue <span className="text-muted-foreground">(optional)</span></Label>
-          <Textarea
-            value={noteIssue}
-            onChange={(e) => setNoteIssue(e.target.value)}
-            placeholder="I noticed the following issues during my visit..."
-            className="mt-1"
-            rows={3}
-          />
+
+        <div className="space-y-4">
+          <div>
+            <Label className="text-sm">Request to Add <span className="text-muted-foreground">(optional)</span></Label>
+            <Textarea
+              value={noteAdd}
+              onChange={(e) => setNoteAdd(e.target.value)}
+              placeholder="I'd like to request the following additions..."
+              className="mt-1"
+              rows={3}
+            />
+          </div>
+          <div>
+            <Label className="text-sm">Request to Remove <span className="text-muted-foreground">(optional)</span></Label>
+            <Textarea
+              value={noteRemove}
+              onChange={(e) => setNoteRemove(e.target.value)}
+              placeholder="I'd like the following items removed..."
+              className="mt-1"
+              rows={3}
+            />
+          </div>
+          <div>
+            <Label className="text-sm">Report an Issue <span className="text-muted-foreground">(optional)</span></Label>
+            <Textarea
+              value={noteIssue}
+              onChange={(e) => setNoteIssue(e.target.value)}
+              placeholder="I noticed the following issues during my visit..."
+              className="mt-1"
+              rows={3}
+            />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderStep8 = () => {
     const rent = rentChoice === "accept" ? property.listed_rent : Number(proposedRent) || property.listed_rent;

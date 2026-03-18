@@ -250,6 +250,7 @@ export type Database = {
           income_check_passed: boolean | null
           kyc_completed_at: string | null
           monthly_income: number | null
+          move_in_asap: boolean | null
           owner_actioned_at: string | null
           owner_counter_rent: number | null
           platform_approved: boolean | null
@@ -259,6 +260,7 @@ export type Database = {
           pre_hold_status:
             | Database["public"]["Enums"]["application_status"]
             | null
+          preferred_move_in_date: string | null
           previous_application_id: string | null
           property_id: string
           property_notes_text: string | null
@@ -289,6 +291,7 @@ export type Database = {
           income_check_passed?: boolean | null
           kyc_completed_at?: string | null
           monthly_income?: number | null
+          move_in_asap?: boolean | null
           owner_actioned_at?: string | null
           owner_counter_rent?: number | null
           platform_approved?: boolean | null
@@ -298,6 +301,7 @@ export type Database = {
           pre_hold_status?:
             | Database["public"]["Enums"]["application_status"]
             | null
+          preferred_move_in_date?: string | null
           previous_application_id?: string | null
           property_id: string
           property_notes_text?: string | null
@@ -328,6 +332,7 @@ export type Database = {
           income_check_passed?: boolean | null
           kyc_completed_at?: string | null
           monthly_income?: number | null
+          move_in_asap?: boolean | null
           owner_actioned_at?: string | null
           owner_counter_rent?: number | null
           platform_approved?: boolean | null
@@ -337,6 +342,7 @@ export type Database = {
           pre_hold_status?:
             | Database["public"]["Enums"]["application_status"]
             | null
+          preferred_move_in_date?: string | null
           previous_application_id?: string | null
           property_id?: string
           property_notes_text?: string | null
