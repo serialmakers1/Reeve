@@ -419,6 +419,8 @@ export default function NewApplicationPage() {
       setProposedRent(prop.listed_rent);
     }
     if (draft.service_fee_terms_confirmed) setFeeTermsAccepted(true);
+    if (draft.move_in_asap === true) { setMoveInAsap(true); setPreferredMoveInDate(""); }
+    else if (draft.move_in_asap === false) { setMoveInAsap(false); if (draft.preferred_move_in_date) setPreferredMoveInDate(draft.preferred_move_in_date as string); }
 
     // Load residents
     const { data: resData } = await supabase
