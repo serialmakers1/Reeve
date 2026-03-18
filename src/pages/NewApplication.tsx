@@ -559,6 +559,12 @@ export default function NewApplicationPage() {
     const errs: StepErrors = {};
 
     if (s === 2) {
+      // resident_count from eligibility includes the primary applicant
+      // so required co-residents = resident_count - 1
+      const requiredCoResidents = (eligibility?.resident_count ?? 1) - 1;
+      if (residents.length < requiredCoResidents) {
+        errs['residents_count'] = `You indicated ${eligibility?.resident_count} residents. Please add ${requiredCoResidents - residents.length} more co-resident${requiredCoResidents - residents.length > 1 ? 's' : ''}.`;
+      }
       residents.forEach((r, i) => {
         if (!r.full_name.trim()) errs[`res_${i}_name`] = "Name required";
         if (r.age === "" || Number(r.age) < 0 || Number(r.age) > 100) errs[`res_${i}_age`] = "Please enter a valid age between 0 and 100";
