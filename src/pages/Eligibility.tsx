@@ -661,7 +661,8 @@ export default function EligibilityPage() {
                   onChange={(e) => updateField('age', e.target.value ? Number(e.target.value) : '')}
                   placeholder="e.g. 25"
                   className="mt-1.5"
-                  min={1}
+                  min={21}
+                  max={100}
                 />
                 <FieldError field="age" />
               </div>
