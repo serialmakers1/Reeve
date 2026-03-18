@@ -1512,47 +1512,93 @@ export default function NewApplicationPage() {
     );
   };
 
-  const renderStep7 = () => (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-bold text-foreground">Notes & Requests for this Property</h2>
-        <p className="text-sm text-muted-foreground">Let the owner know about any additions, removals, or issues you noticed</p>
-      </div>
+  const renderStep7 = () => {
+    const todayStr = new Date().toISOString().split("T")[0];
 
-      <div className="space-y-4">
+    return (
+      <div className="space-y-5">
         <div>
-          <Label className="text-sm">Request to Add <span className="text-muted-foreground">(optional)</span></Label>
-          <Textarea
-            value={noteAdd}
-            onChange={(e) => setNoteAdd(e.target.value)}
-            placeholder="I'd like to request the following additions..."
-            className="mt-1"
-            rows={3}
-          />
+          <h2 className="text-lg font-bold text-foreground">Notes & Requests for this Property</h2>
+          <p className="text-sm text-muted-foreground">Let the owner know about any additions, removals, or issues you noticed</p>
         </div>
-        <div>
-          <Label className="text-sm">Request to Remove <span className="text-muted-foreground">(optional)</span></Label>
-          <Textarea
-            value={noteRemove}
-            onChange={(e) => setNoteRemove(e.target.value)}
-            placeholder="I'd like the following items removed..."
-            className="mt-1"
-            rows={3}
-          />
+
+        {/* Move-in date */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">When are you looking to move in? *</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => { setMoveInAsap(true); setPreferredMoveInDate(""); setErrors((p) => { const n = { ...p }; delete n.move_in; return n; }); }}
+              className={`min-h-[44px] rounded-lg border-2 px-4 py-3 text-center transition-all ${
+                moveInAsap === true
+                  ? "border-primary bg-accent"
+                  : "border-border bg-card hover:border-muted-foreground/40"
+              }`}
+            >
+              <p className="text-sm font-medium text-foreground">As soon as possible</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMoveInAsap(false); setErrors((p) => { const n = { ...p }; delete n.move_in; return n; }); }}
+              className={`min-h-[44px] rounded-lg border-2 px-4 py-3 text-center transition-all ${
+                moveInAsap === false
+                  ? "border-primary bg-accent"
+                  : "border-border bg-card hover:border-muted-foreground/40"
+              }`}
+            >
+              <p className="text-sm font-medium text-foreground">Pick a date</p>
+            </button>
+          </div>
+          {moveInAsap === false && (
+            <div className="mt-2">
+              <Label className="text-xs">Preferred move-in date *</Label>
+              <Input
+                type="date"
+                value={preferredMoveInDate}
+                onChange={(e) => { setPreferredMoveInDate(e.target.value); setErrors((p) => { const n = { ...p }; delete n.move_in; return n; }); }}
+                min={todayStr}
+                className="mt-1"
+              />
+            </div>
+          )}
+          <FieldError field="move_in" />
         </div>
-        <div>
-          <Label className="text-sm">Report an Issue <span className="text-muted-foreground">(optional)</span></Label>
-          <Textarea
-            value={noteIssue}
-            onChange={(e) => setNoteIssue(e.target.value)}
-            placeholder="I noticed the following issues during my visit..."
-            className="mt-1"
-            rows={3}
-          />
+
+        <div className="space-y-4">
+          <div>
+            <Label className="text-sm">Request to Add <span className="text-muted-foreground">(optional)</span></Label>
+            <Textarea
+              value={noteAdd}
+              onChange={(e) => setNoteAdd(e.target.value)}
+              placeholder="I'd like to request the following additions..."
+              className="mt-1"
+              rows={3}
+            />
+          </div>
+          <div>
+            <Label className="text-sm">Request to Remove <span className="text-muted-foreground">(optional)</span></Label>
+            <Textarea
+              value={noteRemove}
+              onChange={(e) => setNoteRemove(e.target.value)}
+              placeholder="I'd like the following items removed..."
+              className="mt-1"
+              rows={3}
+            />
+          </div>
+          <div>
+            <Label className="text-sm">Report an Issue <span className="text-muted-foreground">(optional)</span></Label>
+            <Textarea
+              value={noteIssue}
+              onChange={(e) => setNoteIssue(e.target.value)}
+              placeholder="I noticed the following issues during my visit..."
+              className="mt-1"
+              rows={3}
+            />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderStep8 = () => {
     const rent = rentChoice === "accept" ? property.listed_rent : Number(proposedRent) || property.listed_rent;
