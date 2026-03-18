@@ -416,7 +416,7 @@ export default function ApplicationDetail() {
                     Have questions about this offer?
                   </h4>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Chat with us on WhatsApp or request a callback — we'll help you decide.
+                    Chat with us on WhatsApp — we'll help you decide.
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -429,14 +429,6 @@ export default function ApplicationDetail() {
                     <MessageCircle className="h-4 w-4" />
                     WhatsApp Us
                   </a>
-                  <Button
-                    variant="outline"
-                    className="min-h-[44px]"
-                    onClick={() => toast({ title: "Callback requested. Our team will reach you within 2 hours." })}
-                  >
-                    <Phone className="h-4 w-4 mr-2" />
-                    Request a Callback
-                  </Button>
                 </div>
               </div>
             )}
