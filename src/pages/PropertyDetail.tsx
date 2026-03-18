@@ -783,10 +783,10 @@ const PropertyDetail: React.FC = () => {
 
         <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6 lg:px-4">
           {/* ─── Main Column ────────────────────────────────────── */}
-          <div className="space-y-5">
+          <div className="space-y-5 min-w-0">
 
             {/* 1. Photo Gallery */}
-            <section>
+            <section className="min-w-0 overflow-hidden">
               {(hasFloorPlan || sections.length > 0) && (
                 <div className="flex gap-1 px-4 pb-2 lg:px-0 overflow-x-auto">
                   <button
@@ -1137,7 +1137,7 @@ const PropertyDetail: React.FC = () => {
           </div>
 
           {/* ─── Desktop Sidebar CTA ─────────────────────────── */}
-          <aside className="hidden lg:block">
+          <aside className="hidden lg:block flex-shrink-0 w-[340px]">
             <div className="sticky top-24 space-y-3">
               <Card className="border-border">
                 <CardContent className="space-y-3 p-4">
