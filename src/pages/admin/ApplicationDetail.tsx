@@ -148,6 +148,24 @@ export default function AdminApplicationDetail() {
   const [docFiles, setDocFiles] = useState<{ name: string; path: string }[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
 
+  // Owner proxy action state
+  const [staffUsers, setStaffUsers] = useState<{ id: string; full_name: string }[]>([]);
+  const [ownerProxyAction, setOwnerProxyAction] = useState<string>(''); // owner_accepted | owner_rejected | owner_countered
+  const [confirmedVia, setConfirmedVia] = useState('');
+  const [teamMemberId, setTeamMemberId] = useState('');
+  const [conversationAt, setConversationAt] = useState('');
+  const [ownerProxySummary, setOwnerProxySummary] = useState('');
+  const [ownerProxyCounterRent, setOwnerProxyCounterRent] = useState('');
+  const [ownerProxyRejectReason, setOwnerProxyRejectReason] = useState('');
+  const [ownerProxyOtherReject, setOwnerProxyOtherReject] = useState('');
+  const [ownerProxySaving, setOwnerProxySaving] = useState(false);
+  const [actionLog, setActionLog] = useState<{
+    confirmed_via: string;
+    conversation_at: string;
+    summary: string;
+    team_member: { full_name: string } | null;
+  } | null>(null);
+
   const fetchApp = useCallback(async () => {
     if (!id) return;
     setLoading(true);
