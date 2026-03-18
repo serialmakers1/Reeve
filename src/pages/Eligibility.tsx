@@ -218,6 +218,8 @@ export default function EligibilityPage() {
         errs.full_name = 'Full name must be at least 2 characters.';
       if (formData.age === '' || Number(formData.age) < 1)
         errs.age = 'Please enter your age.';
+      else if (Number(formData.age) < 21 || Number(formData.age) > 100)
+        errs.age = 'Age must be between 21 and 100.';
       if (!formData.gender) errs.gender = 'Please select your gender.';
       if (!formData.marital_status) errs.marital_status = 'Please select your marital status.';
     }
