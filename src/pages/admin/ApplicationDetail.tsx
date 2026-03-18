@@ -657,6 +657,211 @@ export default function AdminApplicationDetail() {
           </Card>
         )}
 
+        {/* Act on Owner's Behalf */}
+        {app.status === 'sent_to_owner' && (() => {
+          const finalRejectReason = ownerProxyRejectReason === 'Other'
+            ? ownerProxyOtherReject.trim()
+            : ownerProxyRejectReason;
+          const canConfirm =
+            confirmedVia &&
+            teamMemberId &&
+            conversationAt &&
+            ownerProxySummary.trim() &&
+            ownerProxyAction &&
+            (ownerProxyAction !== 'owner_rejected' || finalRejectReason) &&
+            (ownerProxyAction !== 'owner_countered' || (ownerProxyCounterRent && Number(ownerProxyCounterRent) > 0));
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+              <h2 className="text-base font-semibold text-amber-800 mb-1">Act on Owner's Behalf</h2>
+              <p className="text-sm text-amber-700 mb-4">
+                Use this only after receiving verbal or written confirmation from the owner.
+                All details will be permanently logged and visible to the owner.
+              </p>
+              <div className="space-y-4">
+                {/* Confirmed via */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Confirmed via *</label>
+                  <Select value={confirmedVia} onValueChange={setConfirmedVia}>
+                    <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      {CONFIRMED_VIA_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Team member */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Team member who spoke *</label>
+                  <Select value={teamMemberId} onValueChange={setTeamMemberId}>
+                    <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      {staffUsers.map(u => (
+                        <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Conversation date/time */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Date & time of conversation *</label>
+                  <Input
+                    type="datetime-local"
+                    value={conversationAt}
+                    onChange={(e) => setConversationAt(e.target.value)}
+                    max={new Date().toISOString().slice(0, 16)}
+                    className="min-h-[44px]"
+                  />
+                </div>
+                {/* Summary */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Brief summary *</label>
+                  <Textarea
+                    value={ownerProxySummary}
+                    onChange={(e) => setOwnerProxySummary(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. Owner confirmed acceptance over phone, said tenant profile looks good"
+                  />
+                </div>
+                {/* Action buttons */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Action to take *</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setOwnerProxyAction('owner_accepted')}
+                      className={`flex-1 min-h-[44px] rounded-lg border text-sm font-medium transition-colors ${
+                        ownerProxyAction === 'owner_accepted'
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => setOwnerProxyAction('owner_rejected')}
+                      className={`flex-1 min-h-[44px] rounded-lg border text-sm font-medium transition-colors ${
+                        ownerProxyAction === 'owner_rejected'
+                          ? 'border-red-500 bg-red-50 text-red-700'
+                          : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => setOwnerProxyAction('owner_countered')}
+                      className={`flex-1 min-h-[44px] rounded-lg border text-sm font-medium transition-colors ${
+                        ownerProxyAction === 'owner_countered'
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      Counter Offer
+                    </button>
+                  </div>
+                </div>
+                {/* Rejection reason */}
+                {ownerProxyAction === 'owner_rejected' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Rejection reason *</label>
+                    {OWNER_REJECTION_REASONS.map(reason => (
+                      <button
+                        key={reason}
+                        onClick={() => {
+                          setOwnerProxyRejectReason(reason);
+                          if (reason !== 'Other') setOwnerProxyOtherReject('');
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded border text-sm ${
+                          ownerProxyRejectReason === reason
+                            ? 'border-red-500 bg-red-50 text-red-700'
+                            : 'border-border text-muted-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                    {ownerProxyRejectReason === 'Other' && (
+                      <Input
+                        placeholder="Please specify…"
+                        value={ownerProxyOtherReject}
+                        onChange={(e) => setOwnerProxyOtherReject(e.target.value)}
+                        className="min-h-[44px]"
+                      />
+                    )}
+                  </div>
+                )}
+                {/* Counter rent */}
+                {ownerProxyAction === 'owner_countered' && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">Counter rent amount (₹) *</label>
+                    <Input
+                      type="number"
+                      value={ownerProxyCounterRent}
+                      onChange={(e) => setOwnerProxyCounterRent(e.target.value)}
+                      placeholder="e.g. 35000"
+                      className="min-h-[44px]"
+                    />
+                  </div>
+                )}
+                {/* Confirm button */}
+                <Button
+                  className="w-full min-h-[44px]"
+                  disabled={!canConfirm || ownerProxySaving}
+                  onClick={async () => {
+                    setOwnerProxySaving(true);
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session || !id) { setOwnerProxySaving(false); return; }
+
+                    const resolvedRejectReason = ownerProxyAction === 'owner_rejected' ? finalRejectReason : null;
+
+                    // Step 1 — Insert audit log
+                    const { error: logErr } = await supabase.from('owner_action_log').insert({
+                      application_id: id,
+                      action_taken: ownerProxyAction,
+                      confirmed_via: confirmedVia,
+                      team_member_id: teamMemberId,
+                      conversation_at: conversationAt,
+                      counter_rent: ownerProxyAction === 'owner_countered' ? Number(ownerProxyCounterRent) : null,
+                      rejection_reason: resolvedRejectReason,
+                      summary: ownerProxySummary.trim(),
+                    });
+                    if (logErr) {
+                      toast({ title: 'Failed to record action', description: logErr.message, variant: 'destructive' });
+                      setOwnerProxySaving(false);
+                      return;
+                    }
+
+                    // Step 2 — Update application
+                    const updatePayload: Record<string, unknown> = {
+                      status: ownerProxyAction,
+                      owner_actioned_at: new Date().toISOString(),
+                      owner_action_by_admin: true,
+                      updated_at: new Date().toISOString(),
+                    };
+                    if (ownerProxyAction === 'owner_rejected') updatePayload.rejection_reason = resolvedRejectReason;
+                    if (ownerProxyAction === 'owner_countered') updatePayload.owner_counter_rent = Number(ownerProxyCounterRent);
+
+                    const { error: appErr } = await supabase
+                      .from('applications')
+                      .update(updatePayload)
+                      .eq('id', id);
+                    if (appErr) {
+                      toast({ title: 'Failed to update application', description: appErr.message, variant: 'destructive' });
+                      setOwnerProxySaving(false);
+                      return;
+                    }
+
+                    toast({ title: 'Decision recorded. Owner has been notified.' });
+                    setOwnerProxySaving(false);
+                    await fetchApp();
+                  }}
+                >
+                  {ownerProxySaving ? 'Saving…' : 'Confirm & Apply Decision'}
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Section 6 — Admin Notes */}
         <Card>
           <CardHeader><CardTitle className="text-base">Admin Notes</CardTitle></CardHeader>
