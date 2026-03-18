@@ -559,6 +559,12 @@ export default function NewApplicationPage() {
     const errs: StepErrors = {};
 
     if (s === 2) {
+      // resident_count from eligibility includes the primary applicant
+      // so required co-residents = resident_count - 1
+      const requiredCoResidents = (eligibility?.resident_count ?? 1) - 1;
+      if (residents.length < requiredCoResidents) {
+        errs['residents_count'] = `You indicated ${eligibility?.resident_count} residents. Please add ${requiredCoResidents - residents.length} more co-resident${requiredCoResidents - residents.length > 1 ? 's' : ''}.`;
+      }
       residents.forEach((r, i) => {
         if (!r.full_name.trim()) errs[`res_${i}_name`] = "Name required";
         if (r.age === "" || Number(r.age) < 0 || Number(r.age) > 100) errs[`res_${i}_age`] = "Please enter a valid age between 0 and 100";
@@ -1098,6 +1104,9 @@ export default function NewApplicationPage() {
                         placeholder="e.g. Cousin, Friend"
                         className="mt-1"
                       />
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2 mt-1">
+                        ⚠ Additional documents for KYC and income verification will be required for this co-resident.
+                      </p>
                     </div>
                   )}
                   <FieldError field={`res_${idx}_rel`} />
@@ -1114,6 +1123,7 @@ export default function NewApplicationPage() {
         ) : (
           <p className="text-xs text-center text-muted-foreground">Maximum residents added</p>
         )}
+        <FieldError field="residents_count" />
       </div>
     );
   };
