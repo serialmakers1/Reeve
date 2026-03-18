@@ -258,7 +258,61 @@ export default function EligibilityPage() {
 
     setSubmitting(true);
 
-    // Run rejection rules (foreign citizen removed — noted for admin only)
+    // Foreign citizen check — immediate disqualification
+    if (formData.is_foreign_citizen) {
+      const foreignPayload = {
+        user_id: session.user.id,
+        full_name: formData.full_name.trim(),
+        age: Number(formData.age),
+        gender: formData.gender as GenderType,
+        marital_status: formData.marital_status as MaritalStatus,
+        occupation: formData.occupation as OccupationType,
+        resident_count: Number(formData.resident_count),
+        has_pets: formData.has_pets,
+        pet_type: formData.has_pets ? (formData.pet_type as PetType) : ('none' as PetType),
+        pet_description: formData.has_pets ? formData.pet_description || null : null,
+        diet: formData.diet as DietType,
+        expected_stay: formData.expected_stay as StayDurationType,
+        is_foreign_citizen: true,
+        status: 'disqualified' as EligibilityStatus,
+        disqualification_reason: 'Foreign citizens are not eligible to rent through Reeve at this time.',
+        reviewed_at: new Date().toISOString(),
+      };
+
+      let dbError = false;
+      if (mode === 'create') {
+        const { error } = await supabase.from('eligibility').insert(foreignPayload);
+        if (error) dbError = true;
+      } else {
+        const { error } = await supabase.from('eligibility').update(foreignPayload).eq('user_id', session.user.id);
+        if (error) dbError = true;
+      }
+
+      await supabase.from('profiles').upsert({
+        user_id: session.user.id,
+        occupation: formData.occupation as OccupationType,
+        marital_status: formData.marital_status as MaritalStatus,
+        diet: formData.diet as DietType,
+        has_pets: formData.has_pets,
+        is_foreign_citizen: true,
+        pet_details: formData.has_pets ? formData.pet_description || null : null,
+      }, { onConflict: 'user_id' });
+
+      setSubmitting(false);
+
+      if (dbError) {
+        toast({ title: 'Something went wrong. Please try again.', variant: 'destructive' });
+        return;
+      }
+
+      setRejectionMessage('Foreign citizens are not eligible to rent through Reeve at this time.');
+      setMode('update');
+      setPageView('rejected');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Run rejection rules
     const rejectionRules: RejectionRule[] = [
       {
         condition: Number(formData.age) < 21,
