@@ -561,10 +561,12 @@ export default function NewApplicationPage() {
     if (s === 2) {
       residents.forEach((r, i) => {
         if (!r.full_name.trim()) errs[`res_${i}_name`] = "Name required";
-        if (r.age === "" || Number(r.age) < 0) errs[`res_${i}_age`] = "Age required";
+        if (r.age === "" || Number(r.age) < 0 || Number(r.age) > 100) errs[`res_${i}_age`] = "Please enter a valid age between 0 and 100";
         if (!r.gender) errs[`res_${i}_gender`] = "Gender required";
         if (!r.occupation) errs[`res_${i}_occ`] = "Occupation required";
+        if (!r.marital_status) errs[`res_${i}_marital`] = "Marital status required";
         if (!r.relationship.trim()) errs[`res_${i}_rel`] = "Relationship required";
+        if (r.relationship === "other_specify") errs[`res_${i}_rel`] = "Please specify the relationship";
       });
     }
 
