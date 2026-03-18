@@ -1274,6 +1274,14 @@ export default function NewApplicationPage() {
 
     return (
       <div className="space-y-5">
+        <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg mb-4">
+          <span className="text-blue-500 text-base mt-0.5">🔒</span>
+          <p className="text-sm text-blue-700">
+            Your documents are collected for identity and income verification only. 
+            They will never be shared with property owners or any third party.
+          </p>
+        </div>
+
         <div>
           <h2 className="text-lg font-bold text-foreground">Employment & Income Details</h2>
           <p className="text-sm text-muted-foreground">This helps the owner assess your financial profile</p>
