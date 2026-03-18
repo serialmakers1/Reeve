@@ -130,6 +130,14 @@ const MARITAL_OPTIONS = [
   { value: "live_in", label: "Live-in" },
 ];
 
+const RELATIONSHIP_OPTIONS = [
+  { value: "Spouse / Partner", label: "Spouse / Partner" },
+  { value: "Parent", label: "Parent" },
+  { value: "Child", label: "Child" },
+  { value: "Sibling", label: "Sibling" },
+  { value: "other_specify", label: "Other (specify)" },
+];
+
 const STAY_LABELS: Record<string, string> = {
   "10_to_12_months": "10–12 months",
   "1_to_2_years": "1–2 years",
