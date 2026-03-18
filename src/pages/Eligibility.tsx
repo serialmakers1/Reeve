@@ -677,7 +677,6 @@ export default function EligibilityPage() {
                     { v: 'male' as GenderType, l: 'Male' },
                     { v: 'female' as GenderType, l: 'Female' },
                     { v: 'other' as GenderType, l: 'Other' },
-                    { v: 'prefer_not_to_say' as GenderType, l: 'Prefer not to say' },
                   ] as const).map((o) => (
                     <RadioCard
                       key={o.v}
