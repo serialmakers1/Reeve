@@ -1028,6 +1028,7 @@ export default function NewApplicationPage() {
                       placeholder="Age"
                       className="mt-1"
                       min={0}
+                      max={100}
                     />
                     <FieldError field={`res_${idx}_age`} />
                   </div>
