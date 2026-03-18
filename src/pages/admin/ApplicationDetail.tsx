@@ -207,6 +207,32 @@ export default function AdminApplicationDetail() {
 
   useEffect(() => { fetchApp(); }, [fetchApp]);
 
+  // Fetch staff users for proxy action dropdown
+  useEffect(() => {
+    const fetchStaff = async () => {
+      const { data } = await supabase
+        .from('users')
+        .select('id, full_name')
+        .in('role', ['admin', 'ops', 'field_team', 'customer_care'] as any);
+      if (data) setStaffUsers(data);
+    };
+    fetchStaff();
+  }, []);
+
+  // Fetch action log if owner_action_by_admin
+  useEffect(() => {
+    if (!id || !app?.owner_action_by_admin) return;
+    const fetchLog = async () => {
+      const { data } = await supabase
+        .from('owner_action_log')
+        .select('confirmed_via, conversation_at, summary, team_member:users!owner_action_log_team_member_id_fkey(full_name)')
+        .eq('application_id', id)
+        .maybeSingle();
+      if (data) setActionLog(data as any);
+    };
+    fetchLog();
+  }, [id, app?.owner_action_by_admin]);
+
   useEffect(() => {
     if (!app?.tenant_id || !id) return;
     const fetchDocs = async () => {
