@@ -108,6 +108,7 @@ interface AppData {
   rejection_reason: string | null;
   submitted_at: string | null;
   created_at: string;
+  owner_action_by_admin: boolean | null;
   tenant: { full_name: string; email: string | null; phone: string | null } | null;
   property: {
     building_name: string; locality: string | null; listed_rent: number;
