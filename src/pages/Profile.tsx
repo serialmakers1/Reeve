@@ -23,6 +23,8 @@ export default function Profile() {
   const [ecRelationship, setEcRelationship] = useState('');
   const [ecOtherRelationship, setEcOtherRelationship] = useState('');
   const [ecSaving, setEcSaving] = useState(false);
+  const [ecExpanded, setEcExpanded] = useState(false);
+  const [ecSaved, setEcSaved] = useState(false);
 
   // Pre-fill once user is loaded
   if (user && !initialized) {
@@ -57,6 +59,16 @@ export default function Profile() {
           setEcOtherRelationship(rel.replace('Other: ', ''));
         } else {
           setEcRelationship(rel);
+        }
+
+        // If any field has data, mark as saved and show summary view
+        if (
+          profileData.emergency_contact_name ||
+          profileData.emergency_contact_phone ||
+          profileData.emergency_contact_relationship
+        ) {
+          setEcSaved(true);
+          setEcExpanded(false); // Show summary, not form
         }
       }
     };
@@ -135,6 +147,8 @@ export default function Profile() {
         toast({ title: 'Could not save. Please try again.', variant: 'destructive' });
       } else {
         toast({ title: 'Emergency contact saved.' });
+        setEcSaved(true);
+        setEcExpanded(false);
       }
     } catch (err) {
       console.error('Emergency contact save failed:', err);
@@ -213,103 +227,164 @@ export default function Profile() {
           </CardContent>
         </Card>
         {/* Emergency Contact Section */}
-        <div className="rounded-xl border bg-card p-6 space-y-5">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Emergency Contact</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Used only in case of emergency — never shared publicly.
-            </p>
+        <div className="rounded-xl border bg-card p-6 space-y-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Emergency Contact</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Used only in case of emergency — never shared publicly.
+              </p>
+            </div>
+            {ecSaved && !ecExpanded && (
+              <button
+                onClick={() => setEcExpanded(true)}
+                className="text-sm text-primary underline shrink-0 ml-4"
+              >
+                Edit
+              </button>
+            )}
           </div>
 
-          <div className="space-y-4">
-            {/* Name */}
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                Full Name <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={ecName}
-                onChange={e => setEcName(e.target.value)}
-                placeholder="e.g. Ramesh Sharma"
-                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm min-h-[44px]"
-              />
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                Phone Number <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <div className="mt-1 flex rounded-lg border border-input overflow-hidden">
-                <span className="px-3 flex items-center bg-muted text-sm text-muted-foreground border-r border-input">
-                  +91
-                </span>
-                <input
-                  type="tel"
-                  value={ecPhone}
-                  onChange={e => setEcPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="10-digit mobile number"
-                  className="flex-1 px-3 py-2.5 text-sm bg-background min-h-[44px] outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Relationship */}
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                Relationship <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <select
-                value={ecRelationship}
-                onChange={e => {
-                  setEcRelationship(e.target.value);
-                  if (e.target.value !== 'Other') setEcOtherRelationship('');
-                }}
-                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm min-h-[44px]"
-              >
-                <option value="">Select relationship</option>
-                <option value="Parent">Parent</option>
-                <option value="Spouse / Partner">Spouse / Partner</option>
-                <option value="Sibling">Sibling</option>
-                <option value="Friend">Friend</option>
-                <option value="Colleague">Colleague</option>
-                <option value="Other">Other (specify)</option>
-              </select>
-              {ecRelationship === 'Other' && (
-                <input
-                  type="text"
-                  value={ecOtherRelationship}
-                  onChange={e => setEcOtherRelationship(e.target.value)}
-                  placeholder="Please specify"
-                  className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm min-h-[44px]"
-                />
+          {/* Saved summary view */}
+          {ecSaved && !ecExpanded && (
+            <div className="space-y-1 text-sm">
+              {ecName && (
+                <p className="text-foreground font-medium">{ecName}</p>
+              )}
+              {ecPhone && (
+                <p className="text-muted-foreground">+91 {ecPhone}</p>
+              )}
+              {ecRelationship && (
+                <p className="text-muted-foreground">
+                  {ecRelationship === 'Other' ? `Other: ${ecOtherRelationship}` : ecRelationship}
+                </p>
+              )}
+              {ecEmail && (
+                <p className="text-muted-foreground">{ecEmail}</p>
               )}
             </div>
+          )}
 
-            {/* Email */}
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                Email <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <input
-                type="email"
-                value={ecEmail}
-                onChange={e => setEcEmail(e.target.value)}
-                placeholder="e.g. ramesh@email.com"
-                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm min-h-[44px]"
-              />
+          {/* Not yet added — show Add button */}
+          {!ecSaved && !ecExpanded && (
+            <button
+              onClick={() => setEcExpanded(true)}
+              className="w-full min-h-[44px] rounded-lg border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+            >
+              + Add Emergency Contact
+            </button>
+          )}
+
+          {/* Expanded form — shown when adding or editing */}
+          {ecExpanded && (
+            <div className="space-y-4">
+              {/* Name */}
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  Full Name <span className="text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={ecName}
+                  onChange={e => setEcName(e.target.value)}
+                  placeholder="e.g. Ramesh Sharma"
+                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm min-h-[44px]"
+                />
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  Phone Number <span className="text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <div className="mt-1 flex rounded-lg border border-input overflow-hidden">
+                  <span className="px-3 flex items-center bg-muted text-sm text-muted-foreground border-r border-input">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    value={ecPhone}
+                    onChange={e => setEcPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="10-digit mobile number"
+                    className="flex-1 px-3 py-2.5 text-sm bg-background min-h-[44px] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Relationship */}
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  Relationship <span className="text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <select
+                  value={ecRelationship}
+                  onChange={e => {
+                    setEcRelationship(e.target.value);
+                    if (e.target.value !== 'Other') setEcOtherRelationship('');
+                  }}
+                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm min-h-[44px]"
+                >
+                  <option value="">Select relationship</option>
+                  <option value="Parent">Parent</option>
+                  <option value="Spouse / Partner">Spouse / Partner</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="Friend">Friend</option>
+                  <option value="Colleague">Colleague</option>
+                  <option value="Other">Other (specify)</option>
+                </select>
+                {ecRelationship === 'Other' && (
+                  <input
+                    type="text"
+                    value={ecOtherRelationship}
+                    onChange={e => setEcOtherRelationship(e.target.value)}
+                    placeholder="Please specify"
+                    className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm min-h-[44px]"
+                  />
+                )}
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  Email <span className="text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <input
+                  type="email"
+                  value={ecEmail}
+                  onChange={e => setEcEmail(e.target.value)}
+                  placeholder="e.g. ramesh@email.com"
+                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm min-h-[44px]"
+                />
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveEmergencyContact}
+                  disabled={ecSaving}
+                  className="flex-1 min-h-[44px] rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {ecSaving ? 'Saving…' : 'Save Emergency Contact'}
+                </button>
+                <button
+                  onClick={() => {
+                    setEcExpanded(false);
+                    // If nothing was saved yet, reset fields
+                    if (!ecSaved) {
+                      setEcName('');
+                      setEcPhone('');
+                      setEcEmail('');
+                      setEcRelationship('');
+                      setEcOtherRelationship('');
+                    }
+                  }}
+                  className="px-4 min-h-[44px] rounded-lg border border-input text-sm text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
-
-          {/* Save button — completely separate from the main profile save */}
-          <button
-            onClick={handleSaveEmergencyContact}
-            disabled={ecSaving}
-            className="w-full min-h-[44px] rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {ecSaving ? 'Saving…' : 'Save Emergency Contact'}
-          </button>
+          )}
         </div>
       </div>
     </Layout>
