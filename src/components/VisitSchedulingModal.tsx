@@ -73,6 +73,7 @@ interface VisitSchedulingModalProps {
   bhk: string;
   existingVisit: ExistingVisit | null;
   onVisitChanged: () => void;
+  onVisitScheduled?: () => void;
 }
 
 const TIME_SLOTS: { key: TimeSlot; label: string; range: string; icon: React.ReactNode; hour: number }[] = [
@@ -103,6 +104,7 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
   bhk,
   existingVisit,
   onVisitChanged,
+  onVisitScheduled,
 }) => {
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -181,6 +183,7 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
 
         if (error) throw error;
         toast({ title: "Visit rescheduled successfully" });
+        onVisitChanged();
       } else {
         // INSERT only if no active visit exists
         const { error } = await supabase.from("visits").insert({
@@ -192,6 +195,11 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
         });
 
         if (error) throw error;
+        if (onVisitScheduled) {
+          onVisitScheduled();
+        } else {
+          onVisitChanged();
+        }
       }
 
       // Fetch property details from public view + flat number from gated view
@@ -219,7 +227,6 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
       setScheduledSlot(selectedSlot);
       setStep("confirmation");
       setShowManageView(false);
-      onVisitChanged();
     } catch {
       toast({
         title: "Something went wrong",
