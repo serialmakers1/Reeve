@@ -1058,8 +1058,8 @@ export default function NewApplicationPage() {
                   <FieldError field={`res_${idx}_occ`} />
                 </div>
                 <div>
-                  <Label className="text-xs">Marital status <span className="text-muted-foreground">(optional)</span></Label>
-                  <Select value={r.marital_status} onValueChange={(v) => updateResident(idx, "marital_status", v)}>
+                  <Label className="text-xs">Marital status *</Label>
+                  <Select value={r.marital_status} onValueChange={(v) => { updateResident(idx, "marital_status", v); setErrors((p) => { const n = { ...p }; delete n[`res_${idx}_marital`]; return n; }); }}>
                     <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       {MARITAL_OPTIONS.map((m) => (
@@ -1067,15 +1067,39 @@ export default function NewApplicationPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <FieldError field={`res_${idx}_marital`} />
                 </div>
                 <div>
                   <Label className="text-xs">Relationship to you *</Label>
-                  <Input
-                    value={r.relationship}
-                    onChange={(e) => updateResident(idx, "relationship", e.target.value)}
-                    placeholder="e.g. Spouse, Child, Parent"
-                    className="mt-1"
-                  />
+                  <Select
+                    value={r.relationship.startsWith("Other: ") ? "other_specify" : RELATIONSHIP_OPTIONS.some(o => o.value === r.relationship) ? r.relationship : r.relationship ? "other_specify" : ""}
+                    onValueChange={(v) => {
+                      if (v === "other_specify") {
+                        updateResident(idx, "relationship", "other_specify");
+                      } else {
+                        updateResident(idx, "relationship", v);
+                      }
+                      setErrors((p) => { const n = { ...p }; delete n[`res_${idx}_rel`]; return n; });
+                    }}
+                  >
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {RELATIONSHIP_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {(r.relationship === "other_specify" || (r.relationship.startsWith("Other: "))) && (
+                    <div className="mt-2">
+                      <Label className="text-xs">Please specify *</Label>
+                      <Input
+                        value={r.relationship.startsWith("Other: ") ? r.relationship.replace("Other: ", "") : ""}
+                        onChange={(e) => updateResident(idx, "relationship", e.target.value ? `Other: ${e.target.value}` : "other_specify")}
+                        placeholder="e.g. Cousin, Friend"
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
                   <FieldError field={`res_${idx}_rel`} />
                 </div>
               </div>
