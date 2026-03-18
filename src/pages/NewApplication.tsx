@@ -670,6 +670,11 @@ export default function NewApplicationPage() {
     }
 
     if (step === 7) {
+      // Save move-in preference
+      await saveApplicationField({
+        move_in_asap: moveInAsap ?? false,
+        preferred_move_in_date: moveInAsap ? null : (preferredMoveInDate || null),
+      });
       // Save notes
       if (applicationId) {
         await supabase.from("application_notes").delete().eq("application_id", applicationId);
