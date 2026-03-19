@@ -113,6 +113,7 @@ interface AppDetail {
   withdrawal_reason: string | null;
   rejection_reason: string | null;
   platform_rejection_reason: string | null;
+  reapplication_eligible_from: string | null;
   employer_name: string | null;
   monthly_income: number | null;
   cibil_range: string | null;
@@ -164,7 +165,7 @@ export default function ApplicationDetail() {
         .select(
           `id, status, attempt_number, proposed_rent, owner_counter_rent, final_agreed_rent,
            submitted_at, updated_at, withdrawn_at, withdrawal_reason, rejection_reason,
-           platform_rejection_reason, employer_name, monthly_income, cibil_range,
+           platform_rejection_reason, reapplication_eligible_from, employer_name, monthly_income, cibil_range,
            crime_record_self_attest, property_id,
            application_residents(id, full_name, age, relationship)`,
         )
@@ -638,6 +639,9 @@ function TerminalCard({ app }: { app: AppDetail }) {
   }
 
   if (app.status === "owner_rejected") {
+    const canReapply =
+      app.reapplication_eligible_from != null &&
+      new Date() < new Date(app.reapplication_eligible_from);
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-5 space-y-2">
         <div className="flex items-center gap-2 text-red-700">
@@ -648,11 +652,19 @@ function TerminalCard({ app }: { app: AppDetail }) {
           The owner did not accept this application.
           {app.rejection_reason ? ` Reason: ${app.rejection_reason}` : ""}
         </p>
+        {canReapply && (
+          <p className="text-sm text-red-700">
+            You can reapply after {format(new Date(app.reapplication_eligible_from!), "d MMM yyyy")}.
+          </p>
+        )}
       </div>
     );
   }
 
   if (app.status === "platform_rejected") {
+    const canReapply =
+      app.reapplication_eligible_from != null &&
+      new Date() < new Date(app.reapplication_eligible_from);
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-5 space-y-2">
         <div className="flex items-center gap-2 text-red-700">
@@ -663,11 +675,19 @@ function TerminalCard({ app }: { app: AppDetail }) {
           This application was not approved by Reeve.
           {app.platform_rejection_reason ? ` Reason: ${app.platform_rejection_reason}` : ""}
         </p>
+        {canReapply && (
+          <p className="text-sm text-red-700">
+            You can reapply after {format(new Date(app.reapplication_eligible_from!), "d MMM yyyy")}.
+          </p>
+        )}
       </div>
     );
   }
 
   if (app.status === "expired") {
+    const canReapply =
+      app.reapplication_eligible_from != null &&
+      new Date() < new Date(app.reapplication_eligible_from);
     return (
       <div className="rounded-xl border bg-muted/50 p-5 space-y-2">
         <div className="flex items-center gap-2 text-muted-foreground">
@@ -675,8 +695,17 @@ function TerminalCard({ app }: { app: AppDetail }) {
           <span className="font-medium">Application Expired</span>
         </div>
         <p className="text-sm text-muted-foreground">
-          This application expired after 7 days with no response. You can reapply from the property listing page.
+          This application expired after 7 days with no response.
         </p>
+        {canReapply ? (
+          <p className="text-sm text-muted-foreground">
+            You can reapply after {format(new Date(app.reapplication_eligible_from!), "d MMM yyyy")}.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            You may submit a new application for this property.
+          </p>
+        )}
       </div>
     );
   }

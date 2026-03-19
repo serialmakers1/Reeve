@@ -2027,7 +2027,6 @@ export type Database = {
       }
       visits: {
         Row: {
-          application_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           completed_at: string | null
@@ -2049,7 +2048,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          application_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           completed_at?: string | null
@@ -2071,7 +2069,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          application_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           completed_at?: string | null
@@ -2093,13 +2090,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_visits_application_id"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "visits_property_id_fkey"
             columns: ["property_id"]

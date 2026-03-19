@@ -55,7 +55,6 @@ interface ExistingVisit {
 }
 
 interface ConfirmationData {
-  flat_number: string | null;
   floor_number: number | null;
   building_name: string;
   street_address: string;
@@ -207,25 +206,15 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
         }
       }
 
-      // Fetch property details from public view + flat number from gated view
-      const [pubRes, flatRes] = await Promise.all([
-        supabase
-          .from("properties")
-          .select("floor_number, building_name, street_address, locality, city, pincode, bhk")
-          .eq("id", propertyId)
-          .maybeSingle(),
-        supabase
-          .from("properties_with_flat_number")
-          .select("flat_number")
-          .eq("id", propertyId)
-          .maybeSingle(),
-      ]);
+      // Fetch property details for confirmation screen
+      const { data: pubData } = await supabase
+        .from("properties")
+        .select("floor_number, building_name, street_address, locality, city, pincode, bhk")
+        .eq("id", propertyId)
+        .maybeSingle();
 
-      if (pubRes.data) {
-        setConfirmationData({
-          ...pubRes.data,
-          flat_number: flatRes.data?.flat_number ?? null,
-        } as ConfirmationData);
+      if (pubData) {
+        setConfirmationData(pubData as ConfirmationData);
       }
 
       setScheduledVisitDate(selectedDate);
@@ -341,7 +330,6 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                   <p className="text-sm text-foreground">
-                    {cd.flat_number && `Flat ${cd.flat_number}, `}
                     {cd.floor_number != null && `Floor ${cd.floor_number}, `}
                     {cd.building_name}, {cd.street_address}
                     {cd.locality && `, ${cd.locality}`}, {cd.city}

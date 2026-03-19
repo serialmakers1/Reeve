@@ -28,7 +28,6 @@ import {
 import Layout from "@/components/Layout";
 import {
   ArrowLeft,
-  Lock,
   Shield,
   Droplets,
   Zap,
@@ -393,9 +392,6 @@ const PropertyDetail: React.FC = () => {
   const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
   const [eligibilityChecking, setEligibilityChecking] = useState(false);
 
-  // Flat number reveal
-  const [revealedFlatNumber, setRevealedFlatNumber] = useState<string | null>(null);
-
   // Application history
   type AppHistoryEntry = {
     id: string;
@@ -443,22 +439,6 @@ const PropertyDetail: React.FC = () => {
   useEffect(() => {
     fetchExistingVisit();
   }, [fetchExistingVisit]);
-
-  // Check if user has earned flat_number access
-  useEffect(() => {
-    if (!session?.user?.id || !id) return;
-    const checkFlatNumberAccess = async () => {
-      const { data } = await supabase
-        .from("properties_with_flat_number")
-        .select("flat_number")
-        .eq("id", id)
-        .maybeSingle();
-      if (data?.flat_number) {
-        setRevealedFlatNumber(data.flat_number);
-      }
-    };
-    checkFlatNumberAccess();
-  }, [session, id]);
 
   // Fetch property + images
   useEffect(() => {
@@ -672,7 +652,6 @@ const PropertyDetail: React.FC = () => {
   const isActive = latestApp != null && ACTIVE_STATUSES.includes(latestApp.status);
   const isOnHold = latestApp?.status === "on_hold";
   const isRejected = latestApp != null && ["owner_rejected", "platform_rejected"].includes(latestApp.status);
-  const isExpiredOrWithdrawn = latestApp != null && ["expired", "withdrawn"].includes(latestApp.status);
   const maxReached = decidedCount >= 3;
   const withinCooldown =
     isRejected &&
@@ -1024,33 +1003,6 @@ const PropertyDetail: React.FC = () => {
                   included={property.utility_gas_included}
                 />
               </div>
-            </section>
-
-            {/* 5. Flat Number — Locked / Revealed */}
-            <section className="px-4 lg:px-0">
-              {revealedFlatNumber ? (
-                <Card className="border-green-200 bg-green-50/50">
-                  <CardContent className="flex items-center gap-3 p-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">
-                        Flat {revealedFlatNumber}
-                      </span>
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-                        Revealed
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-border bg-muted/50">
-                  <CardContent className="flex items-center gap-3 p-4">
-                    <Lock className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                    <p className="text-sm italic text-muted-foreground">
-                      Flat number revealed after scheduling a visit or completing payment
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
             </section>
 
             {/* 6. Property Details Grid */}

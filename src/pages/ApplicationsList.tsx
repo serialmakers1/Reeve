@@ -271,8 +271,21 @@ function AppCard({
   else if (isOnHold) subtitle = "On Hold — another applicant has paid the token.";
   else if (isWithdrawn) subtitle = `Withdrawn${app.withdrawn_at ? " · " + format(new Date(app.withdrawn_at), "d MMM yyyy") : ""}`;
   else if (isExpired) subtitle = `Expired${displayDate ? " · " + format(new Date(displayDate), "d MMM yyyy") : ""}`;
-  else if (app.status === "owner_rejected") subtitle = "Rejected by Owner";
-  else if (app.status === "platform_rejected") subtitle = "Not Approved by Reeve";
+  else if (app.status === "owner_rejected") {
+    const withinCooldown =
+      app.reapplication_eligible_from != null &&
+      new Date() < new Date(app.reapplication_eligible_from);
+    subtitle = withinCooldown
+      ? `Rejected by Owner · Reapply after ${format(new Date(app.reapplication_eligible_from!), "d MMM yyyy")}`
+      : "Rejected by Owner";
+  } else if (app.status === "platform_rejected") {
+    const withinCooldown =
+      app.reapplication_eligible_from != null &&
+      new Date() < new Date(app.reapplication_eligible_from);
+    subtitle = withinCooldown
+      ? `Not Approved by Reeve · Reapply after ${format(new Date(app.reapplication_eligible_from!), "d MMM yyyy")}`
+      : "Not Approved by Reeve";
+  }
 
   const handleClick = () => {
     if (!isDraft) {
