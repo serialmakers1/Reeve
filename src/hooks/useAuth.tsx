@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import posthog from "posthog-js";
 
 type UserRole = "user" | "tenant" | "owner" | "admin" | "super_admin";
 
@@ -71,6 +72,14 @@ export function useAuth() {
         isLoading: false,
         isAuthenticated: true,
       });
+      if (appUser) {
+        posthog.identify(appUser.id, {
+          name: appUser.full_name ?? undefined,
+          email: appUser.email ?? undefined,
+          phone: appUser.phone ?? undefined,
+          role: appUser.role ?? undefined,
+        });
+      }
     } catch {
       setState({ session, user: null, isLoading: false, isAuthenticated: true });
     } finally {
@@ -102,6 +111,7 @@ export function useAuth() {
   }, [loadUser]);
 
   const signOut = useCallback(async () => {
+    posthog.reset();
     await supabase.auth.signOut();
   }, []);
 

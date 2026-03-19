@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import posthog from "posthog-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -305,6 +306,10 @@ export default function EligibilityPage() {
         return;
       }
 
+      posthog.capture("eligibility_completed", {
+        result: "disqualified",
+        disqualification_reason: "foreign_citizen",
+      });
       setRejectionMessage('Foreign citizens are not eligible to rent through Reeve at this time.');
       setMode('update');
       setPageView('rejected');
@@ -394,6 +399,12 @@ export default function EligibilityPage() {
       setPageView('rejected');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
+      posthog.capture("eligibility_completed", {
+        result: "passed",
+        occupation: formData.occupation,
+        expected_stay: formData.expected_stay,
+        resident_count: formData.resident_count,
+      });
       setPageView('passed');
       setMode('update');
       window.scrollTo({ top: 0, behavior: 'smooth' });

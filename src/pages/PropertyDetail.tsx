@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import posthog from "posthog-js";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -494,6 +495,14 @@ const PropertyDetail: React.FC = () => {
         ...raw,
         amenities: Array.isArray(raw.amenities) ? (raw.amenities as string[]) : null,
       } as PropertyData);
+      posthog.capture("property_viewed", {
+        property_id: raw.id,
+        bhk: raw.bhk,
+        locality: raw.locality ?? undefined,
+        city: raw.city,
+        listed_rent: raw.listed_rent,
+        furnishing: raw.furnishing,
+      });
 
       // Store raw amenities jsonb for furnishing/building display
       if (raw.amenities && typeof raw.amenities === 'object' && !Array.isArray(raw.amenities)) {

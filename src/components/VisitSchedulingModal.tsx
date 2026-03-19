@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { format, addDays, isBefore, startOfDay, isToday } from "date-fns";
+import posthog from "posthog-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -195,6 +196,10 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
         });
 
         if (error) throw error;
+        posthog.capture("visit_scheduled", {
+          property_id: propertyId ?? undefined,
+          scheduled_at: scheduledAt.toISOString() ?? undefined,
+        });
         if (onVisitScheduled) {
           onVisitScheduled();
         } else {

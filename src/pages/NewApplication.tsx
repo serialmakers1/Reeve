@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import posthog from "posthog-js";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -305,6 +306,9 @@ export default function NewApplicationPage() {
       return;
     }
     setProperty(prop as PropertyInfo);
+    posthog.capture("application_started", {
+      property_id: propertyId ?? undefined,
+    });
 
     // Fetch eligibility
     const { data: elig } = await supabase
@@ -769,6 +773,12 @@ export default function NewApplicationPage() {
 
       setSaving(false);
       toast({ title: "Application submitted successfully." });
+      posthog.capture("application_submitted", {
+        property_id: propertyId ?? undefined,
+        proposed_rent: rent ?? undefined,
+        cibil_range: cibilRange ?? undefined,
+        resident_count: residents.length,
+      });
       navigate("/dashboard/applications");
     } catch (error: any) {
       setSaving(false);
