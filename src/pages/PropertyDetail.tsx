@@ -1231,7 +1231,7 @@ const PropertyDetail: React.FC = () => {
 
       {/* ─── Mobile Sticky CTA Bar ───────────────────────────── */}
       {!isOwnProperty && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background px-3 py-3 pb-4 min-h-[72px] lg:hidden" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        <div className="fixed inset-x-0 bottom-16 md:bottom-0 z-50 border-t border-border bg-background px-3 py-3 pb-4 min-h-[72px] lg:hidden">
           <div className="mx-auto flex max-w-4xl items-center gap-3">
             {showVisitConfirmation ? (
               <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-2 min-h-[48px] flex flex-col justify-center">
