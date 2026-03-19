@@ -28,7 +28,7 @@ interface VisitRow {
   cancellation_reason: string | null;
   completed_at: string | null;
   no_show_at: string | null;
-  properties: VisitProperty;
+  properties: VisitProperty | null;
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -192,6 +192,7 @@ export default function VisitsList() {
 
   const renderCard = (visit: VisitRow) => {
     const p = visit.properties;
+    if (!p) return null;
     const badge = STATUS_MAP[visit.status] || { label: visit.status, color: "bg-muted text-muted-foreground" };
     const isUpcoming = UPCOMING.includes(visit.status);
     const panelOpen = activePanel?.id === visit.id;
