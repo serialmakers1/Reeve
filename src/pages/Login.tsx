@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import posthog from "posthog-js";
 import { useAuth } from "@/hooks/useAuth";
 import { getDefaultRouteForRole } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
@@ -136,6 +137,9 @@ export default function LoginPage() {
 
     setIsLoading(false);
     setStep("otp");
+    posthog.capture("signup_initiated", {
+      method: "email_otp",
+    });
     startCooldown();
   };
 
@@ -178,6 +182,10 @@ export default function LoginPage() {
           .eq('id', userId)
           .maybeSingle();
 
+        const isNewUser = !data.user?.user_metadata?.full_name;
+        posthog.capture(isNewUser ? "signup_completed" : "login_completed", {
+          method: "email_otp",
+        });
         if (userData?.onboarding_completed === true) {
           navigate('/', { replace: true });
         } else {

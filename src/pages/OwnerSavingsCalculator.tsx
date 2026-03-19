@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import posthog from 'posthog-js';
 
 type FAQItem = {
   question: string;
@@ -266,6 +267,10 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
   useEffect(() => {
     if (breakdown && resultsRef.current && !hasScrolledToResultsRef.current) {
+      posthog.capture('savings_calculator_used', {
+        calculator_type: 'owner',
+        rent_amount: parsedRent ?? undefined,
+      });
       const timeoutId: number = window.setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         setHasAnimatedResults(true);

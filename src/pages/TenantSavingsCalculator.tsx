@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import posthog from "posthog-js";
 import {
   ArrowRight,
   BadgeIndianRupee,
@@ -251,6 +252,10 @@ export default function TenantSavingsPage(): JSX.Element {
 
   useEffect(() => {
     if (hasValidRent && resultsRef.current) {
+      posthog.capture("savings_calculator_used", {
+        calculator_type: "tenant",
+        rent_amount: rent,
+      });
       const timeoutId = window.setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 120);
