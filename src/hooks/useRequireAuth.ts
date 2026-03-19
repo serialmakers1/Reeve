@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 
 const REGULAR_USER_ROLES = new Set(['user', 'tenant', 'owner']);
 
@@ -21,12 +20,6 @@ export function useRequireAuth({ requireAdmin = false }: { requireAdmin?: boolea
       );
       return;
     }
-
-    // Ensure user row exists in DB (idempotent)
-    (async () => {
-      const { error: rpcError } = await supabase.rpc('ensure_user_exists');
-      if (rpcError) console.error('ensure_user_exists error:', rpcError);
-    })();
 
     // Admin-only guard
     if (requireAdmin) {

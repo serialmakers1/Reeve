@@ -65,6 +65,11 @@ export function useAuth() {
     fetchingRef.current = true;
 
     try {
+      // Ensure user row exists — idempotent, covers all session paths
+      // (fresh sign-in, token refresh, and session bootstrap from localStorage)
+      const { error: rpcError } = await supabase.rpc('ensure_user_exists');
+      if (rpcError) console.error('ensure_user_exists error:', rpcError);
+
       const appUser = await fetchUserWithRetry(session.user.id);
       setState({
         session,
