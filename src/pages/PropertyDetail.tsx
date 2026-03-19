@@ -680,7 +680,7 @@ const PropertyDetail: React.FC = () => {
     new Date() < new Date(latestApp.reapplication_eligible_from);
 
   const renderApplySection = (mobile: boolean) => {
-    const btnClass = mobile ? "min-h-[44px] flex-1" : "w-full min-h-[44px]";
+    const btnClass = mobile ? "min-h-[48px] flex-1 text-sm font-medium" : "w-full min-h-[44px]";
 
     if (hasDraft && latestApp) {
       return (
@@ -1279,10 +1279,10 @@ const PropertyDetail: React.FC = () => {
 
       {/* ─── Mobile Sticky CTA Bar ───────────────────────────── */}
       {!isOwnProperty && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background p-3 lg:hidden">
-          <div className="mx-auto flex max-w-4xl gap-3">
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background px-3 py-3 pb-4 min-h-[72px] lg:hidden" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+          <div className="mx-auto flex max-w-4xl items-center gap-3">
             {showVisitConfirmation ? (
-              <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-2 min-h-[48px] flex flex-col justify-center">
                 <p className="text-xs text-green-800 font-semibold">✓ Visit Scheduled!</p>
                 <button
                   onClick={() => setShowVisitConfirmation(false)}
@@ -1292,7 +1292,7 @@ const PropertyDetail: React.FC = () => {
                 </button>
               </div>
             ) : existingVisit ? (
-              <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+              <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 min-h-[48px] flex flex-col justify-center">
                 <p className="text-xs text-blue-800 font-medium leading-tight">
                   {format(new Date(existingVisit.scheduled_at), "EEE, d MMM · h:mm a")}
                 </p>
@@ -1304,7 +1304,7 @@ const PropertyDetail: React.FC = () => {
               <Button
                 onClick={handleScheduleVisit}
                 variant="outline"
-                className="min-h-[44px] flex-1"
+                className="min-h-[48px] flex-1 text-sm font-medium"
                 disabled={eligibilityChecking}
               >
                 {eligibilityChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Schedule Visit"}

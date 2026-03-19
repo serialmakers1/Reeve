@@ -1496,6 +1496,10 @@ export type Database = {
           created_at: string
           date_of_birth: string | null
           diet: Database["public"]["Enums"]["diet_type"] | null
+          emergency_contact_email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relationship: string | null
           gender: Database["public"]["Enums"]["gender_type"] | null
           has_pets: boolean | null
           id: string
@@ -1521,6 +1525,10 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           diet?: Database["public"]["Enums"]["diet_type"] | null
+          emergency_contact_email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
           gender?: Database["public"]["Enums"]["gender_type"] | null
           has_pets?: boolean | null
           id?: string
@@ -1546,6 +1554,10 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           diet?: Database["public"]["Enums"]["diet_type"] | null
+          emergency_contact_email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
           gender?: Database["public"]["Enums"]["gender_type"] | null
           has_pets?: boolean | null
           id?: string
