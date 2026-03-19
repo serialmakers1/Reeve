@@ -680,7 +680,7 @@ const PropertyDetail: React.FC = () => {
     new Date() < new Date(latestApp.reapplication_eligible_from);
 
   const renderApplySection = (mobile: boolean) => {
-    const btnClass = mobile ? "min-h-[44px] flex-1" : "w-full min-h-[44px]";
+    const btnClass = mobile ? "min-h-[48px] flex-1 text-sm font-medium" : "w-full min-h-[44px]";
 
     if (hasDraft && latestApp) {
       return (
