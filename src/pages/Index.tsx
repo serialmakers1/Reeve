@@ -744,7 +744,7 @@ export default function Index() {
             {/* Left Column */}
             <div>
               <div>
-                <img src={logo} alt="Reeve" className="h-6 w-auto brightness-0 invert" />
+                <span className="font-bold text-xl text-white tracking-wide">REEVE</span>
               </div>
               <p className="text-gray-400 text-sm mt-2">
                 Zero brokerage. One month deposit.
