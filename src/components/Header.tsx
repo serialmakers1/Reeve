@@ -27,13 +27,13 @@ const Header = () => {
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex items-center justify-between gap-2 px-4 py-3 sm:py-4">
+    <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur-sm">
+      <div className="container mx-auto flex h-16 items-center justify-between gap-2 px-4 sm:px-6">
         <Link to="/">
-          <img src={logo} alt="REEVE" className="h-7 w-auto" />
+          <img src={logo} alt="Reeve" className="h-7 w-auto" />
         </Link>
 
-        <p className="hidden flex-1 text-center text-xs text-muted-foreground sm:block sm:text-sm">
+        <p className="hidden flex-1 text-center text-xs text-gray-600 sm:block sm:text-sm">
           Zero Brokerage. One Month Deposit. Hassle-Free Renting.
         </p>
 
@@ -43,7 +43,7 @@ const Header = () => {
           ) : isAuthenticated && user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 min-h-[40px]">
+                <Button variant="ghost" size="sm" className="gap-1.5 min-h-[40px] text-sm font-medium text-gray-600 hover:text-[#0A1628] transition-colors">
                   <User className="h-4 w-4" />
                   <span className="hidden sm:inline">{displayName}</span>
                   <ChevronDown className="h-3.5 w-3.5 opacity-60" />
