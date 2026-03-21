@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,19 +162,8 @@ export default function ReferProperty() {
   }
 
   return (
+    <Layout>
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex flex-col items-center gap-1 px-4 py-4 sm:flex-row sm:justify-between sm:gap-0">
-          <Link to="/" className="text-2xl font-bold tracking-tight text-primary">
-            REEVE
-          </Link>
-          <p className="hidden text-sm text-muted-foreground sm:block">
-            Zero Brokerage. One Month Deposit. Hassle-Free Renting.
-          </p>
-        </div>
-      </header>
-
       <div className="container mx-auto max-w-2xl px-4 py-6 sm:py-10">
         {/* Back button */}
         <Link
@@ -346,6 +336,7 @@ export default function ReferProperty() {
         )}
       </div>
     </div>
+    </Layout>
   );
 }
 

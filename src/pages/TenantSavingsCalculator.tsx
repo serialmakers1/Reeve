@@ -5,13 +5,13 @@ import {
   BadgeIndianRupee,
   CalendarDays,
   CheckCircle2,
-  Home,
   Landmark,
   PiggyBank,
   ShieldCheck,
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
+import Layout from "@/components/Layout";
 
 type Tone = "default" | "negative" | "positive";
 type Accent = "emerald" | "blue" | "amber" | "purple";
@@ -355,29 +355,8 @@ export default function TenantSavingsPage(): JSX.Element {
   };
 
   return (
+    <Layout>
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
-              <Home className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold tracking-wide text-slate-900">Reeve</p>
-              <p className="text-xs text-slate-500">Tenant Savings Calculator</p>
-            </div>
-          </div>
-
-          <a
-            href="/savings/owner"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
-          >
-            Calculate for Owners
-            <ArrowRight className="h-4 w-4" />
-          </a>
-        </div>
-      </header>
-
       <main>
         <section className="relative overflow-hidden border-b border-slate-200 bg-white">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(16,185,129,0.10),_transparent_28%),radial-gradient(circle_at_left,_rgba(59,130,246,0.08),_transparent_25%)]" />
@@ -637,5 +616,6 @@ export default function TenantSavingsPage(): JSX.Element {
         ) : null}
       </main>
     </div>
+    </Layout>
   );
 }

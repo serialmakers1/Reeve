@@ -11,7 +11,7 @@ export default function Index() {
     <div className="min-h-screen bg-white">
       {/* Section 2 — Hero */}
       <section
-        className="min-h-screen lg:h-screen pt-8 lg:pt-12 relative"
+        className="min-h-screen lg:h-screen pt-16 lg:pt-20 relative"
         style={{
           backgroundImage: "radial-gradient(circle, #e5e7eb 1px, transparent 1px)",
           backgroundSize: "24px 24px",
@@ -55,7 +55,7 @@ export default function Index() {
               </div>
 
               {/* Trust Strip */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-6 text-sm text-gray-500">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-6 mb-8 text-sm text-gray-500">
                 <span className="flex items-center gap-1">
                   <span className="text-[#2563EB]">✓</span> ₹0 Brokerage
                 </span>
