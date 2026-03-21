@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import posthog from 'posthog-js';
+import Layout from "@/components/Layout";
 
 type FAQItem = {
   question: string;
@@ -305,28 +306,8 @@ export default function OwnerSavingsPage(): React.ReactElement {
   };
 
   return (
+    <Layout>
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white">
-              Reeve
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-semibold text-slate-900">Owner Savings Calculator</p>
-              <p className="text-xs text-slate-500">Standalone owner-side savings page</p>
-            </div>
-          </div>
-
-          <a
-            href="/savings/tenant"
-            className="text-right text-sm font-semibold text-emerald-700 transition hover:text-emerald-800"
-          >
-            Calculate for Tenants →
-          </a>
-        </div>
-      </header>
-
       <main>
         <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white to-slate-50">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-20">
@@ -753,8 +734,9 @@ export default function OwnerSavingsPage(): React.ReactElement {
          </section>
         ) : null}
 
-        
+  
       </main>
     </div>
+    </Layout>
   );
 }

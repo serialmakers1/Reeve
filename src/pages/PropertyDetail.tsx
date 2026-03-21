@@ -793,7 +793,7 @@ const PropertyDetail: React.FC = () => {
         />
       )}
 
-      <div className="mx-auto max-w-4xl pb-24 lg:pb-8">
+      <div className="mx-auto max-w-4xl pb-36 lg:pb-8">
         {/* Back button */}
         <div className="px-4 py-3">
           <button

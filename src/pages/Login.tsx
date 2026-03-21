@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import posthog from "posthog-js";
 import { useAuth } from "@/hooks/useAuth";
@@ -236,15 +237,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex items-center px-4 py-3 sm:py-4">
-          <Link to="/" className="text-2xl font-bold tracking-tight text-primary">
-            REEVE
-          </Link>
-        </div>
-      </header>
-
+    <Layout>
+    <div className="flex flex-col bg-background">
       <div className="flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
 
@@ -405,5 +399,6 @@ export default function LoginPage() {
       </div>
       </div>
     </div>
+    </Layout>
   );
 }
