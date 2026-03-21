@@ -1,150 +1,17 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Link } from "react-router-dom"
-import logo from "@/assets/Logo.svg"
-import {
-  Menu,
-  X,
-  LogOut,
-  Monitor,
-  PhoneOff,
-  ShieldCheck,
-  Banknote,
-  Linkedin,
-  Instagram,
-  Twitter,
-} from "lucide-react"
+import Layout from "@/components/Layout"
+import { LogOut, Monitor, PhoneOff, ShieldCheck, Banknote } from "lucide-react"
 
 export default function Index() {
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"tenants" | "owners">("tenants")
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
-    }
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
-
   return (
+  <Layout>
     <div className="min-h-screen bg-white">
-      {/* Section 1 — Navbar */}
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled
-            ? "bg-white/90 backdrop-blur-sm shadow-sm border-b border-gray-100"
-            : "bg-transparent"
-        }`}
-      >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center">
-              <img src={logo} alt="Reeve" className="h-7 w-auto" />
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-8">
-              <Link
-                to="/savings/tenant"
-                className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors"
-              >
-                For Tenants
-              </Link>
-              <Link
-                to="/savings/owner"
-                className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors"
-              >
-                For Owners
-              </Link>
-              <Link
-                to="/search"
-                className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors"
-              >
-                Search Properties
-              </Link>
-            </div>
-
-            {/* Desktop CTAs */}
-            <div className="hidden md:flex items-center gap-3">
-              <Link
-                to="/login"
-                className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors px-4 py-2"
-              >
-                Login
-              </Link>
-              <Link
-                to="/my-properties/new"
-                className="bg-[#2563EB] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200 hover:-translate-y-0.5"
-              >
-                List Your Property
-              </Link>
-            </div>
-
-            {/* Mobile CTAs + Hamburger */}
-            <div className="flex md:hidden items-center gap-3">
-              <Link
-                to="/my-properties/new"
-                className="bg-[#2563EB] text-white text-sm font-medium px-4 py-2 rounded-lg"
-              >
-                List Your Property
-              </Link>
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2 text-[#0A1628]"
-                aria-label="Toggle menu"
-              >
-                {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
-            <div className="px-4 py-4 space-y-4">
-              <Link
-                to="/savings/tenant"
-                className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-2"
-              >
-                For Tenants
-              </Link>
-              <Link
-                to="/savings/owner"
-                className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-2"
-              >
-                For Owners
-              </Link>
-              <Link
-                to="/search"
-                className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-2"
-              >
-                Search Properties
-              </Link>
-              <div className="pt-4 border-t border-gray-100 space-y-3">
-                <Link
-                  to="/login"
-                  className="block w-full text-center text-sm text-gray-600 border border-gray-300 rounded-lg py-3"
-                >
-                  Login
-                </Link>
-                <Link
-                  to="/my-properties/new"
-                  className="block w-full text-center bg-[#2563EB] text-white text-sm font-medium rounded-lg py-3"
-                >
-                  List Your Property
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
-      </nav>
-
       {/* Section 2 — Hero */}
       <section
-        className="min-h-screen lg:h-screen pt-16 relative"
+        className="min-h-screen lg:h-screen pt-8 lg:pt-12 relative"
         style={{
           backgroundImage: "radial-gradient(circle, #e5e7eb 1px, transparent 1px)",
           backgroundSize: "24px 24px",
@@ -163,7 +30,7 @@ export default function Index() {
                 <br />
                 One month deposit.
                 <br />
-                Free property management.
+                <span className="text-[#2563EB]">Free property management.</span>
               </h1>
 
               <p className="text-lg text-gray-500 max-w-md mt-4 leading-relaxed">
@@ -216,7 +83,7 @@ export default function Index() {
       </section>
 
       {/* Section 3 — Social Proof Bar */}
-      <section className="bg-[#F8F9FA] border-y border-gray-100 py-6">
+      <section className="bg-[#E8EAED] border-y border-gray-200 py-6 mt-4">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 md:divide-x divide-gray-200">
             {[
@@ -370,7 +237,7 @@ export default function Index() {
                           {item.step}
                         </div>
                         <h3 className="font-semibold text-[#0A1628] mt-4">{item.title}</h3>
-                        <p className="text-sm text-gray-500 mt-2 leading-relaxed">{item.desc}</p>
+                        <p className="text-sm text-gray-500 mt-2 leading-relaxed text-left">{item.desc}</p>
                       </div>
                     ))}
                   </div>
@@ -466,7 +333,7 @@ export default function Index() {
                           {item.step}
                         </div>
                         <h3 className="font-semibold text-[#0A1628] mt-4">{item.title}</h3>
-                        <p className="text-sm text-gray-500 mt-2 leading-relaxed">{item.desc}</p>
+                        <p className="text-sm text-gray-500 mt-2 leading-relaxed text-left">{item.desc}</p>
                       </div>
                     ))}
                   </div>
@@ -529,7 +396,7 @@ export default function Index() {
       </section>
 
       {/* Section 6 — The Savings */}
-      <section className="bg-[#F8F9FA] py-16 lg:py-24">
+      <section className="bg-[#E8EAED] py-16 lg:py-24">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-3xl lg:text-5xl font-bold text-[#0A1628] text-balance">
@@ -627,7 +494,7 @@ export default function Index() {
 
           <div className="grid md:grid-cols-2 gap-8 mt-12 max-w-4xl mx-auto">
             {/* Pillar 1 */}
-            <div className="text-center md:text-left">
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm text-center md:text-left">
               <ShieldCheck className="text-[#2563EB] h-8 w-8 mx-auto md:mx-0" />
               <h3 className="text-xl font-semibold text-[#0A1628] mt-4">
                 Every property personally verified
@@ -639,7 +506,7 @@ export default function Index() {
             </div>
 
             {/* Pillar 2 */}
-            <div className="text-center md:text-left">
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm text-center md:text-left">
               <Banknote className="text-[#2563EB] h-8 w-8 mx-auto md:mx-0" />
               <h3 className="text-xl font-semibold text-[#0A1628] mt-4">
                 Your deposit is protected
@@ -668,7 +535,7 @@ export default function Index() {
       </section>
 
       {/* Section 8 — Service Fee Transparency */}
-      <section className="bg-[#F8F9FA] py-16">
+      <section className="bg-[#E8EAED] py-16">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase">
             Pricing
@@ -737,121 +604,7 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Section 10 — Footer */}
-      <footer className="bg-[#0A1628] py-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8 text-center md:text-left">
-            {/* Left Column */}
-            <div>
-              <div>
-                <img src={logo} alt="Reeve" className="h-6 w-auto brightness-0 invert" />
-              </div>
-              <p className="text-gray-400 text-sm mt-2">
-                Zero brokerage. One month deposit.
-                <br />
-                Fully managed for free.
-              </p>
-            </div>
-
-            {/* Center - Links */}
-            <div className="grid grid-cols-2 gap-8">
-              <div>
-                <h4 className="text-white font-semibold text-sm mb-3">For Tenants</h4>
-                <ul className="space-y-2">
-                  <li>
-                    <Link
-                      to="/search"
-                      className="text-gray-400 text-sm hover:text-white transition-colors"
-                    >
-                      Search Properties
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/savings/tenant"
-                      className="text-gray-400 text-sm hover:text-white transition-colors"
-                    >
-                      Tenant Savings Calculator
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="#how-it-works"
-                      className="text-gray-400 text-sm hover:text-white transition-colors"
-                    >
-                      How It Works
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-white font-semibold text-sm mb-3">For Owners</h4>
-                <ul className="space-y-2">
-                  <li>
-                    <Link
-                      to="/my-properties/new"
-                      className="text-gray-400 text-sm hover:text-white transition-colors"
-                    >
-                      List Your Property
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/savings/owner"
-                      className="text-gray-400 text-sm hover:text-white transition-colors"
-                    >
-                      Owner Savings Calculator
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="#how-it-works"
-                      className="text-gray-400 text-sm hover:text-white transition-colors"
-                    >
-                      How It Works
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Right - Social */}
-            <div className="flex flex-col items-center md:items-end">
-              <p className="text-gray-400 text-sm mb-3">Follow us</p>
-              <div className="flex gap-4">
-                <Link to="#" className="text-gray-500 hover:text-white transition-colors">
-                  <Linkedin className="h-5 w-5" />
-                  <span className="sr-only">LinkedIn</span>
-                </Link>
-                <Link to="#" className="text-gray-500 hover:text-white transition-colors">
-                  <Instagram className="h-5 w-5" />
-                  <span className="sr-only">Instagram</span>
-                </Link>
-                <Link to="#" className="text-gray-500 hover:text-white transition-colors">
-                  <Twitter className="h-5 w-5" />
-                  <span className="sr-only">Twitter</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Bar */}
-          <div className="border-t border-white/10 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 gap-4">
-            <div className="flex gap-4">
-              <Link to="/privacy" className="hover:text-white transition-colors">
-                Privacy Policy
-              </Link>
-              <Link to="/terms" className="hover:text-white transition-colors">
-                Terms of Service
-              </Link>
-              <Link to="/refund" className="hover:text-white transition-colors">
-                Refund Policy
-              </Link>
-            </div>
-            <div>© 2026 Reeve</div>
-          </div>
-        </div>
-      </footer>
     </div>
+  </Layout>
   )
 }
