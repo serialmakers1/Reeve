@@ -1,4 +1,5 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import logo from '@/assets/Logo.svg';
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,8 +29,8 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex items-center justify-between gap-2 px-4 py-3 sm:py-4">
-        <Link to="/" className="text-2xl font-bold tracking-tight text-primary">
-          REEVE
+        <Link to="/">
+          <img src={logo} alt="REEVE" className="h-7 w-auto" />
         </Link>
 
         <p className="hidden flex-1 text-center text-xs text-muted-foreground sm:block sm:text-sm">
