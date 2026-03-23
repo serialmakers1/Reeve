@@ -2,12 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import posthog from 'posthog-js';
 import Layout from '@/components/Layout';
-import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-
-type BhkType = Database['public']['Enums']['bhk_type'];
 
 type SavingsResult = {
   rent: number;
@@ -18,13 +14,6 @@ type SavingsResult = {
   netSavings: number;
   timeSavedHours: number;
   visitsSaved: number;
-};
-
-type LeadFormData = {
-  name: string;
-  phone: string;
-  locality: string;
-  bhk: BhkType | '';
 };
 
 type FaqItem = {
@@ -126,9 +115,7 @@ const FAQ_ITEMS: FaqItem[] = [
 const COMPARISON_ROWS: ComparisonRow[] = [
   { aspect: 'Brokerage', selfManaged: '₹0 but you do all the work', broker: '1–2 months rent per cycle', reeve: '₹0 — always' },
   { aspect: 'Tenant screening', selfManaged: 'You verify yourself', broker: 'Broker sends whoever pays', reeve: 'Income, employment, KYC verified' },
-  { aspect: 'Rent collection', selfManaged: 'Chase via WhatsApp', broker: "Not their problem", reeve: 'Auto-collected on the 5th' },
   { aspect: 'Maintenance', selfManaged: 'You coordinate everything', broker: "Not their problem", reeve: 'Platform handles end-to-end' },
-  { aspect: 'Agreement', selfManaged: 'You arrange stamp paper, notary', broker: 'Broker may help, extra cost', reeve: 'Fully digital, ₹200 e-stamp' },
   { aspect: 'Vacancy gap', selfManaged: 'You relist, screen, repeat', broker: '2–4 weeks typical', reeve: '14-day re-leasing SLA' },
   { aspect: 'Visits required from you', selfManaged: '10–15 per cycle', broker: '5–10 per cycle', reeve: 'Zero', emphasized: true },
   { aspect: 'Deposit disputes', selfManaged: 'You negotiate directly', broker: "Not their problem", reeve: 'Platform mediates with evidence' },
@@ -236,17 +223,6 @@ export default function OwnerSavingsPage(): React.ReactElement {
   // FAQ
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
-  // Lead form
-  const [leadForm, setLeadForm] = useState<LeadFormData>({ name: '', phone: '', locality: '', bhk: '' });
-  const [leadLoading, setLeadLoading] = useState(false);
-  const [leadError, setLeadError] = useState<string | null>(null);
-
-  // Callback form
-  const [callbackPhone, setCallbackPhone] = useState('');
-  const [callbackLoading, setCallbackLoading] = useState(false);
-  const [callbackSuccess, setCallbackSuccess] = useState(false);
-  const [callbackError, setCallbackError] = useState<string | null>(null);
-
   // Section refs for PostHog
   const processRef = useSectionView('process');
   const protectionRef = useSectionView('protection');
@@ -275,60 +251,6 @@ export default function OwnerSavingsPage(): React.ReactElement {
       posthog?.capture('owner_savings_calculated', { rent_amount: val });
       hasTrackedCalcRef.current = true;
     }
-  };
-
-  const handleLeadSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!leadForm.bhk) return;
-    setLeadLoading(true);
-    setLeadError(null);
-    try {
-      const { error } = await supabase.from('leads').insert({
-        owner_name: leadForm.name,
-        owner_phone: leadForm.phone,
-        locality: leadForm.locality,
-        bhk: leadForm.bhk as BhkType,
-        status: 'new',
-        property_address: '',
-        referred_by_tenant_id: '',
-      });
-      if (error) throw error;
-      posthog?.capture('owner_listing_form_submitted');
-      navigate('/login?returnTo=/owner/add');
-    } catch {
-      setLeadError('Something went wrong. Please try again.');
-    } finally {
-      setLeadLoading(false);
-    }
-  };
-
-  const handleCallbackSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setCallbackLoading(true);
-    setCallbackError(null);
-    try {
-      const { error } = await supabase.from('leads').insert({
-        owner_phone: callbackPhone,
-        owner_name: 'Unknown',
-        property_address: '',
-        referred_by_tenant_id: '',
-        // 'callback_requested' is not in lead_status enum; cast via unknown
-        status: 'contacted' as Database['public']['Enums']['lead_status'],
-        notes: 'Callback requested from owner savings page',
-      });
-      if (error) throw error;
-      posthog?.capture('owner_callback_requested');
-      setCallbackSuccess(true);
-    } catch {
-      setCallbackError('Something went wrong. Please try again.');
-    } finally {
-      setCallbackLoading(false);
-    }
-  };
-
-  const scrollToFinalCta = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    document.getElementById('final-cta')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -467,14 +389,6 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   >
                     List Your Property — It&apos;s Free →
                   </button>
-                  <a
-                    href="#final-cta"
-                    onClick={scrollToFinalCta}
-                    className="text-center text-sm font-medium underline-offset-2 hover:underline"
-                    style={{ color: C.textMuted }}
-                  >
-                    Prefer to talk first? We&apos;ll call you. ↓
-                  </a>
                 </div>
               </div>
 
@@ -554,8 +468,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                 {
                   icon: '💸',
                   title: 'Broker fees eat your returns',
-                  body: "Every tenant cycle costs you 1–2 months rent in brokerage. Over 3 years with 2–3 tenants, that's ₹1–3 lakhs handed to a middleman who disappears the moment the deal is done — and reappears asking for more money next vacancy.",
-                  cost: '₹1–3 lakhs gone per 3-year cycle',
+                  body: "Every tenant cycle costs you brokerage. A middleman who disappears the moment the deal is done — and reappears asking for more money next vacancy. It's a recurring cost every time you need a new tenant.",
                 },
                 {
                   icon: '🚗',
@@ -586,63 +499,14 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   <p className="mt-3 text-sm leading-relaxed" style={{ color: C.textBody }}>
                     {card.body}
                   </p>
-                  <p className="mt-4 text-sm font-bold" style={{ color: C.danger }}>
-                    {card.cost}
-                  </p>
+                  {card.cost && (
+                    <p className="mt-4 text-sm font-bold" style={{ color: C.danger }}>
+                      {card.cost}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* ══ SECTION 3: AGITATION STATS ══════════════════════════════════ */}
-        <section style={{ background: C.accent }} className="relative overflow-hidden py-20 lg:py-28">
-          {/* Watermark */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 flex items-center justify-center select-none"
-            style={{
-              fontFamily: FONT_SERIF,
-              fontSize: 'clamp(80px, 20vw, 180px)',
-              color: 'rgba(255,255,255,0.03)',
-              transform: 'rotate(15deg)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            3 years
-          </div>
-          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 gap-px" style={{ border: `1px solid rgba(255,255,255,0.12)`, borderRadius: 16, overflow: 'hidden' }}>
-              {[
-                { num: '₹2,40,000+', label: 'Paid to brokers over 3 years (2 tenant cycles, 2BHK at ₹25,000/month)' },
-                { num: '120 hrs', label: 'Spent on tenant coordination, visits, maintenance, disputes' },
-                { num: '15–20', label: 'Property visits you made — showings, check-ins, inspections' },
-                { num: '0', label: 'Of those hours were in your job description when you bought the flat' },
-              ].map((stat, i) => (
-                <div
-                  key={i}
-                  className="flex flex-col justify-center p-8 lg:p-12"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    borderRight: i % 2 === 0 ? '1px solid rgba(255,255,255,0.12)' : undefined,
-                    borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.12)' : undefined,
-                  }}
-                >
-                  <p
-                    className="text-[48px] leading-none lg:text-[64px] font-bold text-white"
-                    style={{ fontFamily: FONT_MONO }}
-                  >
-                    {stat.num}
-                  </p>
-                  <p className="mt-3 text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)', fontFamily: FONT_SANS }}>
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-6 text-center text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-              *Estimates based on Bangalore market averages. Your numbers may vary.
-            </p>
           </div>
         </section>
 
@@ -659,82 +523,6 @@ export default function OwnerSavingsPage(): React.ReactElement {
             <p className="mt-6 text-lg leading-relaxed" style={{ color: C.textMuted }}>
               List your property with Reeve once. Hand over the keys once.
               <br />After that — your only involvement is receiving your payout.
-            </p>
-          </div>
-        </section>
-
-        {/* ══ SECTION 5: FEATURE CENTREPIECE ══════════════════════════════ */}
-        <section style={{ background: C.surface }} className="py-20 lg:py-28">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.accent }}>
-                The Reeve Promise
-              </p>
-              <h2
-                className="mx-auto mt-4 max-w-3xl text-[36px] leading-[42px] lg:text-[52px] lg:leading-[58px]"
-                style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.textPrimary }}
-              >
-                After you hand over the keys once,
-                <br />you never visit your property again.
-              </h2>
-              <p className="mx-auto mt-6 max-w-xl text-lg" style={{ color: C.textMuted }}>
-                Every visit, every showing, every inspection — Reeve handles it. You are never called to your own property.
-              </p>
-            </div>
-
-            <div className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {[
-                {
-                  num: '01',
-                  title: 'Tenant Finding Visits',
-                  body: "When Reeve lists your property, our team shows it to every vetted applicant — one by one. You are never present. Never called. We handle every question, every negotiation, every showing slot.",
-                  pill: 'Zero visits required from you',
-                },
-                {
-                  num: '02',
-                  title: 'Mid-Tenancy Check-Ins',
-                  body: "During the lease, Reeve conducts periodic condition checks and coordinates all maintenance. If anything needs your attention, we tell you — in writing, with documentation. You don't show up to \"check on things.\"",
-                  pill: 'Zero unplanned visits',
-                },
-                {
-                  num: '03',
-                  title: 'Move-Out Walkthrough',
-                  body: "When the tenant leaves, Reeve conducts the full inspection, documents the condition room by room against the move-in report, assesses any damage, and handles the entire settlement process. You are not required at any stage.",
-                  pill: 'Zero involvement required',
-                },
-              ].map((block) => (
-                <div
-                  key={block.num}
-                  className="hover-lift relative rounded-3xl p-8"
-                  style={{ border: `1px solid ${C.border}`, background: C.surface }}
-                >
-                  <p
-                    className="absolute right-8 top-8 text-5xl leading-none select-none"
-                    style={{ fontFamily: FONT_SERIF, color: C.accentLight }}
-                  >
-                    {block.num}
-                  </p>
-                  <h3 className="text-xl font-semibold pr-12" style={{ color: C.textPrimary }}>
-                    {block.title}
-                  </h3>
-                  <p className="mt-4 text-sm leading-relaxed" style={{ color: C.textBody }}>
-                    {block.body}
-                  </p>
-                  <span
-                    className="mt-6 inline-block rounded-full px-4 py-1.5 text-xs font-semibold"
-                    style={{ background: C.accentLight, color: C.accent }}
-                  >
-                    {block.pill}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <p
-              className="mt-16 text-center text-[28px] leading-relaxed"
-              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.accent }}
-            >
-              &ldquo;The last time you visit is the day you hand us the keys.&rdquo;
             </p>
           </div>
         </section>
@@ -848,7 +636,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   </div>
                   <div className="pb-10">
                     <h3 className="font-semibold text-lg" style={{ color: C.textPrimary }}>{step.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed" style={{ color: C.textBody }}>{step.body}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-left" style={{ color: C.textBody }}>{step.body}</p>
                     {step.pill && (
                       <span
                         className="mt-3 inline-block rounded-full px-3 py-1 text-xs font-semibold"
@@ -884,7 +672,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                       {step.n}
                     </div>
                     <h3 className="mt-5 font-semibold text-base" style={{ color: C.textPrimary }}>{step.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed" style={{ color: C.textBody }}>{step.body}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-left" style={{ color: C.textBody }}>{step.body}</p>
                     {step.pill && (
                       <span
                         className="mt-3 inline-block rounded-full px-3 py-1 text-xs font-semibold"
@@ -1372,170 +1160,6 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   </div>
                 );
               })}
-            </div>
-          </div>
-        </section>
-
-        {/* ══ SECTION 14: FINAL CTA ════════════════════════════════════════ */}
-        <section id="final-cta" style={{ background: C.accent }} className="py-20 lg:py-28">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
-
-              {/* Left: copy */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.accentMid }}>
-                  Zero Commitment to Start
-                </p>
-                <h2
-                  className="mt-4 text-[36px] leading-[42px] lg:text-[48px] lg:leading-[54px] text-white"
-                  style={{ fontFamily: FONT_SERIF, fontWeight: 400 }}
-                >
-                  List your property.
-                  <br />Free. Takes 3 minutes.
-                </h2>
-                <p className="mt-6 text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                  No photos needed. No documents at this stage. Just tell us about your property
-                  and we&apos;ll take it from there.
-                </p>
-                <p className="mt-6 text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Free listing · Zero commission · Fully managed<br />
-                  No commitment until service agreement is signed
-                </p>
-              </div>
-
-              {/* Right: forms */}
-              <div>
-                {/* Primary lead form */}
-                <form onSubmit={handleLeadSubmit} className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                  <p className="text-sm font-semibold text-white mb-4">List My Property</p>
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      placeholder="Full name"
-                      required
-                      value={leadForm.name}
-                      onChange={(e) => setLeadForm((f) => ({ ...f, name: e.target.value }))}
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-                      style={{
-                        background: 'rgba(255,255,255,0.12)',
-                        border: `1px solid rgba(255,255,255,0.2)`,
-                        color: '#fff',
-                        minHeight: 44,
-                      }}
-                    />
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      placeholder="Phone number"
-                      required
-                      value={leadForm.phone}
-                      onChange={(e) => setLeadForm((f) => ({ ...f, phone: e.target.value }))}
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-                      style={{
-                        background: 'rgba(255,255,255,0.12)',
-                        border: `1px solid rgba(255,255,255,0.2)`,
-                        color: '#fff',
-                        minHeight: 44,
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Property area / locality (e.g. Koramangala, HSR Layout)"
-                      required
-                      value={leadForm.locality}
-                      onChange={(e) => setLeadForm((f) => ({ ...f, locality: e.target.value }))}
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-                      style={{
-                        background: 'rgba(255,255,255,0.12)',
-                        border: `1px solid rgba(255,255,255,0.2)`,
-                        color: '#fff',
-                        minHeight: 44,
-                      }}
-                    />
-                    <select
-                      required
-                      value={leadForm.bhk}
-                      onChange={(e) => setLeadForm((f) => ({ ...f, bhk: e.target.value as BhkType }))}
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-                      style={{
-                        background: 'rgba(255,255,255,0.12)',
-                        border: `1px solid rgba(255,255,255,0.2)`,
-                        color: leadForm.bhk ? '#fff' : 'rgba(255,255,255,0.5)',
-                        minHeight: 44,
-                      }}
-                    >
-                      <option value="" disabled>BHK type</option>
-                      <option value="studio">Studio</option>
-                      <option value="1BHK">1BHK</option>
-                      <option value="2BHK">2BHK</option>
-                      <option value="3BHK">3BHK</option>
-                      <option value="4BHK">3BHK+</option>
-                    </select>
-                  </div>
-                  {leadError && (
-                    <p className="mt-3 text-sm" style={{ color: '#FCA5A5' }}>{leadError}</p>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={leadLoading}
-                    className="mt-4 w-full rounded-xl py-4 text-sm font-semibold transition"
-                    style={{ background: '#fff', color: C.accent, minHeight: 44 }}
-                  >
-                    {leadLoading ? 'Submitting…' : 'List My Property — It\'s Free →'}
-                  </button>
-                </form>
-
-                {/* Separator */}
-                <div className="my-6 flex items-center gap-4">
-                  <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.15)' }} />
-                  <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>Not ready to list yet?</span>
-                  <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.15)' }} />
-                </div>
-
-                {/* Callback form */}
-                {callbackSuccess ? (
-                  <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                    <p className="text-white font-semibold">We&apos;ll call you soon. ✓</p>
-                  </div>
-                ) : (
-                  <form onSubmit={handleCallbackSubmit} className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      placeholder="Your phone number"
-                      required
-                      value={callbackPhone}
-                      onChange={(e) => setCallbackPhone(e.target.value)}
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-                      style={{
-                        background: 'rgba(255,255,255,0.12)',
-                        border: `1px solid rgba(255,255,255,0.2)`,
-                        color: '#fff',
-                        minHeight: 44,
-                      }}
-                    />
-                    {callbackError && (
-                      <p className="mt-2 text-sm" style={{ color: '#FCA5A5' }}>{callbackError}</p>
-                    )}
-                    <button
-                      type="submit"
-                      disabled={callbackLoading}
-                      className="mt-3 w-full rounded-xl py-4 text-sm font-semibold transition"
-                      style={{
-                        background: 'transparent',
-                        border: `1px solid rgba(255,255,255,0.4)`,
-                        color: '#fff',
-                        minHeight: 44,
-                      }}
-                    >
-                      {callbackLoading ? 'Requesting…' : 'Request a Callback →'}
-                    </button>
-                    <p className="mt-2 text-center text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                      We&apos;ll call within 4 business hours.
-                    </p>
-                  </form>
-                )}
-              </div>
             </div>
           </div>
         </section>
