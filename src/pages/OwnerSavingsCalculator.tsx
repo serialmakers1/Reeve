@@ -55,9 +55,9 @@ const C = {
   textPrimary: '#1A1714',
   textBody: '#4A4540',
   textMuted: '#8A847C',
-  accent: '#1B4332',
-  accentLight: '#D1FAE5',
-  accentMid: '#6EE7B7',
+  accent: '#2563EB',
+  accentLight: '#EFF6FF',
+  accentMid: '#93C5FD',
   danger: '#7F1D1D',
   dangerBg: '#FEF2F2',
   dangerBorder: '#FECACA',
@@ -284,7 +284,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
           width: 24px;
           height: 24px;
           border-radius: 50%;
-          background: #1B4332;
+          background: #2563EB;
           border: 3px solid #fff;
           box-shadow: 0 2px 8px rgba(0,0,0,0.18);
           cursor: pointer;
@@ -301,7 +301,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
           width: 24px;
           height: 24px;
           border-radius: 50%;
-          background: #1B4332;
+          background: #2563EB;
           border: 3px solid #fff;
           box-shadow: 0 2px 8px rgba(0,0,0,0.18);
           cursor: pointer;
@@ -392,41 +392,13 @@ export default function OwnerSavingsPage(): React.ReactElement {
                 </div>
               </div>
 
-              {/* Right column — payout card */}
-              <div className="owner-fade-in flex justify-center lg:justify-end" style={{ animationDelay: '200ms' }}>
-                <div
-                  className="w-full max-w-sm rounded-3xl p-8"
-                  style={{ background: C.accent, fontFamily: FONT_SANS }}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.accentMid }}>
-                    Latest payout
-                  </p>
-                  <p className="mt-3 text-4xl font-bold text-white" style={{ fontFamily: FONT_MONO }}>
-                    ₹42,000
-                  </p>
-                  <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                    transferred
-                  </p>
-                  <div className="mt-4 rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                    <p className="font-semibold text-white">Koramangala, 2BHK</p>
-                    <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.65)' }}>
-                      March 5 · Rent received on time
-                    </p>
-                  </div>
-                  <div
-                    className="mt-4 rounded-xl p-4"
-                    style={{ background: 'rgba(255,255,255,0.06)', borderTop: `1px solid rgba(255,255,255,0.12)` }}
-                  >
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      {[['0', 'calls'], ['0', 'visits'], ['0', 'effort']].map(([num, label]) => (
-                        <div key={label}>
-                          <p className="text-xl font-bold text-white" style={{ fontFamily: FONT_MONO }}>{num}</p>
-                          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>{label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+              {/* Right column — hero image */}
+              <div className="w-full">
+                <img
+                  src="/images/hero-owner.png"
+                  alt="Reeve owner dashboard — rent received on time"
+                  className="w-full rounded-2xl shadow-xl object-cover"
+                />
               </div>
             </div>
           </div>
@@ -511,7 +483,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
         </section>
 
         {/* ══ SECTION 4: THE TURN ══════════════════════════════════════════ */}
-        <section style={{ background: C.bg }} className="py-16 lg:py-20">
+        <section className="py-16 lg:py-20 bg-neutral-100">
           <div className="mx-auto max-w-xl px-4 text-center sm:px-6">
             <div className="mx-auto mb-8 h-px w-20" style={{ background: C.accent }} />
             <h2
@@ -781,7 +753,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                         </span>
                       </div>
                     ))}
-                    <div className="flex justify-between rounded-xl px-4 py-3 text-sm" style={{ background: C.accentLight, border: `1px solid #6EE7B7` }}>
+                    <div className="flex justify-between rounded-xl px-4 py-3 text-sm" style={{ background: C.accentLight, border: `1px solid #93C5FD` }}>
                       <span style={{ color: C.textBody }}>Interest Earned on Deposit</span>
                       <span className="font-semibold" style={{ color: C.accent }}>
                         +<AnimatedNumber value={savings.interestEarned} formatter={formatINR} />
@@ -814,12 +786,12 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   </div>
                   <div className="space-y-2">
                     {['PMS Listing Fee', 'Commission', 'Turnover Expense (*see FAQ)', 'Interest Earned'].map((label) => (
-                      <div key={label} className="flex justify-between rounded-xl px-4 py-3 text-sm" style={{ background: C.accentLight, border: `1px solid #6EE7B7` }}>
+                      <div key={label} className="flex justify-between rounded-xl px-4 py-3 text-sm" style={{ background: C.accentLight, border: `1px solid #93C5FD` }}>
                         <span style={{ color: C.textBody }}>{label}</span>
                         <span className="font-semibold" style={{ color: C.accent }}>₹0</span>
                       </div>
                     ))}
-                    <div className="flex justify-between rounded-xl px-4 py-3 text-sm font-bold" style={{ background: C.accentLight, border: `1px solid #6EE7B7` }}>
+                    <div className="flex justify-between rounded-xl px-4 py-3 text-sm font-bold" style={{ background: C.accentLight, border: `1px solid #93C5FD` }}>
                       <span style={{ color: C.accent }}>Net Cost</span>
                       <span className="font-bold" style={{ color: C.accent }}>₹0</span>
                     </div>
