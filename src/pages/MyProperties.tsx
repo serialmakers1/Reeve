@@ -32,7 +32,7 @@ function derivePendingActions(properties: Property[]): PendingAction[] {
   for (const p of properties) {
     const label = p.building_name || "Property";
     if (p.status === "draft") {
-      actions.push({ propertyId: p.id, propertyLabel: label, action: "Upload documents & request inspection" });
+      actions.push({ propertyId: p.id, propertyLabel: label, action: "Contact Support & request inspection" });
     }
   }
   return actions;
