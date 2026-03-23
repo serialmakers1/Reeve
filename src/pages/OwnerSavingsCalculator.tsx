@@ -393,11 +393,11 @@ export default function OwnerSavingsPage(): React.ReactElement {
               </div>
 
               {/* Right column — hero image */}
-              <div className="w-full">
+              <div className="w-full flex justify-center">
                 <img
                   src="/images/hero-owner.png"
                   alt="Reeve owner dashboard — rent received on time"
-                  className="w-full rounded-2xl shadow-xl object-cover"
+                  className="w-2/3 rounded-2xl shadow-xl object-contain"
                 />
               </div>
             </div>
