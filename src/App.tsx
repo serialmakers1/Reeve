@@ -98,6 +98,7 @@ function AppInner() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/refund" element={<Refund />} />
+      <Route path="/contact" element={<Contact />} />
       <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
       <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
       <Route path="/onboarding" element={<Onboarding />} />
