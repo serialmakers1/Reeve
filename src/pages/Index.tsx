@@ -6,12 +6,58 @@ import { LogOut, Monitor, PhoneOff, ShieldCheck, Banknote } from "lucide-react"
 export default function Index() {
   const [activeTab, setActiveTab] = useState<"tenants" | "owners">("tenants")
 
+  const tenantSteps = [
+    {
+      step: 1,
+      title: "Browse & Shortlist",
+      desc: "Search verified properties — every listing is physically inspected and exclusively managed by Reeve. Favourite the ones you like.",
+    },
+    {
+      step: 2,
+      title: "Visit the Property",
+      desc: "Schedule a visit at your convenience. Our team will be there. See the home before you decide anything.",
+    },
+    {
+      step: 3,
+      title: "Apply Online",
+      desc: "Submit your application with income proof and ID documents. One simple form. Our team reviews and coordinates with the owner.",
+    },
+    {
+      step: 4,
+      title: "Move In, Stay Supported",
+      desc: "Once approved, pay first month's rent and one month security deposit. Keys handed over. Reeve handles all maintenance, rent collection, and disputes throughout your stay.",
+    },
+  ]
+
+  const ownerSteps = [
+    {
+      step: 1,
+      title: "Submit Your Property",
+      desc: "Fill a quick form or give us a call. No photos, documents, or preparation needed at this stage.",
+    },
+    {
+      step: 2,
+      title: "We Inspect & List",
+      desc: "Our team visits, photographs, documents, and lists your property. We handle everything — tenant screening, applications, and owner communication.",
+    },
+    {
+      step: 3,
+      title: "Tenant Moves In",
+      desc: "You review and approve the tenant. We manage the agreement, key handover, and move-in condition report.",
+    },
+    {
+      step: 4,
+      title: "We Manage Everything",
+      desc: "Rent collected and transferred to you monthly. Maintenance coordinated. Disputes handled. Lease renewals managed. Zero effort from you — and zero cost to you, ever.",
+    },
+  ]
+
   return (
   <Layout>
     <div className="min-h-screen bg-white">
       {/* Section 2 — Hero */}
       <section
-        className="min-h-screen lg:h-screen pt-16 lg:pt-20 relative"
+        className="lg:h-screen pt-16 lg:pt-20 relative"
         style={{
           backgroundImage: "radial-gradient(circle, #e5e7eb 1px, transparent 1px)",
           backgroundSize: "24px 24px",
@@ -21,11 +67,11 @@ export default function Index() {
           <div className="flex flex-col lg:flex-row items-center h-full py-12 lg:py-0 gap-8 lg:gap-12">
             {/* Left Column */}
             <div className="w-full lg:w-[55%] flex flex-col justify-center">
-              <span className="inline-block text-xs font-medium text-[#2563EB] bg-blue-50 px-3 py-1 rounded-full w-fit">
+              <span className="animate-fade-up inline-block text-xs font-medium text-[#2563EB] bg-blue-50 px-3 py-1 rounded-full w-fit" style={{ animationDelay: '0ms' }}>
                 Now live in Bangalore
               </span>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-[#0A1628] leading-[1.1] mt-6">
+              <h1 className="animate-fade-up text-4xl sm:text-5xl lg:text-7xl font-bold text-[#0A1628] leading-[1.1] mt-6" style={{ animationDelay: '80ms' }}>
                 Zero brokerage.
                 <br />
                 One month deposit.
@@ -33,13 +79,13 @@ export default function Index() {
                 <span className="text-[#2563EB]">Free property management.</span>
               </h1>
 
-              <p className="text-lg text-gray-500 max-w-md mt-4 leading-relaxed">
+              <p className="animate-fade-up text-lg text-gray-500 max-w-md mt-4 leading-relaxed" style={{ animationDelay: '160ms' }}>
                 Reeve manages everything between owners and tenants — at no cost to owners. No
                 brokers. No hidden fees. Just a great home and a stress-free tenancy.
               </p>
 
               {/* CTAs */}
-              <div className="flex flex-col sm:flex-row gap-4 mt-8">
+              <div className="animate-fade-up flex flex-col sm:flex-row gap-4 mt-8" style={{ animationDelay: '240ms' }}>
                 <Link
                   to="/search"
                   className="bg-[#2563EB] text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-all duration-200 hover:-translate-y-0.5 shadow-sm text-center min-h-[48px] flex items-center justify-center"
@@ -55,7 +101,7 @@ export default function Index() {
               </div>
 
               {/* Trust Strip */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-6 mb-8 text-sm text-gray-500">
+              <div className="animate-fade-up flex flex-wrap items-center gap-2 sm:gap-4 mt-6 mb-8 text-sm text-gray-500" style={{ animationDelay: '320ms' }}>
                 <span className="flex items-center gap-1">
                   <span className="text-[#2563EB]">✓</span> ₹0 Brokerage
                 </span>
@@ -71,10 +117,10 @@ export default function Index() {
             </div>
 
             {/* Right Column - Image */}
-            <div className="w-full lg:w-[45%] h-[300px] sm:h-[400px] lg:h-[calc(100vh-8rem)] relative">
+            <div className="animate-fade-up w-full lg:w-[45%] aspect-[4/3] sm:aspect-[16/9] lg:aspect-auto lg:h-full relative" style={{ animationDelay: '200ms' }}>
               <img
-                src="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800"
-                alt="Modern living room interior"
+                src="/images/hero-home.png"
+                alt="Reeve — modern rental management platform"
                 className="absolute inset-0 w-full h-full object-cover rounded-2xl lg:rounded-2xl"
               />
             </div>
@@ -210,28 +256,7 @@ export default function Index() {
                   {/* Dotted line */}
                   <div className="absolute top-4 left-[12.5%] right-[12.5%] h-0.5 border-t-2 border-dashed border-gray-200" />
                   <div className="grid grid-cols-4 gap-8">
-                    {[
-                      {
-                        step: 1,
-                        title: "Browse & Shortlist",
-                        desc: "Search verified properties — every listing is physically inspected and exclusively managed by Reeve. Favourite the ones you like.",
-                      },
-                      {
-                        step: 2,
-                        title: "Visit the Property",
-                        desc: "Schedule a visit at your convenience. Our team will be there. See the home before you decide anything.",
-                      },
-                      {
-                        step: 3,
-                        title: "Apply Online",
-                        desc: "Submit your application with income proof and ID documents. One simple form. Our team reviews and coordinates with the owner.",
-                      },
-                      {
-                        step: 4,
-                        title: "Move In, Stay Supported",
-                        desc: "Once approved, pay first month's rent and one month security deposit. Keys handed over. Reeve handles all maintenance, rent collection, and disputes throughout your stay.",
-                      },
-                    ].map((item) => (
+                    {tenantSteps.map((item) => (
                       <div key={item.step} className="text-center relative">
                         <div className="bg-[#2563EB] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mx-auto relative z-10">
                           {item.step}
@@ -246,28 +271,7 @@ export default function Index() {
 
               {/* Mobile View */}
               <div className="lg:hidden space-y-6">
-                {[
-                  {
-                    step: 1,
-                    title: "Browse & Shortlist",
-                    desc: "Search verified properties — every listing is physically inspected and exclusively managed by Reeve. Favourite the ones you like.",
-                  },
-                  {
-                    step: 2,
-                    title: "Visit the Property",
-                    desc: "Schedule a visit at your convenience. Our team will be there. See the home before you decide anything.",
-                  },
-                  {
-                    step: 3,
-                    title: "Apply Online",
-                    desc: "Submit your application with income proof and ID documents. One simple form. Our team reviews and coordinates with the owner.",
-                  },
-                  {
-                    step: 4,
-                    title: "Move In, Stay Supported",
-                    desc: "Once approved, pay first month's rent and one month security deposit. Keys handed over. Reeve handles all maintenance, rent collection, and disputes throughout your stay.",
-                  },
-                ].map((item) => (
+                {tenantSteps.map((item) => (
                   <div key={item.step} className="flex gap-4">
                     <div className="bg-[#2563EB] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shrink-0">
                       {item.step}
@@ -306,28 +310,7 @@ export default function Index() {
                   {/* Dotted line */}
                   <div className="absolute top-4 left-[12.5%] right-[12.5%] h-0.5 border-t-2 border-dashed border-gray-200" />
                   <div className="grid grid-cols-4 gap-8">
-                    {[
-                      {
-                        step: 1,
-                        title: "Submit Your Property",
-                        desc: "Fill a quick form or give us a call. No photos, documents, or preparation needed at this stage.",
-                      },
-                      {
-                        step: 2,
-                        title: "We Inspect & List",
-                        desc: "Our team visits, photographs, documents, and lists your property. We handle everything — tenant screening, applications, and owner communication.",
-                      },
-                      {
-                        step: 3,
-                        title: "Tenant Moves In",
-                        desc: "You review and approve the tenant. We manage the agreement, key handover, and move-in condition report.",
-                      },
-                      {
-                        step: 4,
-                        title: "We Manage Everything",
-                        desc: "Rent collected and transferred to you monthly. Maintenance coordinated. Disputes handled. Lease renewals managed. Zero effort from you — and zero cost to you, ever.",
-                      },
-                    ].map((item) => (
+                    {ownerSteps.map((item) => (
                       <div key={item.step} className="text-center relative">
                         <div className="bg-[#2563EB] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mx-auto relative z-10">
                           {item.step}
@@ -342,28 +325,7 @@ export default function Index() {
 
               {/* Mobile View */}
               <div className="lg:hidden space-y-6">
-                {[
-                  {
-                    step: 1,
-                    title: "Submit Your Property",
-                    desc: "Fill a quick form or give us a call. No photos, documents, or preparation needed at this stage.",
-                  },
-                  {
-                    step: 2,
-                    title: "We Inspect & List",
-                    desc: "Our team visits, photographs, documents, and lists your property. We handle everything — tenant screening, applications, and owner communication.",
-                  },
-                  {
-                    step: 3,
-                    title: "Tenant Moves In",
-                    desc: "You review and approve the tenant. We manage the agreement, key handover, and move-in condition report.",
-                  },
-                  {
-                    step: 4,
-                    title: "We Manage Everything",
-                    desc: "Rent collected and transferred to you monthly. Maintenance coordinated. Disputes handled. Lease renewals managed. Zero effort from you — and zero cost to you, ever.",
-                  },
-                ].map((item) => (
+                {ownerSteps.map((item) => (
                   <div key={item.step} className="flex gap-4">
                     <div className="bg-[#2563EB] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shrink-0">
                       {item.step}
