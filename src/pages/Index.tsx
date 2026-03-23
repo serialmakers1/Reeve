@@ -57,14 +57,14 @@ export default function Index() {
     <div className="min-h-screen bg-white">
       {/* Section 2 — Hero */}
       <section
-        className="lg:h-screen pt-16 lg:pt-20 relative"
+        className="lg:h-screen lg:overflow-hidden pt-16 lg:pt-20 relative"
         style={{
           backgroundImage: "radial-gradient(circle, #e5e7eb 1px, transparent 1px)",
           backgroundSize: "24px 24px",
         }}
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
-          <div className="flex flex-col lg:flex-row items-center h-full py-12 lg:py-0 gap-8 lg:gap-12">
+          <div className="flex flex-col lg:flex-row items-center lg:h-full py-12 lg:py-0 gap-8 lg:gap-12">
             {/* Left Column */}
             <div className="w-full lg:w-[55%] flex flex-col justify-center">
               <span className="animate-fade-up inline-block text-xs font-medium text-[#2563EB] bg-blue-50 px-3 py-1 rounded-full w-fit" style={{ animationDelay: '0ms' }}>
@@ -101,7 +101,7 @@ export default function Index() {
               </div>
 
               {/* Trust Strip */}
-              <div className="animate-fade-up flex flex-wrap items-center gap-2 sm:gap-4 mt-6 mb-8 text-sm text-gray-500" style={{ animationDelay: '320ms' }}>
+              <div className="animate-fade-up flex flex-wrap items-center gap-2 sm:gap-4 mt-6 text-sm text-gray-500" style={{ animationDelay: '320ms' }}>
                 <span className="flex items-center gap-1">
                   <span className="text-[#2563EB]">✓</span> ₹0 Brokerage
                 </span>
@@ -117,11 +117,12 @@ export default function Index() {
             </div>
 
             {/* Right Column - Image */}
-            <div className="animate-fade-up w-full lg:w-[45%] aspect-[4/3] sm:aspect-[16/9] lg:aspect-auto lg:h-full relative" style={{ animationDelay: '200ms' }}>
+            <div className="animate-fade-up w-full lg:w-[45%] flex items-center justify-center" style={{ animationDelay: '200ms' }}>
               <img
                 src="/images/hero-home.png"
                 alt="Reeve — modern rental management platform"
-                className="absolute inset-0 w-full h-full object-cover rounded-2xl lg:rounded-2xl"
+                className="w-full h-auto object-contain rounded-2xl lg:max-h-[80vh]"
+                loading="eager"
               />
             </div>
           </div>
