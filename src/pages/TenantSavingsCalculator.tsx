@@ -6,9 +6,6 @@ import {
   CheckCircle2,
   Info,
   Landmark,
-  MessageCircle,
-  Shield,
-  Wrench,
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 
@@ -27,7 +24,7 @@ const SLIDER_STEP     = 1000;
 const TENURE_MONTHS   = 11;
 const ANNUAL_INTEREST = 0.10;
 const SERVICE_FEE_PCT = 0.07;
-const DAYS_FASTER     = 18;
+const DAYS_FASTER     = 7;
 
 // ─── Metrics interface & calculation ────────────────────────────────────────
 
@@ -237,8 +234,8 @@ const FAQS: FaqItem[] = [
     a: "Owners on Reeve sign long-term management agreements. They cannot ask you to vacate outside of the notice period in your lease. If an owner needs their property back for any reason, Reeve manages all communication, enforces the contractual notice period on your behalf, and gives you full platform support in finding your next home if needed.",
   },
   {
-    q: 'What does "18 days faster move-in" mean?',
-    a: "The traditional renting process — broker coordination, physical paperwork, multiple visits — typically takes 30+ days from the moment you find a flat to the day you get your keys. With Reeve's managed process, the average time from application to move-in is around 18 days. Your timeline may vary depending on property availability and verification, but the process is significantly faster because one platform coordinates everything.",
+    q: 'What does "7 days faster move-in" mean?',
+    a: "The traditional renting process — broker coordination, physical paperwork, multiple visits — typically takes 30+ days from the moment you find a flat to the day you get your keys. With Reeve's managed process, the average time from application to move-in is around 7 days. Your timeline may vary depending on property availability and verification, but the process is significantly faster because one platform coordinates everything.",
   },
   {
     q: 'Does the calculator include monthly rent?',
@@ -370,7 +367,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
 
           {/* Right column — stat cards */}
           <div
-            className="t-fade-up flex flex-col gap-4 lg:justify-center"
+            className="t-fade-up flex flex-col gap-4 lg:justify-center px-4 sm:px-0"
             style={{ animationDelay: '200ms' }}
           >
             {/* Large card */}
@@ -1070,7 +1067,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                     { icon: '🔑',  text: '1 month deposit only — not 3' },
                     { icon: '🚫',  text: 'Zero brokerage, always' },
                     { icon: '📋',  text: 'Service fee on 11-month rent (replaces broker cost)' },
-                    { icon: '⚡',  text: '18 days average move-in' },
+                    { icon: '⚡',  text: '7 days average move-in' },
                     { icon: '🛡️', text: 'Deposit held by platform, returned fairly at move-out' },
                     { icon: '🔕',  text: 'Zero SPAM — no broker calls, no unsolicited contact' },
                   ].map((item) => (
@@ -1097,7 +1094,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
               </p>
               <CountUp
                 value={metrics.net_savings}
-                className="mt-2 block text-5xl sm:text-6xl font-medium text-blue-400"
+                className="mt-2 block text-3xl sm:text-4xl lg:text-5xl font-medium text-blue-400 break-all overflow-hidden"
                 style={{ fontFamily: FONT_MONO } as React.CSSProperties}
               />
               <p className="text-sm text-slate-400 mt-2" style={{ fontFamily: FONT_SANS }}>
@@ -1148,7 +1145,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                     </p>
                     {card.staticVal !== null ? (
                       <p
-                        className={`text-2xl font-medium mt-2 ${card.color}`}
+                        className={`text-lg sm:text-xl font-medium mt-2 break-all ${card.color}`}
                         style={{ fontFamily: FONT_MONO }}
                       >
                         {card.staticVal}
@@ -1156,7 +1153,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                     ) : (
                       <CountUp
                         value={card.value}
-                        className={`mt-2 block text-2xl font-medium ${card.color}`}
+                        className={`mt-2 block text-lg sm:text-xl font-medium break-all ${card.color}`}
                         style={{ fontFamily: FONT_MONO } as React.CSSProperties}
                       />
                     )}
@@ -1249,83 +1246,6 @@ export default function TenantSavingsPage(): React.JSX.Element {
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 9: ONCE YOU MOVE IN
-      ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
-          <SectionLabel>YOUR HOME. YOUR PEACE.</SectionLabel>
-          <h2
-            className="mt-4 font-normal text-slate-900"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
-          >
-            Once you move in, you never have to manage a landlord again.
-          </h2>
-          <p
-            className="mt-4 text-slate-600 text-base max-w-2xl leading-7"
-            style={{ fontFamily: FONT_SANS }}
-          >
-            Every awkward interaction, every maintenance follow-up, every end-of-lease question — Reeve handles it. You just live in your home.
-          </p>
-
-          <div className="mt-12 grid lg:grid-cols-3 gap-6">
-            {[
-              {
-                icon: <MessageCircle className="h-6 w-6 text-blue-600" />,
-                iconBg: 'bg-blue-50',
-                title: 'One platform. One point of contact.',
-                body: "All communication goes through Reeve. No awkward messages at 11PM. No wondering if you're bothering someone. No managing a relationship with someone who holds your deposit. If you need something — tell Reeve.",
-                badge: 'Platform mediated',
-                badgeCls: 'bg-blue-50 border border-blue-200 text-blue-700',
-              },
-              {
-                icon: <Wrench className="h-6 w-6 text-blue-600" />,
-                iconBg: 'bg-blue-50',
-                title: 'Raise it on the platform. We fix it.',
-                body: "Raise a maintenance request on the Reeve web platform. Track its status. Get it resolved. No chasing, no excuses. Your home stays in shape because it's platform-managed — not goodwill-managed.",
-                badge: 'Tracked & resolved',
-                badgeCls: 'bg-blue-50 border border-blue-200 text-blue-700',
-              },
-              {
-                icon: <Shield className="h-6 w-6 text-green-600" />,
-                iconBg: 'bg-green-50',
-                title: 'Your deposit is held by Reeve — not your owner.',
-                body: "Your deposit is held by Reeve, not your landlord. At move-out, the condition report you sign on day one is the only baseline that matters. Your deposit is returned in full if there is no damage beyond normal wear. Any deductions require documented photo evidence — not the owner's opinion.",
-                badge: 'Fair & documented',
-                badgeCls: 'bg-green-50 border border-green-200 text-green-700',
-              },
-            ].map((card) => (
-              <div
-                key={card.title}
-                className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-sm hover:-translate-y-1 hover:shadow-md transition duration-200"
-              >
-                <div className={`w-12 h-12 rounded-2xl ${card.iconBg} flex items-center justify-center`}>
-                  {card.icon}
-                </div>
-                <h3
-                  className="text-lg font-semibold text-slate-900 mt-5"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  {card.title}
-                </h3>
-                <p
-                  className="text-sm text-slate-600 leading-7 mt-3"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  {card.body}
-                </p>
-                <span
-                  className={`inline-flex mt-4 rounded-full border px-3 py-1 text-xs font-semibold ${card.badgeCls}`}
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  {card.badge}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ──────────────────────────────────────────────────────────────────────
           SECTION 10: STABILITY PROMISE
       ────────────────────────────────────────────────────────────────────── */}
       <section className="bg-[#F0F4FF]">
@@ -1400,8 +1320,8 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 emoji: '⚡',
                 emojiBg: 'bg-amber-50',
                 title: 'Move in faster. Move in easier.',
-                body: 'No physical paperwork. No office visits. No chasing a broker. 18 days average vs 30+ the traditional way.',
-                tag: '18-day avg move-in',
+                body: 'No physical paperwork. No office visits. No chasing a broker. 7 days average vs 30+ the traditional way.',
+                tag: '7-day avg move-in',
                 tagCls: 'bg-amber-50 border border-amber-200 text-amber-700',
               },
               {
