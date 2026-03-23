@@ -34,6 +34,7 @@ import Index from "./pages/Index";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Refund from "./pages/Refund";
+import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 import TenantSavingsCalculator from "./pages/TenantSavingsCalculator";
 import OwnerSavingsCalculator from "./pages/OwnerSavingsCalculator";
