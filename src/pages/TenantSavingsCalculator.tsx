@@ -371,7 +371,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
             style={{ animationDelay: '200ms' }}
           >
             {/* Large card */}
-            <div className="bg-[#1A2D42] rounded-3xl border border-slate-700/50 p-6">
+            <div className="bg-[#1A2D42] rounded-3xl border border-slate-700/50 p-6 overflow-hidden">
               <p
                 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"
                 style={{ fontFamily: FONT_SANS }}
@@ -379,7 +379,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 AVERAGE CASH FREED UP PER TENANT
               </p>
               <p
-                className="mt-3 text-[56px] lg:text-[64px] font-medium text-blue-400 leading-none"
+                className="mt-3 text-[32px] sm:text-[40px] lg:text-[64px] font-medium text-blue-400 leading-none break-all"
                 style={{ fontFamily: FONT_MONO }}
               >
                 ₹1,50,000
@@ -398,7 +398,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 >
                   BROKERAGE PAID
                 </p>
-                <p className="text-3xl font-medium text-blue-400 mt-2" style={{ fontFamily: FONT_MONO }}>₹0</p>
+                <p className="text-2xl sm:text-3xl font-medium text-blue-400 mt-2" style={{ fontFamily: FONT_MONO }}>₹0</p>
                 <p className="text-slate-400 text-sm mt-1" style={{ fontFamily: FONT_SANS }}>Always. Zero.</p>
               </div>
               <div className="bg-[#1A2D42] rounded-2xl border border-slate-700/50 p-4">
@@ -408,7 +408,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 >
                   MOVE-IN SPEED
                 </p>
-                <p className="text-3xl font-medium text-blue-400 mt-2" style={{ fontFamily: FONT_MONO }}>
+                <p className="text-2xl sm:text-3xl font-medium text-blue-400 mt-2" style={{ fontFamily: FONT_MONO }}>
                   {DAYS_FASTER} Days
                 </p>
                 <p className="text-slate-400 text-sm mt-1" style={{ fontFamily: FONT_SANS }}>
