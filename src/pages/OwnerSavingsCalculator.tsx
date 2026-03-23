@@ -483,7 +483,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
         </section>
 
         {/* ══ SECTION 4: THE TURN ══════════════════════════════════════════ */}
-        <section className="py-16 lg:py-20 bg-neutral-100">
+        <section className="py-16 lg:py-20 bg-blue-50">
           <div className="mx-auto max-w-xl px-4 text-center sm:px-6">
             <div className="mx-auto mb-8 h-px w-20" style={{ background: C.accent }} />
             <h2
