@@ -659,7 +659,7 @@ const PropertyDetail: React.FC = () => {
     new Date() < new Date(latestApp.reapplication_eligible_from);
 
   const renderApplySection = (mobile: boolean) => {
-    const btnClass = mobile ? "min-h-[48px] flex-1 text-sm font-medium" : "w-full min-h-[44px]";
+    const btnClass = mobile ? "min-h-[48px] flex-1 text-xs font-medium whitespace-normal leading-tight" : "w-full min-h-[44px]";
 
     if (hasDraft && latestApp) {
       return (
@@ -674,7 +674,7 @@ const PropertyDetail: React.FC = () => {
 
     if (isActive && latestApp) {
       return (
-        <p className="text-sm text-gray-600 text-center py-2">
+        <p className="flex-1 text-xs text-gray-600 text-center py-2 leading-tight min-h-[48px] flex items-center justify-center">
           Application in progress · {getFriendlyStatus(latestApp.status)}
         </p>
       );
@@ -1231,7 +1231,7 @@ const PropertyDetail: React.FC = () => {
 
       {/* ─── Mobile Sticky CTA Bar ───────────────────────────── */}
       {!isOwnProperty && (
-        <div className="fixed inset-x-0 bottom-[54px] md:bottom-0 z-50 border-t border-border bg-background px-4 py-3 pb-4 min-h-[72px] lg:hidden">
+        <div className={`fixed inset-x-0 z-40 border-t border-border bg-background px-4 py-3 pb-4 min-h-[72px] lg:hidden ${session ? 'bottom-16 pb-safe' : 'bottom-0'}`}>
           <div className="mx-auto flex max-w-4xl items-center gap-2">
             {showVisitConfirmation ? (
               <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-2 min-h-[48px] flex flex-col justify-center">
