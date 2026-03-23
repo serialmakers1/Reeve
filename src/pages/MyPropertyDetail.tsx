@@ -943,7 +943,7 @@ export default function MyPropertyDetail() {
                 📞 Call Reeve
               </a>
               <a
-                href="mailto:hello@reeve.in"
+                href="mailto:support@reeve.in"
                 className="flex items-center justify-center gap-2 w-full min-h-[44px] rounded-lg border border-border text-foreground text-sm font-medium px-4 py-3 hover:bg-muted transition-colors"
               >
                 ✉️ Email Reeve
