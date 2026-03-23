@@ -57,16 +57,16 @@ export default function Index() {
     <div className="min-h-screen bg-white">
       {/* Section 2 — Hero */}
       <section
-        className="lg:h-screen lg:overflow-hidden pt-16 lg:pt-20 relative"
+        className="lg:min-h-[calc(100vh-4rem)] pt-16 lg:pt-20 relative"
         style={{
           backgroundImage: "radial-gradient(circle, #e5e7eb 1px, transparent 1px)",
           backgroundSize: "24px 24px",
         }}
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
-          <div className="flex flex-col lg:flex-row items-center lg:h-full py-12 lg:py-0 gap-8 lg:gap-12">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center py-12 lg:py-0 gap-8 lg:gap-12">
             {/* Left Column */}
-            <div className="w-full lg:w-[55%] flex flex-col justify-center">
+            <div className="w-full lg:w-[55%] flex flex-col justify-center lg:justify-start py-8 lg:py-16">
               <span className="animate-fade-up inline-block text-xs font-medium text-[#2563EB] bg-blue-50 px-3 py-1 rounded-full w-fit" style={{ animationDelay: '0ms' }}>
                 Now live in Bangalore
               </span>
