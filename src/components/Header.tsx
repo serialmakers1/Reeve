@@ -56,6 +56,12 @@ const Header = () => {
             >
               Search Properties
             </Link>
+            <Link
+              to="/contact"
+              className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors font-medium"
+            >
+              Contact
+            </Link>
           </div>
 
           {/* Desktop right side — auth aware */}
@@ -191,6 +197,13 @@ const Header = () => {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Search Properties
+            </Link>
+            <Link
+              to="/contact"
+              className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Contact
             </Link>
 
             {!isAuthenticated && (
