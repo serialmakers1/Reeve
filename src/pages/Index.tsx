@@ -100,20 +100,7 @@ export default function Index() {
                 </Link>
               </div>
 
-              {/* Trust Strip */}
-              <div className="animate-fade-up flex flex-wrap items-center gap-2 sm:gap-4 mt-6 text-sm text-gray-500" style={{ animationDelay: '320ms' }}>
-                <span className="flex items-center gap-1">
-                  <span className="text-[#2563EB]">✓</span> ₹0 Brokerage
-                </span>
-                <span className="hidden sm:inline">·</span>
-                <span className="flex items-center gap-1">
-                  <span className="text-[#2563EB]">✓</span> 1 Month Deposit
-                </span>
-                <span className="hidden sm:inline">·</span>
-                <span className="flex items-center gap-1">
-                  <span className="text-[#2563EB]">✓</span> Fully Managed for Free
-                </span>
-              </div>
+            
             </div>
 
             {/* Right Column - Image */}
