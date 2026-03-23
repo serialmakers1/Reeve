@@ -11,7 +11,6 @@ import {
   Wrench,
 } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { supabase } from '@/integrations/supabase/client';
 
 // ─── Font constants (matching owner page pattern) ────────────────────────────
 
@@ -256,11 +255,8 @@ const FAQS: FaqItem[] = [
 export default function TenantSavingsPage(): React.JSX.Element {
   const navigate = useNavigate();
 
-  const [rent,          setRent]          = useState<number>(DEFAULT_RENT);
-  const [phoneInput,    setPhoneInput]    = useState<string>('');
-  const [signupSuccess, setSignupSuccess] = useState<boolean>(false);
-  const [signupLoading, setSignupLoading] = useState<boolean>(false);
-  const [openFaq,       setOpenFaq]       = useState<number | null>(null);
+  const [rent,    setRent]    = useState<number>(DEFAULT_RENT);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const calculatorRef     = useRef<HTMLElement>(null);
   const savingsTrackedRef = useRef<boolean>(false);
@@ -285,25 +281,6 @@ export default function TenantSavingsPage(): React.JSX.Element {
       }
     },
     [],
-  );
-
-  const handlePhoneSubmit = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
-      e.preventDefault();
-      if (!phoneInput.trim()) return;
-      setSignupLoading(true);
-      try {
-        await supabase.from('users').insert({
-          phone: phoneInput,
-          onboarding_completed: false,
-        } as never);
-        setSignupSuccess(true);
-        posthog?.capture('tenant_signup_submitted');
-      } finally {
-        setSignupLoading(false);
-      }
-    },
-    [phoneInput],
   );
 
   const scrollToCalculator = useCallback((): void => {
@@ -631,7 +608,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                       <h3 className="text-base font-semibold text-slate-900" style={{ fontFamily: FONT_SANS }}>
                         {step.title}
                       </h3>
-                      <p className="text-sm text-slate-600 leading-6 mt-2" style={{ fontFamily: FONT_SANS }}>
+                      <p className="text-sm text-slate-600 leading-6 mt-2 text-left" style={{ fontFamily: FONT_SANS }}>
                         {step.body}
                       </p>
                       {step.pill && (
@@ -664,7 +641,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                           {step.title}
                         </h3>
                         <p
-                          className="text-sm text-slate-600 leading-6 mt-2"
+                          className="text-sm text-slate-600 leading-6 mt-2 text-left"
                           style={{ fontFamily: FONT_SANS }}
                         >
                           {step.body}
@@ -1478,118 +1455,6 @@ export default function TenantSavingsPage(): React.JSX.Element {
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 12: EVERYTHING BUILT TO PROTECT YOU
-      ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
-          <h2
-            className="font-normal text-slate-900 text-center max-w-2xl mx-auto"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
-          >
-            Everything built to protect you.
-          </h2>
-
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            {[
-              { num: '₹0',     label: 'Brokerage across every listing on Reeve' },
-              { num: '15 days', label: 'Maximum dispute resolution time by the platform' },
-              { num: '4%',     label: 'Service fee on renewal — loyalty rewarded' },
-            ].map((pill) => (
-              <div
-                key={pill.num}
-                className="rounded-full border-2 border-slate-200 bg-slate-50 px-6 py-4 text-center"
-              >
-                <span
-                  className="text-3xl font-medium text-blue-600 block"
-                  style={{ fontFamily: FONT_MONO }}
-                >
-                  {pill.num}
-                </span>
-                <span
-                  className="text-xs text-slate-600 font-medium mt-1 block"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  {pill.label}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Tenant Protection Promise */}
-          <div className="mt-14 rounded-3xl border border-slate-200 bg-[#F8FAFF] p-8 sm:p-10">
-            <div className="grid lg:grid-cols-[1fr_2fr] gap-10 items-start">
-              <div>
-                <p
-                  className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-600"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  THE TENANT PROTECTION PROMISE
-                </p>
-                <h3
-                  className="font-normal text-slate-900 mt-4 leading-tight text-3xl"
-                  style={{ fontFamily: FONT_SERIF }}
-                >
-                  The Tenant Protection Promise
-                </h3>
-                <p
-                  className="text-sm text-slate-600 leading-7 mt-4"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  We're not just a listing platform. We're the platform that manages your home,
-                  holds your deposit, and fights your corner when things go wrong.
-                </p>
-              </div>
-              <div className="grid sm:grid-cols-3 gap-4">
-                {[
-                  {
-                    emoji: '📸',
-                    emojiBg: 'bg-blue-50',
-                    title: 'Move-in condition report',
-                    body: 'Photos, notes, tenant sign-off. Your deposit is protected by documentation — not promises. Deductions at move-out can only be made against this baseline.',
-                  },
-                  {
-                    emoji: '⚖️',
-                    emojiBg: 'bg-purple-50',
-                    title: 'Dispute mediation',
-                    body: 'Any disagreement at move-out? Reeve mediates with the documented evidence from your move-in report. You never fight alone against undocumented claims.',
-                  },
-                  {
-                    emoji: '🔕',
-                    emojiBg: 'bg-slate-100',
-                    title: 'No direct landlord contact',
-                    body: 'All communication goes through Reeve. No awkward interactions. No pressure. Total peace of mind throughout your stay.',
-                  },
-                ].map((card) => (
-                  <div
-                    key={card.title}
-                    className="rounded-2xl border border-slate-200 bg-white p-5"
-                  >
-                    <div
-                      className={`w-10 h-10 rounded-xl ${card.emojiBg} flex items-center justify-center`}
-                    >
-                      <span aria-hidden="true" className="text-xl">{card.emoji}</span>
-                    </div>
-                    <h4
-                      className="text-sm font-semibold text-slate-900 mt-4"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
-                      {card.title}
-                    </h4>
-                    <p
-                      className="text-xs text-slate-600 leading-5 mt-2"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
-                      {card.body}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ──────────────────────────────────────────────────────────────────────
           SECTION 13: SOCIAL PROOF
       ────────────────────────────────────────────────────────────────────── */}
       <section className="bg-[#F0F4FF]">
@@ -1730,65 +1595,6 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 <ArrowRight className="h-5 w-5" />
               </button>
 
-              <div className="mt-6 mb-6 flex items-center gap-3">
-                <div className="flex-1 border-t border-slate-700" />
-                <span
-                  className="text-xs text-slate-500 font-medium"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  or
-                </span>
-                <div className="flex-1 border-t border-slate-700" />
-              </div>
-
-              <p
-                className="text-xs text-slate-400 font-semibold uppercase tracking-[0.12em]"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                GET ALERTS FOR NEW LISTINGS
-              </p>
-              <p
-                className="text-sm text-slate-400 mt-1"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                Enter your phone number. We'll notify you when matching properties are listed.
-              </p>
-
-              {signupSuccess ? (
-                <p
-                  className="mt-4 text-sm font-semibold text-green-400"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  We'll be in touch!
-                </p>
-              ) : (
-                <form onSubmit={handlePhoneSubmit} className="mt-4 flex gap-3">
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
-                    placeholder="Phone number"
-                    className="flex-1 rounded-xl border border-slate-600 bg-[#0F1C2E] text-white placeholder-slate-500 px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    style={{ fontFamily: FONT_SANS }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={signupLoading}
-                    className="rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold px-4 py-3 text-sm transition shrink-0 disabled:opacity-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    style={{ fontFamily: FONT_SANS }}
-                  >
-                    {signupLoading ? '...' : 'Save →'}
-                  </button>
-                </form>
-              )}
-
-              <p
-                className="text-xs text-slate-600 mt-3"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                Zero SPAM. We only send property alerts. No cold calls, ever.
-              </p>
             </div>
           </div>
         </div>
