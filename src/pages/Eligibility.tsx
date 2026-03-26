@@ -276,7 +276,7 @@ export default function EligibilityPage() {
         expected_stay: formData.expected_stay as StayDurationType,
         is_foreign_citizen: true,
         status: 'disqualified' as EligibilityStatus,
-        disqualification_reason: 'Foreign citizens are not eligible to rent through Reeve at this time.',
+        disqualification_reason: 'Reeve currently serves Indian Citizens only.',
         reviewed_at: new Date().toISOString(),
       };
 
@@ -310,7 +310,7 @@ export default function EligibilityPage() {
         result: "disqualified",
         disqualification_reason: "foreign_citizen",
       });
-      setRejectionMessage('Foreign citizens are not eligible to rent through Reeve at this time.');
+      setRejectionMessage('Reeve currently serves Indian Citizens only.');
       setMode('update');
       setPageView('rejected');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -334,7 +334,7 @@ export default function EligibilityPage() {
       {
         condition: formData.expected_stay === 'less_than_10_months',
         reason: 'Expected stay is less than the minimum tenancy of 10 months.',
-        message: 'Unfortunately, we require a minimum stay of 10 months. We\'d love to have you when your plans align!',
+        message: 'Reeve is built for stays of 10 months or longer. If your plans change, you\'re welcome to come back.',
         field_hint: 'expected_stay',
       },
     ];
@@ -465,9 +465,9 @@ export default function EligibilityPage() {
     return (
       <Layout>
         <div className="mx-auto max-w-md px-4 py-20 text-center">
-          <h1 className="text-xl font-bold text-foreground">Eligibility Check</h1>
+          <h1 className="text-xl font-bold text-foreground">Rental Preferences</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            You need to be logged in to complete eligibility.
+            You need to be logged in to set your rental preferences.
           </p>
           <Link to={`/login?returnTo=${encodeURIComponent('/eligibility' + (returnTo ? `?returnTo=${returnTo}` : '') + (propertyIdParam ? `${returnTo ? '&' : '?'}property_id=${propertyIdParam}` : ''))}`}>
             <Button className="mt-6 min-h-[44px]">Log In</Button>
@@ -487,7 +487,7 @@ export default function EligibilityPage() {
             <ShieldAlert className="h-8 w-8 text-amber-600" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">
-            You don't qualify at this time
+            We are unable to move forward right now.
           </h1>
           <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
             {rejectionMessage || 'Based on your responses, you don\'t meet the eligibility criteria for our platform at this time.'}
@@ -497,12 +497,12 @@ export default function EligibilityPage() {
             onClick={startEditing}
             className="mt-5 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
           >
-            Think something's wrong? Edit your answers →
+            Something entered incorrectly? Update your preferences →
           </button>
 
           <div className="mt-8">
             <Link to="/search">
-              <Button className="min-h-[44px] w-full">Back to Browse</Button>
+              <Button className="min-h-[44px] w-full">Browse Properties</Button>
             </Link>
           </div>
         </div>
@@ -529,10 +529,10 @@ export default function EligibilityPage() {
               <CheckCircle2 className="h-10 w-10 text-green-600" />
             </div>
             <h1 className="text-3xl font-extrabold text-green-600 animate-in fade-in duration-500">
-              Passed ✓
+              You're all set! ✓
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Great news! You meet the basic eligibility criteria for Reeve.
+              Great news! Your rental preferences are saved. They apply to every property on Reeve - You won't need to fill this again.
             </p>
           </div>
 
@@ -554,7 +554,7 @@ export default function EligibilityPage() {
             <Card className="mt-8 border-border">
               <CardContent className="p-4 space-y-2">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                  You were checking eligibility for
+                  You were setting up your preferences for
                 </p>
                 <p className="text-sm font-semibold text-card-foreground">
                   {bhkLabel(propertyContext.bhk)} in {propertyContext.building_name}
@@ -615,7 +615,7 @@ export default function EligibilityPage() {
             onClick={startEditing}
             className="mt-6 block w-full text-center text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
           >
-            Need to update your answers? Edit eligibility →
+            Need to update your preferences? Edit here →
           </button>
         </div>
 
@@ -666,15 +666,15 @@ export default function EligibilityPage() {
         </Link>
 
         {/* Header */}
-        <h1 className="text-2xl font-bold text-foreground">Eligibility Check</h1>
+        <h1 className="text-2xl font-bold text-foreground">Rental Preferences</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Complete this quick questionnaire to start shortlisting properties.
+          Tell us a bit about Yourself! Takes two minutes. Only needed Once.
         </p>
 
         {/* Editing banner */}
         {mode === 'update' && !rejectionMessage && (
           <div className="mt-4 rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-            You are editing your existing eligibility submission.
+            You are editing your rental preferences.
           </div>
         )}
 
