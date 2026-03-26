@@ -206,6 +206,9 @@ export default function PropertyEdit() {
   const [ownerRepPhone, setOwnerRepPhone] = useState("");
   const [ownerLivesSameCity, setOwnerLivesSameCity] = useState<boolean | null>(null);
   const [ownerPrefersPhone, setOwnerPrefersPhone] = useState<boolean | null>(null);
+  const [ownerDietPreference, setOwnerDietPreference] = useState<string>('no_preference');
+  const [ownerPetPreference, setOwnerPetPreference] = useState<string>('no_preference');
+  const [ownerTenantTypePreference, setOwnerTenantTypePreference] = useState<string>('no_preference');
 
   // Photos
   const [images, setImages] = useState<PropertyImage[]>([]);
