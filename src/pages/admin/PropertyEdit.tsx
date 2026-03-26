@@ -376,6 +376,9 @@ export default function PropertyEdit() {
         owner_rep_phone: ownerHasLocalRep ? (ownerRepPhone || null) : null,
         owner_lives_in_same_city: ownerLivesSameCity,
         owner_prefers_phone_calls: ownerPrefersPhone,
+        owner_diet_preference: ownerDietPreference,
+        owner_pet_preference: ownerPetPreference,
+        owner_tenant_type_preference: ownerTenantTypePreference,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id);
