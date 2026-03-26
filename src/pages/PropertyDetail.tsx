@@ -1274,9 +1274,9 @@ const PropertyDetail: React.FC = () => {
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent">
               <ClipboardCheck className="h-7 w-7 text-primary" />
             </div>
-            <h3 className="text-lg font-bold text-foreground">Complete Eligibility Check First</h3>
+            <h3 className="text-lg font-bold text-foreground">Set up Rental Preferences First</h3>
             <p className="text-sm text-muted-foreground">
-              To schedule a visit, you need to complete a quick eligibility check. It only takes 2 minutes and helps us match you with the right properties.
+              To schedule a visit, you need to complete your rental preferences first. It only takes 2 minutes and helps us match you with the right properties.
             </p>
           </div>
           <DrawerFooter>
@@ -1287,7 +1287,7 @@ const PropertyDetail: React.FC = () => {
                 navigate(`/eligibility?property_id=${id}&redirect=visit`);
               }}
             >
-              Check Eligibility Now
+              Set up Preferences
             </Button>
             <Button
               variant="ghost"
