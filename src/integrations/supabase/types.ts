@@ -1633,14 +1633,17 @@ export type Database = {
           occupied_at: string | null
           off_market_at: string | null
           owner_committed_12_months: boolean | null
+          owner_diet_preference: string | null
           owner_has_local_rep: boolean | null
           owner_id: string
           owner_income_dependent: boolean | null
           owner_lives_in_same_city: boolean | null
           owner_only_rental_property: boolean | null
+          owner_pet_preference: string | null
           owner_prefers_phone_calls: boolean | null
           owner_rep_name: string | null
           owner_rep_phone: string | null
+          owner_tenant_type_preference: string | null
           parking_2w: Database["public"]["Enums"]["parking_availability"]
           parking_4w: Database["public"]["Enums"]["parking_availability"]
           pet_policy: string | null
@@ -1710,14 +1713,17 @@ export type Database = {
           occupied_at?: string | null
           off_market_at?: string | null
           owner_committed_12_months?: boolean | null
+          owner_diet_preference?: string | null
           owner_has_local_rep?: boolean | null
           owner_id: string
           owner_income_dependent?: boolean | null
           owner_lives_in_same_city?: boolean | null
           owner_only_rental_property?: boolean | null
+          owner_pet_preference?: string | null
           owner_prefers_phone_calls?: boolean | null
           owner_rep_name?: string | null
           owner_rep_phone?: string | null
+          owner_tenant_type_preference?: string | null
           parking_2w?: Database["public"]["Enums"]["parking_availability"]
           parking_4w?: Database["public"]["Enums"]["parking_availability"]
           pet_policy?: string | null
@@ -1787,14 +1793,17 @@ export type Database = {
           occupied_at?: string | null
           off_market_at?: string | null
           owner_committed_12_months?: boolean | null
+          owner_diet_preference?: string | null
           owner_has_local_rep?: boolean | null
           owner_id?: string
           owner_income_dependent?: boolean | null
           owner_lives_in_same_city?: boolean | null
           owner_only_rental_property?: boolean | null
+          owner_pet_preference?: string | null
           owner_prefers_phone_calls?: boolean | null
           owner_rep_name?: string | null
           owner_rep_phone?: string | null
+          owner_tenant_type_preference?: string | null
           parking_2w?: Database["public"]["Enums"]["parking_availability"]
           parking_4w?: Database["public"]["Enums"]["parking_availability"]
           pet_policy?: string | null
