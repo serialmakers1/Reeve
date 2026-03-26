@@ -1000,7 +1000,104 @@ export default function PropertyEdit() {
           </div>
         </Section>
 
-        {/* Section 7 — Owner Profile */}
+        {/* Section 7 — Owner Tenant Preferences */}
+        <div className="rounded-lg border bg-card p-4 md:p-6 space-y-4">
+          <div>
+            <h2 className="text-base font-medium text-foreground">Owner Tenant Preferences</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Captured during inspection — used for tenant matching only. Never visible to tenants or owners.</p>
+          </div>
+
+          <div className="space-y-5">
+            {/* Diet */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <p className="text-sm text-foreground flex-1">Dietary preference for tenants?</p>
+              <div className="flex items-center gap-1 shrink-0">
+                {[
+                  { value: 'no_preference', label: 'No Preference' },
+                  { value: 'prefer_vegetarian', label: 'Prefer Veg' },
+                  { value: 'vegetarian_only', label: 'Veg Only' },
+                ].map((opt, i, arr) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setOwnerDietPreference(opt.value)}
+                    className={cn(
+                      "px-3 py-1 text-xs font-medium min-h-[32px] border transition-colors",
+                      i === 0 ? "rounded-l-md" : "",
+                      i === arr.length - 1 ? "rounded-r-md border-l-0" : "border-r-0",
+                      i > 0 ? "border-l" : "",
+                      ownerDietPreference === opt.value
+                        ? "bg-primary/10 text-primary border-primary/30"
+                        : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Pets */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <p className="text-sm text-foreground flex-1">Preference regarding pets?</p>
+              <div className="flex items-center gap-1 shrink-0">
+                {[
+                  { value: 'no_preference', label: 'No Preference' },
+                  { value: 'prefer_no_pets', label: 'Prefer No Pets' },
+                  { value: 'no_pets_strictly', label: 'No Pets' },
+                ].map((opt, i, arr) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setOwnerPetPreference(opt.value)}
+                    className={cn(
+                      "px-3 py-1 text-xs font-medium min-h-[32px] border transition-colors",
+                      i === 0 ? "rounded-l-md" : "",
+                      i === arr.length - 1 ? "rounded-r-md border-l-0" : "border-r-0",
+                      i > 0 ? "border-l" : "",
+                      ownerPetPreference === opt.value
+                        ? "bg-primary/10 text-primary border-primary/30"
+                        : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tenant Type */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <p className="text-sm text-foreground flex-1">Preferred tenant type?</p>
+              <div className="flex items-center gap-1 shrink-0">
+                {[
+                  { value: 'no_preference', label: 'No Preference' },
+                  { value: 'prefer_family', label: 'Prefer Family' },
+                  { value: 'family_only', label: 'Family Only' },
+                ].map((opt, i, arr) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setOwnerTenantTypePreference(opt.value)}
+                    className={cn(
+                      "px-3 py-1 text-xs font-medium min-h-[32px] border transition-colors",
+                      i === 0 ? "rounded-l-md" : "",
+                      i === arr.length - 1 ? "rounded-r-md border-l-0" : "border-r-0",
+                      i > 0 ? "border-l" : "",
+                      ownerTenantTypePreference === opt.value
+                        ? "bg-primary/10 text-primary border-primary/30"
+                        : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 8 — Owner Profile */}
         <div className="rounded-lg border bg-card p-4 md:p-6 space-y-4">
           <div>
             <h2 className="text-base font-medium text-foreground">Owner Profile</h2>
