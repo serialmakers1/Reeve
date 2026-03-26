@@ -321,7 +321,7 @@ export default function NewApplicationPage() {
       .maybeSingle();
 
     if (!elig) {
-      toast({ title: "Please complete eligibility first", variant: "destructive" });
+      toast({ title: "Please set up your Rental Preferences first", variant: "destructive" });
       navigate(`/eligibility?property_id=${propertyId}`);
       return;
     }
@@ -961,7 +961,7 @@ export default function NewApplicationPage() {
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-lg font-bold text-foreground">Your Eligibility Profile</h2>
+          <h2 className="text-lg font-bold text-foreground">Your Rental Preferences</h2>
           <p className="text-sm text-muted-foreground">
             This information will be shared with the property owner as part of your application
           </p>
@@ -975,9 +975,9 @@ export default function NewApplicationPage() {
           ))}
         </div>
         <p className="text-xs text-muted-foreground">
-          This information is pre-filled from your eligibility questionnaire. To make changes,{" "}
+          This information is pre-filled from your Rental Preferences questionnaire. To make changes,{" "}
           <Link to="/eligibility" className="text-primary underline underline-offset-2">
-            update your eligibility profile
+            update your Rental Preferences
           </Link>.
         </p>
       </div>
@@ -1010,7 +1010,7 @@ export default function NewApplicationPage() {
         </Card>
 
         <p className="text-xs text-muted-foreground">
-          You indicated <span className="font-semibold">{maxResidents}</span> resident{maxResidents > 1 ? "s" : ""} in your eligibility profile
+          You indicated <span className="font-semibold">{maxResidents}</span> resident{maxResidents > 1 ? "s" : ""} in your rental preferennces
         </p>
 
         {/* Additional residents */}
@@ -1727,7 +1727,7 @@ export default function NewApplicationPage() {
   };
 
   const STEP_TITLES = [
-    "Eligibility Summary",
+    "Rental Preferences Summary",
     "Residents",
     "Employment & Income",
     "Credit Score",
