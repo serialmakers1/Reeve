@@ -280,6 +280,9 @@ export default function PropertyEdit() {
       setOwnerRepPhone(d.owner_rep_phone as string || "");
       setOwnerLivesSameCity(d.owner_lives_in_same_city as boolean | null);
       setOwnerPrefersPhone(d.owner_prefers_phone_calls as boolean | null);
+      setOwnerDietPreference(d.owner_diet_preference as string || 'no_preference');
+      setOwnerPetPreference(d.owner_pet_preference as string || 'no_preference');
+      setOwnerTenantTypePreference(d.owner_tenant_type_preference as string || 'no_preference');
 
       // Parse amenities
       const amenities = (data as Record<string, unknown>).amenities as Record<string, unknown> || {};
