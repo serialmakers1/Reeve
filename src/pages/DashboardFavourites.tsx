@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Heart, Search, X } from "lucide-react";
@@ -50,6 +51,7 @@ function furnishingLabel(f: string): string {
 
 export default function DashboardFavourites() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { isFavourited, toggleFavourite, isLoggedIn, loading: favLoading } = useFavourites();
 
   const [properties, setProperties] = useState<FavProperty[]>([]);
@@ -65,15 +67,14 @@ export default function DashboardFavourites() {
     }
 
     const fetchData = async () => {
+      if (!user?.id) return;
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
 
       // Fetch favourites
       const { data: favs } = await supabase
         .from("favourites")
         .select("property_id")
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (!favs || favs.length === 0) {
@@ -119,7 +120,7 @@ export default function DashboardFavourites() {
       const { data: elig } = await supabase
         .from("eligibility")
         .select("status")
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .eq("status", "passed")
         .limit(1)
         .maybeSingle();
@@ -129,7 +130,7 @@ export default function DashboardFavourites() {
     };
 
     fetchData();
-  }, [favLoading, isLoggedIn, navigate]);
+  }, [favLoading, isLoggedIn, navigate, user?.id]);
 
   const handleUnfavourite = async (propertyId: string) => {
     await toggleFavourite(propertyId);

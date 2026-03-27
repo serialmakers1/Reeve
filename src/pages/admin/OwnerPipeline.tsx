@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,6 +108,7 @@ const STATUS_ACTIONS: { label: string; to: StageValue; atCol: string }[] = [
 export default function OwnerPipeline() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useRequireAuth({ requireAdmin: true });
   const [data, setData] = useState<PropertyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,8 +133,7 @@ export default function OwnerPipeline() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!user) return;
 
     const { data: rows, error: err } = await supabase
       .from("properties")

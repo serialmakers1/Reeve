@@ -230,8 +230,7 @@ export default function NewApplicationPage() {
     setPageLoading(true);
 
     if (resumeId) {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
+      const userId = user?.id;
       if (!userId) { setPageLoading(false); return; }
 
       const { data: draft } = await supabase
@@ -306,7 +305,7 @@ export default function NewApplicationPage() {
       return;
     }
     setProperty(prop as PropertyInfo);
-    posthog.capture("application_started", {
+    posthog?.capture("application_started", {
       property_id: propertyId ?? undefined,
     });
 
@@ -356,8 +355,7 @@ export default function NewApplicationPage() {
     } else {
       // Fresh start OR reapplication after withdrawal/rejection — always INSERT a new draft
       // (existingApplicationId intentionally left null so submit uses INSERT path)
-      const { data: { session: freshSession } } = await supabase.auth.getSession();
-      const userId = freshSession?.user?.id;
+      const userId = user?.id;
       if (!userId) { setPageLoading(false); return; }
 
       // Second guard: check if a draft already exists (race condition safety)
@@ -773,7 +771,7 @@ export default function NewApplicationPage() {
 
       setSaving(false);
       toast({ title: "Application submitted successfully." });
-      posthog.capture("application_submitted", {
+      posthog?.capture("application_submitted", {
         property_id: propertyId ?? undefined,
         proposed_rent: rent ?? undefined,
         cibil_range: cibilRange ?? undefined,

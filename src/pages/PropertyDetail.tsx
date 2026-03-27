@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import posthog from "posthog-js";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFavourites } from "@/hooks/useFavourites";
 import FavouriteHeart from "@/components/FavouriteHeart";
@@ -60,7 +61,6 @@ import {
   Compass,
   CalendarDays,
 } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
 import VisitSchedulingModal from "@/components/VisitSchedulingModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -366,13 +366,13 @@ function LoginDrawer({
 const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user, session } = useAuth();
 
   const [property, setProperty] = useState<PropertyData | null>(null);
   const [rawAmenities, setRawAmenities] = useState<{ furnishing_items?: string[]; building?: string[] } | null>(null);
   const [images, setImages] = useState<PropertyImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
 
   // Gallery state
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
@@ -409,27 +409,19 @@ const PropertyDetail: React.FC = () => {
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
 
-  // Auth
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => subscription.unsubscribe();
-  }, []);
-
   // Check for existing visit
   const fetchExistingVisit = useCallback(async () => {
     if (!id) { setExistingVisit(null); return; }
-    const { data: { session: s } } = await supabase.auth.getSession();
-    if (!s) { setExistingVisit(null); return; }
+    if (!user) { setExistingVisit(null); return; }
     const { data } = await supabase
       .from("visits")
       .select("id, scheduled_at, status")
       .eq("property_id", id)
-      .eq("tenant_id", s.user.id)
+      .eq("tenant_id", user.id)
       .in("status", ["scheduled", "rescheduled", "confirmed"])
       .maybeSingle();
     setExistingVisit(data ?? null);
-  }, [id]);
+  }, [id, user]);
 
   const handleVisitScheduled = useCallback(() => {
     fetchExistingVisit();
@@ -475,7 +467,7 @@ const PropertyDetail: React.FC = () => {
         ...raw,
         amenities: Array.isArray(raw.amenities) ? (raw.amenities as string[]) : null,
       } as PropertyData);
-      posthog.capture("property_viewed", {
+      posthog?.capture("property_viewed", {
         property_id: raw.id,
         bhk: raw.bhk,
         locality: raw.locality ?? undefined,
@@ -493,8 +485,7 @@ const PropertyDetail: React.FC = () => {
       setImages(fetchedImages.length > 0 ? fetchedImages : PLACEHOLDER_IMAGES);
 
       // Check session for own-property and already-applied
-      const sess = await supabase.auth.getSession();
-      const currentUserId = sess.data.session?.user?.id;
+      const currentUserId = user?.id;
       setIsOwnProperty(!!(currentUserId && raw.owner_id === currentUserId));
 
       // Fetch application history for this tenant+property

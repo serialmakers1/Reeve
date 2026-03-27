@@ -195,7 +195,7 @@ const VisitSchedulingModal: React.FC<VisitSchedulingModalProps> = ({
         });
 
         if (error) throw error;
-        posthog.capture("visit_scheduled", {
+        posthog?.capture("visit_scheduled", {
           property_id: propertyId ?? undefined,
           scheduled_at: scheduledAt.toISOString() ?? undefined,
         });

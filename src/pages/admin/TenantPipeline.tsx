@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +92,7 @@ const formatCurrency = (n: number | null) =>
 
 export default function TenantPipeline() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useRequireAuth({ requireAdmin: true });
   const [data, setData] = useState<AppRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

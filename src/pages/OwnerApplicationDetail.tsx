@@ -139,7 +139,7 @@ export default function OwnerApplicationDetail() {
     applicationId: string;
   }>();
   const navigate = useNavigate();
-  const { loading: authLoading } = useRequireAuth();
+  const { user, loading: authLoading } = useRequireAuth();
   const { toast } = useToast();
 
   const [app, setApp] = useState<ApplicationData | null>(null);
@@ -156,8 +156,7 @@ export default function OwnerApplicationDetail() {
   const [counterRent, setCounterRent] = useState("");
 
   const fetchApp = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session || !applicationId) return;
+    if (!user || !applicationId) return;
 
     const { data } = await supabase
       .from("applications")
