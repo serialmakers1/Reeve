@@ -67,9 +67,6 @@ export default function ApplicationsList() {
     if (!user) return;
 
     const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) return;
-
       const { data } = await supabase
         .from("applications")
         .select(

@@ -1,42 +1,30 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 
 export function useFavourites() {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [favouriteIds, setFavouriteIds] = useState<Set<string>>(new Set());
-  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const uid = session?.user?.id ?? null;
-      setUserId(uid);
-
-      if (uid) {
-        const { data } = await supabase
-          .from("favourites")
-          .select("property_id")
-          .eq("user_id", uid);
-        if (data) {
-          setFavouriteIds(new Set(data.map((r) => r.property_id)));
-        }
-      }
+    if (!userId) {
+      setFavouriteIds(new Set());
       setLoading(false);
-    };
-
-    init();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
-      const uid = s?.user?.id ?? null;
-      setUserId(uid);
-      if (!uid) {
-        setFavouriteIds(new Set());
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+      return;
+    }
+    setLoading(true);
+    supabase
+      .from("favourites")
+      .select("property_id")
+      .eq("user_id", userId)
+      .then(({ data }) => {
+        if (data) setFavouriteIds(new Set(data.map((r) => r.property_id)));
+        setLoading(false);
+      });
+  }, [userId]);
 
   const isFavourited = useCallback(
     (propertyId: string) => favouriteIds.has(propertyId),

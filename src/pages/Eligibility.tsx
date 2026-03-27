@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import posthog from "posthog-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +22,6 @@ import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, AlertTriangle, CheckCircle2, XCircle, ShieldAlert } from "lucide-react";
 import Layout from "@/components/Layout";
 import VisitSchedulingModal from "@/components/VisitSchedulingModal";
-import type { Session } from "@supabase/supabase-js";
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type GenderType = 'male' | 'female' | 'other' | 'prefer_not_to_say';
@@ -98,11 +97,11 @@ function formatIndianRupee(n: number): string {
 
 export default function EligibilityPage() {
   const navigate = useNavigate();
+  const { user, session, isLoading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
   const propertyIdParam = searchParams.get('property_id');
 
-  const [session, setSession] = useState<Session | null>(null);
   const [pageView, setPageView] = useState<PageView>('loading');
   const [mode, setMode] = useState<FormMode>('create');
   const [step, setStep] = useState(1);
@@ -117,20 +116,6 @@ export default function EligibilityPage() {
   const [propertyContext, setPropertyContext] = useState<PropertyContext | null>(null);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [existingVisit, setExistingVisit] = useState<{ id: string; scheduled_at: string; status: string } | null>(null);
-
-  // Auth listener
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-    });
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      if (!s) {
-        setPageView('login');
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
 
   // Load property context when property_id is present
   useEffect(() => {
@@ -197,17 +182,20 @@ export default function EligibilityPage() {
       setMode('update');
     } else if (status === 'disqualified') {
       setExistingReason(data.disqualification_reason || null);
-      setRejectionMessage(data.disqualification_reason || 'You are currently ineligible.');
+      setRejectionMessage(data.disqualification_reason || 'Reeve is built for long-term rentals by Indian citizens. Based on your details, we\'re unable to move forward.');
       setPageView('rejected');
       setMode('update');
     }
   }, []);
 
   useEffect(() => {
-    if (session?.user?.id) {
-      loadExisting(session.user.id);
+    if (authLoading) return;
+    if (!user?.id) {
+      setPageView('login');
+      return;
     }
-  }, [session, loadExisting]);
+    loadExisting(user.id);
+  }, [user?.id, authLoading, loadExisting]);
 
   // ─── Validation ────────────────────────────────────────────────────────────
 
@@ -306,7 +294,7 @@ export default function EligibilityPage() {
         return;
       }
 
-      posthog.capture("eligibility_completed", {
+      posthog?.capture("eligibility_completed", {
         result: "disqualified",
         disqualification_reason: "foreign_citizen",
       });
@@ -399,7 +387,7 @@ export default function EligibilityPage() {
       setPageView('rejected');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      posthog.capture("eligibility_completed", {
+      posthog?.capture("eligibility_completed", {
         result: "passed",
         occupation: formData.occupation,
         expected_stay: formData.expected_stay,

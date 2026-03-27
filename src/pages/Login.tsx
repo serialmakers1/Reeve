@@ -138,7 +138,7 @@ export default function LoginPage() {
 
     setIsLoading(false);
     setStep("otp");
-    posthog.capture("signup_initiated", {
+    posthog?.capture("signup_initiated", {
       method: "email_otp",
     });
     startCooldown();
@@ -184,7 +184,7 @@ export default function LoginPage() {
           .maybeSingle();
 
         const isNewUser = !data.user?.user_metadata?.full_name;
-        posthog.capture(isNewUser ? "signup_completed" : "login_completed", {
+        posthog?.capture(isNewUser ? "signup_completed" : "login_completed", {
           method: "email_otp",
         });
         if (userData?.onboarding_completed === true) {

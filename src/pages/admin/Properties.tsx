@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -47,6 +49,8 @@ const formatCurrency = (n: number | null | undefined) =>
 
 export default function AdminProperties() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user, loading: authLoading } = useRequireAuth({ requireAdmin: true });
   const [properties, setProperties] = useState<Property[]>([]);
   const [countMap, setCountMap] = useState<Record<string, number>>({});
   const [rentMap, setRentMap] = useState<Record<string, number>>({});
@@ -56,13 +60,12 @@ export default function AdminProperties() {
     const load = async () => {
       setLoading(true);
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      if (!user) {
         setLoading(false);
         return;
       }
 
-      const { data: props } = await supabase
+      const { data: props, error: propsError } = await supabase
         .from("properties")
         .select(`
           id, building_name, locality, bhk, status, is_active,
@@ -71,15 +74,33 @@ export default function AdminProperties() {
         `)
         .order("updated_at", { ascending: false });
 
-      const { data: appCounts } = await supabase
+      if (propsError) {
+        toast({ title: "Failed to load properties", description: propsError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      const { data: appCounts, error: appCountsError } = await supabase
         .from("applications")
         .select("property_id, status")
         .not("status", "in", '("draft","withdrawn","expired")');
 
-      const { data: finalRents } = await supabase
+      if (appCountsError) {
+        toast({ title: "Failed to load application counts", description: appCountsError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      const { data: finalRents, error: finalRentsError } = await supabase
         .from("applications")
         .select("property_id, proposed_rent, final_agreed_rent, owner_counter_rent")
         .eq("status", "lease_active");
+
+      if (finalRentsError) {
+        toast({ title: "Failed to load rent data", description: finalRentsError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
 
       const cMap = (appCounts as AppCount[] | null)?.reduce((acc, a) => {
         acc[a.property_id] = (acc[a.property_id] ?? 0) + 1;
@@ -101,7 +122,7 @@ export default function AdminProperties() {
     load();
   }, []);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <AdminLayout>
         <div className="space-y-4 max-w-5xl">

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
 type BhkType = Database["public"]["Enums"]["bhk_type"];
@@ -67,27 +67,12 @@ const initialFormData: LeadFormData = {
 
 export default function ReferProperty() {
   const navigate = useNavigate();
-  const [session, setSession] = useState<Session | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { session, isLoading: authLoading } = useAuth();
   const [formData, setFormData] = useState<LeadFormData>(initialFormData);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, sess) => {
-        setSession(sess);
-        setAuthLoading(false);
-      }
-    );
-    supabase.auth.getSession().then(({ data: { session: sess } }) => {
-      setSession(sess);
-      setAuthLoading(false);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
 
   const validate = (): FormErrors => {
     const e: FormErrors = {};

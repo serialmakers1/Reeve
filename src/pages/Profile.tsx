@@ -38,8 +38,7 @@ export default function Profile() {
     if (!initialized) return;
 
     const fetchProfile = async () => {
-      const { data: { session: s } } = await supabase.auth.getSession();
-      const userId = s?.user?.id;
+      const userId = session?.user?.id;
       if (!userId) return;
 
       const { data: profileData } = await supabase

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Clock, CheckCircle2, XCircle } from "lucide-react";
 
@@ -13,12 +14,12 @@ interface EligibilityState {
 }
 
 export default function EligibilityBanner() {
+  const { user } = useAuth();
   const [state, setState] = useState<EligibilityState>({ status: null, reason: null, loaded: false });
 
   useEffect(() => {
     const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) {
+      if (!user?.id) {
         setState({ status: null, reason: null, loaded: true });
         return;
       }
@@ -26,7 +27,7 @@ export default function EligibilityBanner() {
       const { data } = await supabase
         .from('eligibility')
         .select('status, disqualification_reason')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .limit(1)
         .maybeSingle();
 
@@ -37,7 +38,7 @@ export default function EligibilityBanner() {
       });
     };
     load();
-  }, []);
+  }, [user?.id]);
 
   if (!state.loaded) return null;
 
@@ -99,7 +100,7 @@ export default function EligibilityBanner() {
         <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
         <div className="flex-1">
           <p className="text-sm font-medium text-amber-800">
-            You are currently ineligible. {state.reason}
+            Reeve is built for long-term rentals by Indian citizens. Based on your details, we&apos;re unable to move forward. Update your preferences below if anything looks incorrect.
           </p>
           <Link to="/eligibility?returnTo=/dashboard/profile">
             <Button size="sm" variant="outline" className="mt-3">Update My Answers →</Button>
