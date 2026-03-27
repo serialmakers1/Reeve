@@ -4,9 +4,9 @@
     {
       "name": "reeve-dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["C:\\Users\\lohit\\reeve\\node_modules\\vite\\bin\\vite.js", "--port", "8081"],
-      "cwd": "C:\\Users\\lohit\\reeve\\.claude\\worktrees\\pensive-thompson",
-      "port": 8081,
+      "runtimeArgs": ["C:\\Users\\lohit\\reeve\\node_modules\\vite\\bin\\vite.js", "--port", "8080"],
+      "cwd": "C:\\Users\\lohit\\reeve",
+      "port": 8080,
       "autoPort": false
     }
   ]
