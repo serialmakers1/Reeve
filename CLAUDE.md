@@ -29,7 +29,7 @@ npm run test       # vitest
 ## Auth Architecture
 - useAuth() — single source of truth. Returns { session, user, isLoading, isAuthenticated, signOut, refreshUser }
 - useRequireAuth({ requireAdmin? }) — use on all protected pages
-- Never call supabase.auth.getSession() directly in components — use the hook
+- Never call supabase.auth.getSession() in rendering logic or useEffect data gates — use useAuth(). Event handlers performing one-time mutations may call it directly.
 - After signup, users row has ~1s trigger lag — fetchUserWithRetry handles this, do not remove
 
 ## User Roles
@@ -64,6 +64,7 @@ strictNullChecks: false, noImplicitAny: false — intentional, do not tighten.
 - The users table is separate from Supabase auth — query users for role/profile, never auth.users
 - eligibility table gates visit scheduling — check eligibility status before any scheduling feature
 - Property images stored in Supabase Storage — property_images table holds metadata + sort order
+- Tenant KYC docs uploaded to `tenant-documents` Storage bucket — path: `{userId}/{applicationId}/{type}_{timestamp}.ext`. Separate from the documents DB table.
 - BottomNav is fixed bottom-0 z-50, only renders when isAuthenticated — account for this on mobile layouts
 - Mobile CTA bars in PropertyDetail use bottom-16 (logged in) or bottom-0 (logged out)
 - OnboardingGuard runs on every render — no expensive calls inside it
@@ -81,6 +82,7 @@ Invoke the relevant skill when:
 - Encountering any bug, unexpected behavior, or test failure → `systematic-debugging`
 - Building any new UI component, page, or layout → `frontend-design`
 - Designing or reviewing any UI/UX flow → `ui-ux-pro-max`
+- Reviewing a design, giving UI feedback, or critiquing a screen → `product-designer`
 - Starting any new feature or significant change → `brainstorming`
 
 Never skip a skill because the task seems simple. Read the SKILL.md, then act.
