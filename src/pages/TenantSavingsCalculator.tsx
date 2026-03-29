@@ -310,17 +310,6 @@ export default function TenantSavingsPage(): React.JSX.Element {
 
   return (
     <Layout>
-      {/* Sticky Mobile CTA — appears after scrolling past hero, hides when calculator in view */}
-      <div className="fixed bottom-16 left-0 right-0 sm:hidden z-30 px-4 py-3 bg-[#0F1C2E] border-t border-white/10">
-        <button
-          onClick={scrollToCalculator}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-2xl text-sm transition-colors duration-200"
-          style={{ fontFamily: FONT_SANS }}
-        >
-          See your savings →
-        </button>
-      </div>
-
       {/* Scoped CSS */}
       <style>{SLIDER_AND_ANIMATION_CSS}</style>
 
