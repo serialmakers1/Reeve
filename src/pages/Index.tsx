@@ -40,7 +40,7 @@ export default function Index() {
               >
                 Zero brokerage.
                 <br />
-                One month deposit.
+                Two month deposit.
                 <br />
                 <span className="text-[#60A5FA]">Free property management.</span>
               </h1>
@@ -122,11 +122,11 @@ export default function Index() {
                 className="mt-2 text-sm text-slate-500 leading-relaxed"
                 style={{ fontFamily: FONT_SANS }}
               >
-                We charge a 7% platform fee on rent — instead of a broker&apos;s 1–2 months. You save significantly on day one.
+                We charge a 7% Reeve Fee on rent (reduced to 4% next term) — instead of a broker&apos;s 1–2 months. You save significantly on day one.
               </p>
               <ul className="mt-5 space-y-2 flex-1">
                 {[
-                  '1 month deposit only — not 3',
+                  '2 month deposit only — not 3',
                   'Zero brokerage, always',
                   'Platform-managed home, no middlemen',
                 ].map((item) => (
@@ -167,7 +167,7 @@ export default function Index() {
                 className="mt-2 text-sm text-slate-400 leading-relaxed"
                 style={{ fontFamily: FONT_SANS }}
               >
-                We charge tenants a platform fee of 7%. Your rent arrives in full, every month.
+                Your rent arrives in full, every month.
               </p>
               <ul className="mt-5 space-y-2 flex-1">
                 {[
@@ -224,7 +224,7 @@ export default function Index() {
           </div>
 
           <p className="text-white/60 text-sm mt-6">
-            ₹0 Brokerage · 1 Month Deposit · Fully Managed for Free
+            ₹0 Brokerage · 2 Month Deposit · Fully Managed for Free
           </p>
         </div>
       </section>
