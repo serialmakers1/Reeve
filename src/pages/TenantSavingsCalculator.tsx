@@ -247,7 +247,7 @@ const DIFFERENCE_ROWS = [
   },
   {
     aspect: 'Deposit withheld at move-out',
-    traditional: 'Up to 50% — landlord decides',
+    traditional: 'At least 1 month rent — landlord decides',
     reeve: '₹0 — documented evidence only',
     reeveGood: true,
     emphasized: true,
@@ -333,7 +333,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
           {/* Left column */}
           <div>
             <div className="t-fade-up" style={{ animationDelay: '0ms' }}>
-              <SectionLabel light>No broker. Lower upfront cash.</SectionLabel>
+              <SectionLabel light>Zero broker. Lower upfront cash.</SectionLabel>
             </div>
 
             <h1
@@ -402,7 +402,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
               className="mt-5 text-sm text-slate-400 max-w-lg leading-relaxed"
               style={{ fontFamily: FONT_SANS }}
             >
-              Reeve charges a platform fee of 7% of your monthly rent — on top of rent, not deducted from it. We&apos;ll show you exactly why you still come out ahead.
+              Reeve charges a platform fee of 7% of your monthly rent (reduced to 4% on next term) — on top of rent, not deducted from it. We&apos;ll show you exactly why you still come out ahead.
             </p>
 
             {/* Cross-navigation link — Point 6 */}
@@ -647,7 +647,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                   className="text-xs text-slate-500 leading-5"
                   style={{ fontFamily: FONT_SANS }}
                 >
-                  Assumptions: 11-month tenure · Traditional deposit withheld at move-out: ~50% of deposit (market average) · Reeve fee shown at 7% (confirmed before you commit, drops to 4% on renewal)
+                  Assumptions: 11-month tenure · Traditional deposit withheld at move-out: 1 month of rent (50% of it is unfair or excessive) · Reeve fee shown at 7% (confirmed before you commit, drops to 4% on renewal)
                 </p>
               </div>
             </div>
@@ -691,7 +691,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
               {
                 n: 4,
                 title: 'Move In, Stay Supported',
-                body: "Once approved, pay first month's rent and one month's security deposit. Keys handed over. Reeve handles all maintenance, rent collection, and disputes throughout your stay.",
+                body: "Once approved, pay first month's rent and two month's security deposit. Keys handed over. Reeve handles all maintenance, rent collection, and disputes throughout your stay.",
                 pill: 'You never contact the owner directly',
               },
             ];
@@ -1099,7 +1099,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 className="text-xs leading-6 mt-5"
                 style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.55)' }}
               >
-                Free to browse · No commitment until agreement signed · Deposit held by platform · Zero SPAM policy
+                Free to browse · No commitment until agreement signed · Zero SPAM policy
               </p>
             </div>
 
