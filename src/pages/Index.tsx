@@ -122,7 +122,7 @@ export default function Index() {
                 className="mt-2 text-sm text-slate-500 leading-relaxed"
                 style={{ fontFamily: FONT_SANS }}
               >
-                We charge a 7% Reeve Fee on rent (reduced to 4% next term) — instead of a broker&apos;s 1–2 months. You save significantly on day one.
+                We charge a 7% Reeve Fee on each month's rent (reduced to 4% next term) — instead of a broker&apos;s 1–2 months. You save significantly on day one.
               </p>
               <ul className="mt-5 space-y-2 flex-1">
                 {[
