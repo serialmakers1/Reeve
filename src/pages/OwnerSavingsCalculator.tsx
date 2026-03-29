@@ -9,7 +9,6 @@ type SavingsResult = {
   rent: number;
   commission: number;
   turnoverExpense: number;
-  interestEarned: number;
   traditionalNetCost: number;
   netSavings: number;
   timeSavedHours: number;
@@ -39,8 +38,6 @@ type AnimatedNumberProps = {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const LISTING_FEE = 10000;
-const TENURE_MONTHS = 11;
-const IMPUTED_INTEREST_RATE = 0.1;
 const TIME_SAVED_HOURS = 120;
 const VISITS_SAVED = 15;
 const MIN_RENT = 20000;
@@ -49,18 +46,26 @@ const DEFAULT_RENT = 50000;
 
 // Page color tokens (defined here per spec — not added to global CSS)
 const C = {
-  bg: '#0F1C2E',
-  surface: '#162538',
-  border: 'rgba(255,255,255,0.1)',
-  textPrimary: '#FFFFFF',
-  textBody: 'rgba(255,255,255,0.75)',
-  textMuted: 'rgba(255,255,255,0.45)',
-  accent: '#2563EB',
-  accentLight: 'rgba(37,99,235,0.15)',
-  accentMid: '#93C5FD',
-  danger: '#FCA5A5',
-  dangerBg: 'rgba(220,38,38,0.12)',
-  dangerBorder: 'rgba(220,38,38,0.25)',
+  // Dark section tokens
+  bg:            '#0F1C2E',
+  surface:       '#1A2D42',
+  border:        'rgba(255,255,255,0.10)',
+  textPrimary:   '#FFFFFF',
+  textBody:      'rgba(255,255,255,0.75)',
+  textMuted:     'rgba(255,255,255,0.50)',
+  accent:        '#2563EB',
+  accentLight:   'rgba(37,99,235,0.15)',
+  accentMid:     '#93C5FD',
+  danger:        '#F87171',
+  dangerBg:      'rgba(220,38,38,0.12)',
+  dangerBorder:  'rgba(220,38,38,0.25)',
+  // Light section tokens (NEW)
+  bgLight:       '#FAFAF8',
+  bgLightCard:   '#FFFFFF',
+  borderLight:   '#E8E4DC',
+  textDark:      '#0F1C2E',
+  textDarkBody:  '#4A5568',
+  textDarkMuted: '#94A3B8',
 } as const;
 
 const FONT_SERIF = "'Instrument Serif', Georgia, serif";
@@ -106,18 +111,13 @@ const inrFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }
 const formatINR = (value: number): string => `₹${inrFormatter.format(Math.round(value))}`;
 
 function calculateSavings(rent: number): SavingsResult {
-  const traditionalSecurityCollected = 3 * rent;
   const commission = 1 * rent;
   const turnoverExpense = 0.5 * rent;
-  const interestEarned =
-    traditionalSecurityCollected * IMPUTED_INTEREST_RATE * (TENURE_MONTHS / 12);
-  const traditionalNetCost =
-    LISTING_FEE + commission + turnoverExpense - interestEarned - rent;
+  const traditionalNetCost = LISTING_FEE + commission + turnoverExpense;
   return {
     rent,
     commission,
     turnoverExpense,
-    interestEarned,
     traditionalNetCost,
     netSavings: traditionalNetCost,
     timeSavedHours: TIME_SAVED_HOURS,
@@ -389,7 +389,8 @@ export default function OwnerSavingsPage(): React.ReactElement {
                 <img
                   src="/images/hero-owner.png"
                   alt="Reeve owner dashboard — rent received on time"
-                  className="w-2/3 rounded-2xl shadow-xl object-contain"
+                  className="w-2/3 rounded-2xl object-contain"
+                  style={{ mixBlendMode: 'screen' }}
                 />
               </div>
             </div>
@@ -397,18 +398,18 @@ export default function OwnerSavingsPage(): React.ReactElement {
         </section>
 
         {/* ══ SECTION 2: HOW THE MONEY WORKS ══════════════════════════════ */}
-        <section style={{ background: C.surface }} className="py-10 sm:py-16 lg:py-28">
+        <section style={{ background: C.bgLight }} className="py-10 sm:py-16 lg:py-28">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.accent }}>
               Total Transparency
             </p>
             <h2
               className="mt-3 text-[32px] leading-[38px] lg:text-[44px] lg:leading-[50px]"
-              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.textPrimary }}
+              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.textDark }}
             >
               Here&apos;s exactly who pays what.
             </h2>
-            <p className="mt-3 text-base" style={{ color: C.textMuted }}>
+            <p className="mt-3 text-base" style={{ color: C.textDarkBody }}>
               Before you go further — here&apos;s how Reeve earns, and why your rent is never touched.
             </p>
 
@@ -440,27 +441,61 @@ export default function OwnerSavingsPage(): React.ReactElement {
               {/* How Reeve earns card */}
               <div
                 className="rounded-3xl p-8 lg:p-10"
-                style={{ background: C.bg, border: `2px solid ${C.accent}` }}
+                style={{ background: C.bgLightCard, border: `2px solid ${C.accent}` }}
               >
-                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.textDarkMuted }}>
                   How Reeve Earns
                 </p>
-                <p className="mt-6 text-sm leading-relaxed" style={{ color: C.textBody }}>
-                  Reeve charges tenants a service fee of 7% of the monthly rent, paid by the tenant on
-                  top of their rent.
-                </p>
-                <p className="mt-4 text-sm leading-relaxed" style={{ color: C.textBody }}>
-                  This fee is fully disclosed to tenants before they apply. It covers tenant screening,
-                  agreement execution, maintenance coordination, and everything else Reeve does.
-                </p>
-                <p className="mt-4 text-sm leading-relaxed" style={{ color: C.textBody }}>
-                  Your rent and Reeve&apos;s fee are completely separate. We earn when your property is
-                  occupied and your tenant is happy — which is exactly the alignment you want.
-                </p>
+
+                {/* Three icon rows */}
+                <div className="mt-6 space-y-4">
+                  {[
+                    {
+                      icon: '💰',
+                      title: 'Tenants pay a 7% fee on top of rent',
+                      desc: 'Paid by the tenant on top of their monthly rent — not deducted from what you receive.',
+                    },
+                    {
+                      icon: '🔒',
+                      title: 'Your rent is never touched',
+                      desc: 'Your listed rent is what arrives in your bank. Reeve\'s fee is a completely separate transaction.',
+                    },
+                    {
+                      icon: '🤝',
+                      title: 'We earn only when you\'re occupied',
+                      desc: 'No tenant means no fee for us. Our incentive is to keep your property leased and your tenant happy.',
+                    },
+                  ].map((row) => (
+                    <div key={row.title} className="flex gap-3 items-start">
+                      <span className="text-xl shrink-0 mt-0.5">{row.icon}</span>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: C.textDark }}>
+                          {row.title}
+                        </p>
+                        <p className="mt-0.5 text-sm leading-relaxed" style={{ color: C.textDarkBody }}>
+                          {row.desc}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Alignment pull-quote */}
+                <div
+                  className="mt-6 rounded-xl px-4 py-3"
+                  style={{ background: C.accentLight, border: `1px solid rgba(37,99,235,0.2)` }}
+                >
+                  <p className="text-sm font-semibold text-center" style={{ color: C.accent }}>
+                    Reeve only makes money when your property is leased.
+                  </p>
+                  <p className="text-xs text-center mt-1" style={{ color: C.textDarkMuted }}>
+                    Our interests are perfectly aligned with yours.
+                  </p>
+                </div>
               </div>
             </div>
 
-            <p className="mt-8 text-center text-sm" style={{ color: C.textMuted }}>
+            <p className="mt-8 text-center text-sm" style={{ color: C.textDarkMuted }}>
               &ldquo;Reeve&apos;s business model only works when your property is leased. That&apos;s not a coincidence — it&apos;s intentional.&rdquo;
             </p>
           </div>
@@ -531,16 +566,16 @@ export default function OwnerSavingsPage(): React.ReactElement {
         {/* ══ SECTION 4: HOW IT WORKS ══════════════════════════════════════ */}
         <section
           ref={processRef as React.RefObject<HTMLElement>}
-          style={{ background: C.surface }}
+          style={{ background: C.bgLight }}
           className="py-10 sm:py-16 lg:py-28"
         >
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.accent }}>
               The Process
             </p>
             <h2
               className="mt-3 text-[32px] leading-[38px] lg:text-[44px] lg:leading-[50px]"
-              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.textPrimary }}
+              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.textDark }}
             >
               List once. We handle everything else.
             </h2>
@@ -562,12 +597,12 @@ export default function OwnerSavingsPage(): React.ReactElement {
                       {step.n}
                     </div>
                     {i < arr.length - 1 && (
-                      <div className="my-1 w-px flex-1" style={{ background: C.border }} />
+                      <div className="my-1 w-px flex-1" style={{ background: C.borderLight }} />
                     )}
                   </div>
                   <div className="pb-10">
-                    <h3 className="font-semibold text-lg" style={{ color: C.textPrimary }}>{step.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-left" style={{ color: C.textBody }}>{step.body}</p>
+                    <h3 className="font-semibold text-lg" style={{ color: C.textDark }}>{step.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-left" style={{ color: C.textDarkBody }}>{step.body}</p>
                     {step.pill && (
                       <span
                         className="mt-3 inline-block rounded-full px-3 py-1 text-xs font-semibold"
@@ -587,7 +622,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                 {/* Connector line */}
                 <div
                   className="absolute top-6 left-[12.5%] right-[12.5%] h-px"
-                  style={{ background: C.border, borderTop: `2px dashed ${C.border}` }}
+                  style={{ background: C.borderLight, borderTop: `2px dashed ${C.borderLight}` }}
                 />
                 {[
                   { n: '1', title: 'Submit Your Property', body: "Fill a quick form or give us a call. No photos, no documents, no preparation needed at this stage. Just your name, phone, property area, and BHK.", pill: null },
@@ -602,8 +637,8 @@ export default function OwnerSavingsPage(): React.ReactElement {
                     >
                       {step.n}
                     </div>
-                    <h3 className="mt-5 font-semibold text-base" style={{ color: C.textPrimary }}>{step.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-left" style={{ color: C.textBody }}>{step.body}</p>
+                    <h3 className="mt-5 font-semibold text-base" style={{ color: C.textDark }}>{step.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-left" style={{ color: C.textDarkBody }}>{step.body}</p>
                     {step.pill && (
                       <span
                         className="mt-3 inline-block rounded-full px-3 py-1 text-xs font-semibold"
@@ -660,17 +695,77 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   }}
                   aria-label="Monthly rent amount"
                 />
-                <div className="mt-2 flex justify-between">
-                  <span className="text-xs" style={{ color: C.textMuted }}>₹20,000</span>
-                  {[50000, 100000, 150000].map((tick) => (
-                    <div key={tick} className="flex flex-col items-center">
-                      <div className="h-2 w-px" style={{ background: C.border }} />
-                      <span className="mt-0.5 text-[10px]" style={{ color: C.textMuted }}>
-                        {tick === 100000 ? '₹1L' : tick === 150000 ? '₹1.5L' : '₹50K'}
-                      </span>
-                    </div>
-                  ))}
-                  <span className="text-xs" style={{ color: C.textMuted }}>₹2,00,000</span>
+                {/* Tick marks — absolutely positioned to match slider range */}
+                <div className="relative mt-2 h-5">
+                  {/* Left label */}
+                  <span
+                    className="absolute left-0 text-xs"
+                    style={{ color: C.textMuted }}
+                  >
+                    ₹20,000
+                  </span>
+
+                  {/* Right label */}
+                  <span
+                    className="absolute right-0 text-xs"
+                    style={{ color: C.textMuted }}
+                  >
+                    ₹2,00,000
+                  </span>
+
+                  {/* ₹50K tick — at 16.67% of range */}
+                  <div
+                    className="absolute flex flex-col items-center"
+                    style={{ left: `${((50000 - MIN_RENT) / (MAX_RENT - MIN_RENT)) * 100}%`, transform: 'translateX(-50%)' }}
+                  >
+                    <div className="h-2 w-px" style={{ background: C.border }} />
+                    <span className="mt-0.5 text-[10px]" style={{ color: C.textMuted }}>₹50K</span>
+                  </div>
+
+                  {/* ₹1L tick — at 44.44% */}
+                  <div
+                    className="absolute flex flex-col items-center"
+                    style={{ left: `${((100000 - MIN_RENT) / (MAX_RENT - MIN_RENT)) * 100}%`, transform: 'translateX(-50%)' }}
+                  >
+                    <div className="h-2 w-px" style={{ background: C.border }} />
+                    <span className="mt-0.5 text-[10px]" style={{ color: C.textMuted }}>₹1L</span>
+                  </div>
+
+                  {/* ₹1.5L tick — at 72.22% */}
+                  <div
+                    className="absolute flex flex-col items-center"
+                    style={{ left: `${((150000 - MIN_RENT) / (MAX_RENT - MIN_RENT)) * 100}%`, transform: 'translateX(-50%)' }}
+                  >
+                    <div className="h-2 w-px" style={{ background: C.border }} />
+                    <span className="mt-0.5 text-[10px]" style={{ color: C.textMuted }}>₹1.5L</span>
+                  </div>
+                </div>
+
+                {/* Quick-select rent buttons */}
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {[25000, 50000, 75000, 100000].map((v) => {
+                    const label = v === 100000 ? '₹1L' : `₹${v / 1000}K`;
+                    return (
+                      <button
+                        key={v}
+                        onClick={() => {
+                          setCurrentRent(v);
+                          if (!hasTrackedCalcRef.current) {
+                            posthog?.capture('owner_savings_calculated', { rent_amount: v });
+                            hasTrackedCalcRef.current = true;
+                          }
+                        }}
+                        className="rounded-full border px-3 py-1.5 text-sm font-medium cursor-pointer transition focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        style={{
+                          borderColor: currentRent === v ? C.accent : C.border,
+                          background: currentRent === v ? C.accentLight : 'transparent',
+                          color: currentRent === v ? C.accentMid : C.textMuted,
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -684,17 +779,42 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Pay upfront fees, pay commission, manage it yourself.</p>
                 </div>
                 <div className="p-6" style={{ background: C.surface }}>
-                  {/* Security */}
-                  <div className="rounded-2xl p-4 mb-4" style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}` }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: C.textMuted }}>Upfront capital flow</p>
-                    <p className="text-sm font-medium" style={{ color: C.textBody }}>
-                      Security Collected (3× rent):{' '}
-                      <span className="font-bold" style={{ color: C.textPrimary }}>
-                        <AnimatedNumber value={savings.rent * 3} formatter={formatINR} />
-                      </span>
+                  {/* Deposit flow — Traditional */}
+                  <div
+                    className="rounded-2xl p-4 mb-4"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}` }}
+                  >
+                    <p
+                      className="text-xs font-semibold uppercase tracking-wider mb-3"
+                      style={{ color: C.textMuted }}
+                    >
+                      Security Deposit Flow
                     </p>
-                    <p className="text-xs mt-1" style={{ color: C.textMuted }}>→ {formatINR(savings.rent)} absorbed at end for turnover</p>
-                    <p className="text-xs" style={{ color: C.textMuted }}>→ Returns {formatINR(savings.rent * 2)} to tenant</p>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-sm">
+                        <span style={{ color: C.textBody }}>Collected from tenant (3× rent)</span>
+                        <span className="font-semibold" style={{ color: C.textPrimary }}>
+                          <AnimatedNumber value={savings.rent * 3} formatter={formatINR} />
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span style={{ color: C.textBody }}>Returned to tenant at move-out (2× rent)</span>
+                        <span className="font-medium" style={{ color: C.textMuted }}>
+                          −<AnimatedNumber value={savings.rent * 2} formatter={formatINR} />
+                        </span>
+                      </div>
+                      <div
+                        className="flex justify-between text-sm pt-1.5 mt-1.5"
+                        style={{ borderTop: `1px solid ${C.border}` }}
+                      >
+                        <span className="font-semibold" style={{ color: C.danger }}>
+                          Deposit absorbed (cleaning &amp; turnover)
+                        </span>
+                        <span className="font-bold" style={{ color: C.danger }}>
+                          <AnimatedNumber value={savings.rent} formatter={formatINR} />
+                        </span>
+                      </div>
+                    </div>
                   </div>
                   {/* Costs */}
                   <div className="space-y-2">
@@ -712,12 +832,6 @@ export default function OwnerSavingsPage(): React.ReactElement {
                         </span>
                       </div>
                     ))}
-                    <div className="flex justify-between rounded-xl px-4 py-3 text-sm" style={{ background: C.accentLight, border: `1px solid ${C.accentMid}` }}>
-                      <span style={{ color: C.textBody }}>Interest Earned on Deposit</span>
-                      <span className="font-semibold" style={{ color: C.accentMid }}>
-                        +<AnimatedNumber value={savings.interestEarned} formatter={formatINR} />
-                      </span>
-                    </div>
                     <div className="flex justify-between rounded-xl px-4 py-3 text-sm font-bold" style={{ background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
                       <span style={{ color: C.danger }}>Net Cost</span>
                       <AnimatedNumber value={savings.traditionalNetCost} formatter={formatINR} className="font-bold" style={{ color: C.danger } as React.CSSProperties} />
@@ -733,18 +847,45 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Fully managed. Zero owner-side fees. Zero commission.</p>
                 </div>
                 <div className="p-6" style={{ background: C.surface }}>
-                  <div className="rounded-2xl p-4 mb-4" style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}` }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: C.textMuted }}>Upfront capital flow</p>
-                    <p className="text-sm font-medium" style={{ color: C.textBody }}>
-                      Security Collected (2× rent):{' '}
-                      <span className="font-bold" style={{ color: C.textPrimary }}>
-                        <AnimatedNumber value={savings.rent} formatter={formatINR} />
-                      </span>
+                  {/* Deposit flow — Reeve */}
+                  <div
+                    className="rounded-2xl p-4 mb-4"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}` }}
+                  >
+                    <p
+                      className="text-xs font-semibold uppercase tracking-wider mb-3"
+                      style={{ color: C.textMuted }}
+                    >
+                      Security Deposit Flow
                     </p>
-                    <p className="text-xs mt-1" style={{ color: C.textMuted }}>→ Held and managed by platform. Fully returned at end.</p>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-sm">
+                        <span style={{ color: C.textBody }}>Collected from tenant (1× rent)</span>
+                        <span className="font-semibold" style={{ color: C.textPrimary }}>
+                          <AnimatedNumber value={savings.rent} formatter={formatINR} />
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span style={{ color: C.textBody }}>Returned to tenant at move-out</span>
+                        <span className="font-medium" style={{ color: C.accentMid }}>
+                          Full amount
+                        </span>
+                      </div>
+                      <div
+                        className="flex justify-between text-sm pt-1.5 mt-1.5"
+                        style={{ borderTop: `1px solid ${C.border}` }}
+                      >
+                        <span className="font-semibold" style={{ color: C.accentMid }}>
+                          Deposit absorbed
+                        </span>
+                        <span className="font-bold" style={{ color: C.accentMid }}>
+                          ₹0
+                        </span>
+                      </div>
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    {['PMS Listing Fee', 'Commission', 'Paiting & Cleaning Expense', 'Interest Earned'].map((label) => (
+                    {['PMS Listing Fee', 'Commission', 'Painting & Cleaning Expense'].map((label) => (
                       <div key={label} className="flex justify-between rounded-xl px-4 py-3 text-sm" style={{ background: C.accentLight, border: `1px solid ${C.accentMid}` }}>
                         <span style={{ color: C.textBody }}>{label}</span>
                         <span className="font-semibold" style={{ color: C.accentMid }}>₹0</span>
@@ -773,7 +914,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
             {/* Assumptions */}
             <div className="mt-6 rounded-2xl p-4 text-xs" style={{ border: `1px solid ${C.border}`, color: C.textMuted }}>
-              <strong>Assumptions:</strong> 11-month tenure cycle · Traditional listing fee ₹10,000 · Painting & Cleaning Expense (Every Turnover) 0.5× monthly rent.
+              <strong>Assumptions:</strong> 11-month tenure cycle · Traditional listing fee ₹10,000 · Painting &amp; Cleaning Expense (every turnover) 0.5× monthly rent.
             </div>
           </div>
         </section>
@@ -781,16 +922,16 @@ export default function OwnerSavingsPage(): React.ReactElement {
         {/* ══ SECTION 6: WHAT YOU GAIN — AND WHAT'S PROTECTED ═════════════ */}
         <section
           ref={protectionRef as React.RefObject<HTMLElement>}
-          style={{ background: C.surface }}
+          style={{ background: C.bgLight }}
           className="py-10 sm:py-16 lg:py-28"
         >
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.accent }}>
               Beyond the Numbers
             </p>
             <h2
               className="mt-3 max-w-2xl text-[32px] leading-[38px] lg:text-[44px] lg:leading-[50px]"
-              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.textPrimary }}
+              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.textDark }}
             >
               What you gain — and what&apos;s protected.
             </h2>
@@ -804,7 +945,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                 <div
                   key={card.label}
                   className="hover-lift rounded-3xl p-8 text-center"
-                  style={{ border: `1px solid ${C.border}`, background: C.bg }}
+                  style={{ border: `1px solid ${C.borderLight}`, background: C.bgLightCard }}
                 >
                   <p
                     className="text-[56px] font-bold leading-none"
@@ -812,10 +953,10 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   >
                     {card.num}
                   </p>
-                  <p className="mt-2 text-xs font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-widest" style={{ color: C.textDarkMuted }}>
                     {card.label}
                   </p>
-                  <p className="mt-3 text-sm leading-relaxed" style={{ color: C.textBody }}>
+                  <p className="mt-3 text-sm leading-relaxed" style={{ color: C.textDarkBody }}>
                     {card.desc}
                   </p>
                 </div>
@@ -824,70 +965,10 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
             <p
               className="mt-14 text-center text-[24px] leading-relaxed"
-              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.accentMid }}
+              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.accent }}
             >
               &ldquo;These don&apos;t appear in a spreadsheet.
               <br />But you&apos;ve felt every one of them.&rdquo;
-            </p>
-
-            <h3
-              className="mt-16 max-w-2xl text-[28px] leading-[34px] lg:text-[36px] lg:leading-[42px]"
-              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.textPrimary }}
-            >
-              Even when things go wrong — they&apos;re not your problem to solve.
-            </h3>
-            <p className="mt-3 text-base" style={{ color: C.textMuted }}>
-              Reeve&apos;s Owner Protection Promise is written into every service agreement. Here&apos;s what it covers.
-            </p>
-
-            <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              {[
-                {
-                  icon: '🛡️',
-                  title: 'Rent Default Handling',
-                  body: "If a tenant misses rent, Reeve follows up immediately. Day 7: formal reminder across all channels. Day 15: formal notice issued. Day 21: legal notice sent. Day 30: eviction process initiated. You receive status updates at every stage — you never chase the tenant yourself.",
-                  closing: 'Your job: read the update. Not make the call.',
-                },
-                {
-                  icon: '🏠',
-                  title: 'Damage Coverage',
-                  body: "The move-in condition report — photos, notes, tenant sign-off — is the legal baseline. At move-out, Reeve compares every room against it. Normal wear is absorbed by the platform. Damage beyond wear is assessed, documented, and billed to the tenant.",
-                  closing: "You're shown the evidence. Not asked to argue over it.",
-                },
-                {
-                  icon: '⚖️',
-                  title: 'Dispute Resolution',
-                  body: "All disputes — damage, deposit, maintenance — are mediated by Reeve first. If unresolved, escalated to appointed arbitration per the service agreement. You never deal directly with the tenant at any point. We maintain the evidence trail throughout.",
-                  closing: 'You are never in the room when it gets difficult.',
-                },
-                {
-                  icon: '📅',
-                  title: '14-Day Re-Leasing SLA',
-                  body: "Reeve actively monitors applications from day one of listing. If there are no applications after 14 days, we pull comparable market data, share it with you, and recommend a revised asking rent. After 21 days, we evaluate the listing quality, furnishing gaps, and marketing reach. Vacancy is our problem to solve.",
-                  closing: "You hear about it. You don't have to fix it.",
-                },
-              ].map((card) => (
-                <div
-                  key={card.title}
-                  className="hover-lift rounded-2xl p-6 lg:p-8"
-                  style={{ background: C.bg, border: `1px solid ${C.border}` }}
-                >
-                  <div className="text-3xl">{card.icon}</div>
-                  <h3 className="mt-4 text-lg font-semibold" style={{ color: C.textPrimary }}>
-                    {card.title}
-                  </h3>
-                  <p className="mt-3 text-sm leading-relaxed" style={{ color: C.textBody }}>
-                    {card.body}
-                  </p>
-                  <p className="mt-4 text-sm font-semibold" style={{ color: C.accentMid }}>
-                    {card.closing}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <p className="mt-8 text-center text-sm" style={{ color: C.textMuted }}>
-              Owner Protection Promise details are included in every service agreement. Ask us for a copy before you list.
             </p>
           </div>
         </section>
@@ -1009,37 +1090,37 @@ export default function OwnerSavingsPage(): React.ReactElement {
         </section>
 
         {/* ══ SECTION 8: SOCIAL PROOF ══════════════════════════════════════ */}
-        <section style={{ background: C.surface }} className="py-10 sm:py-16 lg:py-28">
+        <section style={{ background: C.bgLight }} className="py-10 sm:py-16 lg:py-28">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.accent }}>
               From Owners Like You
             </p>
             <h2
               className="mt-3 text-[32px] leading-[38px] lg:text-[44px] lg:leading-[50px]"
-              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.textPrimary }}
+              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: C.textDark }}
             >
               What Bangalore property owners say
             </h2>
 
             <div
               className="mx-auto mt-12 max-w-2xl rounded-3xl p-8 lg:p-12"
-              style={{ background: C.bg, border: `1px solid ${C.border}` }}
+              style={{ background: C.bgLightCard, border: `1px solid ${C.borderLight}` }}
             >
               <p
                 className="text-[72px] leading-none"
-                style={{ fontFamily: FONT_SERIF, color: C.accentMid, lineHeight: 0.8 }}
+                style={{ fontFamily: FONT_SERIF, color: C.accent, lineHeight: 0.8 }}
               >
                 &ldquo;
               </p>
               <p
                 className="mt-4 text-[20px] leading-[30px]"
-                style={{ fontFamily: FONT_SERIF, color: C.textPrimary }}
+                style={{ fontFamily: FONT_SERIF, color: C.textDark }}
               >
                 We&apos;re just getting started in Bangalore. Be among the first 10 owners to
                 list with Reeve — and we&apos;ll give your property priority placement,
                 dedicated onboarding, and our full attention from day one.
               </p>
-              <p className="mt-6 text-sm font-semibold" style={{ color: C.accentMid }}>
+              <p className="mt-6 text-sm font-semibold" style={{ color: C.accent }}>
                 Priority placement for early owners · Fully managed from day one
               </p>
             </div>
@@ -1113,6 +1194,73 @@ export default function OwnerSavingsPage(): React.ReactElement {
                 );
               })}
             </div>
+          </div>
+        </section>
+
+        {/* ══ SECTION 10: FINAL CTA + CONTACT ════════════════════════════════ */}
+        <section style={{ background: C.accent }} className="py-16 sm:py-20">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
+
+            <p
+              className="text-xs font-semibold uppercase tracking-widest"
+              style={{ color: 'rgba(255,255,255,0.65)', fontFamily: FONT_SANS }}
+            >
+              Ready to get started?
+            </p>
+
+            <h2
+              className="mt-4 text-[32px] leading-[38px] lg:text-[44px] lg:leading-[50px]"
+              style={{ fontFamily: FONT_SERIF, fontWeight: 400, color: '#FFFFFF' }}
+            >
+              List your property.
+              <br />It costs you nothing.
+            </h2>
+
+            <p
+              className="mt-4 text-base"
+              style={{ color: 'rgba(255,255,255,0.75)', fontFamily: FONT_SANS }}
+            >
+              Join Bangalore&apos;s only zero-brokerage, fully managed rental platform.
+            </p>
+
+            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+              <button
+                onClick={() => navigate('/login?returnTo=/owner/add')}
+                className="rounded-2xl px-8 py-4 text-base font-semibold transition-all duration-200 hover:-translate-y-0.5"
+                style={{
+                  background: '#FFFFFF',
+                  color: C.accent,
+                  minHeight: 52,
+                  fontFamily: FONT_SANS,
+                }}
+              >
+                List Your Property — It&apos;s Free →
+              </button>
+
+              <Link
+                to="/contact"
+                className="rounded-2xl border-2 px-8 py-4 text-base font-semibold transition-all duration-200 hover:bg-white/10"
+                style={{
+                  borderColor: 'rgba(255,255,255,0.5)',
+                  color: '#FFFFFF',
+                  minHeight: 52,
+                  fontFamily: FONT_SANS,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                Talk to Us First →
+              </Link>
+            </div>
+
+            <p
+              className="mt-6 text-sm"
+              style={{ color: 'rgba(255,255,255,0.5)', fontFamily: FONT_SANS }}
+            >
+              Have questions before you list? We&apos;re happy to walk you through how Reeve works.
+            </p>
+
           </div>
         </section>
 
