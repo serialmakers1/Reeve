@@ -351,7 +351,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
               style={{ animationDelay: '240ms' }}
             >
               {[
-                '1 Month Deposit Only',
+                '2 Month Deposit Only',
                 'Zero Brokerage — Always',
                 'Platform-Managed Home',
                 'Zero SPAM Policy',
