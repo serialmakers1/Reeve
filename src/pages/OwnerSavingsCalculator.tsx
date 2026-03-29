@@ -628,9 +628,9 @@ export default function OwnerSavingsPage(): React.ReactElement {
                 />
                 {[
                   { n: '1', title: 'Submit Your Property', body: "Fill a quick form or give us a call. No photos, no documents, no preparation needed at this stage. Just your name, phone, property area, and BHK.", pill: null },
-                  { n: '2', title: 'We Inspect & List', body: "Our team visits, photographs, lists your property, and shows it to every vetted applicant. You are never asked to be present for a single viewing.", pill: 'You never show the flat yourself' },
+                  { n: '2', title: 'We Inspect & List', body: "Our team visits, photographs, lists your property, and shows it to every vetted applicant. You are never asked to be present for a single viewing.", pill: null },
                   { n: '3', title: 'Tenant Moves In', body: "You review and approve the tenant. We handle the digital agreement, key handover, and move-in condition report.", pill: null },
-                  { n: '4', title: 'We Manage Everything', body: "Rent transferred to you on the 5th. Maintenance coordinated. Disputes handled. Move-out inspections done. Your only job: receive your payout.", pill: 'Zero effort from you — and zero cost, ever' },
+                  { n: '4', title: 'We Manage Everything', body: "Rent transferred to you on the 5th. Maintenance coordinated. Disputes handled. Move-out inspections done. Your only job: receive your payout.", pill: null },
                 ].map((step) => (
                   <div key={step.n} className="flex flex-col items-center text-center">
                     <div
