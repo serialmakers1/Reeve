@@ -808,7 +808,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                         style={{ borderTop: `1px solid ${C.border}` }}
                       >
                         <span className="font-semibold" style={{ color: C.danger }}>
-                          Deposit absorbed (cleaning &amp; turnover)
+                          Deposit absorbed (cleaning, painting &amp; repairs)
                         </span>
                         <span className="font-bold" style={{ color: C.danger }}>
                           <AnimatedNumber value={savings.rent} formatter={formatINR} />
@@ -860,7 +860,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                     </p>
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-sm">
-                        <span style={{ color: C.textBody }}>Collected from tenant (1× rent)</span>
+                        <span style={{ color: C.textBody }}>Collected from tenant (2× rent)</span>
                         <span className="font-semibold" style={{ color: C.textPrimary }}>
                           <AnimatedNumber value={savings.rent} formatter={formatINR} />
                         </span>
