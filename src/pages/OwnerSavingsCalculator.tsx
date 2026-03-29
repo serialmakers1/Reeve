@@ -586,9 +586,9 @@ export default function OwnerSavingsPage(): React.ReactElement {
             <div className="mt-12 flex flex-col gap-0 lg:hidden">
               {[
                 { n: '1', title: 'Submit Your Property', body: "Fill a quick form or give us a call. No photos, no documents, no preparation needed at this stage. Just your name, phone number, property area, and BHK. That's it.", pill: null },
-                { n: '2', title: 'We Inspect & List', body: "Our team visits, photographs, documents every detail, and lists your property professionally. We show it to every vetted applicant — you are never asked to be present for a single viewing.", pill: 'You never show the flat yourself' },
+                { n: '2', title: 'We Inspect & List', body: "Our team visits, photographs, documents every detail, and lists your property professionally. We show it to every vetted applicant — you are never asked to be present for a single viewing.", pill:  null },
                 { n: '3', title: 'Tenant Moves In', body: "You review and approve the tenant application. We handle the digital agreement, key handover, and move-in condition report. Police verification for foreign citizens is handled by us.", pill: null },
-                { n: '4', title: 'We Manage Everything', body: "Rent collected and transferred to you every month. Maintenance coordinated end-to-end. Move-out inspections conducted. Lease renewals managed. Your only job is to receive your payout.", pill: 'Zero effort from you — and zero cost, ever' },
+                { n: '4', title: 'We Manage Everything', body: "Rent collected and transferred to you every month. Maintenance coordinated end-to-end. Move-out inspections conducted. Lease renewals managed. Your only job is to receive your payout.", pill:  null },
               ].map((step, i, arr) => (
                 <div key={step.n} className="flex gap-5">
                   <div className="flex flex-col items-center">
