@@ -214,16 +214,12 @@ interface FaqItem {
 
 const FAQS: FaqItem[] = [
   {
-    q: 'How is the service fee calculated?',
-    a: "Reeve charges a service fee on top of your monthly rent. For most tenants this is 7% of monthly rent across the 11-month lease. Your exact rate is confirmed during the application process based on your eligibility profile — you will always see your rate clearly before you commit to anything. On renewal, the fee drops to 4% — because long-term tenants represent lower risk and lower operational cost, and we pass that benefit back to you.",
+    q: 'How is the Reeve fee calculated?',
+    a: "Reeve charges a fee on top of your monthly rent. For most tenants this is 7% of monthly rent across the 11-month lease. Your exact rate is confirmed during the application process based on your eligibility profile — you will always see your rate clearly before you commit to anything. On renewal, the fee drops to 4% — because long-term tenants represent lower risk and lower operational cost, and we pass that benefit back to you.",
   },
   {
     q: 'Is the security deposit refundable?',
     a: 'Yes — your deposit is returned at move-out based on the documented condition of the property. If no damage is found beyond normal wear and tear, your full deposit is returned. Any deductions are based strictly on the move-in condition report you sign on day one — complete with photos and notes. No undocumented claims. No vague "renovation" charges. The process is fair, evidence-based, and platform-managed — not left to the landlord\'s judgment.',
-  },
-  {
-    q: 'Who holds the security deposit?',
-    a: "Reeve holds your security deposit — not your property owner. This is the most fundamental difference from traditional renting, where the owner holds your money with no accountability mechanism. Because Reeve holds the deposit, the refund process is governed by documentation and platform policy — not the landlord's mood.",
   },
   {
     q: 'Do I ever need to contact the owner directly?',
@@ -311,16 +307,16 @@ export default function TenantSavingsPage(): React.JSX.Element {
               }}
             >
               Your landlord wants<br />
-              3 months before<br />
+              3 months deposit before<br />
               you move in.<br />
-              <span className="text-blue-400">We think that's absurd.</span>
+              <span className="text-blue-400">We think that's unfair.</span>
             </h1>
 
             <p
               className="t-fade-up mt-6 text-slate-300 text-[18px] leading-8 max-w-lg"
               style={{ fontFamily: FONT_SANS, animationDelay: '160ms' }}
             >
-              Reeve lets you move into your next Bangalore home with just 1 month's deposit. Zero brokerage. No middlemen.
+              Reeve lets you move into your next Bangalore home with just 2 month's deposit. Zero brokerage. No middlemen.
             </p>
 
             <div
@@ -399,7 +395,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 className="mt-3 text-[32px] sm:text-[40px] lg:text-[64px] font-medium text-blue-400 leading-none break-all"
                 style={{ fontFamily: FONT_MONO }}
               >
-                ₹1,50,000
+                ₹1,00,000
               </p>
               <p className="text-slate-400 text-sm mt-2" style={{ fontFamily: FONT_SANS }}>
                 That's money back in your pocket, not locked with a landlord
@@ -534,11 +530,10 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 </p>
                 <ul className="mt-3 space-y-2.5">
                   {[
-                    { icon: '🔑',  text: '1 month deposit only — not 3' },
+                    { icon: '🔑',  text: '2 month deposit only — not 3' },
                     { icon: '🚫',  text: 'Zero brokerage, always' },
-                    { icon: '📋',  text: 'Service fee on 11-month rent (replaces broker cost)' },
+                    { icon: '📋',  text: 'Reeve fee monthly (replaces broker cost)' },
                     { icon: '⚡',  text: '7 days average move-in' },
-                    { icon: '🛡️', text: 'Deposit held by platform, returned fairly at move-out' },
                     { icon: '🔕',  text: 'Zero SPAM — no broker calls, no unsolicited contact' },
                   ].map((item) => (
                     <li
@@ -662,7 +657,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                     reeve: null as number | null,
                   },
                   {
-                    label: 'Service fee (11m)',
+                    label: 'Reeve fee (11m)',
                     trad: null as number | null,
                     reeve: metrics.reeve_service_fee,
                   },
@@ -707,7 +702,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                   className="text-xs text-slate-500 leading-5"
                   style={{ fontFamily: FONT_SANS }}
                 >
-                  Assumptions: 11-month tenure · 10% annual opportunity cost on blocked capital · Service fee shown at 7% (may vary by eligibility profile — confirmed before you commit)
+                  Assumptions: 11-month tenure · 10% annual opportunity cost on blocked capital · Reeve fee shown at 7% (may vary by eligibility profile — confirmed before you commit)
                 </p>
               </div>
             </div>
@@ -1010,8 +1005,8 @@ export default function TenantSavingsPage(): React.JSX.Element {
                   {[
                     {
                       label: 'Security deposit',
-                      sub: '1 month only. Held by Reeve. Returned based on documented condition.',
-                      val: '₹50,000',
+                      sub: '2 month only. Returned based on documented condition.',
+                      val: '₹1,00,000',
                     },
                     {
                       label: 'Broker fee',
@@ -1126,13 +1121,13 @@ export default function TenantSavingsPage(): React.JSX.Element {
               </span>
             </div>
 
-            {/* Card 2: Service Fee (white + blue border) */}
+            {/* Card 2: Reeve Fee (white + blue border) */}
             <div className="rounded-3xl border-2 border-blue-200 bg-white p-6 sm:p-8">
               <p
                 className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600"
                 style={{ fontFamily: FONT_SANS }}
               >
-                REEVE'S SERVICE FEE
+                REEVE'S FEE
               </p>
               <h3
                 className="text-2xl font-semibold text-slate-900 mt-3"
@@ -1144,7 +1139,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 className="text-sm text-slate-600 leading-7 mt-4"
                 style={{ fontFamily: FONT_SANS }}
               >
-                Reeve charges a service fee on top of your monthly rent. For most tenants this
+                Reeve charges a fee on top of your monthly rent. For most tenants this
                 is 7% of monthly rent across the 11-month lease. This covers tenant screening,
                 visit coordination, agreement execution, maintenance coordination, dispute
                 handling, and all platform support throughout your stay.
@@ -1156,7 +1151,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                   className="text-xs text-amber-800 leading-5"
                   style={{ fontFamily: FONT_SANS }}
                 >
-                  Your exact service fee rate is confirmed during the application process based on
+                  Your exact fee rate is confirmed during the application process based on
                   your eligibility profile. You will always see your rate clearly before you
                   confirm anything. For most tenants it is 7%. On renewal, it drops to 4% —
                   loyalty is rewarded.
@@ -1172,7 +1167,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 </p>
                 {[
                   { label: 'Monthly rent',    val: '₹50,000 → Owner' },
-                  { label: 'Service fee (7%)', val: '₹3,500 → Reeve' },
+                  { label: 'Reeve fee (7%)', val: '₹3,500 → Reeve' },
                   { label: 'Total monthly',   val: '₹53,500' },
                 ].map((row) => (
                   <div
@@ -1190,7 +1185,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 className="mt-5 inline-flex rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700"
                 style={{ fontFamily: FONT_SANS }}
               >
-                Service fee → Reeve. That's it.
+                Reeve fee → Reeve. That's it.
               </span>
             </div>
           </div>
