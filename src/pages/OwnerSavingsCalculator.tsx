@@ -9,6 +9,7 @@ type SavingsResult = {
   rent: number;
   commission: number;
   turnoverExpense: number;
+  depositAbsorbed: number;
   traditionalNetCost: number;
   netSavings: number;
   timeSavedHours: number;
@@ -111,13 +112,16 @@ const inrFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }
 const formatINR = (value: number): string => `₹${inrFormatter.format(Math.round(value))}`;
 
 function calculateSavings(rent: number): SavingsResult {
-  const commission = 1 * rent;
+  const commission      = 1 * rent;
   const turnoverExpense = 0.5 * rent;
-  const traditionalNetCost = LISTING_FEE + commission + turnoverExpense;
+  const depositAbsorbed = 1 * rent;
+  const traditionalNetCost =
+    LISTING_FEE + commission + turnoverExpense - depositAbsorbed;
   return {
     rent,
     commission,
     turnoverExpense,
+    depositAbsorbed,
     traditionalNetCost,
     netSavings: traditionalNetCost,
     timeSavedHours: TIME_SAVED_HOURS,
@@ -285,17 +289,6 @@ export default function OwnerSavingsPage(): React.ReactElement {
         .hover-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.09); }
       `}</style>
 
-      {/* Sticky mobile CTA */}
-      <div className="fixed bottom-16 left-0 right-0 sm:hidden z-30 px-4 py-3 bg-[#0F1C2E] border-t border-white/10">
-        <Link
-          to="/my-properties/new"
-          className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-2xl text-sm text-center transition-colors duration-200"
-          style={{ fontFamily: FONT_SANS }}
-        >
-          List Your Property — Free →
-        </Link>
-      </div>
-
       <div style={{ background: C.bg, fontFamily: FONT_SANS, color: C.textPrimary }}>
 
         {/* ══ SECTION 1: HERO ══════════════════════════════════════════════ */}
@@ -375,6 +368,15 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   >
                     List Your Property — It&apos;s Free →
                   </button>
+                  <a
+                    href="#calculator"
+                    className="text-sm font-medium flex items-center gap-1.5 transition-colors duration-200"
+                    style={{ color: C.textMuted, fontFamily: FONT_SANS }}
+                    onMouseEnter={e => (e.currentTarget.style.color = C.textPrimary)}
+                    onMouseLeave={e => (e.currentTarget.style.color = C.textMuted)}
+                  >
+                    Calculate Your Savings ↓
+                  </a>
                 </div>
 
                 <p className="mt-3" style={{ fontFamily: FONT_SANS }}>
@@ -655,7 +657,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
         </section>
 
         {/* ══ SECTION 5: SAVINGS CALCULATOR ═══════════════════════════════ */}
-        <section style={{ background: C.bg }} className="py-10 sm:py-16 lg:py-28">
+        <section id="calculator" style={{ background: C.bg }} className="py-10 sm:py-16 lg:py-28">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>
               Your Savings
@@ -715,7 +717,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
                   {/* ₹50K tick — at 16.67% of range */}
                   <div
-                    className="absolute flex flex-col items-center"
+                    className="hidden sm:flex flex-col items-center absolute"
                     style={{ left: `${((50000 - MIN_RENT) / (MAX_RENT - MIN_RENT)) * 100}%`, transform: 'translateX(-50%)' }}
                   >
                     <div className="h-2 w-px" style={{ background: C.border }} />
@@ -724,7 +726,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
                   {/* ₹1L tick — at 44.44% */}
                   <div
-                    className="absolute flex flex-col items-center"
+                    className="hidden sm:flex flex-col items-center absolute"
                     style={{ left: `${((100000 - MIN_RENT) / (MAX_RENT - MIN_RENT)) * 100}%`, transform: 'translateX(-50%)' }}
                   >
                     <div className="h-2 w-px" style={{ background: C.border }} />
@@ -733,7 +735,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
                   {/* ₹1.5L tick — at 72.22% */}
                   <div
-                    className="absolute flex flex-col items-center"
+                    className="hidden sm:flex flex-col items-center absolute"
                     style={{ left: `${((150000 - MIN_RENT) / (MAX_RENT - MIN_RENT)) * 100}%`, transform: 'translateX(-50%)' }}
                   >
                     <div className="h-2 w-px" style={{ background: C.border }} />
@@ -807,11 +809,11 @@ export default function OwnerSavingsPage(): React.ReactElement {
                         className="flex justify-between text-sm pt-1.5 mt-1.5"
                         style={{ borderTop: `1px solid ${C.border}` }}
                       >
-                        <span className="font-semibold" style={{ color: C.danger }}>
-                          Deposit absorbed (cleaning, painting &amp; repairs)
+                        <span className="font-semibold" style={{ color: C.textBody }}>
+                          Deposit absorbed (cleaning &amp; turnover)
                         </span>
-                        <span className="font-bold" style={{ color: C.danger }}>
-                          <AnimatedNumber value={savings.rent} formatter={formatINR} />
+                        <span className="font-bold" style={{ color: C.textBody }}>
+                          <AnimatedNumber value={savings.depositAbsorbed} formatter={formatINR} />
                         </span>
                       </div>
                     </div>
@@ -862,13 +864,13 @@ export default function OwnerSavingsPage(): React.ReactElement {
                       <div className="flex justify-between text-sm">
                         <span style={{ color: C.textBody }}>Collected from tenant (2× rent)</span>
                         <span className="font-semibold" style={{ color: C.textPrimary }}>
-                          <AnimatedNumber value={savings.rent} formatter={formatINR} />
+                          <AnimatedNumber value={savings.rent * 2} formatter={formatINR} />
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span style={{ color: C.textBody }}>Returned to tenant at move-out</span>
                         <span className="font-medium" style={{ color: C.accentMid }}>
-                          Full amount
+                          Full amount — ₹0 absorbed
                         </span>
                       </div>
                       <div
@@ -914,7 +916,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
             {/* Assumptions */}
             <div className="mt-6 rounded-2xl p-4 text-xs" style={{ border: `1px solid ${C.border}`, color: C.textMuted }}>
-              <strong>Assumptions:</strong> 11-month tenure cycle · Traditional listing fee ₹10,000 · Painting &amp; Cleaning Expense (every turnover) 0.5× monthly rent.
+              <strong>Assumptions:</strong> 11-month tenure cycle · Traditional listing fee ₹10,000 · Painting &amp; Cleaning Expense 0.5× monthly rent · Deposit absorbed by owner at turnover: 1× monthly rent (offsets cleaning cost).
             </div>
           </div>
         </section>
