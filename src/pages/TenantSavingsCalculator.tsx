@@ -46,7 +46,7 @@ function calculateMetrics(rent: number): Metrics {
   const trad_deposit          = 3 * rent;
   const trad_brokerage        = 1 * rent;
   const trad_upfront          = trad_deposit + trad_brokerage;
-  const trad_unfair_deduction = 0.5 * trad_deposit;          // landlord withholds ~50% of deposit at move-out
+  const trad_unfair_deduction = 0.5 * rent;          // landlord withholds ~50% of rent at move-out unfairly
   const trad_total_cost       = trad_brokerage + trad_unfair_deduction;
   const reeve_deposit         = 2 * rent;
   const reeve_upfront         = reeve_deposit;
@@ -602,12 +602,12 @@ export default function TenantSavingsPage(): React.JSX.Element {
                     reeve: null as number | null,
                   },
                   {
-                    label: 'Reeve fee (11m)',
+                    label: 'Reeve fee (11 months)',
                     trad: null as number | null,
                     reeve: metrics.reeve_service_fee,
                   },
                   {
-                    label: 'Unfair deduction',
+                    label: 'Unfair Deposit deduction',
                     trad: metrics.trad_unfair_deduction,
                     reeve: null as number | null,
                   },
