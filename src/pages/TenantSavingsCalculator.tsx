@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import posthog from 'posthog-js';
 import {
   ArrowRight,
@@ -233,18 +233,6 @@ const FAQS: FaqItem[] = [
     q: 'What if the owner wants the property back?',
     a: "Owners on Reeve sign long-term management agreements. They cannot ask you to vacate outside of the notice period in your lease. If an owner needs their property back for any reason, Reeve manages all communication, enforces the contractual notice period on your behalf, and gives you full platform support in finding your next home if needed.",
   },
-  {
-    q: 'What does "7 days faster move-in" mean?',
-    a: "The traditional renting process — broker coordination, physical paperwork, multiple visits — typically takes 30+ days from the moment you find a flat to the day you get your keys. With Reeve's managed process, the average time from application to move-in is around 7 days. Your timeline may vary depending on property availability and verification, but the process is significantly faster because one platform coordinates everything.",
-  },
-  {
-    q: 'Does the calculator include monthly rent?',
-    a: 'No. The calculator compares the extra costs of renting under each model — not the base rent itself. Both models have the same monthly rent. What differs is everything surrounding it: deposit size, brokerage, service fee, and the opportunity cost of capital locked in upfront payments.',
-  },
-  {
-    q: 'Is there a phone app?',
-    a: 'Reeve is a web platform — it works on any browser on your phone, tablet, or desktop. Visit reeve.in from any device to browse properties, manage your tenancy, and raise requests. There is no separate app to download or install.',
-  },
 ];
 
 // ─── Main component ──────────────────────────────────────────────────────────
@@ -288,6 +276,17 @@ export default function TenantSavingsPage(): React.JSX.Element {
 
   return (
     <Layout>
+      {/* Sticky Mobile CTA — appears after scrolling past hero, hides when calculator in view */}
+      <div className="fixed bottom-16 left-0 right-0 sm:hidden z-30 px-4 py-3 bg-[#0F1C2E] border-t border-white/10">
+        <button
+          onClick={scrollToCalculator}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-2xl text-sm transition-colors duration-200"
+          style={{ fontFamily: FONT_SANS }}
+        >
+          See your savings →
+        </button>
+      </div>
+
       {/* Scoped CSS */}
       <style>{SLIDER_AND_ANIMATION_CSS}</style>
 
@@ -363,6 +362,24 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 Browse Properties <ArrowRight className="h-4 w-4" />
               </button>
             </div>
+
+            {/* Platform fee disclosure — Point 4 */}
+            <p
+              className="mt-5 text-sm text-slate-400 max-w-lg leading-relaxed"
+              style={{ fontFamily: FONT_SANS }}
+            >
+              Reeve charges a platform fee of 7% of your monthly rent — on top of rent, not deducted from it. We&apos;ll show you exactly why you still come out ahead.
+            </p>
+
+            {/* Cross-navigation link — Point 6 */}
+            <p className="mt-3" style={{ fontFamily: FONT_SANS }}>
+              <Link
+                to="/savings/owner"
+                className="text-[13px] text-slate-400 hover:text-white transition-colors duration-200"
+              >
+                Property owner? See owner savings →
+              </Link>
+            </p>
           </div>
 
           {/* Right column — stat cards */}
@@ -421,561 +438,14 @@ export default function TenantSavingsPage(): React.JSX.Element {
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 2: THE PROBLEM
-      ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#FAFAF8] border-t border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
-          <SectionLabel>THE PROBLEM WITH TRADITIONAL RENTING</SectionLabel>
-
-          <h2
-            className="mt-4 font-normal text-slate-900 leading-tight max-w-3xl"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
-          >
-            Before you sleep night one, the system takes ₹2,00,000 from you.
-          </h2>
-
-          <p className="mt-4 text-slate-600 text-base max-w-xl leading-7" style={{ fontFamily: FONT_SANS }}>
-            For a ₹50,000/month flat in Bangalore. Most of it you'll never see again — and nobody warned you.
-          </p>
-
-          <div className="mt-12 grid lg:grid-cols-3 gap-5">
-            {[
-              {
-                emoji: '🔒',
-                amount: '₹1,50,000',
-                title: 'Security deposit',
-                body: '3 months rent locked away. Refund is a negotiation, not a guarantee.',
-              },
-              {
-                emoji: '💸',
-                amount: '₹50,000',
-                title: 'Broker commission',
-                body: '1 month rent. Gone. The broker disappears after day one.',
-              },
-              {
-                emoji: '⏳',
-                amount: '30+ Days',
-                title: 'Average wait to move in',
-                body: 'Paperwork, verification, and broker coordination that drags on forever.',
-              },
-            ].map((card) => (
-              <div
-                key={card.title}
-                className="rounded-2xl border bg-white p-6 shadow-sm border-l-4 border-l-red-400"
-              >
-                <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
-                  <span aria-hidden="true" className="text-2xl">{card.emoji}</span>
-                </div>
-                <p
-                  className="text-4xl font-medium text-red-500 mt-3"
-                  style={{ fontFamily: FONT_MONO }}
-                >
-                  {card.amount}
-                </p>
-                <p
-                  className="text-base font-semibold text-slate-900 mt-3"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  {card.title}
-                </p>
-                <p
-                  className="text-sm text-slate-600 mt-2 leading-6"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  {card.body}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Dark summary bar */}
-          <div className="mt-8 rounded-2xl bg-slate-900 px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <p className="text-sm text-slate-400" style={{ fontFamily: FONT_SANS }}>
-                Total upfront cash needed — traditional renting
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5" style={{ fontFamily: FONT_SANS }}>
-                For a ₹50,000/month flat in Bangalore
-              </p>
-            </div>
-            <p
-              className="text-3xl sm:text-4xl font-medium text-red-400"
-              style={{ fontFamily: FONT_MONO }}
-            >
-              ₹2,00,000
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 3: AGITATION
-      ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-white py-16 sm:py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="flex justify-center mb-8">
-            <div className="w-20 h-0.5 bg-blue-200" />
-          </div>
-          <blockquote
-            className="text-slate-800 italic leading-tight"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 3vw, 32px)' }}
-          >
-            "You move out. The flat looks spotless. But when it's time for the landlord to return
-            your deposit, you get a fraction of it back — if at all. No photos. No receipts.
-            Just vague claims."
-          </blockquote>
-          <div className="flex justify-center mt-8">
-            <div className="w-20 h-0.5 bg-blue-200" />
-          </div>
-          <p className="mt-6 text-sm text-slate-500" style={{ fontFamily: FONT_SANS }}>
-            This is Bangalore's most documented tenant complaint. Investment advisors call it
-            'the biggest scam in Bangalore.' It happens routinely. It doesn't happen on Reeve.
-          </p>
-        </div>
-      </section>
-
-      {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 4: THE TURN
-      ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#F0F4FF] py-16 sm:py-20">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <h2
-            className="font-normal text-slate-900 leading-tight"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
-          >
-            Renting doesn't have to feel like fighting a system designed to take your money.
-          </h2>
-        </div>
-      </section>
-
-      {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 5: HOW IT WORKS
-      ────────────────────────────────────────────────────────────────────── */}
-      <section ref={stepsRef} className="bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
-          <SectionLabel>HOW IT WORKS</SectionLabel>
-          <h2
-            className="mt-4 font-normal text-slate-900"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
-          >
-            Four steps to your next Bangalore home.
-          </h2>
-
-          {(() => {
-            const steps = [
-              {
-                n: 1,
-                title: 'Browse & Shortlist',
-                body: 'Search verified properties — every listing is physically inspected and exclusively managed by Reeve. Favourite the ones you like.',
-                pill: null as string | null,
-              },
-              {
-                n: 2,
-                title: 'Visit the Property',
-                body: 'Schedule a visit at your convenience. Our team will be there. See the home before you decide anything.',
-                pill: 'Our team handles the visit',
-              },
-              {
-                n: 3,
-                title: 'Apply Online',
-                body: 'Submit your application with income proof and ID documents. One simple form on the platform. Our team reviews it and coordinates with the owner.',
-                pill: null as string | null,
-              },
-              {
-                n: 4,
-                title: 'Move In, Stay Supported',
-                body: "Once approved, pay first month's rent and one month's security deposit. Keys handed over. Reeve handles all maintenance, rent collection, and disputes throughout your stay.",
-                pill: 'You never contact the owner directly',
-              },
-            ];
-
-            return (
-              <>
-                {/* Desktop */}
-                <div className="mt-14 hidden lg:grid lg:grid-cols-4 gap-8 relative">
-                  <div className="absolute top-5 left-[12.5%] right-[12.5%] border-t-2 border-dashed border-slate-200 z-0" />
-                  {steps.map((step) => (
-                    <div key={step.n} className="relative z-10 text-center">
-                      <div
-                        className="w-11 h-11 rounded-full bg-blue-600 text-white font-semibold flex items-center justify-center text-base mx-auto mb-5"
-                        style={{ fontFamily: FONT_SANS }}
-                      >
-                        {step.n}
-                      </div>
-                      <h3 className="text-base font-semibold text-slate-900" style={{ fontFamily: FONT_SANS }}>
-                        {step.title}
-                      </h3>
-                      <p className="text-sm text-slate-600 leading-6 mt-2 text-left" style={{ fontFamily: FONT_SANS }}>
-                        {step.body}
-                      </p>
-                      {step.pill && (
-                        <span
-                          className="inline-flex mt-3 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700"
-                          style={{ fontFamily: FONT_SANS }}
-                        >
-                          {step.pill}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Mobile */}
-                <div className="mt-10 flex flex-col gap-8 lg:hidden">
-                  {steps.map((step) => (
-                    <div key={step.n} className="flex items-start gap-5">
-                      <div
-                        className="w-11 h-11 rounded-full bg-blue-600 text-white font-semibold flex items-center justify-center text-base shrink-0"
-                        style={{ fontFamily: FONT_SANS }}
-                      >
-                        {step.n}
-                      </div>
-                      <div>
-                        <h3
-                          className="text-base font-semibold text-slate-900"
-                          style={{ fontFamily: FONT_SANS }}
-                        >
-                          {step.title}
-                        </h3>
-                        <p
-                          className="text-sm text-slate-600 leading-6 mt-2 text-left"
-                          style={{ fontFamily: FONT_SANS }}
-                        >
-                          {step.body}
-                        </p>
-                        {step.pill && (
-                          <span
-                            className="inline-flex mt-3 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700"
-                            style={{ fontFamily: FONT_SANS }}
-                          >
-                            {step.pill}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      </section>
-
-      {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 6: THE REEVE DIFFERENCE
-      ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#FAFAF8]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
-          <SectionLabel>THE REEVE DIFFERENCE</SectionLabel>
-          <h2
-            className="mt-4 font-normal text-slate-900"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
-          >
-            Same apartment. Completely different financial reality.
-          </h2>
-          <p className="mt-4 text-slate-600 text-base max-w-xl leading-7" style={{ fontFamily: FONT_SANS }}>
-            Compare what the traditional system takes vs. what Reeve asks for. It shouldn't even be close.
-          </p>
-
-          <div className="mt-12 grid lg:grid-cols-2 gap-6">
-            {/* Traditional card */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
-              <div className="flex items-center gap-3 pb-5 border-b border-slate-200">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
-                  <Landmark className="h-6 w-6 text-slate-600" />
-                </div>
-                <div>
-                  <h3
-                    className="text-lg font-semibold text-slate-900"
-                    style={{ fontFamily: FONT_SANS }}
-                  >
-                    Traditional Renting
-                  </h3>
-                  <p className="text-sm text-slate-500" style={{ fontFamily: FONT_SANS }}>
-                    Broker model. High upfront. No accountability.
-                  </p>
-                </div>
-              </div>
-              <div>
-                {[
-                  {
-                    label: 'Security deposit',
-                    sub: '3 months rent, refundable only if the landlord agrees',
-                    val: '₹1,50,000',
-                  },
-                  {
-                    label: 'Broker fee',
-                    sub: 'Gone forever. No service after signing.',
-                    val: '₹50,000',
-                  },
-                  {
-                    label: 'Who handles repairs?',
-                    sub: 'You call the landlord. Hope they pick up.',
-                    val: 'You',
-                  },
-                  {
-                    label: 'Agreement speed',
-                    sub: 'Multiple visits, physical paperwork',
-                    val: '3–5 days',
-                  },
-                  {
-                    label: 'Deposit return',
-                    sub: 'Depends on landlord mood and negotiation',
-                    val: 'Maybe',
-                  },
-                ].map((row) => (
-                  <div
-                    key={row.label}
-                    className="flex items-start gap-4 py-4 border-b border-slate-100 last:border-0"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="w-2 h-2 rounded-full bg-red-400 block" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-700" style={{ fontFamily: FONT_SANS }}>
-                        {row.label}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5" style={{ fontFamily: FONT_SANS }}>
-                        {row.sub}
-                      </p>
-                    </div>
-                    <span
-                      className="text-sm font-semibold text-red-500 shrink-0 ml-auto"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
-                      {row.val}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Reeve card */}
-            <div>
-              <div className="rounded-3xl bg-[#0F1C2E] p-6 sm:p-8">
-                <div className="flex items-center gap-3 pb-5 border-b border-white/10">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
-                    <CheckCircle2 className="h-6 w-6 text-blue-400" />
-                  </div>
-                  <div>
-                    <h3
-                      className="text-lg font-semibold text-white"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
-                      Renting with Reeve
-                    </h3>
-                    <p className="text-sm text-slate-400" style={{ fontFamily: FONT_SANS }}>
-                      One month. Platform-managed. Deposit held fairly.
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  {[
-                    {
-                      label: 'Security deposit',
-                      sub: '1 month only. Held by Reeve. Returned based on documented condition.',
-                      val: '₹50,000',
-                    },
-                    {
-                      label: 'Broker fee',
-                      sub: 'Zero. Always zero. No hidden charges.',
-                      val: '₹0',
-                    },
-                    {
-                      label: 'Who handles repairs?',
-                      sub: 'Reeve. Raise a request on the platform, done.',
-                      val: 'Platform',
-                    },
-                    {
-                      label: 'Agreement speed',
-                      sub: 'Everything coordinated by one team',
-                      val: 'Hours, not days',
-                    },
-                    {
-                      label: 'Deposit return',
-                      sub: 'Fair process — any deductions based only on documented damage beyond normal wear. No undocumented claims.*',
-                      val: 'Fair process',
-                    },
-                  ].map((row) => (
-                    <div
-                      key={row.label}
-                      className="flex items-start gap-4 py-4 border-b border-white/10 last:border-0"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="w-2 h-2 rounded-full bg-blue-400 block" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="text-sm font-medium text-white"
-                          style={{ fontFamily: FONT_SANS }}
-                        >
-                          {row.label}
-                        </p>
-                        <p
-                          className="text-xs text-slate-400 mt-0.5"
-                          style={{ fontFamily: FONT_SANS }}
-                        >
-                          {row.sub}
-                        </p>
-                      </div>
-                      <span
-                        className="text-sm font-semibold text-blue-400 shrink-0 ml-auto"
-                        style={{ fontFamily: FONT_SANS }}
-                      >
-                        {row.val}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <p
-                className="text-xs text-slate-400 mt-3 px-1"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                *Any deduction requires photo evidence from the move-in condition report signed by you on day one.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 7: HOW THE MONEY WORKS
-      ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
-          <SectionLabel>TOTAL TRANSPARENCY</SectionLabel>
-          <h2
-            className="mt-4 font-normal text-slate-900"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
-          >
-            Here's exactly what renting with Reeve costs.
-          </h2>
-          <p
-            className="mt-4 text-slate-600 text-base max-w-xl leading-7"
-            style={{ fontFamily: FONT_SANS }}
-          >
-            No surprises. No hidden charges. Here's how every rupee flows.
-          </p>
-
-          <div className="mt-12 grid lg:grid-cols-2 gap-6">
-            {/* Card 1: Rent → Owner (navy) */}
-            <div className="rounded-3xl bg-[#0F1C2E] p-6 sm:p-8 text-white">
-              <p
-                className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-400"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                YOUR MONTHLY RENT
-              </p>
-              <h3
-                className="text-2xl font-semibold text-white mt-3"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                Goes directly to your owner.
-              </h3>
-              <p
-                className="text-sm text-slate-300 leading-7 mt-4"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                Your monthly rent is paid to your property owner. Every rupee. Reeve does not
-                deduct anything from your rent, does not hold it, and does not route it through
-                hidden accounts. Rent is a completely separate transaction from Reeve's fee.
-              </p>
-              <span
-                className="mt-6 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                Rent → Owner. Always.
-              </span>
-            </div>
-
-            {/* Card 2: Service Fee (white + blue border) */}
-            <div className="rounded-3xl border-2 border-blue-200 bg-white p-6 sm:p-8">
-              <p
-                className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                REEVE'S SERVICE FEE
-              </p>
-              <h3
-                className="text-2xl font-semibold text-slate-900 mt-3"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                Paid by you. To Reeve. On top of rent.
-              </h3>
-              <p
-                className="text-sm text-slate-600 leading-7 mt-4"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                Reeve charges a service fee on top of your monthly rent. For most tenants this
-                is 7% of monthly rent across the 11-month lease. This covers tenant screening,
-                visit coordination, agreement execution, maintenance coordination, dispute
-                handling, and all platform support throughout your stay.
-              </p>
-
-              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
-                <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                <p
-                  className="text-xs text-amber-800 leading-5"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  Your exact service fee rate is confirmed during the application process based on
-                  your eligibility profile. You will always see your rate clearly before you
-                  confirm anything. For most tenants it is 7%. On renewal, it drops to 4% —
-                  loyalty is rewarded.
-                </p>
-              </div>
-
-              <div className="mt-5 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
-                <p
-                  className="text-xs text-slate-500 font-semibold uppercase tracking-wider"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  EXAMPLE AT ₹50,000/MONTH
-                </p>
-                {[
-                  { label: 'Monthly rent',    val: '₹50,000 → Owner' },
-                  { label: 'Service fee (7%)', val: '₹3,500 → Reeve' },
-                  { label: 'Total monthly',   val: '₹53,500' },
-                ].map((row) => (
-                  <div
-                    key={row.label}
-                    className="text-sm text-slate-700 flex justify-between py-1"
-                    style={{ fontFamily: FONT_SANS }}
-                  >
-                    <span>{row.label}</span>
-                    <span className="font-medium">{row.val}</span>
-                  </div>
-                ))}
-              </div>
-
-              <span
-                className="mt-5 inline-flex rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                Service fee → Reeve. That's it.
-              </span>
-            </div>
-          </div>
-
-          <p
-            className="mt-8 text-center text-sm text-slate-500 italic"
-            style={{ fontFamily: FONT_SANS }}
-          >
-            Reeve's business model only works when you're happy in your home. That alignment is intentional.
-          </p>
-        </div>
-      </section>
-
-      {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 8: CALCULATOR
+          SECTION 2: CALCULATOR (moved from Section 8)
       ────────────────────────────────────────────────────────────────────── */}
       <section
         ref={calculatorRef}
         id="calculator"
         className="bg-[#0F1C2E]"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
           <SectionLabel light>THE SAVINGS CALCULATOR</SectionLabel>
           <h2
             className="mt-4 font-normal text-white"
@@ -1246,128 +716,69 @@ export default function TenantSavingsPage(): React.JSX.Element {
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 10: STABILITY PROMISE
+          SECTION 3: THE PROBLEM
       ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#F0F4FF]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 text-center">
-          <SectionLabel>YOUR TENANCY IS STABLE</SectionLabel>
+      <section className="bg-[#FAFAF8] border-t border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
+          <SectionLabel>THE PROBLEM WITH TRADITIONAL RENTING</SectionLabel>
+
           <h2
-            className="mt-4 font-normal text-slate-900 max-w-2xl mx-auto leading-tight"
+            className="mt-4 font-normal text-slate-900 leading-tight max-w-3xl"
             style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
           >
-            You shouldn't have to wonder if your home will still be yours next year.
-          </h2>
-          <p
-            className="mt-6 text-slate-600 text-base max-w-2xl mx-auto leading-8"
-            style={{ fontFamily: FONT_SANS }}
-          >
-            Bangalore tenants know this fear — a landlord who decides they need the property back,
-            or who suddenly raises the rent. Reeve owners sign long-term management agreements.
-            We don't onboard owners who want short-term arrangements. Your tenancy is as stable as
-            a managed lease can make it. If anything changes, you get proper notice and full platform
-            support — not a WhatsApp message from an unknown number.
-          </p>
-          <p
-            className="mt-8 text-[22px] text-blue-700 italic"
-            style={{ fontFamily: FONT_SERIF }}
-          >
-            "We're on your side. Not in the middle."
-          </p>
-        </div>
-      </section>
-
-      {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 11: SIX WAYS REEVE CHANGES HOW RENTING FEELS
-      ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#FAFAF8]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
-          <SectionLabel>BEYOND THE MONEY</SectionLabel>
-          <h2
-            className="mt-4 font-normal text-slate-900"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
-          >
-            Six ways Reeve changes how renting{' '}
-            <span className="italic text-blue-600">feels.</span>
+            Before you sleep night one, the system takes ₹2,00,000 from you.
           </h2>
 
-          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <p className="mt-4 text-slate-600 text-base max-w-xl leading-7" style={{ fontFamily: FONT_SANS }}>
+            For a ₹50,000/month flat in Bangalore. Most of it you'll never see again — and nobody warned you.
+          </p>
+
+          <div className="mt-12 grid lg:grid-cols-3 gap-5">
             {[
               {
-                emoji: '🚫',
-                emojiBg: 'bg-red-50',
-                title: 'No broker spam. Ever.',
-                body: "No calls from strangers at 9PM. No one asking if you've decided yet. Every interaction goes through the platform — on your terms.",
-                tag: 'Zero middlemen',
-                tagCls: 'bg-slate-100 text-slate-700',
+                emoji: '🔒',
+                amount: '₹1,50,000',
+                title: 'Security deposit',
+                body: '3 months rent locked away. Refund is a negotiation, not a guarantee.',
               },
               {
-                emoji: '🤝',
-                emojiBg: 'bg-blue-50',
-                title: 'You never talk to the landlord.',
-                body: "Negotiations, requests, complaints — all handled by Reeve. You don't have to manage a relationship with your landlord. We do it for you.",
-                tag: 'Platform mediated',
-                tagCls: 'bg-blue-50 border border-blue-200 text-blue-700',
+                emoji: '💸',
+                amount: '₹50,000',
+                title: 'Broker commission',
+                body: '1 month rent. Gone. The broker disappears after day one.',
               },
               {
-                emoji: '🛡️',
-                emojiBg: 'bg-green-50',
-                title: "Your deposit is actually safe.",
-                body: "Move-in photos, a documented condition report, and a clear wear-vs-damage policy mean your deposit can't just disappear at move-out. Any deductions need documented evidence.",
-                tag: 'Fair process',
-                tagCls: 'bg-green-50 border border-green-200 text-green-700',
-              },
-              {
-                emoji: '⚡',
-                emojiBg: 'bg-amber-50',
-                title: 'Move in faster. Move in easier.',
-                body: 'No physical paperwork. No office visits. No chasing a broker. 7 days average vs 30+ the traditional way.',
-                tag: '7-day avg move-in',
-                tagCls: 'bg-amber-50 border border-amber-200 text-amber-700',
-              },
-              {
-                emoji: '🔧',
-                emojiBg: 'bg-blue-50',
-                title: 'Maintenance without the follow-up.',
-                body: "Raise a request on the platform. Track it. Get it resolved. No chasing, no excuses. Your home stays in shape because it's platform-managed.",
-                tag: 'Tracked & resolved',
-                tagCls: 'bg-blue-50 border border-blue-200 text-blue-700',
-              },
-              {
-                emoji: '🔕',
-                emojiBg: 'bg-slate-100',
-                title: 'Zero SPAM. Always.',
-                body: 'Reeve operates a strict zero unsolicited contact policy. No broker calls. No random agent messages. No pressure from unknown numbers. Everything comes through the platform, on your timeline.',
-                tag: 'Zero SPAM',
-                tagCls: 'bg-slate-100 text-slate-700',
+                emoji: '⏳',
+                amount: '30+ Days',
+                title: 'Average wait to move in',
+                body: 'Paperwork, verification, and broker coordination that drags on forever.',
               },
             ].map((card) => (
               <div
                 key={card.title}
-                className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition duration-200"
+                className="rounded-2xl border bg-white p-6 shadow-sm border-l-4 border-l-red-400"
               >
-                <div
-                  className={`w-11 h-11 rounded-2xl ${card.emojiBg} flex items-center justify-center`}
-                >
+                <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
                   <span aria-hidden="true" className="text-2xl">{card.emoji}</span>
                 </div>
-                <h3
-                  className="text-base font-semibold text-slate-900 mt-5"
+                <p
+                  className="text-4xl font-medium text-red-500 mt-3"
+                  style={{ fontFamily: FONT_MONO }}
+                >
+                  {card.amount}
+                </p>
+                <p
+                  className="text-base font-semibold text-slate-900 mt-3"
                   style={{ fontFamily: FONT_SANS }}
                 >
                   {card.title}
-                </h3>
+                </p>
                 <p
-                  className="text-sm text-slate-600 leading-6 mt-2"
+                  className="text-sm text-slate-600 mt-2 leading-6"
                   style={{ fontFamily: FONT_SANS }}
                 >
                   {card.body}
                 </p>
-                <span
-                  className={`inline-flex mt-4 rounded-full px-3 py-1 text-xs font-semibold ${card.tagCls}`}
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  {card.tag}
-                </span>
               </div>
             ))}
           </div>
@@ -1375,52 +786,429 @@ export default function TenantSavingsPage(): React.JSX.Element {
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 13: SOCIAL PROOF
+          SECTION 4: HOW IT WORKS
       ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#F0F4FF]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24">
-          <div className="text-center">
-            <SectionLabel>FROM TENANTS LIKE YOU</SectionLabel>
-            <h2
-              className="mt-4 font-normal text-slate-900"
-              style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
-            >
-              What Bangalore tenants say
-            </h2>
-          </div>
+      <section ref={stepsRef} className="bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
+          <SectionLabel>HOW IT WORKS</SectionLabel>
+          <h2
+            className="mt-4 font-normal text-slate-900"
+            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
+          >
+            Four steps to your next Bangalore home.
+          </h2>
 
-          {/* MVP placeholder — no fabricated testimonials */}
-          <div className="rounded-3xl border-2 border-dashed border-blue-300 bg-white/60 p-8 sm:p-10 text-center mt-10">
-            <span aria-hidden="true" className="text-4xl block">🏠</span>
-            <h3
-              className="text-xl font-semibold text-slate-900 mt-4"
-              style={{ fontFamily: FONT_SANS }}
-            >
-              Reeve is live in Bangalore.
-            </h3>
-            <p
-              className="text-sm text-slate-600 leading-7 mt-3 max-w-md mx-auto"
-              style={{ fontFamily: FONT_SANS }}
-            >
-              Be among the first tenants to experience renting with a deposit that's held fairly,
-              maintained by the platform, and returned based on documented evidence — not negotiation.
-            </p>
-            <button
-              onClick={() => navigate('/search')}
-              className="text-blue-600 font-semibold text-sm mt-4 block mx-auto hover:text-blue-700 transition"
-              style={{ fontFamily: FONT_SANS }}
-            >
-              Browse available properties →
-            </button>
+          {(() => {
+            const steps = [
+              {
+                n: 1,
+                title: 'Browse & Shortlist',
+                body: 'Search verified properties — every listing is physically inspected and exclusively managed by Reeve. Favourite the ones you like.',
+                pill: null as string | null,
+              },
+              {
+                n: 2,
+                title: 'Visit the Property',
+                body: 'Schedule a visit at your convenience. Our team will be there. See the home before you decide anything.',
+                pill: 'Our team handles the visit',
+              },
+              {
+                n: 3,
+                title: 'Apply Online',
+                body: 'Submit your application with income proof and ID documents. One simple form on the platform. Our team reviews it and coordinates with the owner.',
+                pill: null as string | null,
+              },
+              {
+                n: 4,
+                title: 'Move In, Stay Supported',
+                body: "Once approved, pay first month's rent and one month's security deposit. Keys handed over. Reeve handles all maintenance, rent collection, and disputes throughout your stay.",
+                pill: 'You never contact the owner directly',
+              },
+            ];
+
+            return (
+              <>
+                {/* Desktop */}
+                <div className="mt-14 hidden lg:grid lg:grid-cols-4 gap-8 relative">
+                  <div className="absolute top-5 left-[12.5%] right-[12.5%] border-t-2 border-dashed border-slate-200 z-0" />
+                  {steps.map((step) => (
+                    <div key={step.n} className="relative z-10 text-center">
+                      <div
+                        className="w-11 h-11 rounded-full bg-blue-600 text-white font-semibold flex items-center justify-center text-base mx-auto mb-5"
+                        style={{ fontFamily: FONT_SANS }}
+                      >
+                        {step.n}
+                      </div>
+                      <h3 className="text-base font-semibold text-slate-900" style={{ fontFamily: FONT_SANS }}>
+                        {step.title}
+                      </h3>
+                      <p className="text-sm text-slate-600 leading-6 mt-2 text-left" style={{ fontFamily: FONT_SANS }}>
+                        {step.body}
+                      </p>
+                      {step.pill && (
+                        <span
+                          className="inline-flex mt-3 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700"
+                          style={{ fontFamily: FONT_SANS }}
+                        >
+                          {step.pill}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mobile */}
+                <div className="mt-10 flex flex-col gap-8 lg:hidden">
+                  {steps.map((step) => (
+                    <div key={step.n} className="flex items-start gap-5">
+                      <div
+                        className="w-11 h-11 rounded-full bg-blue-600 text-white font-semibold flex items-center justify-center text-base shrink-0"
+                        style={{ fontFamily: FONT_SANS }}
+                      >
+                        {step.n}
+                      </div>
+                      <div>
+                        <h3
+                          className="text-base font-semibold text-slate-900"
+                          style={{ fontFamily: FONT_SANS }}
+                        >
+                          {step.title}
+                        </h3>
+                        <p
+                          className="text-sm text-slate-600 leading-6 mt-2 text-left"
+                          style={{ fontFamily: FONT_SANS }}
+                        >
+                          {step.body}
+                        </p>
+                        {step.pill && (
+                          <span
+                            className="inline-flex mt-3 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700"
+                            style={{ fontFamily: FONT_SANS }}
+                          >
+                            {step.pill}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </section>
+
+      {/* ──────────────────────────────────────────────────────────────────────
+          SECTION 5: THE REEVE DIFFERENCE
+      ────────────────────────────────────────────────────────────────────── */}
+      <section className="bg-[#FAFAF8]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
+          <SectionLabel>THE REEVE DIFFERENCE</SectionLabel>
+          <h2
+            className="mt-4 font-normal text-slate-900"
+            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
+          >
+            Same apartment. Completely different financial reality.
+          </h2>
+          <p className="mt-4 text-slate-600 text-base max-w-xl leading-7" style={{ fontFamily: FONT_SANS }}>
+            Compare what the traditional system takes vs. what Reeve asks for. It shouldn't even be close.
+          </p>
+
+          <div className="mt-12 grid lg:grid-cols-2 gap-6">
+            {/* Traditional card */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
+              <div className="flex items-center gap-3 pb-5 border-b border-slate-200">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
+                  <Landmark className="h-6 w-6 text-slate-600" />
+                </div>
+                <div>
+                  <h3
+                    className="text-lg font-semibold text-slate-900"
+                    style={{ fontFamily: FONT_SANS }}
+                  >
+                    Traditional Renting
+                  </h3>
+                  <p className="text-sm text-slate-500" style={{ fontFamily: FONT_SANS }}>
+                    Broker model. High upfront. No accountability.
+                  </p>
+                </div>
+              </div>
+              <div>
+                {[
+                  {
+                    label: 'Security deposit',
+                    sub: '3 months rent, refundable only if the landlord agrees',
+                    val: '₹1,50,000',
+                  },
+                  {
+                    label: 'Broker fee',
+                    sub: 'Gone forever. No service after signing.',
+                    val: '₹50,000',
+                  },
+                  {
+                    label: 'Who handles repairs?',
+                    sub: 'You call the landlord. Hope they pick up.',
+                    val: 'You',
+                  },
+                  {
+                    label: 'Agreement speed',
+                    sub: 'Multiple visits, physical paperwork',
+                    val: '3–5 days',
+                  },
+                  {
+                    label: 'Deposit return',
+                    sub: 'Depends on landlord mood and negotiation',
+                    val: 'Maybe',
+                  },
+                ].map((row) => (
+                  <div
+                    key={row.label}
+                    className="flex items-start gap-4 py-4 border-b border-slate-100 last:border-0"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="w-2 h-2 rounded-full bg-red-400 block" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-700" style={{ fontFamily: FONT_SANS }}>
+                        {row.label}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5" style={{ fontFamily: FONT_SANS }}>
+                        {row.sub}
+                      </p>
+                    </div>
+                    <span
+                      className="text-sm font-semibold text-red-500 shrink-0 ml-auto"
+                      style={{ fontFamily: FONT_SANS }}
+                    >
+                      {row.val}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Reeve card */}
+            <div>
+              <div className="rounded-3xl bg-[#0F1C2E] p-6 sm:p-8">
+                <div className="flex items-center gap-3 pb-5 border-b border-white/10">
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
+                    <CheckCircle2 className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3
+                      className="text-lg font-semibold text-white"
+                      style={{ fontFamily: FONT_SANS }}
+                    >
+                      Renting with Reeve
+                    </h3>
+                    <p className="text-sm text-slate-400" style={{ fontFamily: FONT_SANS }}>
+                      One month. Platform-managed. Deposit held fairly.
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  {[
+                    {
+                      label: 'Security deposit',
+                      sub: '1 month only. Held by Reeve. Returned based on documented condition.',
+                      val: '₹50,000',
+                    },
+                    {
+                      label: 'Broker fee',
+                      sub: 'Zero. Always zero. No hidden charges.',
+                      val: '₹0',
+                    },
+                    {
+                      label: 'Who handles repairs?',
+                      sub: 'Reeve. Raise a request on the platform, done.',
+                      val: 'Platform',
+                    },
+                    {
+                      label: 'Agreement speed',
+                      sub: 'Everything coordinated by one team',
+                      val: 'Hours, not days',
+                    },
+                    {
+                      label: 'Deposit return',
+                      sub: 'Fair process — any deductions based only on documented damage beyond normal wear. No undocumented claims.*',
+                      val: 'Fair process',
+                    },
+                  ].map((row) => (
+                    <div
+                      key={row.label}
+                      className="flex items-start gap-4 py-4 border-b border-white/10 last:border-0"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-400 block" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="text-sm font-medium text-white"
+                          style={{ fontFamily: FONT_SANS }}
+                        >
+                          {row.label}
+                        </p>
+                        <p
+                          className="text-xs text-slate-400 mt-0.5"
+                          style={{ fontFamily: FONT_SANS }}
+                        >
+                          {row.sub}
+                        </p>
+                      </div>
+                      <span
+                        className="text-sm font-semibold text-blue-400 shrink-0 ml-auto"
+                        style={{ fontFamily: FONT_SANS }}
+                      >
+                        {row.val}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p
+                className="text-xs text-slate-400 mt-3 px-1"
+                style={{ fontFamily: FONT_SANS }}
+              >
+                *Any deduction requires photo evidence from the move-in condition report signed by you on day one.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 14: FAQ
+          SECTION 6: HOW THE MONEY WORKS
+      ────────────────────────────────────────────────────────────────────── */}
+      <section className="bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
+          <SectionLabel>TOTAL TRANSPARENCY</SectionLabel>
+          <h2
+            className="mt-4 font-normal text-slate-900"
+            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
+          >
+            Here's exactly what renting with Reeve costs.
+          </h2>
+          <p
+            className="mt-4 text-slate-600 text-base max-w-xl leading-7"
+            style={{ fontFamily: FONT_SANS }}
+          >
+            No surprises. No hidden charges. Here's how every rupee flows.
+          </p>
+
+          <div className="mt-12 grid lg:grid-cols-2 gap-6">
+            {/* Card 1: Rent → Owner (navy) */}
+            <div className="rounded-3xl bg-[#0F1C2E] p-6 sm:p-8 text-white">
+              <p
+                className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-400"
+                style={{ fontFamily: FONT_SANS }}
+              >
+                YOUR MONTHLY RENT
+              </p>
+              <h3
+                className="text-2xl font-semibold text-white mt-3"
+                style={{ fontFamily: FONT_SANS }}
+              >
+                Goes directly to your owner.
+              </h3>
+              <p
+                className="text-sm text-slate-300 leading-7 mt-4"
+                style={{ fontFamily: FONT_SANS }}
+              >
+                Your monthly rent is paid to your property owner. Every rupee. Reeve does not
+                deduct anything from your rent, does not hold it, and does not route it through
+                hidden accounts. Rent is a completely separate transaction from Reeve's fee.
+              </p>
+              <span
+                className="mt-6 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white"
+                style={{ fontFamily: FONT_SANS }}
+              >
+                Rent → Owner. Always.
+              </span>
+            </div>
+
+            {/* Card 2: Service Fee (white + blue border) */}
+            <div className="rounded-3xl border-2 border-blue-200 bg-white p-6 sm:p-8">
+              <p
+                className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600"
+                style={{ fontFamily: FONT_SANS }}
+              >
+                REEVE'S SERVICE FEE
+              </p>
+              <h3
+                className="text-2xl font-semibold text-slate-900 mt-3"
+                style={{ fontFamily: FONT_SANS }}
+              >
+                Paid by you. To Reeve. On top of rent.
+              </h3>
+              <p
+                className="text-sm text-slate-600 leading-7 mt-4"
+                style={{ fontFamily: FONT_SANS }}
+              >
+                Reeve charges a service fee on top of your monthly rent. For most tenants this
+                is 7% of monthly rent across the 11-month lease. This covers tenant screening,
+                visit coordination, agreement execution, maintenance coordination, dispute
+                handling, and all platform support throughout your stay.
+              </p>
+
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <p
+                  className="text-xs text-amber-800 leading-5"
+                  style={{ fontFamily: FONT_SANS }}
+                >
+                  Your exact service fee rate is confirmed during the application process based on
+                  your eligibility profile. You will always see your rate clearly before you
+                  confirm anything. For most tenants it is 7%. On renewal, it drops to 4% —
+                  loyalty is rewarded.
+                </p>
+              </div>
+
+              <div className="mt-5 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+                <p
+                  className="text-xs text-slate-500 font-semibold uppercase tracking-wider"
+                  style={{ fontFamily: FONT_SANS }}
+                >
+                  EXAMPLE AT ₹50,000/MONTH
+                </p>
+                {[
+                  { label: 'Monthly rent',    val: '₹50,000 → Owner' },
+                  { label: 'Service fee (7%)', val: '₹3,500 → Reeve' },
+                  { label: 'Total monthly',   val: '₹53,500' },
+                ].map((row) => (
+                  <div
+                    key={row.label}
+                    className="text-sm text-slate-700 flex justify-between py-1"
+                    style={{ fontFamily: FONT_SANS }}
+                  >
+                    <span>{row.label}</span>
+                    <span className="font-medium">{row.val}</span>
+                  </div>
+                ))}
+              </div>
+
+              <span
+                className="mt-5 inline-flex rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700"
+                style={{ fontFamily: FONT_SANS }}
+              >
+                Service fee → Reeve. That's it.
+              </span>
+            </div>
+          </div>
+
+          <p
+            className="mt-8 text-center text-sm text-slate-500 italic"
+            style={{ fontFamily: FONT_SANS }}
+          >
+            Reeve's business model only works when you're happy in your home. That alignment is intentional.
+          </p>
+        </div>
+      </section>
+
+      {/* ──────────────────────────────────────────────────────────────────────
+          SECTION 7: FAQ
       ────────────────────────────────────────────────────────────────────── */}
       <section className="bg-[#FAFAF8]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
           <h2
             className="font-normal text-slate-900"
             style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
@@ -1467,10 +1255,10 @@ export default function TenantSavingsPage(): React.JSX.Element {
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 15: FINAL CTA
+          SECTION 8: FINAL CTA
       ────────────────────────────────────────────────────────────────────── */}
       <section className="bg-[#0F1C2E]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
 
             {/* Left */}
