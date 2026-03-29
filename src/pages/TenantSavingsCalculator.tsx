@@ -3,9 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import posthog from 'posthog-js';
 import {
   ArrowRight,
-  CheckCircle2,
   Info,
-  Landmark,
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 
@@ -22,7 +20,6 @@ const MIN_RENT        = 20000;
 const MAX_RENT        = 200000;
 const SLIDER_STEP     = 1000;
 const TENURE_MONTHS   = 11;
-const ANNUAL_INTEREST = 0.10;
 const SERVICE_FEE_PCT = 0.07;
 const DAYS_FASTER     = 7;
 
@@ -33,12 +30,11 @@ interface Metrics {
   trad_deposit: number;
   trad_brokerage: number;
   trad_upfront: number;
-  trad_opp_cost: number;
+  trad_unfair_deduction: number;
   trad_total_cost: number;
   reeve_deposit: number;
   reeve_upfront: number;
   reeve_service_fee: number;
-  reeve_opp_cost: number;
   reeve_total_cost: number;
   deposit_freed: number;
   brokerage_saved: number;
@@ -47,24 +43,25 @@ interface Metrics {
 }
 
 function calculateMetrics(rent: number): Metrics {
-  const trad_deposit      = 3 * rent;
-  const trad_brokerage    = 1 * rent;
-  const trad_upfront      = trad_deposit + trad_brokerage;
-  const trad_opp_cost     = (trad_deposit + trad_brokerage) * ANNUAL_INTEREST * (TENURE_MONTHS / 12);
-  const trad_total_cost   = trad_brokerage + trad_opp_cost;
-  const reeve_deposit     = 1 * rent;
-  const reeve_upfront     = reeve_deposit;
-  const reeve_service_fee = rent * TENURE_MONTHS * SERVICE_FEE_PCT;
-  const reeve_opp_cost    = reeve_deposit * ANNUAL_INTEREST * (TENURE_MONTHS / 12);
-  const reeve_total_cost  = reeve_service_fee + reeve_opp_cost;
-  const deposit_freed     = trad_deposit - reeve_deposit;
-  const brokerage_saved   = trad_brokerage;
-  const upfront_saved     = trad_upfront - reeve_upfront;
-  const net_savings       = trad_total_cost - reeve_total_cost;
+  const trad_deposit          = 3 * rent;
+  const trad_brokerage        = 1 * rent;
+  const trad_upfront          = trad_deposit + trad_brokerage;
+  const trad_unfair_deduction = 0.5 * trad_deposit;          // landlord withholds ~50% of deposit at move-out
+  const trad_total_cost       = trad_brokerage + trad_unfair_deduction;
+  const reeve_deposit         = 2 * rent;
+  const reeve_upfront         = reeve_deposit;
+  const reeve_service_fee     = rent * TENURE_MONTHS * SERVICE_FEE_PCT;
+  const reeve_total_cost      = reeve_service_fee;
+  const deposit_freed         = trad_deposit - reeve_deposit;
+  const brokerage_saved       = trad_brokerage;
+  const upfront_saved         = trad_upfront - reeve_upfront;
+  const net_savings           = trad_total_cost - reeve_total_cost;
   return {
     rent,
-    trad_deposit, trad_brokerage, trad_upfront, trad_opp_cost, trad_total_cost,
-    reeve_deposit, reeve_upfront, reeve_service_fee, reeve_opp_cost, reeve_total_cost,
+    trad_deposit, trad_brokerage, trad_upfront,
+    trad_unfair_deduction, trad_total_cost,
+    reeve_deposit, reeve_upfront,
+    reeve_service_fee, reeve_total_cost,
     deposit_freed, brokerage_saved, upfront_saved, net_savings,
   };
 }
@@ -231,13 +228,54 @@ const FAQS: FaqItem[] = [
   },
 ];
 
+// ─── Reeve Difference table data ─────────────────────────────────────────────
+
+const DIFFERENCE_ROWS = [
+  {
+    aspect: 'Security deposit',
+    traditional: '3 months rent',
+    reeve: '2 months only',
+    reeveGood: true,
+    emphasized: false,
+  },
+  {
+    aspect: 'Broker fee',
+    traditional: '1 month rent — gone forever',
+    reeve: '₹0 — always',
+    reeveGood: true,
+    emphasized: false,
+  },
+  {
+    aspect: 'Deposit withheld at move-out',
+    traditional: 'Up to 50% — landlord decides',
+    reeve: '₹0 — documented evidence only',
+    reeveGood: true,
+    emphasized: true,
+  },
+  {
+    aspect: 'Who handles repairs?',
+    traditional: 'You call the landlord. Hope they pick up.',
+    reeve: "Reeve. Raise a request, it's done.",
+    reeveGood: true,
+    emphasized: false,
+  },
+  {
+    aspect: 'Agreement speed',
+    traditional: '3–5 days, physical paperwork',
+    reeve: 'Hours, coordinated by one team',
+    reeveGood: true,
+    emphasized: false,
+  },
+];
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export default function TenantSavingsPage(): React.JSX.Element {
   const navigate = useNavigate();
 
-  const [rent,    setRent]    = useState<number>(DEFAULT_RENT);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [rent,          setRent]          = useState<number>(DEFAULT_RENT);
+  const [openFaq,       setOpenFaq]       = useState<number | null>(null);
+  const [openDiffIndex, setOpenDiffIndex] = useState<number | null>(null);
 
   const calculatorRef     = useRef<HTMLElement>(null);
   const savingsTrackedRef = useRef<boolean>(false);
@@ -520,33 +558,6 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 })}
               </div>
 
-              {/* Checklist */}
-              <div className="mt-8">
-                <p
-                  className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  WHAT CHANGES WITH REEVE
-                </p>
-                <ul className="mt-3 space-y-2.5">
-                  {[
-                    { icon: '🔑',  text: '2 month deposit only — not 3' },
-                    { icon: '🚫',  text: 'Zero brokerage, always' },
-                    { icon: '📋',  text: 'Reeve fee monthly (replaces broker cost)' },
-                    { icon: '⚡',  text: '7 days average move-in' },
-                    { icon: '🔕',  text: 'Zero SPAM — no broker calls, no unsolicited contact' },
-                  ].map((item) => (
-                    <li
-                      key={item.text}
-                      className="flex items-center gap-3 text-sm text-slate-300"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
-                      <span aria-hidden="true" className="text-base">{item.icon}</span>
-                      {item.text}
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
 
             {/* Right panel */}
@@ -559,78 +570,12 @@ export default function TenantSavingsPage(): React.JSX.Element {
               </p>
               <CountUp
                 value={metrics.net_savings}
-                className="mt-2 block text-3xl sm:text-4xl lg:text-5xl font-medium text-blue-400 break-all overflow-hidden"
+                className="mt-2 block text-4xl sm:text-5xl lg:text-6xl font-medium text-blue-400 break-all overflow-hidden"
                 style={{ fontFamily: FONT_MONO } as React.CSSProperties}
               />
               <p className="text-sm text-slate-400 mt-2" style={{ fontFamily: FONT_SANS }}>
-                Over 11 months, compared to traditional renting
+                11 months · includes brokerage, deposit withheld, and Reeve fee
               </p>
-
-              {/* Four stat cards */}
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                {[
-                  {
-                    label: 'DEPOSIT FREED UP',
-                    value: metrics.deposit_freed,
-                    color: 'text-blue-400',
-                    sub: 'Cash you keep in hand',
-                    staticVal: null as string | null,
-                  },
-                  {
-                    label: 'BROKERAGE SAVED',
-                    value: 0,
-                    color: 'text-blue-400',
-                    sub: 'Always zero with Reeve',
-                    staticVal: '₹0',
-                  },
-                  {
-                    label: 'UPFRONT (TRADITIONAL)',
-                    value: metrics.trad_upfront,
-                    color: 'text-red-400',
-                    sub: 'Day 1 cash outflow',
-                    staticVal: null as string | null,
-                  },
-                  {
-                    label: 'UPFRONT (REEVE)',
-                    value: metrics.reeve_upfront,
-                    color: 'text-blue-400',
-                    sub: 'Day 1 cash outflow',
-                    staticVal: null as string | null,
-                  },
-                ].map((card) => (
-                  <div
-                    key={card.label}
-                    className="rounded-2xl border border-slate-700/50 bg-[#0F1C2E] p-4"
-                  >
-                    <p
-                      className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
-                      {card.label}
-                    </p>
-                    {card.staticVal !== null ? (
-                      <p
-                        className={`text-lg sm:text-xl font-medium mt-2 break-all ${card.color}`}
-                        style={{ fontFamily: FONT_MONO }}
-                      >
-                        {card.staticVal}
-                      </p>
-                    ) : (
-                      <CountUp
-                        value={card.value}
-                        className={`mt-2 block text-lg sm:text-xl font-medium break-all ${card.color}`}
-                        style={{ fontFamily: FONT_MONO } as React.CSSProperties}
-                      />
-                    )}
-                    <p
-                      className="text-xs text-slate-500 mt-1"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
-                      {card.sub}
-                    </p>
-                  </div>
-                ))}
-              </div>
 
               {/* Comparison table */}
               <div className="mt-6 w-full rounded-2xl border border-slate-700/50 overflow-hidden">
@@ -662,9 +607,9 @@ export default function TenantSavingsPage(): React.JSX.Element {
                     reeve: metrics.reeve_service_fee,
                   },
                   {
-                    label: 'Opp. cost on deposit',
-                    trad: metrics.trad_opp_cost,
-                    reeve: metrics.reeve_opp_cost,
+                    label: 'Unfair deduction',
+                    trad: metrics.trad_unfair_deduction,
+                    reeve: null as number | null,
                   },
                 ].map((row) => (
                   <div
@@ -702,7 +647,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                   className="text-xs text-slate-500 leading-5"
                   style={{ fontFamily: FONT_SANS }}
                 >
-                  Assumptions: 11-month tenure · 10% annual opportunity cost on blocked capital · Reeve fee shown at 7% (may vary by eligibility profile — confirmed before you commit)
+                  Assumptions: 11-month tenure · Traditional deposit withheld at move-out: ~50% of deposit (market average) · Reeve fee shown at 7% (confirmed before you commit, drops to 4% on renewal)
                 </p>
               </div>
             </div>
@@ -711,84 +656,14 @@ export default function TenantSavingsPage(): React.JSX.Element {
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 3: THE PROBLEM
+          SECTION 3: HOW IT WORKS
       ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#FAFAF8] border-t border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
-          <SectionLabel>THE PROBLEM WITH TRADITIONAL RENTING</SectionLabel>
-
-          <h2
-            className="mt-4 font-normal text-slate-900 leading-tight max-w-3xl"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
-          >
-            Before you sleep night one, the system takes ₹2,00,000 from you.
-          </h2>
-
-          <p className="mt-4 text-slate-600 text-base max-w-xl leading-7" style={{ fontFamily: FONT_SANS }}>
-            For a ₹50,000/month flat in Bangalore. Most of it you'll never see again — and nobody warned you.
-          </p>
-
-          <div className="mt-12 grid lg:grid-cols-3 gap-5">
-            {[
-              {
-                emoji: '🔒',
-                amount: '₹1,50,000',
-                title: 'Security deposit',
-                body: '3 months rent locked away. Refund is a negotiation, not a guarantee.',
-              },
-              {
-                emoji: '💸',
-                amount: '₹50,000',
-                title: 'Broker commission',
-                body: '1 month rent. Gone. The broker disappears after day one.',
-              },
-              {
-                emoji: '⏳',
-                amount: '30+ Days',
-                title: 'Average wait to move in',
-                body: 'Paperwork, verification, and broker coordination that drags on forever.',
-              },
-            ].map((card) => (
-              <div
-                key={card.title}
-                className="rounded-2xl border bg-white p-6 shadow-sm border-l-4 border-l-red-400"
-              >
-                <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
-                  <span aria-hidden="true" className="text-2xl">{card.emoji}</span>
-                </div>
-                <p
-                  className="text-4xl font-medium text-red-500 mt-3"
-                  style={{ fontFamily: FONT_MONO }}
-                >
-                  {card.amount}
-                </p>
-                <p
-                  className="text-base font-semibold text-slate-900 mt-3"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  {card.title}
-                </p>
-                <p
-                  className="text-sm text-slate-600 mt-2 leading-6"
-                  style={{ fontFamily: FONT_SANS }}
-                >
-                  {card.body}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ──────────────────────────────────────────────────────────────────────
-          SECTION 4: HOW IT WORKS
-      ────────────────────────────────────────────────────────────────────── */}
-      <section ref={stepsRef} className="bg-white">
+      <section ref={stepsRef} style={{ background: '#FAFAF8' }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
           <SectionLabel>HOW IT WORKS</SectionLabel>
           <h2
-            className="mt-4 font-normal text-slate-900"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
+            className="mt-4 font-normal"
+            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)', color: '#0F1C2E' }}
           >
             Four steps to your next Bangalore home.
           </h2>
@@ -825,7 +700,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
               <>
                 {/* Desktop */}
                 <div className="mt-14 hidden lg:grid lg:grid-cols-4 gap-8 relative">
-                  <div className="absolute top-5 left-[12.5%] right-[12.5%] border-t-2 border-dashed border-slate-200 z-0" />
+                  <div className="absolute top-5 left-[12.5%] right-[12.5%] border-t-2 border-dashed border-slate-300 z-0" />
                   {steps.map((step) => (
                     <div key={step.n} className="relative z-10 text-center">
                       <div
@@ -896,177 +771,116 @@ export default function TenantSavingsPage(): React.JSX.Element {
       {/* ──────────────────────────────────────────────────────────────────────
           SECTION 5: THE REEVE DIFFERENCE
       ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#FAFAF8]">
+      <section style={{ background: '#FAFAF8' }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
           <SectionLabel>THE REEVE DIFFERENCE</SectionLabel>
           <h2
-            className="mt-4 font-normal text-slate-900"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
+            className="mt-4 font-normal"
+            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)', color: '#0F1C2E' }}
           >
             Same apartment. Completely different financial reality.
           </h2>
-          <p className="mt-4 text-slate-600 text-base max-w-xl leading-7" style={{ fontFamily: FONT_SANS }}>
+          <p className="mt-4 text-base max-w-xl leading-7" style={{ fontFamily: FONT_SANS, color: '#4A5568' }}>
             Compare what the traditional system takes vs. what Reeve asks for. It shouldn't even be close.
           </p>
 
-          <div className="mt-12 grid lg:grid-cols-2 gap-6">
-            {/* Traditional card */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
-              <div className="flex items-center gap-3 pb-5 border-b border-slate-200">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
-                  <Landmark className="h-6 w-6 text-slate-600" />
-                </div>
-                <div>
-                  <h3
-                    className="text-lg font-semibold text-slate-900"
-                    style={{ fontFamily: FONT_SANS }}
+          {/* Desktop table */}
+          <div className="mt-12 hidden lg:block overflow-hidden rounded-2xl" style={{ border: '1px solid #E2E8F0' }}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <th className="px-6 py-4 text-left font-semibold text-slate-500 bg-slate-50 w-[35%]" style={{ fontFamily: FONT_SANS }}>Aspect</th>
+                  <th className="px-6 py-4 text-center font-semibold text-slate-600 bg-slate-50" style={{ fontFamily: FONT_SANS }}>Traditional Renting</th>
+                  <th
+                    className="px-6 py-4 text-center font-semibold text-white"
+                    style={{ background: '#2563EB', fontFamily: FONT_SANS }}
                   >
-                    Traditional Renting
-                  </h3>
-                  <p className="text-sm text-slate-500" style={{ fontFamily: FONT_SANS }}>
-                    Broker model. High upfront. No accountability.
-                  </p>
-                </div>
-              </div>
-              <div>
-                {[
-                  {
-                    label: 'Security deposit',
-                    sub: '3 months rent, refundable only if the landlord agrees',
-                    val: '₹1,50,000',
-                  },
-                  {
-                    label: 'Broker fee',
-                    sub: 'Gone forever. No service after signing.',
-                    val: '₹50,000',
-                  },
-                  {
-                    label: 'Who handles repairs?',
-                    sub: 'You call the landlord. Hope they pick up.',
-                    val: 'You',
-                  },
-                  {
-                    label: 'Agreement speed',
-                    sub: 'Multiple visits, physical paperwork',
-                    val: '3–5 days',
-                  },
-                  {
-                    label: 'Deposit return',
-                    sub: 'Depends on landlord mood and negotiation',
-                    val: 'Maybe',
-                  },
-                ].map((row) => (
-                  <div
-                    key={row.label}
-                    className="flex items-start gap-4 py-4 border-b border-slate-100 last:border-0"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="w-2 h-2 rounded-full bg-red-400 block" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-700" style={{ fontFamily: FONT_SANS }}>
-                        {row.label}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5" style={{ fontFamily: FONT_SANS }}>
-                        {row.sub}
-                      </p>
-                    </div>
-                    <span
-                      className="text-sm font-semibold text-red-500 shrink-0 ml-auto"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
-                      {row.val}
+                    With Reeve
+                    <span className="ml-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                      Better
                     </span>
-                  </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {DIFFERENCE_ROWS.map((row, i) => (
+                  <tr
+                    key={row.aspect}
+                    style={{
+                      background: row.emphasized ? '#EFF6FF' : i % 2 === 0 ? '#FFFFFF' : '#F8FAFC',
+                      borderLeft: row.emphasized ? '3px solid #2563EB' : undefined,
+                    }}
+                  >
+                    <td className="px-6 py-4 font-medium" style={{ color: row.emphasized ? '#1D4ED8' : '#1E293B', borderBottom: '1px solid #E2E8F0', fontFamily: FONT_SANS }}>
+                      {row.aspect}
+                    </td>
+                    <td className="px-6 py-4 text-center text-slate-500" style={{ borderBottom: '1px solid #E2E8F0', fontFamily: FONT_SANS }}>
+                      {row.traditional}
+                    </td>
+                    <td
+                      className="px-6 py-4 text-center font-semibold"
+                      style={{ color: '#2563EB', background: '#EFF6FF', borderBottom: '1px solid #E2E8F0', fontFamily: FONT_SANS }}
+                    >
+                      ✓ {row.reeve}
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            </div>
+              </tbody>
+            </table>
+          </div>
 
-            {/* Reeve card */}
-            <div>
-              <div className="rounded-3xl bg-[#0F1C2E] p-6 sm:p-8">
-                <div className="flex items-center gap-3 pb-5 border-b border-white/10">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
-                    <CheckCircle2 className="h-6 w-6 text-blue-400" />
-                  </div>
-                  <div>
-                    <h3
-                      className="text-lg font-semibold text-white"
-                      style={{ fontFamily: FONT_SANS }}
+          {/* Mobile accordion */}
+          <div className="mt-8 flex flex-col gap-3 lg:hidden">
+            {DIFFERENCE_ROWS.map((row, index) => {
+              const isOpen = openDiffIndex === index;
+              return (
+                <div
+                  key={row.aspect}
+                  className="rounded-2xl overflow-hidden"
+                  style={{
+                    border: `1px solid ${isOpen || row.emphasized ? '#2563EB' : '#E2E8F0'}`,
+                    background: isOpen ? '#EFF6FF' : '#FFFFFF',
+                    transition: 'background 0.2s ease, border-color 0.2s ease',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenDiffIndex(isOpen ? null : index)}
+                    className="flex w-full items-center justify-between gap-4 p-5 text-left"
+                    style={{ minHeight: 52 }}
+                  >
+                    <span className="text-sm font-semibold" style={{ color: row.emphasized ? '#1D4ED8' : '#1E293B', fontFamily: FONT_SANS }}>
+                      {row.aspect}
+                    </span>
+                    <span
+                      className="shrink-0 text-xl font-light text-blue-600"
+                      style={{
+                        transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)',
+                        transition: 'transform 250ms ease',
+                        display: 'block',
+                      }}
                     >
-                      Renting with Reeve
-                    </h3>
-                    <p className="text-sm text-slate-400" style={{ fontFamily: FONT_SANS }}>
-                      One month. Platform-managed. Deposit held fairly.
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  {[
-                    {
-                      label: 'Security deposit',
-                      sub: '2 month only. Returned based on documented condition.',
-                      val: '₹1,00,000',
-                    },
-                    {
-                      label: 'Broker fee',
-                      sub: 'Zero. Always zero. No hidden charges.',
-                      val: '₹0',
-                    },
-                    {
-                      label: 'Who handles repairs?',
-                      sub: 'Reeve. Raise a request on the platform, done.',
-                      val: 'Platform',
-                    },
-                    {
-                      label: 'Agreement speed',
-                      sub: 'Everything coordinated by one team',
-                      val: 'Hours, not days',
-                    },
-                    {
-                      label: 'Deposit return',
-                      sub: 'Fair process — any deductions based only on documented damage beyond normal wear. No undocumented claims.*',
-                      val: 'Fair process',
-                    },
-                  ].map((row) => (
-                    <div
-                      key={row.label}
-                      className="flex items-start gap-4 py-4 border-b border-white/10 last:border-0"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="w-2 h-2 rounded-full bg-blue-400 block" />
+                      +
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-5 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400" style={{ fontFamily: FONT_SANS }}>Traditional</span>
+                        <span className="text-slate-600 text-right max-w-[60%]" style={{ fontFamily: FONT_SANS }}>{row.traditional}</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="text-sm font-medium text-white"
-                          style={{ fontFamily: FONT_SANS }}
-                        >
-                          {row.label}
-                        </p>
-                        <p
-                          className="text-xs text-slate-400 mt-0.5"
-                          style={{ fontFamily: FONT_SANS }}
-                        >
-                          {row.sub}
-                        </p>
-                      </div>
-                      <span
-                        className="text-sm font-semibold text-blue-400 shrink-0 ml-auto"
-                        style={{ fontFamily: FONT_SANS }}
+                      <div
+                        className="flex justify-between rounded-xl px-3 py-2 text-sm font-semibold"
+                        style={{ background: '#DBEAFE', color: '#1D4ED8', fontFamily: FONT_SANS }}
                       >
-                        {row.val}
-                      </span>
+                        <span>With Reeve</span>
+                        <span>✓ {row.reeve}</span>
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-              <p
-                className="text-xs text-slate-400 mt-3 px-1"
-                style={{ fontFamily: FONT_SANS }}
-              >
-                *Any deduction requires photo evidence from the move-in condition report signed by you on day one.
-              </p>
-            </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -1074,25 +888,25 @@ export default function TenantSavingsPage(): React.JSX.Element {
       {/* ──────────────────────────────────────────────────────────────────────
           SECTION 6: HOW THE MONEY WORKS
       ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-white">
+      <section style={{ background: '#0F1C2E' }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
-          <SectionLabel>TOTAL TRANSPARENCY</SectionLabel>
+          <SectionLabel light>TOTAL TRANSPARENCY</SectionLabel>
           <h2
-            className="mt-4 font-normal text-slate-900"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
+            className="mt-4 font-normal"
+            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)', color: '#FFFFFF' }}
           >
             Here's exactly what renting with Reeve costs.
           </h2>
           <p
-            className="mt-4 text-slate-600 text-base max-w-xl leading-7"
-            style={{ fontFamily: FONT_SANS }}
+            className="mt-4 text-base max-w-xl leading-7"
+            style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.75)' }}
           >
             No surprises. No hidden charges. Here's how every rupee flows.
           </p>
 
           <div className="mt-12 grid lg:grid-cols-2 gap-6">
             {/* Card 1: Rent → Owner (navy) */}
-            <div className="rounded-3xl bg-[#0F1C2E] p-6 sm:p-8 text-white">
+            <div className="rounded-3xl p-6 sm:p-8" style={{ background: '#1A2D42', border: '1px solid rgba(255,255,255,0.10)' }}>
               <p
                 className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-400"
                 style={{ fontFamily: FONT_SANS }}
@@ -1106,8 +920,8 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 Goes directly to your owner.
               </h3>
               <p
-                className="text-sm text-slate-300 leading-7 mt-4"
-                style={{ fontFamily: FONT_SANS }}
+                className="text-sm leading-7 mt-4"
+                style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.75)' }}
               >
                 Your monthly rent is paid to your property owner. Every rupee. Reeve does not
                 deduct anything from your rent, does not hold it, and does not route it through
@@ -1121,23 +935,23 @@ export default function TenantSavingsPage(): React.JSX.Element {
               </span>
             </div>
 
-            {/* Card 2: Reeve Fee (white + blue border) */}
-            <div className="rounded-3xl border-2 border-blue-200 bg-white p-6 sm:p-8">
+            {/* Card 2: Reeve Fee */}
+            <div className="rounded-3xl p-6 sm:p-8" style={{ background: '#1A2D42', border: '2px solid #2563EB' }}>
               <p
-                className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600"
+                className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-400"
                 style={{ fontFamily: FONT_SANS }}
               >
                 REEVE'S FEE
               </p>
               <h3
-                className="text-2xl font-semibold text-slate-900 mt-3"
+                className="text-2xl font-semibold text-white mt-3"
                 style={{ fontFamily: FONT_SANS }}
               >
                 Paid by you. To Reeve. On top of rent.
               </h3>
               <p
-                className="text-sm text-slate-600 leading-7 mt-4"
-                style={{ fontFamily: FONT_SANS }}
+                className="text-sm leading-7 mt-4"
+                style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.75)' }}
               >
                 Reeve charges a fee on top of your monthly rent. For most tenants this
                 is 7% of monthly rent across the 11-month lease. This covers tenant screening,
@@ -1145,11 +959,11 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 handling, and all platform support throughout your stay.
               </p>
 
-              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
-                <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="mt-5 rounded-xl px-4 py-3 flex items-start gap-3" style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)' }}>
+                <Info className="h-4 w-4 mt-0.5 shrink-0" style={{ color: 'rgba(251,191,36,0.9)' }} />
                 <p
-                  className="text-xs text-amber-800 leading-5"
-                  style={{ fontFamily: FONT_SANS }}
+                  className="text-xs leading-5"
+                  style={{ fontFamily: FONT_SANS, color: 'rgba(251,191,36,0.9)' }}
                 >
                   Your exact fee rate is confirmed during the application process based on
                   your eligibility profile. You will always see your rate clearly before you
@@ -1158,10 +972,10 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 </p>
               </div>
 
-              <div className="mt-5 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+              <div className="mt-5 rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <p
-                  className="text-xs text-slate-500 font-semibold uppercase tracking-wider"
-                  style={{ fontFamily: FONT_SANS }}
+                  className="text-xs font-semibold uppercase tracking-wider"
+                  style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.50)' }}
                 >
                   EXAMPLE AT ₹50,000/MONTH
                 </p>
@@ -1172,18 +986,18 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 ].map((row) => (
                   <div
                     key={row.label}
-                    className="text-sm text-slate-700 flex justify-between py-1"
-                    style={{ fontFamily: FONT_SANS }}
+                    className="text-sm flex justify-between py-1"
+                    style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.75)' }}
                   >
                     <span>{row.label}</span>
-                    <span className="font-medium">{row.val}</span>
+                    <span className="font-medium text-white">{row.val}</span>
                   </div>
                 ))}
               </div>
 
               <span
-                className="mt-5 inline-flex rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700"
-                style={{ fontFamily: FONT_SANS }}
+                className="mt-5 inline-flex rounded-full px-4 py-2 text-sm font-semibold text-white"
+                style={{ fontFamily: FONT_SANS, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
               >
                 Reeve fee → Reeve. That's it.
               </span>
@@ -1191,8 +1005,8 @@ export default function TenantSavingsPage(): React.JSX.Element {
           </div>
 
           <p
-            className="mt-8 text-center text-sm text-slate-500 italic"
-            style={{ fontFamily: FONT_SANS }}
+            className="mt-8 text-center text-sm italic"
+            style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.50)' }}
           >
             Reeve's business model only works when you're happy in your home. That alignment is intentional.
           </p>
@@ -1202,11 +1016,11 @@ export default function TenantSavingsPage(): React.JSX.Element {
       {/* ──────────────────────────────────────────────────────────────────────
           SECTION 7: FAQ
       ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#FAFAF8]">
+      <section style={{ background: '#0F1C2E' }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
           <h2
-            className="font-normal text-slate-900"
-            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)' }}
+            className="font-normal"
+            style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 4vw, 44px)', color: '#FFFFFF' }}
           >
             Common questions from tenants
           </h2>
@@ -1215,17 +1029,22 @@ export default function TenantSavingsPage(): React.JSX.Element {
             {FAQS.map((faq, i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:px-6"
+                className="rounded-2xl px-5 py-4 sm:px-6"
+                style={{
+                  background: openFaq === i ? 'rgba(37,99,235,0.15)' : '#1A2D42',
+                  border: `1px solid ${openFaq === i ? '#93C5FD' : 'rgba(255,255,255,0.10)'}`,
+                  transition: 'background 0.2s ease, border-color 0.2s ease',
+                }}
               >
                 <button
-                  className="flex w-full items-center justify-between gap-4 cursor-pointer text-base font-semibold text-slate-900 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
+                  className="flex w-full items-center justify-between gap-4 cursor-pointer text-base font-semibold text-left focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#0F1C2E] rounded-lg"
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   aria-expanded={openFaq === i}
-                  style={{ fontFamily: FONT_SANS }}
+                  style={{ fontFamily: FONT_SANS, color: '#FFFFFF' }}
                 >
                   <span>{faq.q}</span>
                   <span
-                    className="text-slate-400 text-xl shrink-0 transition-transform duration-200 select-none"
+                    className="text-xl shrink-0 transition-transform duration-200 select-none text-blue-400"
                     style={{ transform: openFaq === i ? 'rotate(45deg)' : 'rotate(0deg)' }}
                     aria-hidden="true"
                   >
@@ -1237,8 +1056,8 @@ export default function TenantSavingsPage(): React.JSX.Element {
                   style={{ maxHeight: openFaq === i ? '600px' : '0px' }}
                 >
                   <p
-                    className="text-sm text-slate-600 leading-7 mt-4 pr-6"
-                    style={{ fontFamily: FONT_SANS }}
+                    className="text-sm leading-7 mt-4 pr-6"
+                    style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.75)' }}
                   >
                     {faq.a}
                   </p>
@@ -1252,15 +1071,15 @@ export default function TenantSavingsPage(): React.JSX.Element {
       {/* ──────────────────────────────────────────────────────────────────────
           SECTION 8: FINAL CTA
       ────────────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#0F1C2E]">
+      <section style={{ background: '#2563EB' }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-28">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
 
             {/* Left */}
             <div>
               <p
-                className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-400"
-                style={{ fontFamily: FONT_SANS }}
+                className="text-xs font-semibold uppercase tracking-[0.14em]"
+                style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.70)' }}
               >
                 YOUR NEXT HOME IS WAITING
               </p>
@@ -1271,28 +1090,28 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 Stop paying for a system that works against you.
               </h2>
               <p
-                className="text-slate-300 text-base leading-8 mt-5 max-w-md"
-                style={{ fontFamily: FONT_SANS }}
+                className="text-base leading-8 mt-5 max-w-md"
+                style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.85)' }}
               >
-                Browse verified Bangalore flats. 1 month deposit. Zero brokerage. Fully platform-managed.
+                Browse verified Bangalore flats. 2 month deposit. Zero brokerage. Fully platform-managed.
               </p>
               <p
-                className="text-slate-500 text-xs leading-6 mt-5"
-                style={{ fontFamily: FONT_SANS }}
+                className="text-xs leading-6 mt-5"
+                style={{ fontFamily: FONT_SANS, color: 'rgba(255,255,255,0.55)' }}
               >
                 Free to browse · No commitment until agreement signed · Deposit held by platform · Zero SPAM policy
               </p>
             </div>
 
             {/* Right */}
-            <div className="rounded-3xl border border-slate-700/50 bg-[#1A2D42] p-6 sm:p-8">
+            <div className="rounded-3xl p-6 sm:p-8" style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.20)' }}>
               <button
                 onClick={() => {
                   posthog?.capture('tenant_page_browse_cta_clicked');
                   navigate('/search');
                 }}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base px-6 py-4 transition focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
-                style={{ fontFamily: FONT_SANS }}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-white font-semibold text-base px-6 py-4 transition hover:bg-blue-50 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 focus:outline-none"
+                style={{ fontFamily: FONT_SANS, color: '#1D4ED8' }}
               >
                 Browse Zero-Brokerage Flats
                 <ArrowRight className="h-5 w-5" />
