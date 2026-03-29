@@ -121,46 +121,6 @@ const Header = () => {
 
           {/* Mobile right side */}
           <div className="flex md:hidden items-center gap-2">
-            {isAuthenticated && user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1 text-sm font-medium text-gray-600 px-2 py-2 rounded-lg hover:bg-gray-50">
-                    <User className="h-5 w-5" />
-                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {isAdmin ? (
-                    <DropdownMenuItem onClick={() => navigate("/admin/owners")}>
-                      Admin Dashboard
-                    </DropdownMenuItem>
-                  ) : (
-                    <>
-                      <DropdownMenuItem onClick={() => navigate("/dashboard")}>
-                        Rent Properties
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate("/my-properties")}>
-                        List Properties
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate("/profile")}>
-                        My Profile
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Link
-                to="/my-properties/new"
-                className="bg-[#2563EB] text-white text-sm font-medium px-4 py-2 rounded-lg"
-              >
-                List Your Property
-              </Link>
-            )}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 text-[#0A1628]"
@@ -177,52 +137,103 @@ const Header = () => {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
           <div className="px-4 py-4 space-y-1">
-            <Link
-              to="/savings/tenant"
-              className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              For Tenants
-            </Link>
-            <Link
-              to="/savings/owner"
-              className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              For Owners
-            </Link>
-            <Link
-              to="/search"
-              className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Search Properties
-            </Link>
-            <Link
-              to="/contact"
-              className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Contact
-            </Link>
+            {isAuthenticated && user && !isAdmin ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Rent Properties
+                </Link>
+                <Link
+                  to="/savings/tenant"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  For Tenants
+                </Link>
+                <Link
+                  to="/savings/owner"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  For Owners
+                </Link>
+                <Link
+                  to="/contact"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Contact
+                </Link>
+                <Link
+                  to="/profile"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  My Profile
+                </Link>
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="block w-full text-left text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/savings/tenant"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  For Tenants
+                </Link>
+                <Link
+                  to="/savings/owner"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  For Owners
+                </Link>
+                <Link
+                  to="/search"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Search Properties
+                </Link>
+                <Link
+                  to="/contact"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Contact
+                </Link>
 
-            {!isAuthenticated && (
-              <div className="pt-4 space-y-3">
-                <Link
-                  to="/login"
-                  className="block w-full text-center text-sm text-gray-600 border border-gray-300 rounded-lg py-3"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Login
-                </Link>
-                <Link
-                  to="/my-properties/new"
-                  className="block w-full text-center bg-[#2563EB] text-white text-sm font-medium rounded-lg py-3"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  List Your Property
-                </Link>
-              </div>
+                {!isAuthenticated && (
+                  <div className="pt-4 space-y-3">
+                    <Link
+                      to="/login"
+                      className="block w-full text-center text-sm text-gray-600 border border-gray-300 rounded-lg py-3"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Login
+                    </Link>
+                    <Link
+                      to="/my-properties/new"
+                      className="block w-full text-center bg-[#2563EB] text-white text-sm font-medium rounded-lg py-3"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      List Your Property
+                    </Link>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
