@@ -11,7 +11,7 @@ const Footer = () => {
           <div>
             <span className="font-bold text-xl text-white tracking-wide">REEVE</span>
             <p className="text-gray-400 text-sm mt-2">
-              Zero brokerage. One month deposit.
+              Zero brokerage. Two month deposit.
               <br />
               Fully managed for free.
             </p>
