@@ -62,6 +62,7 @@ import Profile from "./pages/Profile";
 import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import { Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <ErrorBoundary>
             <AppInner />
           </ErrorBoundary>
