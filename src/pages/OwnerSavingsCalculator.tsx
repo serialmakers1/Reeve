@@ -73,10 +73,10 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'Does Reeve charge property owners anything at all?',
     answer:
-      'No. Reeve charges zero listing fees, zero commission, and zero management retainer to property owners. Our revenue comes from a service fee charged to tenants — not from you. You receive your full rent amount, transferred directly to your bank account every month. There are no deductions, no hidden charges, and no monthly bills from Reeve.',
+      'No. Reeve charges zero listing fees, zero commission, and zero management retainer to property owners. Our revenue comes from a service fee charged to tenants — not from you. You receive your full rent amount, transferred directly to your bank account every month.',
   },
   {
-    question: 'Who handles tenant viewings? Do I need to be present?',
+    question: 'Who handles tenant visits? Do I need to be present?',
     answer:
       'Never. Reeve handles every single viewing. When your property is listed, our team coordinates all visit slots and shows the property to every vetted applicant on your behalf. You are not called, not required to be present, and not involved in any showing. The same applies to mid-tenancy check-ins and the move-out walkthrough — Reeve conducts all of these without you.',
   },
@@ -84,11 +84,6 @@ const FAQ_ITEMS: FaqItem[] = [
     question: "What if my tenant doesn't pay rent?",
     answer:
       "Reeve's Owner Protection Protocol activates automatically. On Day 1 of default, the tenant is notified immediately. By Day 7, a formal reminder goes out across all channels. Day 15, a formal notice is issued. Day 21, a legal notice. Day 30, eviction proceedings begin per the leave and licence agreement. You receive a status update at every stage. You are never asked to chase the tenant yourself.",
-  },
-  {
-    question: 'Who holds the security deposit?',
-    answer:
-      "Reeve holds and manages the security deposit on behalf of all parties. Under the traditional model, owners collect 2–3 months rent as deposit from tenants. With Reeve, only 1 month's deposit is collected — held by the platform. This makes your property significantly more attractive to tenants and means faster occupancy. The deposit is returned to the tenant at move-out minus any verified damages.",
   },
   {
     question: 'Can I take my property back if I need to?',
@@ -349,7 +344,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   className="owner-fade-up mt-5 text-sm leading-relaxed"
                   style={{ color: C.textMuted, maxWidth: 480, animationDelay: '200ms' }}
                 >
-                  Your tenants pay only 1 month deposit — not 3. That means faster occupancy,
+                  Your tenants pay only 2 month deposit. That means faster occupancy,
                   lower vacancy risk, and better-quality tenants who aren&apos;t stretched thin
                   from day one.
                 </p>
@@ -456,7 +451,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                 </p>
                 <p className="mt-4 text-sm leading-relaxed" style={{ color: C.textBody }}>
                   This fee is fully disclosed to tenants before they apply. It covers tenant screening,
-                  agreement execution, maintenance coordination, dispute handling, and everything else Reeve does.
+                  agreement execution, maintenance coordination, and everything else Reeve does.
                 </p>
                 <p className="mt-4 text-sm leading-relaxed" style={{ color: C.textBody }}>
                   Your rent and Reeve&apos;s fee are completely separate. We earn when your property is
@@ -556,7 +551,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                 { n: '1', title: 'Submit Your Property', body: "Fill a quick form or give us a call. No photos, no documents, no preparation needed at this stage. Just your name, phone number, property area, and BHK. That's it.", pill: null },
                 { n: '2', title: 'We Inspect & List', body: "Our team visits, photographs, documents every detail, and lists your property professionally. We show it to every vetted applicant — you are never asked to be present for a single viewing.", pill: 'You never show the flat yourself' },
                 { n: '3', title: 'Tenant Moves In', body: "You review and approve the tenant application. We handle the digital agreement, key handover, and move-in condition report. Police verification for foreign citizens is handled by us.", pill: null },
-                { n: '4', title: 'We Manage Everything', body: "Rent collected and transferred to you on the 5th every month. Maintenance coordinated end-to-end. Disputes handled. Move-out inspections conducted. Lease renewals managed. Your only job is to receive your payout.", pill: 'Zero effort from you — and zero cost, ever' },
+                { n: '4', title: 'We Manage Everything', body: "Rent collected and transferred to you every month. Maintenance coordinated end-to-end. Move-out inspections conducted. Lease renewals managed. Your only job is to receive your payout.", pill: 'Zero effort from you — and zero cost, ever' },
               ].map((step, i, arr) => (
                 <div key={step.n} className="flex gap-5">
                   <div className="flex flex-col items-center">
@@ -685,7 +680,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
               {/* Traditional */}
               <div className="rounded-3xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
                 <div className="px-6 py-4" style={{ background: C.bg }}>
-                  <p className="font-semibold text-white">Traditional Property Management</p>
+                  <p className="font-semibold text-white">Traditional Property Management (PMS)</p>
                   <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Pay upfront fees, pay commission, manage it yourself.</p>
                 </div>
                 <div className="p-6" style={{ background: C.surface }}>
@@ -706,7 +701,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                     {[
                       { label: 'PMS Listing Fee', value: formatINR(LISTING_FEE), animated: false },
                       { label: 'PMS Commission (1× rent)', value: null, animated: true, raw: savings.commission },
-                      { label: 'Turnover Expense (0.5× rent)', value: null, animated: true, raw: savings.turnoverExpense },
+                      { label: 'Painting & Cleaning Expense (0.5× rent)', value: null, animated: true, raw: savings.turnoverExpense },
                     ].map((row) => (
                       <div key={row.label} className="flex justify-between rounded-xl px-4 py-3 text-sm" style={{ background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
                         <span style={{ color: C.textBody }}>{row.label}</span>
@@ -741,7 +736,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   <div className="rounded-2xl p-4 mb-4" style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}` }}>
                     <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: C.textMuted }}>Upfront capital flow</p>
                     <p className="text-sm font-medium" style={{ color: C.textBody }}>
-                      Security Collected (1× rent):{' '}
+                      Security Collected (2× rent):{' '}
                       <span className="font-bold" style={{ color: C.textPrimary }}>
                         <AnimatedNumber value={savings.rent} formatter={formatINR} />
                       </span>
@@ -749,7 +744,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
                     <p className="text-xs mt-1" style={{ color: C.textMuted }}>→ Held and managed by platform. Fully returned at end.</p>
                   </div>
                   <div className="space-y-2">
-                    {['PMS Listing Fee', 'Commission', 'Turnover Expense (*see FAQ)', 'Interest Earned'].map((label) => (
+                    {['PMS Listing Fee', 'Commission', 'Paiting & Cleaning Expense', 'Interest Earned'].map((label) => (
                       <div key={label} className="flex justify-between rounded-xl px-4 py-3 text-sm" style={{ background: C.accentLight, border: `1px solid ${C.accentMid}` }}>
                         <span style={{ color: C.textBody }}>{label}</span>
                         <span className="font-semibold" style={{ color: C.accentMid }}>₹0</span>
@@ -778,7 +773,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
             {/* Assumptions */}
             <div className="mt-6 rounded-2xl p-4 text-xs" style={{ border: `1px solid ${C.border}`, color: C.textMuted }}>
-              <strong>Assumptions:</strong> 11-month tenure cycle · 10% per annum imputed interest on traditional security deposit · Traditional listing fee ₹10,000 · Turnover expense 0.5× monthly rent.
+              <strong>Assumptions:</strong> 11-month tenure cycle · Traditional listing fee ₹10,000 · Painting & Cleaning Expense (Every Turnover) 0.5× monthly rent.
             </div>
           </div>
         </section>
@@ -802,7 +797,7 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
             <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-3">
               {[
-                { num: '120', label: 'Hours', desc: 'saved managing your property — coordinating maintenance, chasing rent, handling disputes' },
+                { num: '120', label: 'Hours', desc: 'saved managing your property — coordinating maintenance, chasing rent' },
                 { num: '15', label: 'Visits', desc: 'saved showing your property — viewings, check-ins, move-out walkthroughs you never have to make' },
                 { num: '₹0', label: 'Broker fees', desc: 'across the entire relationship — not just this tenant cycle, but every renewal and re-leasing' },
               ].map((card) => (
