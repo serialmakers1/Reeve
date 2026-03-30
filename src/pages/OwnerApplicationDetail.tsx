@@ -17,7 +17,6 @@ interface ApplicationData {
   cibil_range: string | null;
   employer_name: string | null;
   crime_record_self_attest: boolean;
-  income_check_passed: boolean | null;
   platform_approved: boolean | null;
   submitted_at: string | null;
   rejection_reason: string | null;
@@ -34,6 +33,7 @@ interface ApplicationData {
   } | null;
   residents: { full_name: string; age: number; relationship: string }[];
   eligibility: {
+    full_name: string | null;
     age: number;
     gender: string;
     occupation: string;
@@ -163,7 +163,7 @@ export default function OwnerApplicationDetail() {
       .select(`
         id, status, proposed_rent, owner_counter_rent, final_agreed_rent,
         monthly_income, cibil_range, employer_name, crime_record_self_attest,
-        income_check_passed, platform_approved, submitted_at,
+        platform_approved, submitted_at,
         rejection_reason, owner_actioned_at, attempt_number, previous_application_id, tenant_id,
         tenant:users!applications_tenant_id_fkey(full_name),
         property:properties!applications_property_id_fkey(
@@ -186,7 +186,7 @@ export default function OwnerApplicationDetail() {
     if (tenantId) {
       const { data: eligData } = await supabase
         .from("eligibility")
-        .select("age, gender, occupation, marital_status, diet, has_pets, pet_type, pet_description, resident_count, expected_stay")
+        .select("full_name, age, gender, occupation, marital_status, diet, has_pets, pet_type, pet_description, resident_count, expected_stay")
         .eq("user_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(1);
@@ -331,7 +331,7 @@ export default function OwnerApplicationDetail() {
           </h2>
           <div className="grid grid-cols-2 gap-x-6 gap-y-3">
             {[
-              { label: "Full Name", value: app.tenant?.full_name ?? "—" },
+              { label: "Full Name", value: elig?.full_name ?? app.tenant?.full_name ?? "—" },
               { label: "Age", value: elig?.age ?? "—" },
               { label: "Gender", value: capitalize(elig?.gender) },
               { label: "Occupation", value: capitalize(elig?.occupation) },
@@ -403,16 +403,6 @@ export default function OwnerApplicationDetail() {
               )}
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Income Check</p>
-              {app.income_check_passed === true ? (
-                <p className="text-sm font-medium text-green-600">✓ Income verified</p>
-              ) : app.income_check_passed === false ? (
-                <p className="text-sm font-medium text-red-600">✗ Income below threshold</p>
-              ) : (
-                <p className="text-sm font-medium text-muted-foreground">Pending</p>
-              )}
-            </div>
-            <div>
               <p className="text-xs text-muted-foreground">Proposed Rent</p>
               <p className="text-sm font-medium text-foreground">
                 {fmt(app.proposed_rent)}
@@ -432,13 +422,13 @@ export default function OwnerApplicationDetail() {
           <h2 className="text-sm font-semibold text-foreground mb-4">
             Co-Residents
           </h2>
-          {app.residents.length === 0 ? (
+          {app.residents.filter(r => r.relationship !== 'self').length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No co-residents listed.
             </p>
           ) : (
             <div className="space-y-2">
-              {app.residents.map((r, i) => (
+              {app.residents.filter(r => r.relationship !== 'self').map((r, i) => (
                 <div
                   key={i}
                   className="flex items-center justify-between text-sm"

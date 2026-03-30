@@ -561,11 +561,11 @@ export default function AdminApplicationDetail() {
         <Card>
           <CardHeader><CardTitle className="text-base">Co-Residents</CardTitle></CardHeader>
           <CardContent>
-            {app.residents.length === 0 ? (
+            {app.residents.filter(r => r.relationship !== 'self').length === 0 ? (
               <p className="text-sm text-muted-foreground">No co-residents listed.</p>
             ) : (
               <div className="space-y-2">
-                {app.residents.map((r) => (
+                {app.residents.filter(r => r.relationship !== 'self').map((r) => (
                   <div key={r.id} className="flex items-center gap-4 text-sm">
                     <span className="font-medium">{r.full_name}</span>
                     <span className="text-muted-foreground">Age {r.age}</span>

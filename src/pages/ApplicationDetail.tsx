@@ -521,11 +521,11 @@ export default function ApplicationDetail() {
                 label="No Criminal Record"
                 value={app.crime_record_self_attest ? "Self-attested ✓" : "Not attested"}
               />
-              {app.application_residents && app.application_residents.length > 0 ? (
+              {app.application_residents && app.application_residents.filter(r => r.relationship !== 'self').length > 0 ? (
                 <div>
                   <p className="text-muted-foreground mb-1">Co-Residents</p>
                   <ul className="space-y-1">
-                    {app.application_residents.map((r) => (
+                    {app.application_residents.filter(r => r.relationship !== 'self').map((r) => (
                       <li key={r.id} className="text-foreground">
                         {r.full_name} · {r.age} yrs · {r.relationship}
                       </li>
