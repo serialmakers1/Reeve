@@ -516,10 +516,6 @@ export default function ApplicationDetail() {
             <div className="px-4 pb-4 space-y-3 text-sm border-t pt-3">
               <DetailRow label="Proposed Rent" value={formatRent(app.proposed_rent) + "/month"} />
               <DetailRow label="Employer" value={app.employer_name || "Not provided"} />
-              <DetailRow
-                label="Monthly Income"
-                value={app.monthly_income ? formatRent(app.monthly_income) : "Not provided"}
-              />
               <DetailRow label="CIBIL Range" value={formatCibil(app.cibil_range)} />
               <DetailRow
                 label="No Criminal Record"

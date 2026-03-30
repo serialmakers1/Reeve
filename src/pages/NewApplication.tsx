@@ -621,7 +621,20 @@ export default function NewApplicationPage() {
     if (step === 2) {
       // Save residents
       if (applicationId) {
-        await supabase.from("application_residents").delete().eq("application_id", applicationId);
+        const { error: deleteResidentsError } = await supabase
+          .from("application_residents")
+          .delete()
+          .eq("application_id", applicationId);
+        if (deleteResidentsError) {
+          console.error("Failed to clear existing residents:", deleteResidentsError.message);
+          toast({
+            title: "Error saving residents",
+            description: "Could not clear previous resident data. Please try again.",
+            variant: "destructive",
+          });
+          setSaving(false);
+          return;
+        }
         // Insert primary applicant
         if (eligibility) {
           await supabase.from("application_residents").insert({
@@ -1435,7 +1448,7 @@ export default function NewApplicationPage() {
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-muted-foreground">Security Deposit</span>
-            <span className="text-sm text-foreground">{formatRupee(listedRent)} </span>
+            <span className="text-sm text-foreground">{formatRupee(listedRent * 2)} </span>
           </div>
         </div>
 
@@ -1608,7 +1621,7 @@ export default function NewApplicationPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Security deposit</span>
-              <span className="text-sm text-foreground">{formatRupee(rent)} </span>
+              <span className="text-sm text-foreground">{formatRupee(rent * 2)} </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Residents</span>
