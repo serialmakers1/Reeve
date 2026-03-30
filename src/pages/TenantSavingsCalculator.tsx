@@ -312,7 +312,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
           {/* Left column */}
           <div>
             <div className="t-fade-up" style={{ animationDelay: "0ms" }}>
-              <SectionLabel light>Zero broker. Lower upfront cash.</SectionLabel>
+              <SectionLabel light>Zero brokerage. Lower upfront cash.</SectionLabel>
             </div>
 
             <h1
