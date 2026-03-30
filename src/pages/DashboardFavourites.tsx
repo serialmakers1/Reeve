@@ -51,7 +51,7 @@ function furnishingLabel(f: string): string {
 
 export default function DashboardFavourites() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { isFavourited, toggleFavourite, isLoggedIn, loading: favLoading } = useFavourites();
 
   const [properties, setProperties] = useState<FavProperty[]>([]);
@@ -60,7 +60,7 @@ export default function DashboardFavourites() {
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
-    if (favLoading) return;
+    if (authLoading || favLoading) return;
     if (!isLoggedIn) {
       navigate("/login");
       return;
@@ -130,7 +130,7 @@ export default function DashboardFavourites() {
     };
 
     fetchData();
-  }, [favLoading, isLoggedIn, navigate, user?.id]);
+  }, [authLoading, favLoading, isLoggedIn, navigate, user?.id]);
 
   const handleUnfavourite = async (propertyId: string) => {
     await toggleFavourite(propertyId);
