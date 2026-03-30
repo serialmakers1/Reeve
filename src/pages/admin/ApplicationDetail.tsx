@@ -147,6 +147,8 @@ export default function AdminApplicationDetail() {
   const [holdLoading, setHoldLoading] = useState(false);
   const [docFiles, setDocFiles] = useState<{ name: string; path: string }[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [verifiedIncome, setVerifiedIncome] = useState<number | null>(null);
+  const [savingIncome, setSavingIncome] = useState(false);
 
   // Owner proxy action state
   const [staffUsers, setStaffUsers] = useState<{ id: string; full_name: string }[]>([]);
@@ -200,7 +202,9 @@ export default function AdminApplicationDetail() {
       eligibility = eligRows as any;
     }
 
-    setApp({ ...(data as unknown as AppData), eligibility });
+    const appData = { ...(data as unknown as AppData), eligibility };
+    setApp(appData);
+    setVerifiedIncome(appData.monthly_income ?? null);
     setNotes(data.platform_review_notes ?? "");
     setLoading(false);
   }, [id, toast]);
@@ -372,6 +376,21 @@ export default function AdminApplicationDetail() {
     setNotesSaving(false);
   };
 
+  const handleSaveVerifiedIncome = async () => {
+    if (!id) return;
+    setSavingIncome(true);
+    const { error } = await supabase
+      .from("applications")
+      .update({ monthly_income: verifiedIncome })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Failed to save income", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Income saved", description: "Verified monthly income updated." });
+    }
+    setSavingIncome(false);
+  };
+
   if (authLoading || loading) {
     return (
       <AdminLayout>
@@ -462,18 +481,57 @@ export default function AdminApplicationDetail() {
           </CardContent>
         </Card>
 
+        {/* Self-employed alert — admin only, never shown to owners */}
+        {elig?.occupation === 'self_employed' && (
+          <div className="flex items-start gap-3 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-3">
+            <span className="text-yellow-500 text-lg shrink-0 mt-0.5">⚠️</span>
+            <div>
+              <p className="text-sm font-semibold text-yellow-800">
+                Self-employed applicant
+              </p>
+              <p className="text-xs text-yellow-700 mt-0.5 leading-relaxed">
+                Income verification requires ITR or audited financials — payslips are not valid for this applicant. Confirm income documents before setting verified monthly income.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Section 2 — Financial Summary */}
         <Card>
           <CardHeader><CardTitle className="text-base">Financial Summary</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground w-36 shrink-0">Monthly Income</span>
-              <span className="font-medium">{formatCurrency(app.monthly_income)}</span>
+            {/* Verified Monthly Income — admin only */}
+            <div className="pb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Verified Monthly Income
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 text-sm">₹</span>
+                <Input
+                  type="number"
+                  value={verifiedIncome ?? ''}
+                  onChange={(e) => setVerifiedIncome(e.target.value ? Number(e.target.value) : null)}
+                  placeholder="Enter after verifying documents"
+                  className="w-48 h-9 text-sm"
+                  min={0}
+                />
+                <Button
+                  size="sm"
+                  onClick={handleSaveVerifiedIncome}
+                  disabled={savingIncome}
+                  className="h-9"
+                >
+                  {savingIncome ? 'Saving…' : 'Save'}
+                </Button>
+              </div>
               {incomeFlagged && (
-                <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium">
-                  <AlertTriangle className="h-3.5 w-3.5" /> Low Income
-                </span>
+                <p className="mt-1 flex items-center gap-1 text-xs text-red-600 font-medium">
+                  <AlertTriangle className="h-3 w-3" /> Below 2.5× rent threshold
+                </p>
               )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Set after reviewing ITR or payslips. Visible to owner once application is sent.
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground w-36 shrink-0">CIBIL Range</span>

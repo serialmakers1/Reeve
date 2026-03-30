@@ -371,12 +371,20 @@ export default function OwnerApplicationDetail() {
             Financial Details
           </h2>
           <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-            <div>
-              <p className="text-xs text-muted-foreground">Monthly Income</p>
-              <p className="text-sm font-medium text-foreground">
-                {app.monthly_income ? fmt(app.monthly_income) : "—"}
-              </p>
-            </div>
+            {app.monthly_income != null &&
+              ['sent_to_owner', 'owner_accepted', 'owner_rejected', 'owner_countered',
+               'tenant_countered', 'payment_pending', 'payment_received', 'kyc_pending',
+               'kyc_passed', 'kyc_failed', 'agreement_pending', 'lease_active'].includes(app.status) && (
+              <div>
+                <p className="text-xs text-muted-foreground">Monthly Income</p>
+                <p className="text-sm font-medium text-foreground">
+                  {fmt(app.monthly_income)}
+                  <span className="ml-2 text-xs font-normal text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                    Verified by Reeve
+                  </span>
+                </p>
+              </div>
+            )}
             <div>
               <p className="text-xs text-muted-foreground">Employer</p>
               <p className="text-sm font-medium text-foreground">

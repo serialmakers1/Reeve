@@ -184,7 +184,6 @@ export default function NewApplicationPage() {
 
   // Step 3 — Employment
   const [employerName, setEmployerName] = useState("");
-  const [monthlyIncome, setMonthlyIncome] = useState<number | "">("");
   const [salarySlips, setSalarySlips] = useState<UploadedFile[]>([]);
   const [itrFile, setItrFile] = useState<UploadedFile | null>(null);
   const [bankStatement, setBankStatement] = useState<UploadedFile | null>(null);
@@ -412,7 +411,6 @@ export default function NewApplicationPage() {
   const loadDraft = async (draft: Record<string, unknown>, prop: PropertyInfo) => {
     // Pre-fill from draft
     if (draft.employer_name) setEmployerName(draft.employer_name as string);
-    if (draft.monthly_income) setMonthlyIncome(draft.monthly_income as number);
     if (draft.cibil_range) setCibilRange(draft.cibil_range as string);
     if (draft.crime_record_self_attest) setCrimeAttest(true);
     if (draft.proposed_rent) {
@@ -582,8 +580,6 @@ export default function NewApplicationPage() {
 
     if (s === 3) {
       if (!employerName.trim()) errs.employer_name = "Employer name is required";
-      if (monthlyIncome === "" || Number(monthlyIncome) <= 0)
-        errs.monthly_income = "Please enter your monthly income";
       if (!aadhaarFile) errs.aadhaar = "Please upload your Aadhaar card";
       if (!panFile) errs.pan = "Please upload your PAN card";
       if (salarySlips.length === 0) errs.salary_slips = "Please upload at least one salary slip";
@@ -658,7 +654,6 @@ export default function NewApplicationPage() {
     if (step === 3) {
       success = await saveApplicationField({
         employer_name: employerName.trim(),
-        monthly_income: Number(monthlyIncome),
       });
     }
 
@@ -756,7 +751,6 @@ export default function NewApplicationPage() {
             tenant_id: userId,
             eligibility_id: eligibility?.id,
             employer_name: employerName.trim() || null,
-            monthly_income: monthlyIncome !== "" ? Number(monthlyIncome) : null,
             cibil_range: (cibilRange || null) as "550_to_649" | "650_to_749" | "750_to_900" | "below_550" | "no_credit_history" | "not_sure" | null,
             crime_record_self_attest: crimeAttest || null,
             proposed_rent: rent,
@@ -801,7 +795,6 @@ export default function NewApplicationPage() {
     const rent = rentChoice === "accept" ? property!.listed_rent : (proposedRent !== "" ? Number(proposedRent) : property!.listed_rent);
     const success = await saveApplicationField({
       employer_name: employerName.trim() || null,
-      monthly_income: monthlyIncome !== "" ? Number(monthlyIncome) : null,
       cibil_range: cibilRange || null,
       crime_record_self_attest: crimeAttest ? true : null,
       proposed_rent: rent,
@@ -1139,10 +1132,6 @@ export default function NewApplicationPage() {
   };
 
   const renderStep3 = () => {
-    const minIncome = property.listed_rent * 2.5;
-    const incomeOk = monthlyIncome !== "" && Number(monthlyIncome) >= minIncome;
-    const incomeLow = monthlyIncome !== "" && Number(monthlyIncome) > 0 && Number(monthlyIncome) < minIncome;
-
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, docType: string) => {
       const files = e.target.files;
       if (!files) return;
@@ -1316,33 +1305,6 @@ export default function NewApplicationPage() {
             className="mt-1"
           />
           <FieldError field="employer_name" />
-        </div>
-
-        <div>
-          <Label className="text-sm">Monthly income *</Label>
-          <div className="relative mt-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
-            <Input
-              type="number"
-              value={monthlyIncome}
-              onChange={(e) => { setMonthlyIncome(e.target.value ? Number(e.target.value) : ""); setErrors((p) => { const n = { ...p }; delete n.monthly_income; return n; }); }}
-              placeholder="0"
-              className="pl-7"
-              min={0}
-            />
-          </div>
-          <FieldError field="monthly_income" />
-          {incomeOk && (
-            <p className="mt-1 flex items-center gap-1 text-sm text-green-600">
-              <Check className="h-4 w-4" /> Meets income requirement
-            </p>
-          )}
-          {incomeLow && (
-            <p className="mt-1 flex items-center gap-1 text-sm text-amber-600">
-              <AlertTriangle className="h-4 w-4" />
-              Note: Our minimum income requirement is {formatRupee(minIncome)}/month (2.5× the rent). Applications below this threshold may not be forwarded to the owner.
-            </p>
-          )}
         </div>
 
         <div className="space-y-4 pt-2">
