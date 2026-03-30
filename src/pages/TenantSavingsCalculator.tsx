@@ -373,7 +373,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
 
             {/* Platform fee disclosure — Point 4 */}
             <p className="mt-5 text-sm text-slate-400 max-w-lg leading-relaxed" style={{ fontFamily: FONT_SANS }}>
-              We charge a Reeve fee of 7% on each month's rent (reduced to 4% on next term). We&apos;ll show you exactly
+              We charge a 7% Reeve Fee on each month’s rent, dropping to 4% when you renew. We&apos;ll show you exactly
               why you still come out ahead.
             </p>
 
