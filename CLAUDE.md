@@ -10,7 +10,6 @@ Property management platform connecting owners and tenants in India. Owners list
 - Sentry for error tracking, PostHog for analytics
 
 ## Key Commands
-npm run dev        # dev server on port 8080
 npm run build      # production build
 npm run lint       # eslint
 npm run test       # vitest
