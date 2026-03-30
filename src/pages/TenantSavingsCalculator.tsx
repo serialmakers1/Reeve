@@ -895,9 +895,9 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 Goes directly to your owner.
               </h3>
               <p className="text-sm leading-7 mt-4" style={{ fontFamily: FONT_SANS, color: "rgba(255,255,255,0.75)" }}>
-                Your monthly rent is paid to your property owner. Every rupee. Reeve does not deduct anything from your
-                rent, does not hold it, and does not route it through hidden accounts. Rent is a completely separate
-                transaction from Reeve's fee.
+                Your monthly rent is paid to your property owner. Reeve does not deduct anything from your rent, does
+                not hold it, and does not route it through hidden accounts. Rent is a completely separate transaction
+                from Reeve's fee.
               </p>
               <span
                 className="mt-6 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white"
@@ -919,9 +919,9 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 Paid by you. To Reeve. On top of rent.
               </h3>
               <p className="text-sm leading-7 mt-4" style={{ fontFamily: FONT_SANS, color: "rgba(255,255,255,0.75)" }}>
-                Reeve charges a fee on top of your monthly rent. For most tenants this is 7% of monthly rent across the
-                11-month lease. This covers tenant screening, visit coordination, agreement execution, maintenance
-                coordination, dispute handling, and all platform support throughout your stay.
+                A Reeve Fee is applied to every month’s rent, usually 7% of the monthly rent over the 11-month lease.
+                This covers tenant screening, visit coordination, agreement execution, maintenance coordination, dispute
+                handling, and all platform support throughout your stay.
               </p>
 
               <div
@@ -948,7 +948,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
                 </p>
                 {[
                   { label: "Monthly rent", val: "₹50,000 → Owner" },
-                  { label: "Reeve fee (7%)", val: "₹3,500 → Reeve" },
+                  { label: "Monthly Reeve fee (7%)", val: "₹3,500 → Reeve" },
                   { label: "Total monthly", val: "₹53,500" },
                 ].map((row) => (
                   <div
