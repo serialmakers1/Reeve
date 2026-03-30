@@ -85,10 +85,10 @@ const Header = () => {
                   ) : (
                     <>
                       <DropdownMenuItem onClick={() => navigate("/dashboard")}>
-                        Rent Properties
+                        Tenant Dashboard
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate("/my-properties")}>
-                        List Properties
+                        Owner Dashboard
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate("/profile")}>
                         My Profile
@@ -140,32 +140,11 @@ const Header = () => {
             {isAuthenticated && user && !isAdmin ? (
               <>
                 <Link
-                  to="/dashboard"
-                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Rent Properties
-                </Link>
-                <Link
-                  to="/savings/tenant"
-                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  For Tenants
-                </Link>
-                <Link
-                  to="/savings/owner"
-                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  For Owners
-                </Link>
-                <Link
                   to="/contact"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Contact
+                  Contact Us
                 </Link>
                 <Link
                   to="/profile"
@@ -187,32 +166,32 @@ const Header = () => {
             ) : (
               <>
                 <Link
+                  to="/search"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Browse Properties
+                </Link>
+                <Link
                   to="/savings/tenant"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  For Tenants
+                  Tenant Savings
                 </Link>
                 <Link
                   to="/savings/owner"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  For Owners
-                </Link>
-                <Link
-                  to="/search"
-                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Search Properties
+                  Owner Savings
                 </Link>
                 <Link
                   to="/contact"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Contact
+                  Contact Us
                 </Link>
 
                 {!isAuthenticated && (
