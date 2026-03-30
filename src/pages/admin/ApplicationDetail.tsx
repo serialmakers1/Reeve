@@ -193,12 +193,15 @@ export default function AdminApplicationDetail() {
     // Fetch eligibility separately via tenant_id
     let eligibility: AppData["eligibility"] = null;
     if (data.tenant_id) {
-      const { data: eligRows } = await supabase
+      const { data: eligRows, error: eligError } = await supabase
         .from("eligibility")
         .select("*")
         .eq("user_id", data.tenant_id)
         .order("created_at", { ascending: false })
         .limit(1);
+      if (eligError) {
+        console.error("Eligibility fetch failed:", eligError.message);
+      }
       eligibility = eligRows as any;
     }
 
@@ -387,6 +390,7 @@ export default function AdminApplicationDetail() {
       toast({ title: "Failed to save income", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Income saved", description: "Verified monthly income updated." });
+      setApp(prev => prev ? { ...prev, monthly_income: verifiedIncome } : prev);
     }
     setSavingIncome(false);
   };
