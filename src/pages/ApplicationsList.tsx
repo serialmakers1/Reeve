@@ -74,7 +74,7 @@ export default function ApplicationsList() {
            withdrawn_at, reapplication_eligible_from, withdrawal_reason, property_id,
            properties(building_name, locality, bhk)`
         )
-        .eq("tenant_id", session.user.id)
+        .eq("tenant_id", user.id)
         .order("created_at", { ascending: false });
 
       setApps((data as unknown as ApplicationRow[]) || []);
