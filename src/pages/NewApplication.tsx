@@ -1435,7 +1435,7 @@ export default function NewApplicationPage() {
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-muted-foreground">Security Deposit</span>
-            <span className="text-sm text-foreground">{formatRupee(listedRent)} — held by Reeve</span>
+            <span className="text-sm text-foreground">{formatRupee(listedRent)} </span>
           </div>
         </div>
 
@@ -1608,7 +1608,7 @@ export default function NewApplicationPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Security deposit</span>
-              <span className="text-sm text-foreground">{formatRupee(rent)} — held by Reeve</span>
+              <span className="text-sm text-foreground">{formatRupee(rent)} </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Residents</span>
