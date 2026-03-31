@@ -482,14 +482,14 @@ export default function InspectionForm() {
     pendingRoomPatchRef.current = {};
     pendingApplianceRef.current = {};
 
-    const actions: Promise<any>[] = [];
+    const actions: Array<PromiseLike<{ error?: { message?: string } | null }>> = [];
 
     if (Object.keys(inspectionPatch).length > 0) {
       actions.push(
         supabase
           .from("property_inspections")
           .update(inspectionPatch)
-          .eq("id", currentInspection.id),
+          .eq("id", currentInspection.id) as unknown as PromiseLike<{ error?: { message?: string } | null }>,
       );
     }
 
@@ -499,7 +499,7 @@ export default function InspectionForm() {
         supabase
           .from("inspection_rooms")
           .update(patch)
-          .eq("id", roomId),
+          .eq("id", roomId) as unknown as PromiseLike<{ error?: { message?: string } | null }>,
       );
     });
 
@@ -508,7 +508,7 @@ export default function InspectionForm() {
       actions.push(
         supabase
           .from("inspection_appliances")
-          .upsert({
+          .upsert([{
             id: appliance.id,
             inspection_id: appliance.inspection_id,
             appliance_type: appliance.appliance_type,
@@ -520,7 +520,7 @@ export default function InspectionForm() {
             condition: emptyToNull(appliance.condition as string | null) as string | null,
             ownership: emptyToNull(appliance.ownership as string | null) as string | null,
             notes: emptyToNull(appliance.notes as string | null) as string | null,
-          }),
+          }] as any) as unknown as PromiseLike<{ error?: { message?: string } | null }>,
       );
     });
 
