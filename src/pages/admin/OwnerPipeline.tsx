@@ -191,7 +191,7 @@ export default function OwnerPipeline() {
     setLoading(false);
   }, [user]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { if (!authLoading && user) fetchData(); }, [fetchData, authLoading, user]);
 
   const daysSince = (row: PropertyRow) => {
     const atCol = STAGE_AT_COLUMN[row.status];
