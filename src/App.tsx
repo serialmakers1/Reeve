@@ -60,6 +60,7 @@ import MyPropertyNew from "./pages/MyPropertyNew";
 import MyPropertyDetail from "./pages/MyPropertyDetail";
 import Profile from "./pages/Profile";
 import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
+import InspectionsList from "./pages/admin/Inspections";
 import { Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
