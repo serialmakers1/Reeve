@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Users, Home, FileText, Building2, Menu, X, User, ChevronDown } from "lucide-react";
+import { Users, Home, FileText, Building2, ClipboardList, Menu, X, User, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,8 +14,9 @@ import {
 
 const NAV_ITEMS = [
   { label: "Owner Pipeline", path: "/admin/owners", icon: Users },
-  { label: "Applications", path: "/admin/applications", icon: FileText },
   { label: "Properties", path: "/admin/properties", icon: Building2 },
+  { label: "Inspections", path: "/admin/inspections", icon: ClipboardList },
+  { label: "Applications", path: "/admin/applications", icon: FileText },
 ];
 
 interface AdminLayoutProps {
