@@ -14,8 +14,9 @@ import {
 
 const NAV_ITEMS = [
   { label: "Owner Pipeline", path: "/admin/owners", icon: Users },
-  { label: "Applications", path: "/admin/applications", icon: FileText },
   { label: "Properties", path: "/admin/properties", icon: Building2 },
+  { label: "Inspections", path: "/admin/inspections", icon: ClipboardList },
+  { label: "Applications", path: "/admin/applications", icon: FileText },
 ];
 
 interface AdminLayoutProps {
