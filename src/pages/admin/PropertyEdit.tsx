@@ -31,7 +31,7 @@ import { ArrowLeft, CalendarIcon, ExternalLink } from "lucide-react";
 
 interface FurnishingDetailItem {
   item: string
-  count: number
+  count?: number
   size?: string
   rooms?: string
 }

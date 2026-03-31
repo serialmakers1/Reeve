@@ -34,6 +34,7 @@ type AnimatedNumberProps = {
   formatter: (v: number) => string;
   className?: string;
   durationMs?: number;
+  style?: React.CSSProperties;
 };
 
 // ─── Constants ───────────────────────────────────────────────────────────────

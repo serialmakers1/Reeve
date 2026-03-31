@@ -84,6 +84,7 @@ interface CountUpProps {
   formatter?: (v: number) => string;
   durationMs?: number;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 function CountUp({ value, formatter = formatINR, durationMs = 700, className = "" }: CountUpProps): React.JSX.Element {
