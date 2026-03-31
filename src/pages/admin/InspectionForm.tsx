@@ -705,7 +705,7 @@ export default function InspectionForm() {
   const handleAddDamageItem = () => {
     markInspectionStarted();
     setDamages((current) => {
-      const next = [
+      const next: DamageItem[] = [
         ...current,
         {
           localId: crypto.randomUUID(),
