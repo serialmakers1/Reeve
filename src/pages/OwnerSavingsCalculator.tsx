@@ -152,7 +152,7 @@ function calculateSavings(rent: number): SavingsResult {
 
 // ─── AnimatedNumber ──────────────────────────────────────────────────────────
 
-function AnimatedNumber({ value, formatter, className, durationMs = 900 }: AnimatedNumberProps): React.ReactElement {
+function AnimatedNumber({ value, formatter, className, durationMs = 900, style }: AnimatedNumberProps): React.ReactElement {
   const [displayValue, setDisplayValue] = useState<number>(value);
   const previousTargetRef = useRef<number>(value);
   const frameIdRef = useRef<number>(0);
@@ -178,7 +178,7 @@ function AnimatedNumber({ value, formatter, className, durationMs = 900 }: Anima
     return () => window.cancelAnimationFrame(frameIdRef.current);
   }, [value, durationMs]);
 
-  return <span className={className}>{formatter(displayValue)}</span>;
+  return <span className={className} style={style}>{formatter(displayValue)}</span>;
 }
 
 // ─── useSectionView ──────────────────────────────────────────────────────────

@@ -356,7 +356,7 @@ export default function PropertyEdit() {
         balconies: balconies ? Number(balconies) : null,
         facing: facing || null,
         building_age_years: buildingAgeYears ? Number(buildingAgeYears) : null,
-        furnishing_detail: furnishingDetail.length > 0 ? furnishingDetail : null,
+        furnishing_detail: furnishingDetail.length > 0 ? (furnishingDetail as any) : null,
         utility_water_included: waterIncluded,
         utility_gas_included: gasIncluded,
         utility_electricity_included: electricityIncluded,
