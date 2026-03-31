@@ -189,7 +189,7 @@ export default function OwnerPipeline() {
 
     setData(mapped);
     setLoading(false);
-  }, []);
+  }, [user]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
