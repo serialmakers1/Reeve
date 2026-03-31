@@ -84,9 +84,10 @@ interface CountUpProps {
   formatter?: (v: number) => string;
   durationMs?: number;
   className?: string;
+  style?: React.CSSProperties;
 }
 
-function CountUp({ value, formatter = formatINR, durationMs = 700, className = "" }: CountUpProps): React.JSX.Element {
+function CountUp({ value, formatter = formatINR, durationMs = 700, className = "", style }: CountUpProps): React.JSX.Element {
   const [display, setDisplay] = useState<number>(value);
   const previousRef = useRef<number>(value);
   const frameRef = useRef<number>(0);
@@ -111,7 +112,7 @@ function CountUp({ value, formatter = formatINR, durationMs = 700, className = "
     return () => window.cancelAnimationFrame(frameRef.current);
   }, [value, durationMs]);
 
-  return <span className={className}>{formatter(display)}</span>;
+  return <span className={className} style={style}>{formatter(display)}</span>;
 }
 
 // ─── SectionLabel component ──────────────────────────────────────────────────

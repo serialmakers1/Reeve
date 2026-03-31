@@ -61,6 +61,7 @@ import MyPropertyDetail from "./pages/MyPropertyDetail";
 import Profile from "./pages/Profile";
 import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
 import InspectionsList from "./pages/admin/Inspections";
+import InspectionForm from "./pages/admin/InspectionForm";
 import { Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
@@ -128,6 +129,7 @@ function AppInner() {
       <Route path="/admin/properties" element={<OnboardingGuard><AdminProperties /></OnboardingGuard>} />
       <Route path="/admin/properties/:id" element={<OnboardingGuard><PropertyEdit /></OnboardingGuard>} />
       <Route path="/admin/inspections" element={<OnboardingGuard><InspectionsList /></OnboardingGuard>} />
+      <Route path="/admin/inspections/:propertyId" element={<OnboardingGuard><InspectionForm /></OnboardingGuard>} />
       <Route path="/admin/applications" element={<OnboardingGuard><TenantPipeline /></OnboardingGuard>} />
       <Route path="/admin/applications/:id" element={<OnboardingGuard><AdminApplicationDetail /></OnboardingGuard>} />
       <Route path="*" element={<NotFound />} />
