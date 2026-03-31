@@ -734,6 +734,62 @@ export type Database = {
           },
         ]
       }
+      inspection_appliances: {
+        Row: {
+          appliance_type: Database["public"]["Enums"]["appliance_type"]
+          brand: string | null
+          color: string | null
+          condition: Database["public"]["Enums"]["appliance_condition"] | null
+          created_at: string
+          custom_label: string | null
+          id: string
+          inspection_id: string
+          manufacturing_year: number | null
+          model_number: string | null
+          notes: string | null
+          ownership: Database["public"]["Enums"]["appliance_ownership"] | null
+          updated_at: string
+        }
+        Insert: {
+          appliance_type: Database["public"]["Enums"]["appliance_type"]
+          brand?: string | null
+          color?: string | null
+          condition?: Database["public"]["Enums"]["appliance_condition"] | null
+          created_at?: string
+          custom_label?: string | null
+          id?: string
+          inspection_id: string
+          manufacturing_year?: number | null
+          model_number?: string | null
+          notes?: string | null
+          ownership?: Database["public"]["Enums"]["appliance_ownership"] | null
+          updated_at?: string
+        }
+        Update: {
+          appliance_type?: Database["public"]["Enums"]["appliance_type"]
+          brand?: string | null
+          color?: string | null
+          condition?: Database["public"]["Enums"]["appliance_condition"] | null
+          created_at?: string
+          custom_label?: string | null
+          id?: string
+          inspection_id?: string
+          manufacturing_year?: number | null
+          model_number?: string | null
+          notes?: string | null
+          ownership?: Database["public"]["Enums"]["appliance_ownership"] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_appliances_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "property_inspections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_callbacks: {
         Row: {
           cancellation_reason: string | null
@@ -794,6 +850,113 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspection_rooms: {
+        Row: {
+          ceiling_condition:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          ceiling_notes: string | null
+          created_at: string
+          doors_windows_condition:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          doors_windows_notes: string | null
+          electrical_condition:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          electrical_notes: string | null
+          flooring_condition:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          flooring_notes: string | null
+          id: string
+          inspection_id: string
+          overall_room_notes: string | null
+          plumbing_condition:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          plumbing_notes: string | null
+          room_label: string
+          room_type: Database["public"]["Enums"]["room_type"]
+          sort_order: number
+          updated_at: string
+          walls_condition: Database["public"]["Enums"]["room_condition"] | null
+          walls_notes: string | null
+        }
+        Insert: {
+          ceiling_condition?:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          ceiling_notes?: string | null
+          created_at?: string
+          doors_windows_condition?:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          doors_windows_notes?: string | null
+          electrical_condition?:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          electrical_notes?: string | null
+          flooring_condition?:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          flooring_notes?: string | null
+          id?: string
+          inspection_id: string
+          overall_room_notes?: string | null
+          plumbing_condition?:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          plumbing_notes?: string | null
+          room_label: string
+          room_type: Database["public"]["Enums"]["room_type"]
+          sort_order?: number
+          updated_at?: string
+          walls_condition?: Database["public"]["Enums"]["room_condition"] | null
+          walls_notes?: string | null
+        }
+        Update: {
+          ceiling_condition?:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          ceiling_notes?: string | null
+          created_at?: string
+          doors_windows_condition?:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          doors_windows_notes?: string | null
+          electrical_condition?:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          electrical_notes?: string | null
+          flooring_condition?:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          flooring_notes?: string | null
+          id?: string
+          inspection_id?: string
+          overall_room_notes?: string | null
+          plumbing_condition?:
+            | Database["public"]["Enums"]["room_condition"]
+            | null
+          plumbing_notes?: string | null
+          room_label?: string
+          room_type?: Database["public"]["Enums"]["room_type"]
+          sort_order?: number
+          updated_at?: string
+          walls_condition?: Database["public"]["Enums"]["room_condition"] | null
+          walls_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_rooms_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "property_inspections"
             referencedColumns: ["id"]
           },
         ]
@@ -1986,6 +2149,79 @@ export type Database = {
           },
         ]
       }
+      property_inspections: {
+        Row: {
+          actual_date: string | null
+          created_at: string
+          general_observations: string | null
+          id: string
+          inspector_notes: string | null
+          inspector_user_id: string
+          mode: Database["public"]["Enums"]["inspection_mode"] | null
+          owner_signed_off: boolean
+          pbr_generated_at: string | null
+          pre_existing_damages: Json | null
+          property_id: string
+          scheduled_date: string | null
+          status: Database["public"]["Enums"]["inspection_status"]
+          updated_at: string
+        }
+        Insert: {
+          actual_date?: string | null
+          created_at?: string
+          general_observations?: string | null
+          id?: string
+          inspector_notes?: string | null
+          inspector_user_id: string
+          mode?: Database["public"]["Enums"]["inspection_mode"] | null
+          owner_signed_off?: boolean
+          pbr_generated_at?: string | null
+          pre_existing_damages?: Json | null
+          property_id: string
+          scheduled_date?: string | null
+          status?: Database["public"]["Enums"]["inspection_status"]
+          updated_at?: string
+        }
+        Update: {
+          actual_date?: string | null
+          created_at?: string
+          general_observations?: string | null
+          id?: string
+          inspector_notes?: string | null
+          inspector_user_id?: string
+          mode?: Database["public"]["Enums"]["inspection_mode"] | null
+          owner_signed_off?: boolean
+          pbr_generated_at?: string | null
+          pre_existing_damages?: Json | null
+          property_id?: string
+          scheduled_date?: string | null
+          status?: Database["public"]["Enums"]["inspection_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_inspections_inspector_user_id_fkey"
+            columns: ["inspector_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_inspections_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_inspections_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           auth_provider: Database["public"]["Enums"]["auth_provider"]
@@ -2166,6 +2402,26 @@ export type Database = {
         | "expired"
         | "terminated"
       agreement_type: "service_agreement" | "tripartite_lease"
+      appliance_condition:
+        | "fully_functional"
+        | "minor_issues"
+        | "non_functional"
+      appliance_ownership: "landlord" | "platform" | "tenant_owned"
+      appliance_type:
+        | "refrigerator"
+        | "washing_machine"
+        | "dryer"
+        | "air_conditioner"
+        | "geyser"
+        | "microwave"
+        | "stove_hob"
+        | "exhaust_fan"
+        | "ceiling_fan"
+        | "dishwasher"
+        | "water_purifier"
+        | "tv"
+        | "fire_extinguisher"
+        | "other"
       application_status:
         | "draft"
         | "submitted"
@@ -2206,6 +2462,7 @@ export type Database = {
         | "no_credit_history"
         | "not_sure"
       condition_report_type: "move_in" | "move_out" | "periodic_inspection"
+      damage_severity: "low" | "medium" | "high"
       diet_type: "vegetarian" | "non_vegetarian"
       document_category:
         | "tenant_kyc"
@@ -2246,6 +2503,8 @@ export type Database = {
       external_query_status: "open" | "in_progress" | "resolved" | "closed"
       furnishing_type: "unfurnished" | "semi_furnished" | "fully_furnished"
       gender_type: "male" | "female" | "other" | "prefer_not_to_say"
+      inspection_mode: "in_person" | "virtual"
+      inspection_status: "scheduled" | "in_progress" | "completed"
       key_event_type:
         | "collected_from_owner"
         | "handed_to_tenant"
@@ -2329,6 +2588,21 @@ export type Database = {
         | "expiring"
         | "turnover"
         | "inactive"
+      room_condition:
+        | "good"
+        | "minor_wear"
+        | "moderate_damage"
+        | "severe_damage"
+      room_type:
+        | "living_room"
+        | "bedroom"
+        | "kitchen"
+        | "bathroom"
+        | "balcony"
+        | "utility"
+        | "parking"
+        | "common_area"
+        | "other"
       stay_duration_type:
         | "less_than_10_months"
         | "10_to_12_months"
@@ -2489,6 +2763,28 @@ export const Constants = {
         "terminated",
       ],
       agreement_type: ["service_agreement", "tripartite_lease"],
+      appliance_condition: [
+        "fully_functional",
+        "minor_issues",
+        "non_functional",
+      ],
+      appliance_ownership: ["landlord", "platform", "tenant_owned"],
+      appliance_type: [
+        "refrigerator",
+        "washing_machine",
+        "dryer",
+        "air_conditioner",
+        "geyser",
+        "microwave",
+        "stove_hob",
+        "exhaust_fan",
+        "ceiling_fan",
+        "dishwasher",
+        "water_purifier",
+        "tv",
+        "fire_extinguisher",
+        "other",
+      ],
       application_status: [
         "draft",
         "submitted",
@@ -2533,6 +2829,7 @@ export const Constants = {
         "not_sure",
       ],
       condition_report_type: ["move_in", "move_out", "periodic_inspection"],
+      damage_severity: ["low", "medium", "high"],
       diet_type: ["vegetarian", "non_vegetarian"],
       document_category: [
         "tenant_kyc",
@@ -2576,6 +2873,8 @@ export const Constants = {
       external_query_status: ["open", "in_progress", "resolved", "closed"],
       furnishing_type: ["unfurnished", "semi_furnished", "fully_furnished"],
       gender_type: ["male", "female", "other", "prefer_not_to_say"],
+      inspection_mode: ["in_person", "virtual"],
+      inspection_status: ["scheduled", "in_progress", "completed"],
       key_event_type: [
         "collected_from_owner",
         "handed_to_tenant",
@@ -2667,6 +2966,23 @@ export const Constants = {
         "expiring",
         "turnover",
         "inactive",
+      ],
+      room_condition: [
+        "good",
+        "minor_wear",
+        "moderate_damage",
+        "severe_damage",
+      ],
+      room_type: [
+        "living_room",
+        "bedroom",
+        "kitchen",
+        "bathroom",
+        "balcony",
+        "utility",
+        "parking",
+        "common_area",
+        "other",
       ],
       stay_duration_type: [
         "less_than_10_months",
