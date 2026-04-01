@@ -145,6 +145,11 @@ const ROOM_TYPE_LABELS: Record<RoomTypeOption, string> = {
   utility: "Utility",
   parking: "Parking",
   common_area: "Common Area",
+  pooja_room: "Pooja Room / Mandir",
+  study_room: "Study Room",
+  home_office: "Home Office",
+  servant_quarter: "Servant Quarter",
+  store_room: "Store Room",
   other: "Other",
 };
 
