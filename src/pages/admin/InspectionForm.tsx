@@ -56,6 +56,8 @@ type InspectionRecord = {
   pre_existing_damages: unknown;
   inspector_notes: string | null;
   pbr_generated_at: string | null;
+  utilities_overview: unknown;
+  structural_observations: unknown;
 };
 
 type RoomRecord = {
