@@ -399,6 +399,8 @@ export default function InspectionForm() {
       setProperty(propertyData);
       setInspection(inspectionData);
       inspectionRef.current = inspectionData;
+      setUtilitiesOverview((inspectionData?.utilities_overview as Record<string, any>) ?? {});
+      setStructuralObs((inspectionData?.structural_observations as Record<string, any>) ?? {});
 
       if (!inspectionData) {
         setRooms([]);
