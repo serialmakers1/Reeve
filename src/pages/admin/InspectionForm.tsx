@@ -1822,6 +1822,8 @@ export default function InspectionForm() {
                         })()}
                       </div>
 
+                      <div className="mt-4 space-y-2">
+                        <Label>Overall Room Notes</Label>
                         <Textarea
                           rows={3}
                           placeholder="Add notes..."
