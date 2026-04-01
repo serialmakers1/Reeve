@@ -446,6 +446,8 @@ export default function InspectionForm() {
         roomRows.map((room) => ({
           ...room,
           is_auto_generated: generatedRoomIds.has(room.id),
+          room_features: (room as any).room_features ?? null,
+          furniture_items: (room as any).furniture_items ?? null,
         })),
       );
 
