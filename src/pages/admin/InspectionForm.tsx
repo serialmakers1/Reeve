@@ -203,14 +203,12 @@ const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_labe
     { room_label: "Living Room/Studio", room_type: "other" },
     { room_label: "Kitchen", room_type: "kitchen" },
     { room_label: "Bathroom 1", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
   "1BHK": [
     { room_label: "Living Room", room_type: "living_room" },
     { room_label: "Bedroom 1", room_type: "bedroom" },
     { room_label: "Kitchen", room_type: "kitchen" },
     { room_label: "Bathroom 1", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
   "2BHK": [
     { room_label: "Living Room", room_type: "living_room" },
@@ -219,7 +217,6 @@ const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_labe
     { room_label: "Kitchen", room_type: "kitchen" },
     { room_label: "Bathroom 1", room_type: "bathroom" },
     { room_label: "Bathroom 2", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
   "3BHK": [
     { room_label: "Living Room", room_type: "living_room" },
@@ -230,7 +227,6 @@ const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_labe
     { room_label: "Bathroom 1", room_type: "bathroom" },
     { room_label: "Bathroom 2", room_type: "bathroom" },
     { room_label: "Bathroom 3", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
   "4BHK": [
     { room_label: "Living Room", room_type: "living_room" },
@@ -242,7 +238,6 @@ const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_labe
     { room_label: "Bathroom 1", room_type: "bathroom" },
     { room_label: "Bathroom 2", room_type: "bathroom" },
     { room_label: "Bathroom 3", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
   "5BHK_plus": [
     { room_label: "Living Room", room_type: "living_room" },
@@ -255,7 +250,6 @@ const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_labe
     { room_label: "Bathroom 1", room_type: "bathroom" },
     { room_label: "Bathroom 2", room_type: "bathroom" },
     { room_label: "Bathroom 3", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
 };
 
