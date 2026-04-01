@@ -1255,6 +1255,23 @@ export default function InspectionForm() {
                           onBlur={(event) => updateApplianceField(appliance.id, "notes", event.target.value)}
                         />
                       </TableCell>
+                      <TableCell className="min-w-[140px]">
+                        <Input
+                          className="h-9"
+                          value={appliance.serial_number ?? ""}
+                          onChange={(event) => updateApplianceField(appliance.id, "serial_number", event.target.value)}
+                          onBlur={(event) => updateApplianceField(appliance.id, "serial_number", event.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell className="min-w-[140px]">
+                        <Input
+                          className="h-9"
+                          type="date"
+                          value={appliance.last_service_date ?? ""}
+                          onChange={(event) => updateApplianceField(appliance.id, "last_service_date", event.target.value)}
+                          onBlur={(event) => updateApplianceField(appliance.id, "last_service_date", event.target.value)}
+                        />
+                      </TableCell>
                       <TableCell className="inspection-print-hide">
                         <Button type="button" variant="ghost" size="icon" onClick={() => void handleDeleteAppliance(appliance)}>
                           <Trash2 className="h-4 w-4" />
