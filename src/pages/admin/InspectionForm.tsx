@@ -83,6 +83,8 @@ type RoomRecord = {
 
 type LocalRoom = RoomRecord & {
   is_auto_generated: boolean;
+  room_features: unknown;
+  furniture_items: unknown;
 };
 
 type LocalAppliance = {
