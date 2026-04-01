@@ -186,9 +186,19 @@ const APPLIANCE_CONDITION_OPTIONS = [
 ] as const;
 
 const FURNITURE_ITEM_OPTIONS = [
-  "Sofa", "Dining Table", "Bed", "Wardrobe", "TV Unit", "Study Table",
+  "Sofa", "Dining Table", "Bed", "Mattress", "Wardrobe", "TV Unit", "Study Table",
   "Dressing Table", "Shoe Rack", "Centre Table", "Side Table",
-  "Curtains", "Bookshelf", "Other",
+  "Curtains", "Window Blinds", "Bookshelf", "Other",
+] as const;
+
+const LOCK_TYPE_OPTIONS = [
+  "Digital / Smart lock",
+  "Mortise lock",
+  "Cylindrical lock",
+  "Deadbolt",
+  "Chain latch",
+  "Padlock",
+  "Multi-point lock",
 ] as const;
 
 const GLASS_CONDITION_OPTIONS = [
@@ -356,7 +366,6 @@ export default function InspectionForm() {
   const [newRoomLabel, setNewRoomLabel] = useState("");
   const [submittingCompletion, setSubmittingCompletion] = useState(false);
   const [utilitiesOverview, setUtilitiesOverview] = useState<Record<string, any>>({});
-  const [structuralObs, setStructuralObs] = useState<Record<string, any>>({});
 
   const debounceRef = useRef<number | null>(null);
   const inspectionRef = useRef<InspectionRecord | null>(null);
@@ -414,7 +423,6 @@ export default function InspectionForm() {
       setInspection(inspectionData);
       inspectionRef.current = inspectionData;
       setUtilitiesOverview((inspectionData?.utilities_overview as Record<string, any>) ?? {});
-      setStructuralObs((inspectionData?.structural_observations as Record<string, any>) ?? {});
 
       if (!inspectionData) {
         setRooms([]);
@@ -647,16 +655,6 @@ export default function InspectionForm() {
     setUtilitiesOverview(prev => {
       const next = { ...prev, [key]: value };
       pendingInspectionPatchRef.current = { ...pendingInspectionPatchRef.current, utilities_overview: next };
-      scheduleSave();
-      return next;
-    });
-  };
-
-  const updateStructural = (key: string, value: any) => {
-    markInspectionStarted();
-    setStructuralObs(prev => {
-      const next = { ...prev, [key]: value };
-      pendingInspectionPatchRef.current = { ...pendingInspectionPatchRef.current, structural_observations: next };
       scheduleSave();
       return next;
     });
@@ -1035,11 +1033,53 @@ export default function InspectionForm() {
               <p className="font-semibold mb-3">Main Entrance & Door</p>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Door Type</Label>
-                  <Select value={utilitiesOverview.door_type || undefined} onValueChange={(v) => updateUtility("door_type", v)}>
+                  <Label>Double Door</Label>
+                  <RadioGroup value={utilitiesOverview.door_is_double ?? ""} onValueChange={(v) => updateUtility("door_is_double", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.door_is_double === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                {utilitiesOverview.door_is_double === "Y" ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Outer Door Type</Label>
+                      <Select value={utilitiesOverview.door_outer_type || undefined} onValueChange={(v) => updateUtility("door_outer_type", v)}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          {["Steel mesh / Grill", "Glass", "Wooden grill", "Aluminium grill"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Inner Door Type</Label>
+                      <Select value={utilitiesOverview.door_inner_type || undefined} onValueChange={(v) => updateUtility("door_inner_type", v)}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          {["Wood", "Steel", "Fibre", "Glass"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Door Type</Label>
+                    <Select value={utilitiesOverview.door_type || undefined} onValueChange={(v) => updateUtility("door_type", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {["Wood", "Steel", "Fibre", "Glass"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>Lock Type</Label>
+                  <Select value={utilitiesOverview.door_lock_type || undefined} onValueChange={(v) => updateUtility("door_lock_type", v)}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
-                      {["Wood", "Steel", "Fibre", "Glass"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      {LOCK_TYPE_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1048,10 +1088,14 @@ export default function InspectionForm() {
                   <Input value={utilitiesOverview.door_lock_brand ?? ""} onChange={(e) => updateUtility("door_lock_brand", e.target.value)} onBlur={(e) => updateUtility("door_lock_brand", e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Deadbolt Present</Label>
-                  <RadioGroup value={utilitiesOverview.door_deadbolt ?? ""} onValueChange={(v) => updateUtility("door_deadbolt", v)} className="grid grid-cols-2 gap-3">
+                  <Label>No. of Keys</Label>
+                  <Input type="number" min={0} value={utilitiesOverview.door_keys_count ?? ""} onChange={(e) => updateUtility("door_keys_count", e.target.value)} onBlur={(e) => updateUtility("door_keys_count", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Child Lock Present</Label>
+                  <RadioGroup value={utilitiesOverview.door_child_lock ?? ""} onValueChange={(v) => updateUtility("door_child_lock", v)} className="grid grid-cols-2 gap-3">
                     {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
-                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.door_deadbolt === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.door_child_lock === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
                         <RadioGroupItem value={o.value} /><span>{o.label}</span>
                       </label>
                     ))}
@@ -1076,6 +1120,22 @@ export default function InspectionForm() {
                     </SelectContent>
                   </Select>
                 </div>
+                {utilitiesOverview.door_intercom && utilitiesOverview.door_intercom !== "None" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Intercom Brand</Label>
+                      <Input value={utilitiesOverview.door_intercom_brand ?? ""} onChange={(e) => updateUtility("door_intercom_brand", e.target.value)} onBlur={(e) => updateUtility("door_intercom_brand", e.target.value)} />
+                    </div>
+                    <div className="flex items-center gap-3 pt-6">
+                      <Checkbox
+                        id="intercom_creds"
+                        checked={!!utilitiesOverview.door_intercom_creds_documented}
+                        onCheckedChange={(v) => updateUtility("door_intercom_creds_documented", !!v)}
+                      />
+                      <label htmlFor="intercom_creds" className="text-sm font-medium cursor-pointer">Credentials documented separately</label>
+                    </div>
+                  </>
+                )}
                 <div className="space-y-2">
                   <Label>Door Condition</Label>
                   <Select value={utilitiesOverview.door_condition || undefined} onValueChange={(v) => updateUtility("door_condition", v)}>
@@ -1103,9 +1163,13 @@ export default function InspectionForm() {
                   <Select value={utilitiesOverview.water_source || undefined} onValueChange={(v) => updateUtility("water_source", v)}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
-                      {["Corporation", "Borewell", "Both"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      {["Corporation", "Borewell", "Tanker", "Corporation + Borewell", "All three"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Consumer ID / Account No.</Label>
+                  <Input value={utilitiesOverview.water_consumer_id ?? ""} onChange={(e) => updateUtility("water_consumer_id", e.target.value)} onBlur={(e) => updateUtility("water_consumer_id", e.target.value)} placeholder="BWSSB / BBMP consumer ID" />
                 </div>
                 <div className="space-y-2">
                   <Label>Supply</Label>
@@ -1175,23 +1239,23 @@ export default function InspectionForm() {
                   <Label>Meter / Regulator Location</Label>
                   <Input value={utilitiesOverview.gas_location ?? ""} onChange={(e) => updateUtility("gas_location", e.target.value)} onBlur={(e) => updateUtility("gas_location", e.target.value)} />
                 </div>
+                {utilitiesOverview.gas_type === "Piped PNG" && (
+                  <div className="space-y-2">
+                    <Label>Gas Consumer ID / Account No.</Label>
+                    <Input value={utilitiesOverview.gas_consumer_id ?? ""} onChange={(e) => updateUtility("gas_consumer_id", e.target.value)} onBlur={(e) => updateUtility("gas_consumer_id", e.target.value)} placeholder="PNG consumer number" />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>MCB / DB Box Location</Label>
                   <Input value={utilitiesOverview.electricity_mcb_location ?? ""} onChange={(e) => updateUtility("electricity_mcb_location", e.target.value)} onBlur={(e) => updateUtility("electricity_mcb_location", e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>No. of Circuits</Label>
-                  <Input type="number" value={utilitiesOverview.electricity_circuits ?? ""} onChange={(e) => updateUtility("electricity_circuits", e.target.value)} onBlur={(e) => updateUtility("electricity_circuits", e.target.value)} />
+                  <Label>Electricity Consumer ID / Account No.</Label>
+                  <Input value={utilitiesOverview.electricity_consumer_id ?? ""} onChange={(e) => updateUtility("electricity_consumer_id", e.target.value)} onBlur={(e) => updateUtility("electricity_consumer_id", e.target.value)} placeholder="BESCOM / BBMP account number" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Earthing Present</Label>
-                  <RadioGroup value={utilitiesOverview.electricity_earthing ?? ""} onValueChange={(v) => updateUtility("electricity_earthing", v)} className="grid grid-cols-2 gap-3">
-                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
-                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.electricity_earthing === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
-                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
-                      </label>
-                    ))}
-                  </RadioGroup>
+                  <Label>No. of Circuits</Label>
+                  <Input type="number" value={utilitiesOverview.electricity_circuits ?? ""} onChange={(e) => updateUtility("electricity_circuits", e.target.value)} onBlur={(e) => updateUtility("electricity_circuits", e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Inverter / UPS Provision</Label>
@@ -1255,51 +1319,165 @@ export default function InspectionForm() {
                     </SelectContent>
                   </Select>
                 </div>
+                {utilitiesOverview.safety_security === "Watchman only" && (
+                  <div className="space-y-2">
+                    <Label>Watchman Timing</Label>
+                    <RadioGroup value={utilitiesOverview.safety_watchman_timing ?? ""} onValueChange={(v) => updateUtility("safety_watchman_timing", v)} className="grid grid-cols-2 gap-3">
+                      {[{ value: "24hr", label: "24 Hours" }, { value: "Timed", label: "Timed" }].map((o) => (
+                        <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.safety_watchman_timing === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                          <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </div>
+                )}
+                {utilitiesOverview.safety_watchman_timing === "Timed" && (
+                  <div className="space-y-2">
+                    <Label>Watchman Hours</Label>
+                    <Input value={utilitiesOverview.safety_watchman_hours ?? ""} onChange={(e) => updateUtility("safety_watchman_hours", e.target.value)} onBlur={(e) => updateUtility("safety_watchman_hours", e.target.value)} placeholder="e.g. 8 PM – 6 AM" />
+                  </div>
+                )}
+                {utilitiesOverview.safety_security === "Gated with security" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Security App Name</Label>
+                      <Input value={utilitiesOverview.safety_security_app ?? ""} onChange={(e) => updateUtility("safety_security_app", e.target.value)} onBlur={(e) => updateUtility("safety_security_app", e.target.value)} placeholder="e.g. MyGate, Tata Housing, NoBrokerHood" />
+                    </div>
+                    <div className="flex items-center gap-3 pt-6">
+                      <Checkbox
+                        id="security_app_creds"
+                        checked={!!utilitiesOverview.safety_security_creds_documented}
+                        onCheckedChange={(v) => updateUtility("safety_security_creds_documented", !!v)}
+                      />
+                      <label htmlFor="security_app_creds" className="text-sm font-medium cursor-pointer">App credentials documented separately</label>
+                    </div>
+                  </>
+                )}
+                <div className="space-y-2">
+                  <Label>Security Guard Name</Label>
+                  <Input value={utilitiesOverview.safety_guard_name ?? ""} onChange={(e) => updateUtility("safety_guard_name", e.target.value)} onBlur={(e) => updateUtility("safety_guard_name", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Security Guard Phone</Label>
+                  <Input value={utilitiesOverview.safety_guard_phone ?? ""} onChange={(e) => updateUtility("safety_guard_phone", e.target.value)} onBlur={(e) => updateUtility("safety_guard_phone", e.target.value)} placeholder="+91" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Safety Notes</Label>
+                  <Textarea rows={2} value={utilitiesOverview.safety_notes ?? ""} onChange={(e) => updateUtility("safety_notes", e.target.value)} onBlur={(e) => updateUtility("safety_notes", e.target.value)} />
+                </div>
               </div>
             </div>
 
             <hr className="border-border" />
 
-            {/* E — Structural Observations */}
+            {/* E — Society & Maintenance */}
             <div>
-              <p className="font-semibold mb-3">Structural Observations</p>
+              <p className="font-semibold mb-3">Society & Maintenance</p>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Seepage / Dampness Observed</Label>
-                  <RadioGroup value={structuralObs.seepage_observed ?? ""} onValueChange={(v) => updateStructural("seepage_observed", v)} className="grid grid-cols-2 gap-3">
-                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
-                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", structuralObs.seepage_observed === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
-                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
-                      </label>
-                    ))}
-                  </RadioGroup>
+                  <Label>Society / RWA Name</Label>
+                  <Input value={utilitiesOverview.society_name ?? ""} onChange={(e) => updateUtility("society_name", e.target.value)} onBlur={(e) => updateUtility("society_name", e.target.value)} />
                 </div>
-                {structuralObs.seepage_observed === "Y" && (
+                <div className="space-y-2">
+                  <Label>Society Contact Name</Label>
+                  <Input value={utilitiesOverview.society_contact_name ?? ""} onChange={(e) => updateUtility("society_contact_name", e.target.value)} onBlur={(e) => updateUtility("society_contact_name", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Society Contact Phone</Label>
+                  <Input value={utilitiesOverview.society_contact_phone ?? ""} onChange={(e) => updateUtility("society_contact_phone", e.target.value)} onBlur={(e) => updateUtility("society_contact_phone", e.target.value)} placeholder="+91" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Monthly Maintenance Amount (₹)</Label>
+                  <Input type="number" value={utilitiesOverview.society_maintenance_amount ?? ""} onChange={(e) => updateUtility("society_maintenance_amount", e.target.value)} onBlur={(e) => updateUtility("society_maintenance_amount", e.target.value)} placeholder="Verified amount at inspection" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Frequency</Label>
+                  <Select value={utilitiesOverview.society_payment_frequency || undefined} onValueChange={(v) => updateUtility("society_payment_frequency", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {["Monthly", "Quarterly", "Annually"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Method</Label>
+                  <Select value={utilitiesOverview.society_payment_method || undefined} onValueChange={(v) => updateUtility("society_payment_method", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {["Online portal", "NEFT / IMPS", "Cheque", "Cash", "Auto-debit"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {utilitiesOverview.society_payment_method === "Online portal" && (
                   <div className="space-y-2">
-                    <Label>Location / Details</Label>
-                    <Input value={structuralObs.seepage_location ?? ""} onChange={(e) => updateStructural("seepage_location", e.target.value)} onBlur={(e) => updateStructural("seepage_location", e.target.value)} />
+                    <Label>Payment App / Portal Name</Label>
+                    <Input value={utilitiesOverview.society_payment_app ?? ""} onChange={(e) => updateUtility("society_payment_app", e.target.value)} onBlur={(e) => updateUtility("society_payment_app", e.target.value)} placeholder="e.g. ApnaComplex, MyGate, NoBrokerHood" />
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label>Structural Cracks Observed</Label>
-                  <RadioGroup value={structuralObs.cracks_observed ?? ""} onValueChange={(v) => updateStructural("cracks_observed", v)} className="grid grid-cols-2 gap-3">
+                  <Label>Last Paid Date</Label>
+                  <Input type="date" value={utilitiesOverview.society_last_paid_date ?? ""} onChange={(e) => updateUtility("society_last_paid_date", e.target.value)} onBlur={(e) => updateUtility("society_last_paid_date", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Outstanding Dues</Label>
+                  <RadioGroup value={utilitiesOverview.society_outstanding_dues ?? ""} onValueChange={(v) => updateUtility("society_outstanding_dues", v)} className="grid grid-cols-2 gap-3">
                     {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
-                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", structuralObs.cracks_observed === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.society_outstanding_dues === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
                         <RadioGroupItem value={o.value} /><span>{o.label}</span>
                       </label>
                     ))}
                   </RadioGroup>
                 </div>
-                {structuralObs.cracks_observed === "Y" && (
+                {utilitiesOverview.society_outstanding_dues === "Y" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Outstanding Amount (₹)</Label>
+                      <Input type="number" value={utilitiesOverview.society_outstanding_amount ?? ""} onChange={(e) => updateUtility("society_outstanding_amount", e.target.value)} onBlur={(e) => updateUtility("society_outstanding_amount", e.target.value)} />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Outstanding Dues Details</Label>
+                      <Textarea rows={2} value={utilitiesOverview.society_outstanding_details ?? ""} onChange={(e) => updateUtility("society_outstanding_details", e.target.value)} onBlur={(e) => updateUtility("society_outstanding_details", e.target.value)} />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <hr className="border-border" />
+
+            {/* F — Parking */}
+            <div>
+              <p className="font-semibold mb-3">Parking</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>4-Wheeler Slot No. / Location</Label>
+                  <Input value={utilitiesOverview.parking_4w_slot ?? ""} onChange={(e) => updateUtility("parking_4w_slot", e.target.value)} onBlur={(e) => updateUtility("parking_4w_slot", e.target.value)} placeholder="e.g. B2-45, Basement Level 1" />
+                </div>
+                <div className="space-y-2">
+                  <Label>2-Wheeler Slot No. / Location</Label>
+                  <Input value={utilitiesOverview.parking_2w_slot ?? ""} onChange={(e) => updateUtility("parking_2w_slot", e.target.value)} onBlur={(e) => updateUtility("parking_2w_slot", e.target.value)} placeholder="e.g. G-12" />
+                </div>
+                <div className="space-y-2">
+                  <Label>EV Charging Point</Label>
+                  <RadioGroup value={utilitiesOverview.parking_ev_charging ?? ""} onValueChange={(v) => updateUtility("parking_ev_charging", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.parking_ev_charging === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                {utilitiesOverview.parking_ev_charging === "Y" && (
                   <div className="space-y-2">
-                    <Label>Details</Label>
-                    <Input placeholder="e.g. Living room east wall, settlement crack" value={structuralObs.cracks_details ?? ""} onChange={(e) => updateStructural("cracks_details", e.target.value)} onBlur={(e) => updateStructural("cracks_details", e.target.value)} />
+                    <Label>EV Charging Type</Label>
+                    <Select value={utilitiesOverview.parking_ev_type || undefined} onValueChange={(v) => updateUtility("parking_ev_type", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {["15A socket", "Dedicated EV charger", "Common EV charger"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Sunlight Notes</Label>
-                  <Input placeholder="e.g. Master bedroom gets morning sun, living room afternoon" value={structuralObs.sunlight_notes ?? ""} onChange={(e) => updateStructural("sunlight_notes", e.target.value)} onBlur={(e) => updateStructural("sunlight_notes", e.target.value)} />
-                </div>
               </div>
             </div>
           </CardContent>
@@ -1478,6 +1656,95 @@ export default function InspectionForm() {
                                     </Select>
                                   </div>
                                   {rfv('pooja_unit') && rfv('pooja_unit') !== 'None' && <CondSelect field="pooja_unit_condition" label="Pooja Unit Condition" />}
+                                  <div className="space-y-2">
+                                    <Label>Curtains Present</Label>
+                                    <RadioGroup value={rfv('curtains_present')} onValueChange={(v) => rfSet('curtains_present', v)} className="grid grid-cols-2 gap-3">
+                                      {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                                        <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", rfv('curtains_present') === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                                          <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                                        </label>
+                                      ))}
+                                    </RadioGroup>
+                                  </div>
+                                  {rfv('curtains_present') === 'Y' && (
+                                    <>
+                                      <div className="space-y-2">
+                                        <Label>Curtain Type</Label>
+                                        <Select value={rfv('curtain_type') || undefined} onValueChange={(v) => rfSet('curtain_type', v)}>
+                                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                          <SelectContent>
+                                            {["Sheer", "Blackout", "Regular", "Blind"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <CondSelect field="curtain_condition" label="Curtain Condition" />
+                                    </>
+                                  )}
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fittings</p></div>
+                                  <div className="space-y-2">
+                                    <Label>Ceiling Fans — Count</Label>
+                                    <Input type="number" min={0} value={rfv('fan_count')} onChange={(e) => rfSet('fan_count', e.target.value)} onBlur={(e) => rfSet('fan_count', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Ceiling Fan Brand</Label>
+                                    <Input value={rfv('fan_brand')} onChange={(e) => rfSet('fan_brand', e.target.value)} onBlur={(e) => rfSet('fan_brand', e.target.value)} placeholder="e.g. Usha, Orient, Crompton" />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Light Fixtures — Count</Label>
+                                    <Input type="number" min={0} value={rfv('light_count')} onChange={(e) => rfSet('light_count', e.target.value)} onBlur={(e) => rfSet('light_count', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Light Type</Label>
+                                    <Select value={rfv('light_type') || undefined} onValueChange={(v) => rfSet('light_type', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Tube light", "Downlights", "Chandelier", "Fan+light combo", "LED panel", "Other"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Light Brand</Label>
+                                    <Input value={rfv('light_brand')} onChange={(e) => rfSet('light_brand', e.target.value)} onBlur={(e) => rfSet('light_brand', e.target.value)} placeholder="e.g. Philips, Havells, Syska" />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Switchboards — Count</Label>
+                                    <Input type="number" min={0} value={rfv('switchboard_count')} onChange={(e) => rfSet('switchboard_count', e.target.value)} onBlur={(e) => rfSet('switchboard_count', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Switchboard Brand</Label>
+                                    <Input value={rfv('switchboard_brand')} onChange={(e) => rfSet('switchboard_brand', e.target.value)} onBlur={(e) => rfSet('switchboard_brand', e.target.value)} placeholder="e.g. Anchor, Havells, Legrand" />
+                                  </div>
+                                  <YNRadio field="wifi_point" label="WiFi Point Wiring" />
+                                  {rfv('wifi_point') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>WiFi / Router Brand</Label>
+                                      <Input value={rfv('wifi_brand')} onChange={(e) => rfSet('wifi_brand', e.target.value)} onBlur={(e) => rfSet('wifi_brand', e.target.value)} />
+                                    </div>
+                                  )}
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Room Lock</p></div>
+                                  <div className="space-y-2">
+                                    <Label>Room Lock Brand</Label>
+                                    <Input value={rfv('room_lock_brand')} onChange={(e) => rfSet('room_lock_brand', e.target.value)} onBlur={(e) => rfSet('room_lock_brand', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Room Lock — No. of Keys</Label>
+                                    <Input type="number" min={0} value={rfv('room_lock_keys')} onChange={(e) => rfSet('room_lock_keys', e.target.value)} onBlur={(e) => rfSet('room_lock_keys', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Structural</p></div>
+                                  <YNRadio field="seepage_observed" label="Seepage / Dampness" />
+                                  {rfv('seepage_observed') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Seepage Location / Details</Label>
+                                      <Input value={rfv('seepage_details')} onChange={(e) => rfSet('seepage_details', e.target.value)} onBlur={(e) => rfSet('seepage_details', e.target.value)} />
+                                    </div>
+                                  )}
+                                  <YNRadio field="cracks_observed" label="Cracks Observed" />
+                                  {rfv('cracks_observed') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Crack Details</Label>
+                                      <Input value={rfv('cracks_details')} onChange={(e) => rfSet('cracks_details', e.target.value)} onBlur={(e) => rfSet('cracks_details', e.target.value)} placeholder="Location and type" />
+                                    </div>
+                                  )}
                                 </div>
                               );
                             }
@@ -1506,12 +1773,100 @@ export default function InspectionForm() {
                                         <Input type="number" value={rfv('wardrobe_shutters')} onChange={(e) => rfSet('wardrobe_shutters', e.target.value)} onBlur={(e) => rfSet('wardrobe_shutters', e.target.value)} />
                                       </div>
                                       <CondSelect field="wardrobe_condition" label="Wardrobe Condition" />
+                                      <div className="space-y-2">
+                                        <Label>Cupboard / Wardrobe Lock Brand</Label>
+                                        <Input value={rfv('cupboard_lock_brand')} onChange={(e) => rfSet('cupboard_lock_brand', e.target.value)} onBlur={(e) => rfSet('cupboard_lock_brand', e.target.value)} />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Cupboard Lock — No. of Keys</Label>
+                                        <Input type="number" min={0} value={rfv('cupboard_lock_keys')} onChange={(e) => rfSet('cupboard_lock_keys', e.target.value)} onBlur={(e) => rfSet('cupboard_lock_keys', e.target.value)} />
+                                      </div>
                                     </>
                                   )}
                                   <YNRadio field="study_table" label="Study Table" />
                                   {rfv('study_table') === 'Y' && <CondSelect field="study_table_condition" label="Study Table Condition" />}
                                   <YNRadio field="dressing_table" label="Dressing Table / Mirror" />
                                   {rfv('dressing_table') === 'Y' && <CondSelect field="dressing_table_condition" label="Dressing Table Condition" />}
+                                  <div className="space-y-2">
+                                    <Label>Curtains Present</Label>
+                                    <RadioGroup value={rfv('curtains_present')} onValueChange={(v) => rfSet('curtains_present', v)} className="grid grid-cols-2 gap-3">
+                                      {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                                        <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", rfv('curtains_present') === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                                          <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                                        </label>
+                                      ))}
+                                    </RadioGroup>
+                                  </div>
+                                  {rfv('curtains_present') === 'Y' && (
+                                    <>
+                                      <div className="space-y-2">
+                                        <Label>Curtain Type</Label>
+                                        <Select value={rfv('curtain_type') || undefined} onValueChange={(v) => rfSet('curtain_type', v)}>
+                                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                          <SelectContent>
+                                            {["Sheer", "Blackout", "Regular", "Blind"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <CondSelect field="curtain_condition" label="Curtain Condition" />
+                                    </>
+                                  )}
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fittings</p></div>
+                                  <div className="space-y-2">
+                                    <Label>Ceiling Fans — Count</Label>
+                                    <Input type="number" min={0} value={rfv('fan_count')} onChange={(e) => rfSet('fan_count', e.target.value)} onBlur={(e) => rfSet('fan_count', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Ceiling Fan Brand</Label>
+                                    <Input value={rfv('fan_brand')} onChange={(e) => rfSet('fan_brand', e.target.value)} onBlur={(e) => rfSet('fan_brand', e.target.value)} placeholder="e.g. Usha, Orient, Crompton" />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Light Fixtures — Count</Label>
+                                    <Input type="number" min={0} value={rfv('light_count')} onChange={(e) => rfSet('light_count', e.target.value)} onBlur={(e) => rfSet('light_count', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Light Brand</Label>
+                                    <Input value={rfv('light_brand')} onChange={(e) => rfSet('light_brand', e.target.value)} onBlur={(e) => rfSet('light_brand', e.target.value)} placeholder="e.g. Philips, Havells, Syska" />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Switchboards — Count</Label>
+                                    <Input type="number" min={0} value={rfv('switchboard_count')} onChange={(e) => rfSet('switchboard_count', e.target.value)} onBlur={(e) => rfSet('switchboard_count', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Switchboard Brand</Label>
+                                    <Input value={rfv('switchboard_brand')} onChange={(e) => rfSet('switchboard_brand', e.target.value)} onBlur={(e) => rfSet('switchboard_brand', e.target.value)} placeholder="e.g. Anchor, Havells, Legrand" />
+                                  </div>
+                                  <YNRadio field="wifi_point" label="WiFi Point Wiring" />
+                                  {rfv('wifi_point') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>WiFi / Router Brand</Label>
+                                      <Input value={rfv('wifi_brand')} onChange={(e) => rfSet('wifi_brand', e.target.value)} onBlur={(e) => rfSet('wifi_brand', e.target.value)} />
+                                    </div>
+                                  )}
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Room Lock</p></div>
+                                  <div className="space-y-2">
+                                    <Label>Room Lock Brand</Label>
+                                    <Input value={rfv('room_lock_brand')} onChange={(e) => rfSet('room_lock_brand', e.target.value)} onBlur={(e) => rfSet('room_lock_brand', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Room Lock — No. of Keys</Label>
+                                    <Input type="number" min={0} value={rfv('room_lock_keys')} onChange={(e) => rfSet('room_lock_keys', e.target.value)} onBlur={(e) => rfSet('room_lock_keys', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Structural</p></div>
+                                  <YNRadio field="seepage_observed" label="Seepage / Dampness" />
+                                  {rfv('seepage_observed') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Seepage Location / Details</Label>
+                                      <Input value={rfv('seepage_details')} onChange={(e) => rfSet('seepage_details', e.target.value)} onBlur={(e) => rfSet('seepage_details', e.target.value)} />
+                                    </div>
+                                  )}
+                                  <YNRadio field="cracks_observed" label="Cracks Observed" />
+                                  {rfv('cracks_observed') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Crack Details</Label>
+                                      <Input value={rfv('cracks_details')} onChange={(e) => rfSet('cracks_details', e.target.value)} onBlur={(e) => rfSet('cracks_details', e.target.value)} placeholder="Location and type" />
+                                    </div>
+                                  )}
                                 </div>
                               );
                             }
@@ -1579,6 +1934,38 @@ export default function InspectionForm() {
                                   </div>
                                   <YNRadio field="water_purifier_point" label="Water Purifier Point" />
                                   <YNRadio field="exhaust_fan_present" label="Exhaust Fan" />
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fittings</p></div>
+                                  <div className="space-y-2">
+                                    <Label>Light Fixtures — Count</Label>
+                                    <Input type="number" min={0} value={rfv('light_count')} onChange={(e) => rfSet('light_count', e.target.value)} onBlur={(e) => rfSet('light_count', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Light Brand</Label>
+                                    <Input value={rfv('light_brand')} onChange={(e) => rfSet('light_brand', e.target.value)} onBlur={(e) => rfSet('light_brand', e.target.value)} placeholder="e.g. Philips, Havells" />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Switchboards — Count</Label>
+                                    <Input type="number" min={0} value={rfv('switchboard_count')} onChange={(e) => rfSet('switchboard_count', e.target.value)} onBlur={(e) => rfSet('switchboard_count', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Switchboard Brand</Label>
+                                    <Input value={rfv('switchboard_brand')} onChange={(e) => rfSet('switchboard_brand', e.target.value)} onBlur={(e) => rfSet('switchboard_brand', e.target.value)} placeholder="e.g. Anchor, Havells, Legrand" />
+                                  </div>
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Structural</p></div>
+                                  <YNRadio field="seepage_observed" label="Seepage / Dampness" />
+                                  {rfv('seepage_observed') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Seepage Location / Details</Label>
+                                      <Input value={rfv('seepage_details')} onChange={(e) => rfSet('seepage_details', e.target.value)} onBlur={(e) => rfSet('seepage_details', e.target.value)} />
+                                    </div>
+                                  )}
+                                  <YNRadio field="cracks_observed" label="Cracks Observed" />
+                                  {rfv('cracks_observed') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Crack Details</Label>
+                                      <Input value={rfv('cracks_details')} onChange={(e) => rfSet('cracks_details', e.target.value)} onBlur={(e) => rfSet('cracks_details', e.target.value)} placeholder="Location and type" />
+                                    </div>
+                                  )}
                                 </div>
                               );
                             }
@@ -1595,6 +1982,12 @@ export default function InspectionForm() {
                                       </SelectContent>
                                     </Select>
                                   </div>
+                                  {rfv('geyser_status') === 'Geyser mounted' && (
+                                    <div className="space-y-2">
+                                      <Label>Geyser Brand</Label>
+                                      <Input value={rfv('geyser_brand')} onChange={(e) => rfSet('geyser_brand', e.target.value)} onBlur={(e) => rfSet('geyser_brand', e.target.value)} placeholder="e.g. Racold, AO Smith, Venus" />
+                                    </div>
+                                  )}
                                   <YNRadio field="exhaust_fan_present" label="Exhaust Fan" />
                                   <YNRadio field="mirror_present" label="Mirror" />
                                   {rfv('mirror_present') === 'Y' && <CondSelect field="mirror_condition" label="Mirror Condition" />}
@@ -1622,8 +2015,20 @@ export default function InspectionForm() {
                                     </Select>
                                   </div>
                                   <YNRadio field="flush_working" label="Flush Working" />
+                                  <div className="space-y-2">
+                                    <Label>Flush Brand</Label>
+                                    <Input value={rfv('flush_brand')} onChange={(e) => rfSet('flush_brand', e.target.value)} onBlur={(e) => rfSet('flush_brand', e.target.value)} placeholder="e.g. Parryware, Hindware, Cera" />
+                                  </div>
                                   <YNRadio field="mixer_present" label="Hot + Cold Mixer" />
-                                  {rfv('mixer_present') === 'Y' && <YNRadio field="mixer_working" label="Mixer Working" />}
+                                  {rfv('mixer_present') === 'Y' && (
+                                    <>
+                                      <YNRadio field="mixer_working" label="Mixer Working" />
+                                      <div className="space-y-2">
+                                        <Label>Mixer / Tap Brand</Label>
+                                        <Input value={rfv('tap_brand')} onChange={(e) => rfSet('tap_brand', e.target.value)} onBlur={(e) => rfSet('tap_brand', e.target.value)} placeholder="e.g. Jaquar, Kohler, Parryware" />
+                                      </div>
+                                    </>
+                                  )}
                                   <YNRadio field="sink_present" label="Sink Present" />
                                   {rfv('sink_present') === 'Y' && (
                                     <>
@@ -1638,11 +2043,19 @@ export default function InspectionForm() {
                                       </div>
                                       <CondSelect field="sink_condition" label="Sink Condition" />
                                       <CondSelect field="sink_tap_condition" label="Tap Condition" />
+                                      <div className="space-y-2">
+                                        <Label>Sink Brand</Label>
+                                        <Input value={rfv('sink_brand')} onChange={(e) => rfSet('sink_brand', e.target.value)} onBlur={(e) => rfSet('sink_brand', e.target.value)} placeholder="e.g. Hindware, Cera, Kohler" />
+                                      </div>
                                     </>
                                   )}
                                   <YNRadio field="shower_overhead" label="Overhead Shower" />
                                   <YNRadio field="shower_handheld" label="Handheld Shower" />
                                   <CondSelect field="shower_condition" label="Shower Condition" />
+                                  <div className="space-y-2">
+                                    <Label>Shower Brand</Label>
+                                    <Input value={rfv('shower_brand')} onChange={(e) => rfSet('shower_brand', e.target.value)} onBlur={(e) => rfSet('shower_brand', e.target.value)} placeholder="e.g. Jaquar, Grohe, Cera" />
+                                  </div>
                                   <div className="space-y-2">
                                     <Label>Shower Partition</Label>
                                     <Select value={rfv('shower_partition') || undefined} onValueChange={(v) => rfSet('shower_partition', v)}>
@@ -1668,6 +2081,26 @@ export default function InspectionForm() {
                                     <Label>Cracked Tiles Count</Label>
                                     <Input type="number" value={rfv('tiles_cracked_count')} onChange={(e) => rfSet('tiles_cracked_count', e.target.value)} onBlur={(e) => rfSet('tiles_cracked_count', e.target.value)} />
                                   </div>
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Washroom Lock</p></div>
+                                  <div className="space-y-2">
+                                    <Label>Washroom Lock Brand</Label>
+                                    <Input value={rfv('washroom_lock_brand')} onChange={(e) => rfSet('washroom_lock_brand', e.target.value)} onBlur={(e) => rfSet('washroom_lock_brand', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Structural</p></div>
+                                  <YNRadio field="seepage_observed" label="Seepage / Dampness" />
+                                  {rfv('seepage_observed') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Seepage Location / Details</Label>
+                                      <Input value={rfv('seepage_details')} onChange={(e) => rfSet('seepage_details', e.target.value)} onBlur={(e) => rfSet('seepage_details', e.target.value)} />
+                                    </div>
+                                  )}
+                                  <YNRadio field="cracks_observed" label="Cracks Observed" />
+                                  {rfv('cracks_observed') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Crack Details</Label>
+                                      <Input value={rfv('cracks_details')} onChange={(e) => rfSet('cracks_details', e.target.value)} onBlur={(e) => rfSet('cracks_details', e.target.value)} placeholder="Location and type" />
+                                    </div>
+                                  )}
                                 </div>
                               );
                             }
@@ -1699,8 +2132,27 @@ export default function InspectionForm() {
                                       </Select>
                                     </div>
                                   )}
+                                  <div className="space-y-2">
+                                    <Label>Ventilation</Label>
+                                    <Select value={rfv('ventilation') || undefined} onValueChange={(v) => rfSet('ventilation', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Open", "Grilled", "Closed with glass", "Closed solid"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Flooring Type</Label>
+                                    <Select value={rfv('flooring_type') || undefined} onValueChange={(v) => rfSet('flooring_type', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Tiles", "Mosaic", "Cement", "Marble", "Anti-skid tiles", "Other"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
                                   <YNRadio field="wm_tap_point" label="Washing Machine Tap Point" />
                                   <YNRadio field="wm_drainage" label="WM Drainage Point" />
+                                  <YNRadio field="additional_water_tap" label="Additional Water Tap (for cleaning)" />
                                   <div className="space-y-2">
                                     <Label>Clothes Drying Provision</Label>
                                     <Select value={rfv('drying_provision') || undefined} onValueChange={(v) => rfSet('drying_provision', v)}>
@@ -1719,6 +2171,91 @@ export default function InspectionForm() {
                                       </SelectContent>
                                     </Select>
                                   </div>
+                                  <YNRadio field="gas_cylinder_storage" label="Gas Cylinder Storage" />
+                                  {rfv('gas_cylinder_storage') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Cylinder Capacity (no. of cylinders)</Label>
+                                      <Input type="number" min={1} value={rfv('gas_cylinder_capacity')} onChange={(e) => rfSet('gas_cylinder_capacity', e.target.value)} onBlur={(e) => rfSet('gas_cylinder_capacity', e.target.value)} />
+                                    </div>
+                                  )}
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Utility Sink</p></div>
+                                  <YNRadio field="utility_sink_present" label="Utility Sink Present" />
+                                  {rfv('utility_sink_present') === 'Y' && (
+                                    <>
+                                      <div className="space-y-2">
+                                        <Label>Sink Type</Label>
+                                        <Select value={rfv('sink_type') || undefined} onValueChange={(v) => rfSet('sink_type', v)}>
+                                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                          <SelectContent>
+                                            {["Wall-hung", "Floor-mounted", "Counter-top"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Sink Material</Label>
+                                        <Select value={rfv('sink_material') || undefined} onValueChange={(v) => rfSet('sink_material', v)}>
+                                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                          <SelectContent>
+                                            {["Stainless Steel", "Ceramic", "PVC", "Stone"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <CondSelect field="sink_condition" label="Sink Condition" />
+                                    </>
+                                  )}
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fittings</p></div>
+                                  <YNRadio field="fan_present" label="Ceiling Fan" />
+                                  {rfv('fan_present') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Fan Brand</Label>
+                                      <Input value={rfv('fan_brand')} onChange={(e) => rfSet('fan_brand', e.target.value)} onBlur={(e) => rfSet('fan_brand', e.target.value)} placeholder="e.g. Usha, Orient" />
+                                    </div>
+                                  )}
+                                  <YNRadio field="light_present" label="Light Fixture" />
+                                  {rfv('light_present') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Light Brand</Label>
+                                      <Input value={rfv('light_brand')} onChange={(e) => rfSet('light_brand', e.target.value)} onBlur={(e) => rfSet('light_brand', e.target.value)} placeholder="e.g. Philips, Havells" />
+                                    </div>
+                                  )}
+                                  <YNRadio field="switchboard_present" label="Switchboard" />
+                                  {rfv('switchboard_present') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Switchboard Brand</Label>
+                                      <Input value={rfv('switchboard_brand')} onChange={(e) => rfSet('switchboard_brand', e.target.value)} onBlur={(e) => rfSet('switchboard_brand', e.target.value)} placeholder="e.g. Anchor, Havells" />
+                                    </div>
+                                  )}
+                                  <YNRadio field="curtain_blind" label="Curtain / Blind" />
+                                  {rfv('curtain_blind') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Type</Label>
+                                      <Input value={rfv('curtain_blind_type')} onChange={(e) => rfSet('curtain_blind_type', e.target.value)} onBlur={(e) => rfSet('curtain_blind_type', e.target.value)} placeholder="e.g. Roller blind, Curtain" />
+                                    </div>
+                                  )}
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Balcony Lock</p></div>
+                                  <div className="space-y-2">
+                                    <Label>Balcony Lock Brand</Label>
+                                    <Input value={rfv('balcony_lock_brand')} onChange={(e) => rfSet('balcony_lock_brand', e.target.value)} onBlur={(e) => rfSet('balcony_lock_brand', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Balcony Lock — No. of Keys</Label>
+                                    <Input type="number" min={0} value={rfv('balcony_lock_keys')} onChange={(e) => rfSet('balcony_lock_keys', e.target.value)} onBlur={(e) => rfSet('balcony_lock_keys', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Structural</p></div>
+                                  <YNRadio field="seepage_observed" label="Seepage / Dampness" />
+                                  {rfv('seepage_observed') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Seepage Location / Details</Label>
+                                      <Input value={rfv('seepage_details')} onChange={(e) => rfSet('seepage_details', e.target.value)} onBlur={(e) => rfSet('seepage_details', e.target.value)} />
+                                    </div>
+                                  )}
+                                  <YNRadio field="cracks_observed" label="Cracks Observed" />
+                                  {rfv('cracks_observed') === 'Y' && (
+                                    <div className="space-y-2">
+                                      <Label>Crack Details</Label>
+                                      <Input value={rfv('cracks_details')} onChange={(e) => rfSet('cracks_details', e.target.value)} onBlur={(e) => rfSet('cracks_details', e.target.value)} placeholder="Location and type" />
+                                    </div>
+                                  )}
                                 </div>
                               );
                             }
@@ -1740,6 +2277,21 @@ export default function InspectionForm() {
                                   <Label>General Notes</Label>
                                   <Textarea rows={2} value={rfv('general_notes')} onChange={(e) => rfSet('general_notes', e.target.value)} onBlur={(e) => rfSet('general_notes', e.target.value)} />
                                 </div>
+                                <div className="space-y-2 md:col-span-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Structural</p></div>
+                                <YNRadio field="seepage_observed" label="Seepage / Dampness" />
+                                {rfv('seepage_observed') === 'Y' && (
+                                  <div className="space-y-2">
+                                    <Label>Seepage Location / Details</Label>
+                                    <Input value={rfv('seepage_details')} onChange={(e) => rfSet('seepage_details', e.target.value)} onBlur={(e) => rfSet('seepage_details', e.target.value)} />
+                                  </div>
+                                )}
+                                <YNRadio field="cracks_observed" label="Cracks Observed" />
+                                {rfv('cracks_observed') === 'Y' && (
+                                  <div className="space-y-2">
+                                    <Label>Crack Details</Label>
+                                    <Input value={rfv('cracks_details')} onChange={(e) => rfSet('cracks_details', e.target.value)} onBlur={(e) => rfSet('cracks_details', e.target.value)} placeholder="Location and type" />
+                                  </div>
+                                )}
                               </div>
                             );
                           })()}
