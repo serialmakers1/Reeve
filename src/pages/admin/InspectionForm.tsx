@@ -378,7 +378,7 @@ export default function InspectionForm() {
         supabase
           .from("properties")
           .select(`
-            id, building_name, flat_number, floor_number, locality, bhk,
+          id, building_name, flat_number, floor_number, locality, bhk, balconies,
             users!properties_owner_id_fkey (full_name)
           `)
           .eq("id", propertyId)
