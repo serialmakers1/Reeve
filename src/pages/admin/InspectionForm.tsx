@@ -341,6 +341,8 @@ export default function InspectionForm() {
   const [newRoomType, setNewRoomType] = useState<RoomTypeOption | "">("");
   const [newRoomLabel, setNewRoomLabel] = useState("");
   const [submittingCompletion, setSubmittingCompletion] = useState(false);
+  const [utilitiesOverview, setUtilitiesOverview] = useState<Record<string, any>>({});
+  const [structuralObs, setStructuralObs] = useState<Record<string, any>>({});
 
   const debounceRef = useRef<number | null>(null);
   const inspectionRef = useRef<InspectionRecord | null>(null);
