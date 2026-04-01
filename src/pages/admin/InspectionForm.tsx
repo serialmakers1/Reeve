@@ -1011,6 +1011,286 @@ export default function InspectionForm() {
           </CardContent>
         </Card>
 
+        <Card className="inspection-card">
+          <CardHeader>
+            <CardTitle>Property & Utilities Overview</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* A — Main Entrance & Door */}
+            <div>
+              <p className="font-semibold mb-3">Main Entrance & Door</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Door Type</Label>
+                  <Select value={utilitiesOverview.door_type || undefined} onValueChange={(v) => updateUtility("door_type", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {["Wood", "Steel", "Fibre", "Glass"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Lock Brand</Label>
+                  <Input value={utilitiesOverview.door_lock_brand ?? ""} onChange={(e) => updateUtility("door_lock_brand", e.target.value)} onBlur={(e) => updateUtility("door_lock_brand", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Deadbolt Present</Label>
+                  <RadioGroup value={utilitiesOverview.door_deadbolt ?? ""} onValueChange={(v) => updateUtility("door_deadbolt", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.door_deadbolt === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                <div className="space-y-2">
+                  <Label>Peephole Present</Label>
+                  <RadioGroup value={utilitiesOverview.door_peephole ?? ""} onValueChange={(v) => updateUtility("door_peephole", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.door_peephole === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                <div className="space-y-2">
+                  <Label>Intercom / Bell</Label>
+                  <Select value={utilitiesOverview.door_intercom || undefined} onValueChange={(v) => updateUtility("door_intercom", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {["None", "Bell only", "Intercom", "Video doorbell"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Door Condition</Label>
+                  <Select value={utilitiesOverview.door_condition || undefined} onValueChange={(v) => updateUtility("door_condition", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {ROOM_CONDITION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Door Notes</Label>
+                  <Textarea rows={2} value={utilitiesOverview.door_notes ?? ""} onChange={(e) => updateUtility("door_notes", e.target.value)} onBlur={(e) => updateUtility("door_notes", e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-border" />
+
+            {/* B — Water */}
+            <div>
+              <p className="font-semibold mb-3">Water</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Water Source</Label>
+                  <Select value={utilitiesOverview.water_source || undefined} onValueChange={(v) => updateUtility("water_source", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {["Corporation", "Borewell", "Both"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Supply</Label>
+                  <RadioGroup value={utilitiesOverview.water_supply ?? ""} onValueChange={(v) => updateUtility("water_supply", v)} className="grid grid-cols-3 gap-3">
+                    {[{ value: "24hr", label: "24hr" }, { value: "Timed", label: "Timed" }, { value: "No", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.water_supply === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                {utilitiesOverview.water_supply === "Timed" && (
+                  <div className="space-y-2">
+                    <Label>Timing</Label>
+                    <Input value={utilitiesOverview.water_timing ?? ""} onChange={(e) => updateUtility("water_timing", e.target.value)} onBlur={(e) => updateUtility("water_timing", e.target.value)} />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>Water Meter</Label>
+                  <RadioGroup value={utilitiesOverview.water_meter ?? ""} onValueChange={(v) => updateUtility("water_meter", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.water_meter === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                <div className="space-y-2">
+                  <Label>Sump Present</Label>
+                  <RadioGroup value={utilitiesOverview.water_sump ?? ""} onValueChange={(v) => updateUtility("water_sump", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.water_sump === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                <div className="space-y-2">
+                  <Label>Overhead Tank</Label>
+                  <RadioGroup value={utilitiesOverview.water_overhead_tank ?? ""} onValueChange={(v) => updateUtility("water_overhead_tank", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.water_overhead_tank === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-border" />
+
+            {/* C — Gas & Electricity */}
+            <div>
+              <p className="font-semibold mb-3">Gas & Electricity</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Gas Type</Label>
+                  <Select value={utilitiesOverview.gas_type || undefined} onValueChange={(v) => updateUtility("gas_type", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {["Piped PNG", "Cylinder", "None"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Meter / Regulator Location</Label>
+                  <Input value={utilitiesOverview.gas_location ?? ""} onChange={(e) => updateUtility("gas_location", e.target.value)} onBlur={(e) => updateUtility("gas_location", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>MCB / DB Box Location</Label>
+                  <Input value={utilitiesOverview.electricity_mcb_location ?? ""} onChange={(e) => updateUtility("electricity_mcb_location", e.target.value)} onBlur={(e) => updateUtility("electricity_mcb_location", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>No. of Circuits</Label>
+                  <Input type="number" value={utilitiesOverview.electricity_circuits ?? ""} onChange={(e) => updateUtility("electricity_circuits", e.target.value)} onBlur={(e) => updateUtility("electricity_circuits", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Earthing Present</Label>
+                  <RadioGroup value={utilitiesOverview.electricity_earthing ?? ""} onValueChange={(v) => updateUtility("electricity_earthing", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.electricity_earthing === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                <div className="space-y-2">
+                  <Label>Inverter / UPS Provision</Label>
+                  <RadioGroup value={utilitiesOverview.electricity_inverter ?? ""} onValueChange={(v) => updateUtility("electricity_inverter", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.electricity_inverter === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                <div className="space-y-2">
+                  <Label>DG / Generator Backup</Label>
+                  <Select value={utilitiesOverview.electricity_backup || undefined} onValueChange={(v) => updateUtility("electricity_backup", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {["None", "Common area only", "Full flat"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-border" />
+
+            {/* D — Safety */}
+            <div>
+              <p className="font-semibold mb-3">Safety</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Fire Extinguisher</Label>
+                  <RadioGroup value={utilitiesOverview.safety_fire_extinguisher ?? ""} onValueChange={(v) => updateUtility("safety_fire_extinguisher", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", utilitiesOverview.safety_fire_extinguisher === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                {utilitiesOverview.safety_fire_extinguisher === "Y" && (
+                  <div className="space-y-2">
+                    <Label>Last Service Date</Label>
+                    <Input type="date" value={utilitiesOverview.safety_fire_extinguisher_date ?? ""} onChange={(e) => updateUtility("safety_fire_extinguisher_date", e.target.value)} onBlur={(e) => updateUtility("safety_fire_extinguisher_date", e.target.value)} />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>CCTV</Label>
+                  <Select value={utilitiesOverview.safety_cctv || undefined} onValueChange={(v) => updateUtility("safety_cctv", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {["None", "Building only", "Flat entrance", "Both"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Building Security</Label>
+                  <Select value={utilitiesOverview.safety_security || undefined} onValueChange={(v) => updateUtility("safety_security", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {["None", "Watchman only", "Intercom + watchman", "Gated with security"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-border" />
+
+            {/* E — Structural Observations */}
+            <div>
+              <p className="font-semibold mb-3">Structural Observations</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Seepage / Dampness Observed</Label>
+                  <RadioGroup value={structuralObs.seepage_observed ?? ""} onValueChange={(v) => updateStructural("seepage_observed", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", structuralObs.seepage_observed === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                {structuralObs.seepage_observed === "Y" && (
+                  <div className="space-y-2">
+                    <Label>Location / Details</Label>
+                    <Input value={structuralObs.seepage_location ?? ""} onChange={(e) => updateStructural("seepage_location", e.target.value)} onBlur={(e) => updateStructural("seepage_location", e.target.value)} />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>Structural Cracks Observed</Label>
+                  <RadioGroup value={structuralObs.cracks_observed ?? ""} onValueChange={(v) => updateStructural("cracks_observed", v)} className="grid grid-cols-2 gap-3">
+                    {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                      <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", structuralObs.cracks_observed === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                        <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                {structuralObs.cracks_observed === "Y" && (
+                  <div className="space-y-2">
+                    <Label>Details</Label>
+                    <Input placeholder="e.g. Living room east wall, settlement crack" value={structuralObs.cracks_details ?? ""} onChange={(e) => updateStructural("cracks_details", e.target.value)} onBlur={(e) => updateStructural("cracks_details", e.target.value)} />
+                  </div>
+                )}
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Sunlight Notes</Label>
+                  <Input placeholder="e.g. Master bedroom gets morning sun, living room afternoon" value={structuralObs.sunlight_notes ?? ""} onChange={(e) => updateStructural("sunlight_notes", e.target.value)} onBlur={(e) => updateStructural("sunlight_notes", e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="inspection-card inspection-print-section">
           <CardHeader>
             <CardTitle>Room-by-Room Assessment</CardTitle>
