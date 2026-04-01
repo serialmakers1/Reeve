@@ -1290,6 +1290,11 @@ export default function InspectionForm() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="inspection-card inspection-print-section">
+          <CardHeader>
+            <CardTitle>Room-by-Room Assessment</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
             <Accordion type="single" collapsible defaultValue={rooms[0]?.id} className="w-full rounded-md border">
               {rooms.map((room) => {
