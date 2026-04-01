@@ -715,6 +715,8 @@ export default function InspectionForm() {
         condition: null,
         ownership: null,
         notes: null,
+        serial_number: null,
+        last_service_date: null,
         is_local_only: true,
       },
     ]);
