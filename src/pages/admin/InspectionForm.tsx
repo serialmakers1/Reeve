@@ -543,6 +543,8 @@ export default function InspectionForm() {
             condition: emptyToNull(appliance.condition as string | null) as string | null,
             ownership: emptyToNull(appliance.ownership as string | null) as string | null,
             notes: emptyToNull(appliance.notes as string | null) as string | null,
+            serial_number: emptyToNull(appliance.serial_number as string | null) as string | null,
+            last_service_date: appliance.last_service_date || null,
           }] as any) as unknown as PromiseLike<{ error?: { message?: string } | null }>,
       );
     });
