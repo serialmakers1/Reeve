@@ -123,6 +123,11 @@ type RoomTypeOption =
   | "utility"
   | "parking"
   | "common_area"
+  | "pooja_room"
+  | "study_room"
+  | "home_office"
+  | "servant_quarter"
+  | "store_room"
   | "other";
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
