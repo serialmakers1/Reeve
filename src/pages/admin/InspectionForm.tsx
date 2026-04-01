@@ -432,7 +432,7 @@ export default function InspectionForm() {
         if (defaultRooms.length > 0) {
           const insertedRoomsRes = await supabase
             .from("inspection_rooms")
-            .insert(defaultRooms)
+            .insert(defaultRooms as any)
             .select("*")
             .order("sort_order");
 
