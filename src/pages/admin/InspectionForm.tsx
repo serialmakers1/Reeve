@@ -185,6 +185,18 @@ const APPLIANCE_CONDITION_OPTIONS = [
   { value: "non_functional", label: "Non-Functional" },
 ] as const;
 
+const FURNITURE_ITEM_OPTIONS = [
+  "Sofa", "Dining Table", "Bed", "Wardrobe", "TV Unit", "Study Table",
+  "Dressing Table", "Shoe Rack", "Centre Table", "Side Table",
+  "Curtains", "Bookshelf", "Other",
+] as const;
+
+const GLASS_CONDITION_OPTIONS = [
+  { value: "Good", label: "Good" },
+  { value: "Cracked", label: "Cracked" },
+  { value: "Missing", label: "Missing" },
+] as const;
+
 const APPLIANCE_OWNERSHIP_OPTIONS = [
   { value: "landlord", label: "Landlord" },
   { value: "platform", label: "Platform" },
