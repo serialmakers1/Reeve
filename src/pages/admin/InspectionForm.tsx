@@ -682,7 +682,7 @@ export default function InspectionForm() {
       if (error) throw error;
 
       if (data) {
-        setRooms((current) => [...current, { ...(data as RoomRecord), is_auto_generated: false }]);
+        setRooms((current) => [...current, { ...(data as RoomRecord), is_auto_generated: false, room_features: (data as any).room_features ?? null, furniture_items: (data as any).furniture_items ?? null }]);
       }
 
       setNewRoomType("");
