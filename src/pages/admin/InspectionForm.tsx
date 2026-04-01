@@ -1369,8 +1369,459 @@ export default function InspectionForm() {
                         })}
                       </div>
 
-                      <div className="mt-4 space-y-2">
-                        <Label>Overall Room Notes</Label>
+                      {/* SUB-SECTION A — Room Features */}
+                      <Collapsible className="mt-4 rounded-lg border">
+                        <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold hover:bg-accent/50">
+                          Room Features
+                          <ChevronDown className="h-4 w-4 transition-transform [[data-state=open]>&]:rotate-180" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="px-4 pb-4">
+                          {(() => {
+                            const rf = (room.room_features as Record<string, any>) ?? {};
+                            const rfv = (key: string) => rf[key] ?? '';
+                            const rfSet = (key: string, value: any) => updateRoomFeature(room.id, key, value);
+                            const YNRadio = ({ field, label: lbl }: { field: string; label: string }) => (
+                              <div className="space-y-2">
+                                <Label>{lbl}</Label>
+                                <RadioGroup value={rfv(field)} onValueChange={(v) => rfSet(field, v)} className="grid grid-cols-2 gap-3">
+                                  {[{ value: "Y", label: "Yes" }, { value: "N", label: "No" }].map((o) => (
+                                    <label key={o.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium", rfv(field) === o.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background")}>
+                                      <RadioGroupItem value={o.value} /><span>{o.label}</span>
+                                    </label>
+                                  ))}
+                                </RadioGroup>
+                              </div>
+                            );
+                            const CondSelect = ({ field, label: lbl }: { field: string; label: string }) => (
+                              <div className="space-y-2">
+                                <Label>{lbl}</Label>
+                                <Select value={rfv(field) || undefined} onValueChange={(v) => rfSet(field, v)}>
+                                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                  <SelectContent>
+                                    {ROOM_CONDITION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            );
+                            const WindowFields = () => (
+                              <>
+                                <div className="space-y-2">
+                                  <Label>Window Count</Label>
+                                  <Input type="number" value={rfv('window_count')} onChange={(e) => rfSet('window_count', e.target.value)} onBlur={(e) => rfSet('window_count', e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Glass Condition</Label>
+                                  <Select value={rfv('window_glass_condition') || undefined} onValueChange={(v) => rfSet('window_glass_condition', v)}>
+                                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                    <SelectContent>
+                                      {GLASS_CONDITION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <YNRadio field="window_grill" label="Window Grill" />
+                                <YNRadio field="window_mesh" label="Mosquito Mesh" />
+                              </>
+                            );
+                            const CurtainFields = () => (
+                              <>
+                                <div className="space-y-2">
+                                  <Label>Curtain Rod Count</Label>
+                                  <Input type="number" value={rfv('curtain_rod_count')} onChange={(e) => rfSet('curtain_rod_count', e.target.value)} onBlur={(e) => rfSet('curtain_rod_count', e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Curtain Rod Type</Label>
+                                  <Select value={rfv('curtain_rod_type') || undefined} onValueChange={(v) => rfSet('curtain_rod_type', v)}>
+                                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                    <SelectContent>
+                                      {["Wall-mounted", "Ceiling", "None"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </>
+                            );
+                            const FalseCeilingFields = () => (
+                              <>
+                                <div className="space-y-2">
+                                  <Label>False Ceiling</Label>
+                                  <Select value={rfv('false_ceiling') || undefined} onValueChange={(v) => rfSet('false_ceiling', v)}>
+                                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                    <SelectContent>
+                                      {["None", "Partial", "Full"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                {rfv('false_ceiling') && rfv('false_ceiling') !== 'None' && (
+                                  <CondSelect field="false_ceiling_condition" label="False Ceiling Condition" />
+                                )}
+                              </>
+                            );
+
+                            if (room.room_type === 'living_room') {
+                              return (
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <WindowFields />
+                                  <CurtainFields />
+                                  <FalseCeilingFields />
+                                  <div className="space-y-2">
+                                    <Label>AC Provision Points</Label>
+                                    <Input type="number" value={rfv('ac_provision_count')} onChange={(e) => rfSet('ac_provision_count', e.target.value)} onBlur={(e) => rfSet('ac_provision_count', e.target.value)} />
+                                  </div>
+                                  <YNRadio field="tv_wall_mount" label="TV Wall Mount" />
+                                  {rfv('tv_wall_mount') === 'Y' && <CondSelect field="tv_wall_mount_condition" label="TV Mount Condition" />}
+                                  <div className="space-y-2">
+                                    <Label>Pooja Unit / Mandir</Label>
+                                    <Select value={rfv('pooja_unit') || undefined} onValueChange={(v) => rfSet('pooja_unit', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["None", "Wall-mounted wooden", "Freestanding unit"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  {rfv('pooja_unit') && rfv('pooja_unit') !== 'None' && <CondSelect field="pooja_unit_condition" label="Pooja Unit Condition" />}
+                                </div>
+                              );
+                            }
+
+                            if (room.room_type === 'bedroom') {
+                              return (
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <WindowFields />
+                                  <CurtainFields />
+                                  <FalseCeilingFields />
+                                  <YNRadio field="ac_point_present" label="AC Point Present" />
+                                  <YNRadio field="ac_mounted" label="AC Unit Mounted" />
+                                  <div className="space-y-2">
+                                    <Label>Wardrobe Type</Label>
+                                    <Select value={rfv('wardrobe_type') || undefined} onValueChange={(v) => rfSet('wardrobe_type', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["None", "Built-in wood", "Built-in aluminium", "Sliding mirror doors"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  {rfv('wardrobe_type') && rfv('wardrobe_type') !== 'None' && (
+                                    <>
+                                      <div className="space-y-2">
+                                        <Label>No. of Shutters</Label>
+                                        <Input type="number" value={rfv('wardrobe_shutters')} onChange={(e) => rfSet('wardrobe_shutters', e.target.value)} onBlur={(e) => rfSet('wardrobe_shutters', e.target.value)} />
+                                      </div>
+                                      <CondSelect field="wardrobe_condition" label="Wardrobe Condition" />
+                                    </>
+                                  )}
+                                  <YNRadio field="study_table" label="Study Table" />
+                                  {rfv('study_table') === 'Y' && <CondSelect field="study_table_condition" label="Study Table Condition" />}
+                                  <YNRadio field="dressing_table" label="Dressing Table / Mirror" />
+                                  {rfv('dressing_table') === 'Y' && <CondSelect field="dressing_table_condition" label="Dressing Table Condition" />}
+                                </div>
+                              );
+                            }
+
+                            if (room.room_type === 'kitchen') {
+                              return (
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <YNRadio field="modular_kitchen" label="Modular Kitchen" />
+                                  {rfv('modular_kitchen') === 'Y' && (
+                                    <>
+                                      <div className="space-y-2">
+                                        <Label>Material</Label>
+                                        <Select value={rfv('modular_material') || undefined} onValueChange={(v) => rfSet('modular_material', v)}>
+                                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                          <SelectContent>
+                                            {["Wood", "PVC", "Aluminium", "Acrylic"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <CondSelect field="modular_shutters" label="Shutter Condition" />
+                                      <CondSelect field="modular_hinges" label="Hinge Condition" />
+                                      <CondSelect field="modular_handles" label="Handle Condition" />
+                                    </>
+                                  )}
+                                  <div className="space-y-2">
+                                    <Label>Counter / Slab Material</Label>
+                                    <Select value={rfv('counter_material') || undefined} onValueChange={(v) => rfSet('counter_material', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Granite", "Marble", "Tile", "Corian"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <CondSelect field="counter_condition" label="Counter Condition" />
+                                  <div className="space-y-2">
+                                    <Label>Sink Type</Label>
+                                    <Select value={rfv('sink_type') || undefined} onValueChange={(v) => rfSet('sink_type', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Single basin", "Double basin"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Sink Material</Label>
+                                    <Select value={rfv('sink_material') || undefined} onValueChange={(v) => rfSet('sink_material', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Stainless Steel", "Ceramic"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <YNRadio field="sink_tap_working" label="Tap Working" />
+                                  <YNRadio field="sink_drainage" label="Drainage OK" />
+                                  <YNRadio field="loft_storage" label="Loft Storage" />
+                                  {rfv('loft_storage') === 'Y' && <CondSelect field="loft_condition" label="Loft Condition" />}
+                                  <div className="space-y-2">
+                                    <Label>Chimney Provision</Label>
+                                    <Select value={rfv('chimney_provision') || undefined} onValueChange={(v) => rfSet('chimney_provision', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["None", "Ducted", "Recirculating"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <YNRadio field="water_purifier_point" label="Water Purifier Point" />
+                                  <YNRadio field="exhaust_fan_present" label="Exhaust Fan" />
+                                </div>
+                              );
+                            }
+
+                            if (room.room_type === 'bathroom') {
+                              return (
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <div className="space-y-2">
+                                    <Label>Geyser</Label>
+                                    <Select value={rfv('geyser_status') || undefined} onValueChange={(v) => rfSet('geyser_status', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["No provision", "Point only", "Geyser mounted"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <YNRadio field="exhaust_fan_present" label="Exhaust Fan" />
+                                  <YNRadio field="mirror_present" label="Mirror" />
+                                  {rfv('mirror_present') === 'Y' && <CondSelect field="mirror_condition" label="Mirror Condition" />}
+                                  <div className="space-y-2">
+                                    <Label>Towel Rod Count</Label>
+                                    <Input type="number" value={rfv('towel_rod_count')} onChange={(e) => rfSet('towel_rod_count', e.target.value)} onBlur={(e) => rfSet('towel_rod_count', e.target.value)} />
+                                  </div>
+                                  <CondSelect field="towel_rod_condition" label="Towel Rod Condition" />
+                                  <div className="space-y-2">
+                                    <Label>Flush Type</Label>
+                                    <Select value={rfv('flush_type') || undefined} onValueChange={(v) => rfSet('flush_type', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Western", "Indian"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Flush Mechanism</Label>
+                                    <Select value={rfv('flush_mechanism') || undefined} onValueChange={(v) => rfSet('flush_mechanism', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Concealed tank", "Exposed tank"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <YNRadio field="flush_working" label="Flush Working" />
+                                  <YNRadio field="mixer_present" label="Hot + Cold Mixer" />
+                                  {rfv('mixer_present') === 'Y' && <YNRadio field="mixer_working" label="Mixer Working" />}
+                                  <YNRadio field="sink_present" label="Sink Present" />
+                                  {rfv('sink_present') === 'Y' && (
+                                    <>
+                                      <div className="space-y-2">
+                                        <Label>Sink Type</Label>
+                                        <Select value={rfv('sink_type') || undefined} onValueChange={(v) => rfSet('sink_type', v)}>
+                                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                          <SelectContent>
+                                            {["Pedestal", "Vanity", "Wall-hung"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <CondSelect field="sink_condition" label="Sink Condition" />
+                                      <CondSelect field="sink_tap_condition" label="Tap Condition" />
+                                    </>
+                                  )}
+                                  <YNRadio field="shower_overhead" label="Overhead Shower" />
+                                  <YNRadio field="shower_handheld" label="Handheld Shower" />
+                                  <CondSelect field="shower_condition" label="Shower Condition" />
+                                  <div className="space-y-2">
+                                    <Label>Shower Partition</Label>
+                                    <Select value={rfv('shower_partition') || undefined} onValueChange={(v) => rfSet('shower_partition', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["None", "Glass partition", "Curtain rod + curtain", "Tiled step"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  {rfv('shower_partition') === 'Glass partition' && (
+                                    <div className="space-y-2">
+                                      <Label>Glass Condition</Label>
+                                      <Select value={rfv('shower_glass_condition') || undefined} onValueChange={(v) => rfSet('shower_glass_condition', v)}>
+                                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                        <SelectContent>
+                                          {GLASS_CONDITION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
+                                  <YNRadio field="tiles_grout_stained" label="Grout Stained" />
+                                  <div className="space-y-2">
+                                    <Label>Cracked Tiles Count</Label>
+                                    <Input type="number" value={rfv('tiles_cracked_count')} onChange={(e) => rfSet('tiles_cracked_count', e.target.value)} onBlur={(e) => rfSet('tiles_cracked_count', e.target.value)} />
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            if (room.room_type === 'balcony') {
+                              return (
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <div className="space-y-2">
+                                    <Label>Attached To</Label>
+                                    <Input placeholder="e.g. Living Room, Master Bedroom" value={rfv('attached_to')} onChange={(e) => rfSet('attached_to', e.target.value)} onBlur={(e) => rfSet('attached_to', e.target.value)} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Grill Type</Label>
+                                    <Select value={rfv('grill_type') || undefined} onValueChange={(v) => rfSet('grill_type', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Open", "MS grill", "Glass railing", "Closed with windows"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  {(rfv('grill_type') === 'Glass railing' || rfv('grill_type') === 'Closed with windows') && (
+                                    <div className="space-y-2">
+                                      <Label>Glass Condition</Label>
+                                      <Select value={rfv('grill_glass_condition') || undefined} onValueChange={(v) => rfSet('grill_glass_condition', v)}>
+                                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                        <SelectContent>
+                                          {GLASS_CONDITION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
+                                  <YNRadio field="wm_tap_point" label="Washing Machine Tap Point" />
+                                  <YNRadio field="wm_drainage" label="WM Drainage Point" />
+                                  <div className="space-y-2">
+                                    <Label>Clothes Drying Provision</Label>
+                                    <Select value={rfv('drying_provision') || undefined} onValueChange={(v) => rfSet('drying_provision', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Rod", "Hooks", "Wire", "None"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Floor Waterproofed</Label>
+                                    <Select value={rfv('floor_waterproofed') || undefined} onValueChange={(v) => rfSet('floor_waterproofed', v)}>
+                                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {["Yes", "No", "Unknown"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            // Default: pooja_room, study_room, home_office, servant_quarter, store_room, utility, parking, common_area, other
+                            return (
+                              <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                  <Label>Ventilation</Label>
+                                  <Select value={rfv('ventilation') || undefined} onValueChange={(v) => rfSet('ventilation', v)}>
+                                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                    <SelectContent>
+                                      {["Window", "Exhaust fan", "Both", "None"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <YNRadio field="electrical_point" label="Dedicated Electrical Point" />
+                                <div className="space-y-2 md:col-span-2">
+                                  <Label>General Notes</Label>
+                                  <Textarea rows={2} value={rfv('general_notes')} onChange={(e) => rfSet('general_notes', e.target.value)} onBlur={(e) => rfSet('general_notes', e.target.value)} />
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </CollapsibleContent>
+                      </Collapsible>
+
+                      {/* SUB-SECTION B — Furniture & Fittings */}
+                      <div className="mt-4 space-y-3">
+                        <Label className="text-sm font-semibold">Furniture & Fittings</Label>
+                        {(() => {
+                          const items = (Array.isArray(room.furniture_items) ? room.furniture_items : []) as Array<{
+                            id: string; item: string; count: number; condition: string; notes: string; add_to_damage_log: boolean;
+                          }>;
+                          const setItems = (next: typeof items) => updateFurniture(room.id, next);
+                          return (
+                            <div className="space-y-2">
+                              {items.map((fi, idx) => (
+                                <div key={fi.id} className="flex flex-wrap items-start gap-2 rounded-lg border p-3">
+                                  <div className="w-36">
+                                    <Select value={fi.item || undefined} onValueChange={(v) => { const n = [...items]; n[idx] = { ...fi, item: v }; setItems(n); }}>
+                                      <SelectTrigger className="h-9"><SelectValue placeholder="Item" /></SelectTrigger>
+                                      <SelectContent>
+                                        {FURNITURE_ITEM_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="w-16">
+                                    <Input className="h-9" type="number" min={1} value={fi.count} onChange={(e) => { const n = [...items]; n[idx] = { ...fi, count: Math.max(1, Number(e.target.value) || 1) }; setItems(n); }} />
+                                  </div>
+                                  <div className="w-40">
+                                    <Select value={fi.condition || undefined} onValueChange={(v) => { const n = [...items]; n[idx] = { ...fi, condition: v, add_to_damage_log: (v !== 'moderate_damage' && v !== 'severe_damage') ? false : fi.add_to_damage_log }; setItems(n); }}>
+                                      <SelectTrigger className="h-9"><SelectValue placeholder="Condition" /></SelectTrigger>
+                                      <SelectContent>
+                                        {ROOM_CONDITION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="flex-1 min-w-[120px]">
+                                    <Input className="h-9" placeholder="Notes" value={fi.notes} onChange={(e) => { const n = [...items]; n[idx] = { ...fi, notes: e.target.value }; setItems(n); }} />
+                                  </div>
+                                  {(fi.condition === 'moderate_damage' || fi.condition === 'severe_damage') && (
+                                    <label className="flex items-center gap-2 text-xs whitespace-nowrap pt-2">
+                                      <Checkbox
+                                        checked={fi.add_to_damage_log}
+                                        onCheckedChange={(checked) => {
+                                          const n = [...items];
+                                          const wasChecked = fi.add_to_damage_log;
+                                          n[idx] = { ...fi, add_to_damage_log: !!checked };
+                                          setItems(n);
+                                          if (checked && !wasChecked) {
+                                            const newDamage: DamageItem = {
+                                              localId: crypto.randomUUID(),
+                                              location: room.room_label,
+                                              damage_type: fi.item,
+                                              severity: fi.condition === 'moderate_damage' ? 'medium' : 'high',
+                                              notes: fi.notes,
+                                            };
+                                            setDamages((prev) => {
+                                              const next = [...prev, newDamage];
+                                              pendingInspectionPatchRef.current = { ...pendingInspectionPatchRef.current, pre_existing_damages: next };
+                                              scheduleSave();
+                                              return next;
+                                            });
+                                          }
+                                        }}
+                                      />
+                                      Add to damage log
+                                    </label>
+                                  )}
+                                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setItems(items.filter((_, i) => i !== idx))}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button type="button" variant="outline" size="sm" onClick={() => setItems([...items, { id: crypto.randomUUID(), item: '', count: 1, condition: '', notes: '', add_to_damage_log: false }])}>
+                                <Plus className="h-4 w-4" /> Add Item
+                              </Button>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
                         <Textarea
                           rows={3}
                           placeholder="Add notes..."
