@@ -624,6 +624,43 @@ export default function InspectionForm() {
     queueRoomPatch(roomId, { [field]: value || null });
   };
 
+  const updateUtility = (key: string, value: any) => {
+    markInspectionStarted();
+    setUtilitiesOverview(prev => {
+      const next = { ...prev, [key]: value };
+      pendingInspectionPatchRef.current = { ...pendingInspectionPatchRef.current, utilities_overview: next };
+      scheduleSave();
+      return next;
+    });
+  };
+
+  const updateStructural = (key: string, value: any) => {
+    markInspectionStarted();
+    setStructuralObs(prev => {
+      const next = { ...prev, [key]: value };
+      pendingInspectionPatchRef.current = { ...pendingInspectionPatchRef.current, structural_observations: next };
+      scheduleSave();
+      return next;
+    });
+  };
+
+  const updateRoomFeature = (roomId: string, key: string, value: any) => {
+    setRooms(current => current.map(room => {
+      if (room.id !== roomId) return room;
+      const next = { ...(room.room_features as Record<string, any> ?? {}), [key]: value };
+      queueRoomPatch(roomId, { room_features: next });
+      return { ...room, room_features: next };
+    }));
+  };
+
+  const updateFurniture = (roomId: string, items: any[]) => {
+    setRooms(current => current.map(room => {
+      if (room.id !== roomId) return room;
+      queueRoomPatch(roomId, { furniture_items: items });
+      return { ...room, furniture_items: items };
+    }));
+  };
+
   const handleAddRoom = async () => {
     if (!inspection || !newRoomType) return;
     try {
