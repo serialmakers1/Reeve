@@ -1101,11 +1101,17 @@ export type Database = {
           bhk: Database["public"]["Enums"]["bhk_type"] | null
           building_name: string | null
           city: string | null
+          contact_attempts: number
+          contacted_at: string | null
           converted_property_id: string | null
           created_at: string
+          dropped_reason: string | null
           expected_rent: number | null
           flat_number: string | null
+          follow_up_at: string | null
+          follow_up_date: string | null
           id: string
+          last_contacted_at: string | null
           locality: string | null
           notes: string | null
           owner_email: string | null
@@ -1113,6 +1119,7 @@ export type Database = {
           owner_phone: string
           property_address: string
           referred_by_tenant_id: string
+          source: string | null
           status: Database["public"]["Enums"]["lead_status"]
           tenant_notified_on_listing: boolean
           updated_at: string
@@ -1122,11 +1129,17 @@ export type Database = {
           bhk?: Database["public"]["Enums"]["bhk_type"] | null
           building_name?: string | null
           city?: string | null
+          contact_attempts?: number
+          contacted_at?: string | null
           converted_property_id?: string | null
           created_at?: string
+          dropped_reason?: string | null
           expected_rent?: number | null
           flat_number?: string | null
+          follow_up_at?: string | null
+          follow_up_date?: string | null
           id?: string
+          last_contacted_at?: string | null
           locality?: string | null
           notes?: string | null
           owner_email?: string | null
@@ -1134,6 +1147,7 @@ export type Database = {
           owner_phone: string
           property_address: string
           referred_by_tenant_id: string
+          source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           tenant_notified_on_listing?: boolean
           updated_at?: string
@@ -1143,11 +1157,17 @@ export type Database = {
           bhk?: Database["public"]["Enums"]["bhk_type"] | null
           building_name?: string | null
           city?: string | null
+          contact_attempts?: number
+          contacted_at?: string | null
           converted_property_id?: string | null
           created_at?: string
+          dropped_reason?: string | null
           expected_rent?: number | null
           flat_number?: string | null
+          follow_up_at?: string | null
+          follow_up_date?: string | null
           id?: string
+          last_contacted_at?: string | null
           locality?: string | null
           notes?: string | null
           owner_email?: string | null
@@ -1155,6 +1175,7 @@ export type Database = {
           owner_phone?: string
           property_address?: string
           referred_by_tenant_id?: string
+          source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           tenant_notified_on_listing?: boolean
           updated_at?: string
@@ -2621,6 +2642,11 @@ export type Database = {
         | "parking"
         | "common_area"
         | "other"
+        | "pooja_room"
+        | "study_room"
+        | "home_office"
+        | "servant_quarter"
+        | "store_room"
       stay_duration_type:
         | "less_than_10_months"
         | "10_to_12_months"
@@ -3001,6 +3027,11 @@ export const Constants = {
         "parking",
         "common_area",
         "other",
+        "pooja_room",
+        "study_room",
+        "home_office",
+        "servant_quarter",
+        "store_room",
       ],
       stay_duration_type: [
         "less_than_10_months",
