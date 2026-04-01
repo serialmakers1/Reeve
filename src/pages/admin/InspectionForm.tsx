@@ -40,6 +40,7 @@ type PropertyRecord = {
   floor_number: number | null;
   locality: string | null;
   bhk: string;
+  balconies: number | null;
   users: OwnerRelation;
 };
 
@@ -55,6 +56,8 @@ type InspectionRecord = {
   pre_existing_damages: unknown;
   inspector_notes: string | null;
   pbr_generated_at: string | null;
+  utilities_overview: unknown;
+  structural_observations: unknown;
 };
 
 type RoomRecord = {
@@ -80,6 +83,8 @@ type RoomRecord = {
 
 type LocalRoom = RoomRecord & {
   is_auto_generated: boolean;
+  room_features: unknown;
+  furniture_items: unknown;
 };
 
 type LocalAppliance = {
@@ -94,6 +99,8 @@ type LocalAppliance = {
   condition: string | null;
   ownership: string | null;
   notes: string | null;
+  serial_number: string | null;
+  last_service_date: string | null;
   is_local_only?: boolean;
 };
 
@@ -116,6 +123,11 @@ type RoomTypeOption =
   | "utility"
   | "parking"
   | "common_area"
+  | "pooja_room"
+  | "study_room"
+  | "home_office"
+  | "servant_quarter"
+  | "store_room"
   | "other";
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -133,6 +145,11 @@ const ROOM_TYPE_LABELS: Record<RoomTypeOption, string> = {
   utility: "Utility",
   parking: "Parking",
   common_area: "Common Area",
+  pooja_room: "Pooja Room / Mandir",
+  study_room: "Study Room",
+  home_office: "Home Office",
+  servant_quarter: "Servant Quarter",
+  store_room: "Store Room",
   other: "Other",
 };
 
@@ -186,14 +203,12 @@ const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_labe
     { room_label: "Living Room/Studio", room_type: "other" },
     { room_label: "Kitchen", room_type: "kitchen" },
     { room_label: "Bathroom 1", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
   "1BHK": [
     { room_label: "Living Room", room_type: "living_room" },
     { room_label: "Bedroom 1", room_type: "bedroom" },
     { room_label: "Kitchen", room_type: "kitchen" },
     { room_label: "Bathroom 1", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
   "2BHK": [
     { room_label: "Living Room", room_type: "living_room" },
@@ -202,7 +217,6 @@ const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_labe
     { room_label: "Kitchen", room_type: "kitchen" },
     { room_label: "Bathroom 1", room_type: "bathroom" },
     { room_label: "Bathroom 2", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
   "3BHK": [
     { room_label: "Living Room", room_type: "living_room" },
@@ -213,7 +227,6 @@ const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_labe
     { room_label: "Bathroom 1", room_type: "bathroom" },
     { room_label: "Bathroom 2", room_type: "bathroom" },
     { room_label: "Bathroom 3", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
   "4BHK": [
     { room_label: "Living Room", room_type: "living_room" },
@@ -225,7 +238,6 @@ const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_labe
     { room_label: "Bathroom 1", room_type: "bathroom" },
     { room_label: "Bathroom 2", room_type: "bathroom" },
     { room_label: "Bathroom 3", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
   "5BHK_plus": [
     { room_label: "Living Room", room_type: "living_room" },
@@ -238,7 +250,6 @@ const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_labe
     { room_label: "Bathroom 1", room_type: "bathroom" },
     { room_label: "Bathroom 2", room_type: "bathroom" },
     { room_label: "Bathroom 3", room_type: "bathroom" },
-    { room_label: "Balcony", room_type: "balcony" },
   ],
 };
 
@@ -296,13 +307,21 @@ function getWorstCondition(room: LocalRoom) {
   return values.reduce((worst, current) => (rank[current as keyof typeof rank] > rank[worst as keyof typeof rank] ? current : worst));
 }
 
-function buildDefaultRooms(bhk: string, inspectionId: string) {
-  return (ROOM_DEFAULTS[bhk] ?? []).map((room, index) => ({
+function buildDefaultRooms(bhk: string, inspectionId: string, balconyCount: number) {
+  const baseRooms = (ROOM_DEFAULTS[bhk] ?? []).map((room, index) => ({
     inspection_id: inspectionId,
     room_type: room.room_type,
     room_label: room.room_label,
     sort_order: index,
   }));
+  const count = balconyCount || 1;
+  const balconyRooms = Array.from({ length: count }, (_, i) => ({
+    inspection_id: inspectionId,
+    room_type: 'balcony' as const,
+    room_label: count > 1 ? `Balcony ${i + 1}` : 'Balcony',
+    sort_order: (ROOM_DEFAULTS[bhk]?.length ?? 0) + i,
+  }));
+  return [...baseRooms, ...balconyRooms];
 }
 
 export default function InspectionForm() {
@@ -322,6 +341,8 @@ export default function InspectionForm() {
   const [newRoomType, setNewRoomType] = useState<RoomTypeOption | "">("");
   const [newRoomLabel, setNewRoomLabel] = useState("");
   const [submittingCompletion, setSubmittingCompletion] = useState(false);
+  const [utilitiesOverview, setUtilitiesOverview] = useState<Record<string, any>>({});
+  const [structuralObs, setStructuralObs] = useState<Record<string, any>>({});
 
   const debounceRef = useRef<number | null>(null);
   const inspectionRef = useRef<InspectionRecord | null>(null);
@@ -357,7 +378,7 @@ export default function InspectionForm() {
         supabase
           .from("properties")
           .select(`
-            id, building_name, flat_number, floor_number, locality, bhk,
+          id, building_name, flat_number, floor_number, locality, bhk, balconies,
             users!properties_owner_id_fkey (full_name)
           `)
           .eq("id", propertyId)
@@ -378,6 +399,8 @@ export default function InspectionForm() {
       setProperty(propertyData);
       setInspection(inspectionData);
       inspectionRef.current = inspectionData;
+      setUtilitiesOverview((inspectionData?.utilities_overview as Record<string, any>) ?? {});
+      setStructuralObs((inspectionData?.structural_observations as Record<string, any>) ?? {});
 
       if (!inspectionData) {
         setRooms([]);
@@ -405,11 +428,11 @@ export default function InspectionForm() {
       let generatedRoomIds = new Set<string>();
 
       if (roomRows.length === 0 && propertyData?.bhk) {
-        const defaultRooms = buildDefaultRooms(propertyData.bhk, inspectionData.id);
+        const defaultRooms = buildDefaultRooms(propertyData.bhk, inspectionData.id, propertyData.balconies ?? 1);
         if (defaultRooms.length > 0) {
           const insertedRoomsRes = await supabase
             .from("inspection_rooms")
-            .insert(defaultRooms)
+            .insert(defaultRooms as any)
             .select("*")
             .order("sort_order");
 
@@ -423,6 +446,8 @@ export default function InspectionForm() {
         roomRows.map((room) => ({
           ...room,
           is_auto_generated: generatedRoomIds.has(room.id),
+          room_features: (room as any).room_features ?? null,
+          furniture_items: (room as any).furniture_items ?? null,
         })),
       );
 
@@ -520,6 +545,8 @@ export default function InspectionForm() {
             condition: emptyToNull(appliance.condition as string | null) as string | null,
             ownership: emptyToNull(appliance.ownership as string | null) as string | null,
             notes: emptyToNull(appliance.notes as string | null) as string | null,
+            serial_number: emptyToNull(appliance.serial_number as string | null) as string | null,
+            last_service_date: appliance.last_service_date || null,
           }] as any) as unknown as PromiseLike<{ error?: { message?: string } | null }>,
       );
     });
@@ -601,6 +628,43 @@ export default function InspectionForm() {
     queueRoomPatch(roomId, { [field]: value || null });
   };
 
+  const updateUtility = (key: string, value: any) => {
+    markInspectionStarted();
+    setUtilitiesOverview(prev => {
+      const next = { ...prev, [key]: value };
+      pendingInspectionPatchRef.current = { ...pendingInspectionPatchRef.current, utilities_overview: next };
+      scheduleSave();
+      return next;
+    });
+  };
+
+  const updateStructural = (key: string, value: any) => {
+    markInspectionStarted();
+    setStructuralObs(prev => {
+      const next = { ...prev, [key]: value };
+      pendingInspectionPatchRef.current = { ...pendingInspectionPatchRef.current, structural_observations: next };
+      scheduleSave();
+      return next;
+    });
+  };
+
+  const updateRoomFeature = (roomId: string, key: string, value: any) => {
+    setRooms(current => current.map(room => {
+      if (room.id !== roomId) return room;
+      const next = { ...(room.room_features as Record<string, any> ?? {}), [key]: value };
+      queueRoomPatch(roomId, { room_features: next });
+      return { ...room, room_features: next };
+    }));
+  };
+
+  const updateFurniture = (roomId: string, items: any[]) => {
+    setRooms(current => current.map(room => {
+      if (room.id !== roomId) return room;
+      queueRoomPatch(roomId, { furniture_items: items });
+      return { ...room, furniture_items: items };
+    }));
+  };
+
   const handleAddRoom = async () => {
     if (!inspection || !newRoomType) return;
     try {
@@ -608,17 +672,17 @@ export default function InspectionForm() {
         .from("inspection_rooms")
         .insert({
           inspection_id: inspection.id,
-          room_type: newRoomType,
+          room_type: newRoomType as any,
           room_label: newRoomLabel.trim() || getSuggestedRoomLabel(newRoomType, rooms),
           sort_order: rooms.length,
-        })
+        } as any)
         .select("*")
         .maybeSingle();
 
       if (error) throw error;
 
       if (data) {
-        setRooms((current) => [...current, { ...(data as RoomRecord), is_auto_generated: false }]);
+        setRooms((current) => [...current, { ...(data as RoomRecord), is_auto_generated: false, room_features: (data as any).room_features ?? null, furniture_items: (data as any).furniture_items ?? null }]);
       }
 
       setNewRoomType("");
@@ -655,6 +719,8 @@ export default function InspectionForm() {
         condition: null,
         ownership: null,
         notes: null,
+        serial_number: null,
+        last_service_date: null,
         is_local_only: true,
       },
     ]);
@@ -1088,6 +1154,8 @@ export default function InspectionForm() {
                     <TableHead>Condition</TableHead>
                     <TableHead>Ownership</TableHead>
                     <TableHead>Notes</TableHead>
+                    <TableHead>Serial No.</TableHead>
+                    <TableHead>Last Service</TableHead>
                     <TableHead className="inspection-print-hide w-10" />
                   </TableRow>
                 </TableHeader>
@@ -1187,6 +1255,23 @@ export default function InspectionForm() {
                           value={appliance.notes ?? ""}
                           onChange={(event) => updateApplianceField(appliance.id, "notes", event.target.value)}
                           onBlur={(event) => updateApplianceField(appliance.id, "notes", event.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell className="min-w-[140px]">
+                        <Input
+                          className="h-9"
+                          value={appliance.serial_number ?? ""}
+                          onChange={(event) => updateApplianceField(appliance.id, "serial_number", event.target.value)}
+                          onBlur={(event) => updateApplianceField(appliance.id, "serial_number", event.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell className="min-w-[140px]">
+                        <Input
+                          className="h-9"
+                          type="date"
+                          value={appliance.last_service_date ?? ""}
+                          onChange={(event) => updateApplianceField(appliance.id, "last_service_date", event.target.value)}
+                          onBlur={(event) => updateApplianceField(appliance.id, "last_service_date", event.target.value)}
                         />
                       </TableCell>
                       <TableCell className="inspection-print-hide">
