@@ -40,6 +40,7 @@ type PropertyRecord = {
   floor_number: number | null;
   locality: string | null;
   bhk: string;
+  balconies: number | null;
   users: OwnerRelation;
 };
 
