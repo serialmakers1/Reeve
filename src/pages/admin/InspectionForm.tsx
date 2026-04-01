@@ -1152,6 +1152,8 @@ export default function InspectionForm() {
                     <TableHead>Condition</TableHead>
                     <TableHead>Ownership</TableHead>
                     <TableHead>Notes</TableHead>
+                    <TableHead>Serial No.</TableHead>
+                    <TableHead>Last Service</TableHead>
                     <TableHead className="inspection-print-hide w-10" />
                   </TableRow>
                 </TableHeader>
