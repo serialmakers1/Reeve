@@ -428,7 +428,7 @@ export default function InspectionForm() {
       let generatedRoomIds = new Set<string>();
 
       if (roomRows.length === 0 && propertyData?.bhk) {
-        const defaultRooms = buildDefaultRooms(propertyData.bhk, inspectionData.id);
+        const defaultRooms = buildDefaultRooms(propertyData.bhk, inspectionData.id, propertyData.balconies ?? 1);
         if (defaultRooms.length > 0) {
           const insertedRoomsRes = await supabase
             .from("inspection_rooms")
