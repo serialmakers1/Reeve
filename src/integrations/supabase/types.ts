@@ -744,10 +744,12 @@ export type Database = {
           custom_label: string | null
           id: string
           inspection_id: string
+          last_service_date: string | null
           manufacturing_year: number | null
           model_number: string | null
           notes: string | null
           ownership: Database["public"]["Enums"]["appliance_ownership"] | null
+          serial_number: string | null
           updated_at: string
         }
         Insert: {
@@ -759,10 +761,12 @@ export type Database = {
           custom_label?: string | null
           id?: string
           inspection_id: string
+          last_service_date?: string | null
           manufacturing_year?: number | null
           model_number?: string | null
           notes?: string | null
           ownership?: Database["public"]["Enums"]["appliance_ownership"] | null
+          serial_number?: string | null
           updated_at?: string
         }
         Update: {
@@ -774,10 +778,12 @@ export type Database = {
           custom_label?: string | null
           id?: string
           inspection_id?: string
+          last_service_date?: string | null
           manufacturing_year?: number | null
           model_number?: string | null
           notes?: string | null
           ownership?: Database["public"]["Enums"]["appliance_ownership"] | null
+          serial_number?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -873,6 +879,7 @@ export type Database = {
             | Database["public"]["Enums"]["room_condition"]
             | null
           flooring_notes: string | null
+          furniture_items: Json | null
           id: string
           inspection_id: string
           overall_room_notes: string | null
@@ -880,6 +887,7 @@ export type Database = {
             | Database["public"]["Enums"]["room_condition"]
             | null
           plumbing_notes: string | null
+          room_features: Json | null
           room_label: string
           room_type: Database["public"]["Enums"]["room_type"]
           sort_order: number
@@ -905,6 +913,7 @@ export type Database = {
             | Database["public"]["Enums"]["room_condition"]
             | null
           flooring_notes?: string | null
+          furniture_items?: Json | null
           id?: string
           inspection_id: string
           overall_room_notes?: string | null
@@ -912,6 +921,7 @@ export type Database = {
             | Database["public"]["Enums"]["room_condition"]
             | null
           plumbing_notes?: string | null
+          room_features?: Json | null
           room_label: string
           room_type: Database["public"]["Enums"]["room_type"]
           sort_order?: number
@@ -937,6 +947,7 @@ export type Database = {
             | Database["public"]["Enums"]["room_condition"]
             | null
           flooring_notes?: string | null
+          furniture_items?: Json | null
           id?: string
           inspection_id?: string
           overall_room_notes?: string | null
@@ -944,6 +955,7 @@ export type Database = {
             | Database["public"]["Enums"]["room_condition"]
             | null
           plumbing_notes?: string | null
+          room_features?: Json | null
           room_label?: string
           room_type?: Database["public"]["Enums"]["room_type"]
           sort_order?: number
@@ -2164,7 +2176,9 @@ export type Database = {
           property_id: string
           scheduled_date: string | null
           status: Database["public"]["Enums"]["inspection_status"]
+          structural_observations: Json | null
           updated_at: string
+          utilities_overview: Json | null
         }
         Insert: {
           actual_date?: string | null
@@ -2180,7 +2194,9 @@ export type Database = {
           property_id: string
           scheduled_date?: string | null
           status?: Database["public"]["Enums"]["inspection_status"]
+          structural_observations?: Json | null
           updated_at?: string
+          utilities_overview?: Json | null
         }
         Update: {
           actual_date?: string | null
@@ -2196,7 +2212,9 @@ export type Database = {
           property_id?: string
           scheduled_date?: string | null
           status?: Database["public"]["Enums"]["inspection_status"]
+          structural_observations?: Json | null
           updated_at?: string
+          utilities_overview?: Json | null
         }
         Relationships: [
           {
