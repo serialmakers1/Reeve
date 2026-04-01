@@ -307,13 +307,21 @@ function getWorstCondition(room: LocalRoom) {
   return values.reduce((worst, current) => (rank[current as keyof typeof rank] > rank[worst as keyof typeof rank] ? current : worst));
 }
 
-function buildDefaultRooms(bhk: string, inspectionId: string) {
-  return (ROOM_DEFAULTS[bhk] ?? []).map((room, index) => ({
+function buildDefaultRooms(bhk: string, inspectionId: string, balconyCount: number) {
+  const baseRooms = (ROOM_DEFAULTS[bhk] ?? []).map((room, index) => ({
     inspection_id: inspectionId,
     room_type: room.room_type,
     room_label: room.room_label,
     sort_order: index,
   }));
+  const count = balconyCount || 1;
+  const balconyRooms = Array.from({ length: count }, (_, i) => ({
+    inspection_id: inspectionId,
+    room_type: 'balcony' as const,
+    room_label: count > 1 ? `Balcony ${i + 1}` : 'Balcony',
+    sort_order: (ROOM_DEFAULTS[bhk]?.length ?? 0) + i,
+  }));
+  return [...baseRooms, ...balconyRooms];
 }
 
 export default function InspectionForm() {
