@@ -672,10 +672,10 @@ export default function InspectionForm() {
         .from("inspection_rooms")
         .insert({
           inspection_id: inspection.id,
-          room_type: newRoomType,
+          room_type: newRoomType as any,
           room_label: newRoomLabel.trim() || getSuggestedRoomLabel(newRoomType, rooms),
           sort_order: rooms.length,
-        })
+        } as any)
         .select("*")
         .maybeSingle();
 
