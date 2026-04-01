@@ -99,6 +99,8 @@ type LocalAppliance = {
   condition: string | null;
   ownership: string | null;
   notes: string | null;
+  serial_number: string | null;
+  last_service_date: string | null;
   is_local_only?: boolean;
 };
 
