@@ -572,12 +572,38 @@ export default function OwnerPipeline() {
               {proposeError && (
                 <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">{proposeError}</div>
               )}
+              {/* Conflict detection results */}
+              {conflictLoading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Checking for conflicts…
+                </div>
+              )}
+              {!conflictLoading && conflictChecked && conflicts.length > 0 && (
+                <div className="rounded-md border border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20 p-3 space-y-1">
+                  <div className="flex items-center gap-1.5 text-sm font-medium text-yellow-800 dark:text-yellow-400">
+                    <AlertTriangle className="h-4 w-4" />
+                    Existing activity on this date:
+                  </div>
+                  {conflicts.map((c, i) => (
+                    <p key={i} className="text-xs text-yellow-700 dark:text-yellow-400/80 pl-5">
+                      • {c.label} · {c.time}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {!conflictLoading && conflictChecked && conflicts.length === 0 && (
+                <div className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  No conflicts on this date
+                </div>
+              )}
               <Button
-                className="w-full min-h-[44px]"
+                className={`w-full min-h-[44px] ${conflicts.length > 0 ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}`}
                 disabled={!proposeDate || !proposeStart || !proposeEnd || proposeLoading}
                 onClick={handleProposeSubmit}
               >
-                {proposeLoading ? "Saving…" : "Confirm & Propose"}
+                {proposeLoading ? "Saving…" : conflicts.length > 0 ? "Confirm Anyway" : "Confirm & Propose"}
               </Button>
             </div>
           </DialogContent>
