@@ -38,7 +38,23 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Search, MoreHorizontal, X, Inbox } from "lucide-react";
+import { Search, MoreHorizontal, X, Inbox, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+
+interface ConflictItem {
+  type: "inspection" | "visit";
+  label: string;
+  time: string;
+}
+
+const toIST12 = (utcStr: string) => {
+  const d = new Date(utcStr);
+  const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+  const h = ist.getUTCHours();
+  const m = ist.getUTCMinutes().toString().padStart(2, "0");
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${m} ${ampm}`;
+};
 
 const STAGES = [
   { label: "New", value: "draft" },
@@ -129,6 +145,9 @@ export default function OwnerPipeline() {
   const [proposeNotes, setProposeNotes] = useState("");
   const [proposeLoading, setProposeLoading] = useState(false);
   const [proposeError, setProposeError] = useState<string | null>(null);
+  const [conflictLoading, setConflictLoading] = useState(false);
+  const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
+  const [conflictChecked, setConflictChecked] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -192,6 +211,86 @@ export default function OwnerPipeline() {
   }, [user]);
 
   useEffect(() => { if (!authLoading && user) fetchData(); }, [fetchData, authLoading, user]);
+
+  // Reset conflicts when modal opens/closes
+  useEffect(() => {
+    setConflicts([]);
+    setConflictChecked(false);
+    setConflictLoading(false);
+  }, [proposeModalId]);
+
+  // Conflict detection when date + start time are both set
+  useEffect(() => {
+    if (!proposeDate || !proposeStart || !proposeModalId) {
+      setConflicts([]);
+      setConflictChecked(false);
+      return;
+    }
+
+    let cancelled = false;
+    const checkConflicts = async () => {
+      setConflictLoading(true);
+
+      // IST date to UTC range for visits query
+      // proposeDate is YYYY-MM-DD in IST. IST midnight = UTC previous day 18:30
+      const istStart = new Date(`${proposeDate}T00:00:00+05:30`);
+      const istEnd = new Date(`${proposeDate}T23:59:59+05:30`);
+
+      const [inspRes, visitRes] = await Promise.all([
+        supabase
+          .from("properties")
+          .select("building_name, locality, inspection_start_time, inspection_end_time, status")
+          .eq("inspection_date", proposeDate)
+          .in("status", ["inspection_proposed", "inspection_scheduled"] as any)
+          .neq("id", proposeModalId),
+        supabase
+          .from("visits")
+          .select(`
+            scheduled_at,
+            property:properties!visits_property_id_fkey(building_name, locality),
+            tenant:users!visits_tenant_id_fkey(full_name)
+          `)
+          .gte("scheduled_at", istStart.toISOString())
+          .lte("scheduled_at", istEnd.toISOString())
+          .in("status", ["scheduled", "confirmed"] as any),
+      ]);
+
+      if (cancelled) return;
+
+      const items: ConflictItem[] = [];
+
+      (inspRes.data ?? []).forEach((row: any) => {
+        const start = row.inspection_start_time ? formatTime12(row.inspection_start_time) : "";
+        const end = row.inspection_end_time ? formatTime12(row.inspection_end_time) : "";
+        const timeRange = start && end ? `${start} – ${end}` : start || "TBD";
+        const statusLabel = row.status === "inspection_scheduled" ? "Confirmed" : "Proposed";
+        const loc = [row.building_name, row.locality].filter(Boolean).join(", ");
+        items.push({
+          type: "inspection",
+          label: `Owner Inspection — ${loc}`,
+          time: `${timeRange} (${statusLabel})`,
+        });
+      });
+
+      (visitRes.data ?? []).forEach((row: any) => {
+        const tenantName = row.tenant?.full_name ?? "Unknown";
+        const loc = [row.property?.building_name, row.property?.locality].filter(Boolean).join(", ");
+        const time = toIST12(row.scheduled_at);
+        items.push({
+          type: "visit",
+          label: `Tenant Visit — ${tenantName} at ${loc}`,
+          time,
+        });
+      });
+
+      setConflicts(items);
+      setConflictChecked(true);
+      setConflictLoading(false);
+    };
+
+    checkConflicts();
+    return () => { cancelled = true; };
+  }, [proposeDate, proposeStart, proposeModalId]);
 
   const daysSince = (row: PropertyRow) => {
     const atCol = STAGE_AT_COLUMN[row.status];
@@ -473,12 +572,38 @@ export default function OwnerPipeline() {
               {proposeError && (
                 <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">{proposeError}</div>
               )}
+              {/* Conflict detection results */}
+              {conflictLoading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Checking for conflicts…
+                </div>
+              )}
+              {!conflictLoading && conflictChecked && conflicts.length > 0 && (
+                <div className="rounded-md border border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20 p-3 space-y-1">
+                  <div className="flex items-center gap-1.5 text-sm font-medium text-yellow-800 dark:text-yellow-400">
+                    <AlertTriangle className="h-4 w-4" />
+                    Existing activity on this date:
+                  </div>
+                  {conflicts.map((c, i) => (
+                    <p key={i} className="text-xs text-yellow-700 dark:text-yellow-400/80 pl-5">
+                      • {c.label} · {c.time}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {!conflictLoading && conflictChecked && conflicts.length === 0 && (
+                <div className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  No conflicts on this date
+                </div>
+              )}
               <Button
-                className="w-full min-h-[44px]"
+                className={`w-full min-h-[44px] ${conflicts.length > 0 ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}`}
                 disabled={!proposeDate || !proposeStart || !proposeEnd || proposeLoading}
                 onClick={handleProposeSubmit}
               >
-                {proposeLoading ? "Saving…" : "Confirm & Propose"}
+                {proposeLoading ? "Saving…" : conflicts.length > 0 ? "Confirm Anyway" : "Confirm & Propose"}
               </Button>
             </div>
           </DialogContent>
