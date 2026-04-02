@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { label: "Leads", path: "/admin/leads", icon: UserPlus },
   { label: "Properties", path: "/admin/properties", icon: Building2 },
   { label: "Inspections", path: "/admin/inspections", icon: ClipboardList },
+  { label: "Field Calendar", path: "/admin/calendar", icon: CalendarDays },
   { label: "Applications", path: "/admin/applications", icon: FileText },
 ];
 
