@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronLeft, ChevronRight, CalendarDays, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, MapPin } from "lucide-react";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isToday, isSameDay } from "date-fns";
 
 // UTC+5:30 offset in ms
@@ -21,6 +21,11 @@ function toIST(date: Date): Date {
 function parseTimeToHours(timeStr: string): number {
   const [h, m] = timeStr.split(":").map(Number);
   return h + (m || 0) / 60;
+}
+
+function getEventLocality(ev: CalendarEvent): string {
+  if (ev.type === "inspection") return ev.subtitle || "";
+  return ev.subtitle2 || "";
 }
 
 interface CalendarEvent {
@@ -51,6 +56,7 @@ export default function FieldCalendar() {
   const [currentDate, setCurrentDate] = useState(toIST(new Date()));
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [activeLocality, setActiveLocality] = useState<string | null>(null);
 
   // Sync mobile default
   useEffect(() => {
@@ -159,15 +165,87 @@ export default function FieldCalendar() {
 
   const hours = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i);
 
+  // Visible events for current period
+  const visibleEvents = useMemo(
+    () => events.filter((e) => days.some((d) => isSameDay(e.date, d))),
+    [events, days]
+  );
+
   // Group events by day
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     for (const d of days) {
       const key = format(d, "yyyy-MM-dd");
-      map.set(key, events.filter((e) => isSameDay(e.date, d)));
+      const dayEvts = events.filter((e) => isSameDay(e.date, d));
+      // In day view, sort by locality then start time
+      if (view === "day") {
+        dayEvts.sort((a, b) => {
+          const locA = getEventLocality(a).toLowerCase();
+          const locB = getEventLocality(b).toLowerCase();
+          if (locA !== locB) return locA.localeCompare(locB);
+          return a.startHour - b.startHour;
+        });
+      }
+      map.set(key, dayEvts);
     }
     return map;
-  }, [events, days]);
+  }, [events, days, view]);
+
+  // Locality chips data
+  const localityChips = useMemo(() => {
+    const locMap = new Map<string, { count: number; types: Set<"inspection" | "visit"> }>();
+    for (const ev of visibleEvents) {
+      const loc = getEventLocality(ev);
+      if (!loc) continue;
+      const entry = locMap.get(loc) || { count: 0, types: new Set() };
+      entry.count++;
+      entry.types.add(ev.type);
+      locMap.set(loc, entry);
+    }
+    return locMap;
+  }, [visibleEvents]);
+
+  // Same-day same-locality flag: set of event IDs that share locality+day with another event
+  const sameDayLocalityIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const [, dayEvents] of eventsByDay) {
+      const locGroups = new Map<string, string[]>();
+      for (const ev of dayEvents) {
+        const loc = getEventLocality(ev);
+        if (!loc) continue;
+        const arr = locGroups.get(loc) || [];
+        arr.push(ev.id);
+        locGroups.set(loc, arr);
+      }
+      for (const [, group] of locGroups) {
+        if (group.length >= 2) group.forEach((id) => ids.add(id));
+      }
+    }
+    return ids;
+  }, [eventsByDay]);
+
+  // Day view: locality labels for background section dividers
+  const dayViewLocalityLabels = useMemo(() => {
+    if (view !== "day") return [];
+    const key = format(days[0], "yyyy-MM-dd");
+    const dayEvents = eventsByDay.get(key) || [];
+    const locGroups = new Map<string, CalendarEvent[]>();
+    for (const ev of dayEvents) {
+      const loc = getEventLocality(ev);
+      if (!loc) continue;
+      const arr = locGroups.get(loc) || [];
+      arr.push(ev);
+      locGroups.set(loc, arr);
+    }
+    const labels: { locality: string; topHour: number; bottomHour: number }[] = [];
+    for (const [loc, evts] of locGroups) {
+      if (evts.length < 2) continue;
+      const minH = Math.min(...evts.map((e) => e.startHour));
+      const maxH = Math.max(...evts.map((e) => e.endHour));
+      labels.push({ locality: loc, topHour: minH, bottomHour: maxH });
+    }
+    return labels;
+  }, [view, days, eventsByDay]);
 
   // Detect overlaps
   const conflictIds = useMemo(() => {
@@ -197,11 +275,30 @@ export default function FieldCalendar() {
 
   const goToday = () => setCurrentDate(toIST(new Date()));
 
+  // Reset active locality when period changes
+  useEffect(() => {
+    setActiveLocality(null);
+  }, [currentDate, view]);
+
+  function getChipDotColor(types: Set<"inspection" | "visit">) {
+    const hasInsp = types.has("inspection");
+    const hasVisit = types.has("visit");
+    if (hasInsp && hasVisit) return "bg-purple-500";
+    if (hasVisit) return "bg-blue-500";
+    return "bg-green-500";
+  }
+
   if (authLoading) return null;
+
+  const showLocalityBar = !loading && localityChips.size > 1;
 
   return (
     <AdminLayout>
-      <div className="space-y-4">
+      <div className="space-y-4" onClick={(e) => {
+        // Deselect locality when clicking on grid background
+        if ((e.target as HTMLElement).closest('[data-locality-chip]') || (e.target as HTMLElement).closest('[data-event-block]')) return;
+        setActiveLocality(null);
+      }}>
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
@@ -240,6 +337,31 @@ export default function FieldCalendar() {
             )}
           </div>
         </div>
+
+        {/* Locality Summary Bar */}
+        {showLocalityBar && (
+          <div className="flex gap-2 overflow-x-auto pb-1 -mb-2">
+            {Array.from(localityChips.entries()).map(([loc, { count, types }]) => (
+              <button
+                key={loc}
+                data-locality-chip
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveLocality((prev) => (prev === loc ? null : loc));
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
+                  activeLocality === loc
+                    ? "bg-primary/10 border-primary text-primary ring-1 ring-primary/30"
+                    : "bg-card border-border text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <span className={`h-2 w-2 rounded-full ${getChipDotColor(types)}`} />
+                {loc}
+                <span className="text-muted-foreground">({count})</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Calendar Grid */}
         {loading ? (
@@ -282,6 +404,23 @@ export default function FieldCalendar() {
 
             {/* Time grid */}
             <div className="relative">
+              {/* Day view locality background labels */}
+              {view === "day" && dayViewLocalityLabels.map((label) => {
+                const top = (label.topHour - HOUR_START) * HOUR_HEIGHT;
+                const height = (label.bottomHour - label.topHour) * HOUR_HEIGHT;
+                return (
+                  <div
+                    key={label.locality}
+                    className="absolute right-2 pointer-events-none flex items-start justify-end z-[1]"
+                    style={{ top: `${top}px`, height: `${height}px` }}
+                  >
+                    <span className="text-[11px] font-medium text-muted-foreground/30 uppercase tracking-wider mt-1">
+                      {label.locality}
+                    </span>
+                  </div>
+                );
+              })}
+
               <div
                 className="grid"
                 style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}
@@ -312,14 +451,19 @@ export default function FieldCalendar() {
                             const topOffset = (ev.startHour - h) * HOUR_HEIGHT;
                             const height = Math.max((ev.endHour - ev.startHour) * HOUR_HEIGHT, 20);
                             const hasConflict = conflictIds.has(ev.id);
+                            const hasSameDayLoc = sameDayLocalityIds.has(ev.id);
+                            const evLocality = getEventLocality(ev);
+                            const isDimmed = activeLocality && evLocality !== activeLocality;
+                            const isHighlighted = activeLocality && evLocality === activeLocality;
 
                             return (
                               <Popover key={ev.id}>
                                 <PopoverTrigger asChild>
                                   <button
-                                    className={`absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-0.5 overflow-hidden text-left cursor-pointer hover:opacity-90 transition-opacity ${ev.color} ${ev.borderColor} ${
+                                    data-event-block
+                                    className={`absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-0.5 overflow-hidden text-left cursor-pointer hover:opacity-90 transition-all ${ev.color} ${ev.borderColor} ${
                                       hasConflict ? "!border-l-red-500 ring-1 ring-red-300" : ""
-                                    }`}
+                                    } ${isHighlighted ? "ring-2 ring-primary/50 shadow-md" : ""} ${isDimmed ? "opacity-30" : ""}`}
                                     style={{
                                       top: `${topOffset}px`,
                                       height: `${height}px`,
@@ -328,6 +472,12 @@ export default function FieldCalendar() {
                                   >
                                     {hasConflict && (
                                       <AlertTriangle className="absolute top-0.5 right-0.5 h-3 w-3 text-red-500" />
+                                    )}
+                                    {hasSameDayLoc && !hasConflict && (
+                                      <MapPin className="absolute top-0.5 right-0.5 h-3 w-3 text-muted-foreground" />
+                                    )}
+                                    {hasSameDayLoc && hasConflict && (
+                                      <MapPin className="absolute top-0.5 right-3.5 h-3 w-3 text-muted-foreground" />
                                     )}
                                     <p className="text-[10px] font-semibold text-foreground truncate leading-tight">
                                       {ev.title}
@@ -383,7 +533,7 @@ export default function FieldCalendar() {
         )}
 
         {/* Empty state */}
-        {!loading && events.filter((e) => days.some((d) => isSameDay(e.date, d))).length === 0 && (
+        {!loading && visibleEvents.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <CalendarDays className="h-12 w-12 mb-3 opacity-40" />
             <p className="text-sm">No field activity this {view === "week" ? "week" : "day"}</p>
