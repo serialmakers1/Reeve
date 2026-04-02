@@ -38,7 +38,23 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Search, MoreHorizontal, X, Inbox } from "lucide-react";
+import { Search, MoreHorizontal, X, Inbox, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+
+interface ConflictItem {
+  type: "inspection" | "visit";
+  label: string;
+  time: string;
+}
+
+const toIST12 = (utcStr: string) => {
+  const d = new Date(utcStr);
+  const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+  const h = ist.getUTCHours();
+  const m = ist.getUTCMinutes().toString().padStart(2, "0");
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${m} ${ampm}`;
+};
 
 const STAGES = [
   { label: "New", value: "draft" },
