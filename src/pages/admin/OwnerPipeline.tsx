@@ -145,6 +145,9 @@ export default function OwnerPipeline() {
   const [proposeNotes, setProposeNotes] = useState("");
   const [proposeLoading, setProposeLoading] = useState(false);
   const [proposeError, setProposeError] = useState<string | null>(null);
+  const [conflictLoading, setConflictLoading] = useState(false);
+  const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
+  const [conflictChecked, setConflictChecked] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
