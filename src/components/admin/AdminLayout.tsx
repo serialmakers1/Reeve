@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Users, Home, FileText, Building2, ClipboardList, UserPlus, Menu, X, User, ChevronDown } from "lucide-react";
+import { Users, Home, FileText, Building2, ClipboardList, UserPlus, Menu, X, User, ChevronDown, CalendarDays } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { label: "Leads", path: "/admin/leads", icon: UserPlus },
   { label: "Properties", path: "/admin/properties", icon: Building2 },
   { label: "Inspections", path: "/admin/inspections", icon: ClipboardList },
+  { label: "Field Calendar", path: "/admin/calendar", icon: CalendarDays },
   { label: "Applications", path: "/admin/applications", icon: FileText },
 ];
 
