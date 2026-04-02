@@ -212,6 +212,86 @@ export default function OwnerPipeline() {
 
   useEffect(() => { if (!authLoading && user) fetchData(); }, [fetchData, authLoading, user]);
 
+  // Reset conflicts when modal opens/closes
+  useEffect(() => {
+    setConflicts([]);
+    setConflictChecked(false);
+    setConflictLoading(false);
+  }, [proposeModalId]);
+
+  // Conflict detection when date + start time are both set
+  useEffect(() => {
+    if (!proposeDate || !proposeStart || !proposeModalId) {
+      setConflicts([]);
+      setConflictChecked(false);
+      return;
+    }
+
+    let cancelled = false;
+    const checkConflicts = async () => {
+      setConflictLoading(true);
+
+      // IST date to UTC range for visits query
+      // proposeDate is YYYY-MM-DD in IST. IST midnight = UTC previous day 18:30
+      const istStart = new Date(`${proposeDate}T00:00:00+05:30`);
+      const istEnd = new Date(`${proposeDate}T23:59:59+05:30`);
+
+      const [inspRes, visitRes] = await Promise.all([
+        supabase
+          .from("properties")
+          .select("building_name, locality, inspection_start_time, inspection_end_time, status")
+          .eq("inspection_date", proposeDate)
+          .in("status", ["inspection_proposed", "inspection_scheduled"] as any)
+          .neq("id", proposeModalId),
+        supabase
+          .from("visits")
+          .select(`
+            scheduled_at,
+            property:properties!visits_property_id_fkey(building_name, locality),
+            tenant:users!visits_tenant_id_fkey(full_name)
+          `)
+          .gte("scheduled_at", istStart.toISOString())
+          .lte("scheduled_at", istEnd.toISOString())
+          .in("status", ["scheduled", "confirmed"] as any),
+      ]);
+
+      if (cancelled) return;
+
+      const items: ConflictItem[] = [];
+
+      (inspRes.data ?? []).forEach((row: any) => {
+        const start = row.inspection_start_time ? formatTime12(row.inspection_start_time) : "";
+        const end = row.inspection_end_time ? formatTime12(row.inspection_end_time) : "";
+        const timeRange = start && end ? `${start} – ${end}` : start || "TBD";
+        const statusLabel = row.status === "inspection_scheduled" ? "Confirmed" : "Proposed";
+        const loc = [row.building_name, row.locality].filter(Boolean).join(", ");
+        items.push({
+          type: "inspection",
+          label: `Owner Inspection — ${loc}`,
+          time: `${timeRange} (${statusLabel})`,
+        });
+      });
+
+      (visitRes.data ?? []).forEach((row: any) => {
+        const tenantName = row.tenant?.full_name ?? "Unknown";
+        const loc = [row.property?.building_name, row.property?.locality].filter(Boolean).join(", ");
+        const time = toIST12(row.scheduled_at);
+        items.push({
+          type: "visit",
+          label: `Tenant Visit — ${tenantName} at ${loc}`,
+          time,
+        });
+      });
+
+      setConflicts(items);
+      setConflictChecked(true);
+      setConflictLoading(false);
+    };
+
+    checkConflicts();
+    return () => { cancelled = true; };
+  }, [proposeDate, proposeStart, proposeModalId]);
+
   const daysSince = (row: PropertyRow) => {
     const atCol = STAGE_AT_COLUMN[row.status];
     const dateStr = (row as any)[atCol] || row.created_at;
