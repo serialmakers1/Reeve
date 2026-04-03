@@ -184,8 +184,11 @@ export default function NewApplicationPage() {
 
   // Step 3 — Employment
   const [employerName, setEmployerName] = useState("");
+  const [salarySlips, setSalarySlips] = useState<UploadedFile[]>([]);
   const [itrFile, setItrFile] = useState<UploadedFile | null>(null);
   const [bankStatement, setBankStatement] = useState<UploadedFile | null>(null);
+  const [aadhaarFile, setAadhaarFile] = useState<UploadedFile | null>(null);
+  const [panFile, setPanFile] = useState<UploadedFile | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
 
@@ -456,9 +459,13 @@ export default function NewApplicationPage() {
           url: d.file_url,
           document_type: d.document_type,
         };
-        if (d.document_type === "itr") setItrFile(f);
+        if (d.document_type === "salary_slip") slips.push(f);
+        else if (d.document_type === "itr") setItrFile(f);
         else if (d.document_type === "bank_statement") setBankStatement(f);
+        else if (d.document_type === "aadhaar") setAadhaarFile(f);
+        else if (d.document_type === "pan") setPanFile(f);
       });
+      if (slips.length) setSalarySlips(slips);
     }
 
     // Load notes
@@ -527,7 +534,7 @@ export default function NewApplicationPage() {
     const fileUrl = path;
 
     // Insert into documents table
-    type DocType = "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other";
+    type DocType = "aadhaar" | "pan" | "salary_slip" | "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other";
     type DocCategory = "tenant_kyc" | "owner_kyc" | "agreement" | "inspection" | "condition_report" | "payment_receipt" | "maintenance" | "lead";
 
     await supabase.from("documents").insert({
@@ -571,6 +578,9 @@ export default function NewApplicationPage() {
 
     if (s === 3) {
       if (!employerName.trim()) errs.employer_name = "Employer name is required";
+      if (!aadhaarFile) errs.aadhaar = "Please upload your Aadhaar card";
+      if (!panFile) errs.pan = "Please upload your PAN card";
+      if (salarySlips.length === 0) errs.salary_slips = "Please upload at least one salary slip";
     }
 
     if (s === 4) {
@@ -1140,10 +1150,16 @@ export default function NewApplicationPage() {
       for (let i = 0; i < files.length; i++) {
         const result = await uploadFile(files[i], docType);
         if (result) {
-            if (docType === "itr") {
+          if (docType === "salary_slip") {
+            setSalarySlips((prev) => [...prev, result]);
+          } else if (docType === "itr") {
             setItrFile(result);
           } else if (docType === "bank_statement") {
             setBankStatement(result);
+          } else if (docType === "aadhaar") {
+            setAadhaarFile(result);
+          } else if (docType === "pan") {
+            setPanFile(result);
           }
         }
       }
@@ -1163,7 +1179,7 @@ export default function NewApplicationPage() {
           .from("documents")
           .delete()
           .eq("application_id", applicationId!)
-          .eq("document_type", docType as "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other")
+          .eq("document_type", docType as "aadhaar" | "pan" | "salary_slip" | "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other")
           .eq("file_name", file.name);
 
         if (storageErr || dbErr) {
@@ -1173,10 +1189,16 @@ export default function NewApplicationPage() {
         }
 
         // Reset state
-      if (docType === "itr") {
+        if (docType === "salary_slip") {
+          setSalarySlips((prev) => prev.filter((_, i) => i !== fileIndex));
+        } else if (docType === "itr") {
           setItrFile(null);
         } else if (docType === "bank_statement") {
           setBankStatement(null);
+        } else if (docType === "aadhaar") {
+          setAadhaarFile(null);
+        } else if (docType === "pan") {
+          setPanFile(null);
         }
       } catch {
         toast({ title: "Could not remove file. Please try again.", variant: "destructive" });
@@ -1297,6 +1319,35 @@ export default function NewApplicationPage() {
         </div>
 
         <div className="space-y-4 pt-2">
+          <FileUploadField
+            label="Aadhaar Card"
+            required
+            docType="aadhaar"
+            files={aadhaarFile ? [aadhaarFile] : []}
+            maxFiles={1}
+            acceptPdfOnly
+            helperText="PDF — max 10MB"
+            errorField="aadhaar"
+          />
+          <FileUploadField
+            label="PAN Card"
+            required
+            docType="pan"
+            files={panFile ? [panFile] : []}
+            maxFiles={1}
+            acceptPdfOnly
+            helperText="PDF — max 10MB"
+            errorField="pan"
+          />
+          <FileUploadField
+            label="Income Proof (Salary slips (last 3 months) / Latest ITR)"
+            required
+            docType="salary_slip"
+            files={salarySlips}
+            multiple
+            maxFiles={3}
+            errorField="salary_slips"
+          />
           <FileUploadField
             label="ITR (Income Tax Return)"
             docType="itr"
@@ -1710,7 +1761,7 @@ export default function NewApplicationPage() {
             )}
             <Button
               className={`min-h-[44px] ${step === 1 ? "w-full" : "flex-1"}`}
-              disabled={saving || (step === 4 && !cibilRange)}
+              disabled={saving || (step === 4 && !cibilRange) || (step === 3 && (!aadhaarFile || !panFile || salarySlips.length === 0))}
               onClick={goNext}
             >
               {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <>Continue <ArrowRight className="ml-1 h-4 w-4" /></>}
