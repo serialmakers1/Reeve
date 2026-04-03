@@ -184,7 +184,6 @@ export default function NewApplicationPage() {
 
   // Step 3 — Employment
   const [employerName, setEmployerName] = useState("");
-  const [salarySlips, setSalarySlips] = useState<UploadedFile[]>([]);
   const [itrFile, setItrFile] = useState<UploadedFile | null>(null);
   const [bankStatement, setBankStatement] = useState<UploadedFile | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -457,11 +456,9 @@ export default function NewApplicationPage() {
           url: d.file_url,
           document_type: d.document_type,
         };
-        if (d.document_type === "salary_slip") slips.push(f);
-        else if (d.document_type === "itr") setItrFile(f);
+        if (d.document_type === "itr") setItrFile(f);
         else if (d.document_type === "bank_statement") setBankStatement(f);
       });
-      if (slips.length) setSalarySlips(slips);
     }
 
     // Load notes
@@ -530,7 +527,7 @@ export default function NewApplicationPage() {
     const fileUrl = path;
 
     // Insert into documents table
-    type DocType = "salary_slip" | "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other";
+    type DocType = "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other";
     type DocCategory = "tenant_kyc" | "owner_kyc" | "agreement" | "inspection" | "condition_report" | "payment_receipt" | "maintenance" | "lead";
 
     await supabase.from("documents").insert({
@@ -574,7 +571,6 @@ export default function NewApplicationPage() {
 
     if (s === 3) {
       if (!employerName.trim()) errs.employer_name = "Employer name is required";
-      if (salarySlips.length === 0) errs.salary_slips = "Please upload at least one salary slip";
     }
 
     if (s === 4) {
@@ -1144,9 +1140,7 @@ export default function NewApplicationPage() {
       for (let i = 0; i < files.length; i++) {
         const result = await uploadFile(files[i], docType);
         if (result) {
-          if (docType === "salary_slip") {
-            setSalarySlips((prev) => [...prev, result]);
-          } else if (docType === "itr") {
+            if (docType === "itr") {
             setItrFile(result);
           } else if (docType === "bank_statement") {
             setBankStatement(result);
@@ -1169,7 +1163,7 @@ export default function NewApplicationPage() {
           .from("documents")
           .delete()
           .eq("application_id", applicationId!)
-          .eq("document_type", docType as "salary_slip" | "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other")
+          .eq("document_type", docType as "employment_letter" | "itr" | "bank_statement" | "passport" | "visa" | "frro_registration" | "sale_deed" | "property_papers" | "society_noc" | "condition_report" | "agreement" | "receipt" | "inspection_report" | "other")
           .eq("file_name", file.name);
 
         if (storageErr || dbErr) {
@@ -1179,9 +1173,7 @@ export default function NewApplicationPage() {
         }
 
         // Reset state
-        if (docType === "salary_slip") {
-          setSalarySlips((prev) => prev.filter((_, i) => i !== fileIndex));
-        } else if (docType === "itr") {
+      if (docType === "itr") {
           setItrFile(null);
         } else if (docType === "bank_statement") {
           setBankStatement(null);
@@ -1305,15 +1297,6 @@ export default function NewApplicationPage() {
         </div>
 
         <div className="space-y-4 pt-2">
-          <FileUploadField
-            label="Income Proof (Salary slips (last 3 months) / Latest ITR)"
-            required
-            docType="salary_slip"
-            files={salarySlips}
-            multiple
-            maxFiles={3}
-            errorField="salary_slips"
-          />
           <FileUploadField
             label="ITR (Income Tax Return)"
             docType="itr"
