@@ -366,7 +366,7 @@ function LoginDrawer({
 const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, session } = useAuth();
+  const { user, session, isLoading: authLoading } = useAuth();
 
   const [property, setProperty] = useState<PropertyData | null>(null);
   const [rawAmenities, setRawAmenities] = useState<{ furnishing_items?: string[]; building?: string[] } | null>(null);
@@ -484,26 +484,44 @@ const PropertyDetail: React.FC = () => {
       const fetchedImages = (imgRes.data ?? []) as unknown as PropertyImage[];
       setImages(fetchedImages.length > 0 ? fetchedImages : PLACEHOLDER_IMAGES);
 
-      // Check session for own-property and already-applied
-      const currentUserId = user?.id;
-      setIsOwnProperty(!!(currentUserId && raw.owner_id === currentUserId));
-
-      // Fetch application history for this tenant+property
-      if (currentUserId) {
-        const { data: appHistory } = await supabase
-          .from("applications")
-          .select("id, status, attempt_number, reapplication_eligible_from, proposed_rent, created_at")
-          .eq("property_id", id)
-          .eq("tenant_id", currentUserId)
-          .order("attempt_number", { ascending: false });
-        setApplicationHistory(appHistory ?? []);
-      }
-
       setLoading(false);
     };
 
     fetchData();
   }, [id]);
+
+  // Fetch auth-dependent data (own-property flag + application history).
+  // Separate effect so it re-runs when auth resolves after mount, preventing
+  // the Apply Now button from showing for users with active applications on
+  // hard refresh or direct navigation (auth hydration race condition).
+  useEffect(() => {
+    if (authLoading) return;
+    if (!id) return;
+
+    const currentUserId = user?.id;
+
+    // Own-property detection requires property to be loaded
+    if (property) {
+      setIsOwnProperty(!!(currentUserId && property.owner_id === currentUserId));
+    }
+
+    if (!currentUserId) {
+      setApplicationHistory([]);
+      return;
+    }
+
+    const fetchApplicationHistory = async () => {
+      const { data: appHistory } = await supabase
+        .from("applications")
+        .select("id, status, attempt_number, reapplication_eligible_from, proposed_rent, created_at")
+        .eq("property_id", id)
+        .eq("tenant_id", currentUserId)
+        .order("attempt_number", { ascending: false });
+      setApplicationHistory(appHistory ?? []);
+    };
+
+    fetchApplicationHistory();
+  }, [id, user, authLoading, property]);
 
   // Carousel slide tracking
   useEffect(() => {

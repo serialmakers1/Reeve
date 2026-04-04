@@ -324,17 +324,24 @@ export default function NewApplicationPage() {
     setEligibility(elig as EligibilityData);
 
     // Check for ANY existing application (not just drafts)
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("applications")
       .select("*, application_residents(id)")
       .eq("property_id", propertyId)
       .eq("tenant_id", user.id)
       .maybeSingle();
 
-    const NON_DRAFT_STATUSES = [
-      "submitted", "platform_review", "sent_to_owner",
-      "owner_accepted", "owner_countered", "payment_pending",
-      "kyc_pending", "kyc_passed", "agreement_pending", "lease_active",
+    if (existingError) {
+      toast({ title: "Could not check application status. Please try again.", variant: "destructive" });
+      navigate(`/property/${propertyId}`);
+      setPageLoading(false);
+      return;
+    }
+
+    // Statuses where reapplication is explicitly allowed (terminal decisions + withdrawal).
+    // Must stay in sync with the NOT IN (...) list in the check_application_limits DB trigger.
+    const REAPPLICATION_ALLOWED_STATUSES = [
+      "owner_rejected", "platform_rejected", "withdrawn", "expired",
     ];
 
     if (existing && existing.status === "draft") {
@@ -343,13 +350,14 @@ export default function NewApplicationPage() {
       setExistingApplicationId(existing.id);
       loadDraft(existing as Record<string, unknown>, prop as PropertyInfo);
       setResumeBanner(true);
-    } else if (existing && NON_DRAFT_STATUSES.includes(existing.status)) {
-      // Active in-flight application — block
+    } else if (existing && existing.status !== "draft" && !REAPPLICATION_ALLOWED_STATUSES.includes(existing.status)) {
+      // Active in-flight application — block reapplication
       setProperty(prop as PropertyInfo);
       setAlreadySubmittedBlock(true);
       setPageLoading(false);
       return;
     } else {
+      // Fresh start OR existing status is in REAPPLICATION_ALLOWED_STATUSES
       // Fresh start OR reapplication after withdrawal/rejection — always INSERT a new draft
       // (existingApplicationId intentionally left null so submit uses INSERT path)
       const userId = user?.id;
@@ -857,31 +865,35 @@ export default function NewApplicationPage() {
     );
   }
 
-  if (!property || !eligibility) {
-    // Show already-submitted block if applicable
-    if (alreadySubmittedBlock && property) {
-      return (
-        <Layout>
-          <div className="mx-auto max-w-md px-4 py-16 text-center">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
-              <AlertTriangle className="h-10 w-10 text-amber-600" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">Application Already Submitted</h1>
-            <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
-              You have already submitted an application for this property.
-            </p>
-            <div className="mt-8 flex flex-col gap-3">
-              <Button className="min-h-[44px] w-full" onClick={() => navigate("/dashboard/applications")}>
-                View My Applications
-              </Button>
-              <Button variant="outline" className="min-h-[44px] w-full" onClick={() => navigate(-1)}>
-                ← Go Back
-              </Button>
-            </div>
+  // alreadySubmittedBlock must be checked BEFORE the !property || !eligibility guard.
+  // Reason: setEligibility() is called in initPage() before setAlreadySubmittedBlock(),
+  // so eligibility is always non-null when the block flag is set. Nesting this check
+  // inside !eligibility would make it dead code.
+  if (alreadySubmittedBlock) {
+    return (
+      <Layout>
+        <div className="mx-auto max-w-md px-4 py-16 text-center">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
+            <AlertTriangle className="h-10 w-10 text-amber-600" />
           </div>
-        </Layout>
-      );
-    }
+          <h1 className="text-2xl font-bold text-foreground">Application Already Submitted</h1>
+          <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+            You have already submitted an application for this property.
+          </p>
+          <div className="mt-8 flex flex-col gap-3">
+            <Button className="min-h-[44px] w-full" onClick={() => navigate("/dashboard/applications")}>
+              View My Applications
+            </Button>
+            <Button variant="outline" className="min-h-[44px] w-full" onClick={() => navigate(-1)}>
+              ← Go Back
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!property || !eligibility) {
     return null;
   }
 
