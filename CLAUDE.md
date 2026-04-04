@@ -119,3 +119,21 @@ are not allowed on any query that controls navigation or user access.
 The application history fetch in PropertyDetail.tsx depends on `user`. Its useEffect dependency
 array must include `[id, user, authLoading, property]`. Missing `user` causes the Apply Now button to
 render for users with active applications on hard refresh or direct navigation.
+
+### Never use .maybeSingle() on unfiltered multi-row application queries
+The `applications` table can have multiple rows per (tenant_id, property_id) — one per attempt
+plus possibly a current draft. Never query applications for a given tenant+property without a
+status filter if using .maybeSingle(). Always use targeted single-status or .in()-list queries.
+Multi-row .maybeSingle() causes PGRST116 errors that surface as "Could not check application status".
+
+### PropertyDetail CTA button states (in priority order)
+1. draft exists → "Continue Draft" → /apply?resume=<id>
+2. active blocking app (ACTIVE_STATUSES) → "Application in progress" text
+3. on_hold → "Another applicant has secured this property" text
+4. maxReached (decided_count >= 3) → "You've reached the maximum" text
+5. withinCooldown → cooldown date text
+6. non-draft history exists → "Apply Again" → /apply?property_id=X
+7. no history → "Apply Now" → /apply?property_id=X
+Derive each flag via .find() on the full applicationHistory array — never rely on sort order
+alone, as attempt_number ties (e.g. withdrawn + draft both at attempt 1) make ordering
+non-deterministic.
