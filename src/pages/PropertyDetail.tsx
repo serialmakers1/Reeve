@@ -642,7 +642,10 @@ const PropertyDetail: React.FC = () => {
   const depositAmount = property.listed_rent * property.security_deposit_months;
 
   // ─── Application history derived state ────────────────────────────────────
-  const latestApp = applicationHistory[0] ?? null;
+  // Derive each flag by scanning the full array rather than relying on ordering.
+  // Ordering by attempt_number alone is non-deterministic when two rows share the
+  // same attempt_number (e.g. withdrawn + draft both at attempt 1). Using .find()
+  // is explicit and ordering-independent. See CLAUDE.md Application Flow Guards.
 
   const ACTIVE_STATUSES = [
     "submitted", "platform_review", "sent_to_owner",
@@ -653,19 +656,28 @@ const PropertyDetail: React.FC = () => {
   ];
   const DECIDED_STATUSES = ["owner_rejected", "platform_rejected", "owner_accepted"];
 
+  // Draft: explicit find — not dependent on sort order
+  const draftApp = applicationHistory.find((a) => a.status === "draft") ?? null;
+  const hasDraft = draftApp !== null;
+
+  // Active blocking application: any in-flight non-draft row
+  const activeApp = applicationHistory.find((a) => ACTIVE_STATUSES.includes(a.status)) ?? null;
+  const isActive = activeApp !== null;
+
+  // For cooldown / on-hold / rejection: use the most recent non-draft row
+  const latestNonDraftApp = applicationHistory.find((a) => a.status !== "draft") ?? null;
+  const isOnHold = latestNonDraftApp?.status === "on_hold";
+  const isRejected = latestNonDraftApp != null && ["owner_rejected", "platform_rejected"].includes(latestNonDraftApp.status);
+
   const decidedCount = applicationHistory.filter((a) =>
     DECIDED_STATUSES.includes(a.status)
   ).length;
 
-  const hasDraft = latestApp?.status === "draft";
-  const isActive = latestApp != null && ACTIVE_STATUSES.includes(latestApp.status);
-  const isOnHold = latestApp?.status === "on_hold";
-  const isRejected = latestApp != null && ["owner_rejected", "platform_rejected"].includes(latestApp.status);
   const maxReached = decidedCount >= 3;
   const withinCooldown =
     isRejected &&
-    latestApp?.reapplication_eligible_from != null &&
-    new Date() < new Date(latestApp.reapplication_eligible_from);
+    latestNonDraftApp?.reapplication_eligible_from != null &&
+    new Date() < new Date(latestNonDraftApp.reapplication_eligible_from);
 
   const renderApplySection = (mobile: boolean) => {
     const btnClass = mobile ? "min-h-[48px] flex-1 text-xs font-medium whitespace-normal leading-tight" : "w-full min-h-[44px]";
@@ -673,7 +685,7 @@ const PropertyDetail: React.FC = () => {
     if (hasDraft && latestApp) {
       return (
         <Button
-          onClick={() => navigate(`/dashboard/applications/new?resume=${latestApp.id}`)}
+          onClick={() => navigate(`/dashboard/applications/new?resume=${draftApp!.id}`)}
           className={btnClass}
         >
           Continue your saved draft →
@@ -681,10 +693,10 @@ const PropertyDetail: React.FC = () => {
       );
     }
 
-    if (isActive && latestApp) {
+    if (isActive && activeApp) {
       return (
         <p className="flex-1 text-xs text-gray-600 text-center py-2 leading-tight min-h-[48px] flex items-center justify-center">
-          Application in progress · {getFriendlyStatus(latestApp.status)}
+          Application in progress · {getFriendlyStatus(activeApp.status)}
         </p>
       );
     }
@@ -705,15 +717,18 @@ const PropertyDetail: React.FC = () => {
       );
     }
 
-    if (withinCooldown && latestApp?.reapplication_eligible_from) {
+    if (withinCooldown && latestNonDraftApp?.reapplication_eligible_from) {
       return (
         <p className="text-sm text-gray-500 text-center py-2">
-          Your application was not successful. You may reapply after {format(new Date(latestApp.reapplication_eligible_from), 'd MMM yyyy')}.
+          Your application was not successful. You may reapply after {format(new Date(latestNonDraftApp.reapplication_eligible_from), 'd MMM yyyy')}.
         </p>
       );
     }
 
-    const buttonLabel = applicationHistory.length > 0 ? "Apply Again" : "Apply Now";
+    // "Apply Again" only when the user has previously submitted (non-draft history exists).
+    // A draft alone does not constitute a prior attempt.
+    const hasNonDraftHistory = applicationHistory.some((a) => a.status !== "draft");
+    const buttonLabel = hasNonDraftHistory ? "Apply Again" : "Apply Now";
     const attemptLabel =
       decidedCount === 1
         ? "This will be your 2nd application for this property."

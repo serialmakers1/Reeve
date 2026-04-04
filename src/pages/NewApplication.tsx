@@ -323,69 +323,73 @@ export default function NewApplicationPage() {
     }
     setEligibility(elig as EligibilityData);
 
-    // Check for ANY existing application (not just drafts)
-    const { data: existing, error: existingError } = await supabase
+    // Query 1: check for an existing draft to resume.
+    // Using a targeted status filter avoids PGRST116 multi-row errors — a tenant can have
+    // multiple rows (e.g. withdrawn + draft) for the same property. Never use .maybeSingle()
+    // on an unfiltered (tenant_id, property_id) query. See CLAUDE.md Application Flow Guards.
+    const { data: existingDraft, error: draftError } = await supabase
       .from("applications")
       .select("*, application_residents(id)")
       .eq("property_id", propertyId)
       .eq("tenant_id", user.id)
+      .eq("status", "draft")
       .maybeSingle();
 
-    if (existingError) {
+    if (draftError) {
       toast({ title: "Could not check application status. Please try again.", variant: "destructive" });
       navigate(`/property/${propertyId}`);
       setPageLoading(false);
       return;
     }
 
-    // Statuses where reapplication is explicitly allowed (terminal decisions + withdrawal).
-    // Must stay in sync with the NOT IN (...) list in the check_application_limits DB trigger.
-    const REAPPLICATION_ALLOWED_STATUSES = [
-      "owner_rejected", "platform_rejected", "withdrawn", "expired",
+    if (existingDraft) {
+      // Genuine draft — resume it
+      setApplicationId(existingDraft.id);
+      setExistingApplicationId(existingDraft.id);
+      loadDraft(existingDraft as Record<string, unknown>, prop as PropertyInfo);
+      setResumeBanner(true);
+      setPageLoading(false);
+      return;
+    }
+
+    // Query 2: check for an active (blocking) application.
+    // These statuses mean the application is in-flight — reapplication must be blocked.
+    // Must stay in sync with the NOT IN (...) list in the check_application_limits DB trigger
+    // and with ACTIVE_STATUSES in PropertyDetail.tsx.
+    const BLOCKING_STATUSES = [
+      "submitted", "platform_review", "sent_to_owner",
+      "owner_accepted", "owner_countered", "payment_pending",
+      "kyc_pending", "kyc_passed", "agreement_pending", "lease_active",
+      "tenant_countered", "payment_received", "kyc_failed", "on_hold",
     ];
 
-    if (existing && existing.status === "draft") {
-      // Genuine draft — resume it
-      setApplicationId(existing.id);
-      setExistingApplicationId(existing.id);
-      loadDraft(existing as Record<string, unknown>, prop as PropertyInfo);
-      setResumeBanner(true);
-    } else if (existing && existing.status !== "draft" && !REAPPLICATION_ALLOWED_STATUSES.includes(existing.status)) {
+    const { data: activeApp, error: activeError } = await supabase
+      .from("applications")
+      .select("id, status")
+      .eq("property_id", propertyId)
+      .eq("tenant_id", user.id)
+      .in("status", BLOCKING_STATUSES)
+      .maybeSingle();
+
+    if (activeError) {
+      toast({ title: "Could not check application status. Please try again.", variant: "destructive" });
+      navigate(`/property/${propertyId}`);
+      setPageLoading(false);
+      return;
+    }
+
+    if (activeApp) {
       // Active in-flight application — block reapplication
       setProperty(prop as PropertyInfo);
       setAlreadySubmittedBlock(true);
       setPageLoading(false);
       return;
-    } else {
-      // Fresh start OR existing status is in REAPPLICATION_ALLOWED_STATUSES
-      // Fresh start OR reapplication after withdrawal/rejection — always INSERT a new draft
-      // (existingApplicationId intentionally left null so submit uses INSERT path)
+    }
+
+    // Fresh start or reapplication after withdrawal/rejection — insert a new draft.
+    {
       const userId = user?.id;
       if (!userId) { setPageLoading(false); return; }
-
-      // Second guard: check if a draft already exists (race condition safety)
-      const { data: existingDraft } = await supabase
-        .from('applications')
-        .select('id')
-        .eq('property_id', propertyId)
-        .eq('tenant_id', userId)
-        .eq('status', 'draft')
-        .maybeSingle();
-
-      if (existingDraft) {
-        // Draft already exists — resume it, don't create another
-        setApplicationId(existingDraft.id);
-        setExistingApplicationId(existingDraft.id);
-        const { data: fullDraft } = await supabase
-          .from('applications')
-          .select('*, application_residents(*)')
-          .eq('id', existingDraft.id)
-          .maybeSingle();
-        if (fullDraft) loadDraft(fullDraft as Record<string, unknown>, prop as PropertyInfo);
-        setResumeBanner(true);
-        setPageLoading(false);
-        return;
-      }
 
       const { data: newApp, error } = await supabase
         .from("applications")
