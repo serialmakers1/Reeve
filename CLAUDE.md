@@ -88,3 +88,34 @@ Invoke the relevant skill when:
 - Starting any new feature or significant change → `brainstorming`
 
 Never skip a skill because the task seems simple. Read the SKILL.md, then act.
+
+## Application Flow Guards
+
+### Render guard ordering in NewApplication.tsx
+The render guard order is strict and must never be changed:
+1. `if (pageLoading)` — skeleton
+2. `if (alreadySubmittedBlock)` — block screen (MUST be top-level, NOT nested inside `!eligibility` or any other check)
+3. `if (!property || !eligibility)` — null return
+4. `if (submitted)` — success screen
+5. Full form
+
+The `alreadySubmittedBlock` guard must NEVER be nested inside `if (!property || !eligibility)`.
+Reason: `setEligibility()` is called before `setAlreadySubmittedBlock()` in `initPage()`, so
+`eligibility` is always non-null when the block flag is set. Nesting the block inside the
+eligibility check makes it dead code.
+
+### NON_DRAFT_STATUSES / REAPPLICATION_ALLOWED_STATUSES
+The allowed-reapplication statuses in `NewApplication.tsx` (`REAPPLICATION_ALLOWED_STATUSES`)
+must always match the `NOT IN (...)` list inside the `check_application_limits` DB trigger.
+If you add a new terminal status to the enum, update BOTH places atomically.
+Current allowed-reapplication statuses: `owner_rejected`, `platform_rejected`, `withdrawn`, `expired`
+
+### Supabase query error handling in initPage
+Every Supabase query in `initPage()` that gates a critical flow (block check, draft insert)
+must destructure `error` and handle it explicitly. Silent swallows (destructuring only `data`)
+are not allowed on any query that controls navigation or user access.
+
+### Auth hydration in PropertyDetail
+The application history fetch in PropertyDetail.tsx depends on `user`. Its useEffect dependency
+array must include `[id, user, authLoading, property]`. Missing `user` causes the Apply Now button to
+render for users with active applications on hard refresh or direct navigation.
