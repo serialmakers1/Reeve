@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, MapPin } from "lucide-react";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isToday, isSameDay } from "date-fns";
 
@@ -43,6 +44,7 @@ interface CalendarEvent {
   badgeLabel: string;
   badgeVariant: string;
   detail: Record<string, string | null>;
+  tenantId?: string;
 }
 
 const HOUR_START = 8;
@@ -52,6 +54,7 @@ const HOUR_HEIGHT = 60; // px per hour
 export default function FieldCalendar() {
   const { loading: authLoading, user } = useRequireAuth({ requireAdmin: true });
   const isMobile = useIsMobile();
+  const { toast } = useToast();
   const [view, setView] = useState<"week" | "day">(isMobile ? "day" : "week");
   const [currentDate, setCurrentDate] = useState(toIST(new Date()));
   const [loading, setLoading] = useState(true);
@@ -79,8 +82,8 @@ export default function FieldCalendar() {
         .in("status", ["inspection_proposed", "inspection_scheduled"]),
       supabase
         .from("visits")
-        .select("id, scheduled_at, status, property:properties!inner(building_name, locality, city), tenant:users!visits_tenant_id_fkey(full_name)")
-        .in("status", ["scheduled", "confirmed"]),
+        .select("id, scheduled_at, status, tenant_id, property:properties!inner(building_name, locality, city), tenant:users!visits_tenant_id_fkey(full_name)")
+        .in("status", ["scheduled", "confirmed", "rescheduled"]),
     ]);
 
     const mapped: CalendarEvent[] = [];
@@ -141,6 +144,7 @@ export default function FieldCalendar() {
           borderColor: "border-blue-500",
           badgeLabel: v.status === "confirmed" ? "Confirmed" : "Scheduled",
           badgeVariant: "secondary",
+          tenantId: v.tenant_id,
           detail: {
             Type: "Tenant Visit",
             Tenant: v.tenant?.full_name || "—",
@@ -286,6 +290,60 @@ export default function FieldCalendar() {
     if (hasInsp && hasVisit) return "bg-purple-500";
     if (hasVisit) return "bg-blue-500";
     return "bg-green-500";
+  }
+
+  const handleMarkComplete = async (visitId: string) => {
+    const { error } = await supabase
+      .from('visits')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', visitId)
+
+    if (error) {
+      toast({ title: 'Failed to update visit', variant: 'destructive' })
+      return
+    }
+    toast({ title: 'Visit marked as complete' })
+    fetchData()
+  }
+
+  const handleMarkNoShow = async (visitId: string, tenantId: string) => {
+    // Step 1 — update visit
+    const { error: visitError } = await supabase
+      .from('visits')
+      .update({
+        status: 'no_show',
+        no_show_at: new Date().toISOString(),
+      })
+      .eq('id', visitId)
+
+    if (visitError) {
+      toast({ title: 'Failed to update visit', variant: 'destructive' })
+      return
+    }
+
+    // Step 2 — increment no_show_count on profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, no_show_count')
+      .eq('user_id', tenantId)
+      .maybeSingle()
+
+    if (profile) {
+      const newCount = (profile.no_show_count ?? 0) + 1
+      await supabase
+        .from('profiles')
+        .update({
+          no_show_count: newCount,
+          visit_priority_low: newCount >= 2,
+        } as any)
+        .eq('id', profile.id)
+    }
+
+    toast({ title: 'Marked as no-show' })
+    fetchData()
   }
 
   if (authLoading) return null;
@@ -518,6 +576,17 @@ export default function FieldCalendar() {
                                         <span className="text-foreground text-right">{v}</span>
                                       </div>
                                     ))}
+                                  {ev.type === "visit" &&
+                                    !["completed", "no_show", "cancelled"].includes(ev.status) && (
+                                      <div className="flex gap-2 pt-1">
+                                        <Button size="sm" variant="outline" onClick={() => handleMarkComplete(ev.id)}>
+                                          Mark Complete
+                                        </Button>
+                                        <Button size="sm" variant="destructive" onClick={() => handleMarkNoShow(ev.id, ev.tenantId!)}>
+                                          No-Show
+                                        </Button>
+                                      </div>
+                                    )}
                                 </PopoverContent>
                               </Popover>
                             );

@@ -31,6 +31,18 @@ interface VisitRow {
   properties: VisitProperty | null;
 }
 
+function getTenantFacingStatus(status: string): string {
+  switch (status) {
+    case 'scheduled': return 'Scheduled'
+    case 'confirmed': return 'Confirmed'
+    case 'rescheduled': return 'Scheduled' // show as scheduled, not rescheduled
+    case 'completed': return 'Visit Done'
+    case 'cancelled': return 'Cancelled'
+    case 'no_show': return 'Missed'  // instead of 'Cancelled'
+    default: return 'Scheduled'
+  }
+}
+
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   scheduled: { label: "Scheduled", color: "bg-blue-100 text-blue-800 border-blue-200" },
   confirmed: { label: "Confirmed", color: "bg-green-100 text-green-800 border-green-200" },
@@ -205,7 +217,7 @@ export default function VisitsList() {
         >
           <div className="flex items-start justify-between gap-2">
             <span className="font-semibold text-foreground">{p.bhk} in {p.building_name}</span>
-            <Badge variant="outline" className={`shrink-0 text-[11px] ${badge.color}`}>{badge.label}</Badge>
+            <Badge variant="outline" className={`shrink-0 text-[11px] ${badge.color}`}>{getTenantFacingStatus(visit.status)}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">{p.locality}{p.locality && ","} {p.city}</p>
           <p className="text-xs text-muted-foreground">
