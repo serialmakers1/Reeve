@@ -682,7 +682,7 @@ const PropertyDetail: React.FC = () => {
   const renderApplySection = (mobile: boolean) => {
     const btnClass = mobile ? "min-h-[48px] flex-1 text-xs font-medium whitespace-normal leading-tight" : "w-full min-h-[44px]";
 
-    if (hasDraft && latestApp) {
+    if (hasDraft && draftApp) {
       return (
         <Button
           onClick={() => navigate(`/dashboard/applications/new?resume=${draftApp!.id}`)}
