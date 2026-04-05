@@ -939,7 +939,7 @@ const PropertyDetail: React.FC = () => {
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
                 <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                  🟢 1 Month Deposit Only
+                  🟢 2 Month Deposit Only
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
                   🟢 Zero Brokerage
@@ -986,8 +986,7 @@ const PropertyDetail: React.FC = () => {
                     <div className="flex justify-between items-start text-sm">
                       <span className="text-gray-500">Security Deposit</span>
                       <span className="text-gray-700 text-right font-medium">
-                        ₹{(property.listed_rent * (property.security_deposit_months ?? 1)).toLocaleString('en-IN')}
-                        <span className="text-gray-400 font-normal"> · held by Reeve</span>
+                        ₹{(property.listed_rent * (property.security_deposit_months ?? 2)).toLocaleString('en-IN')}
                       </span>
                     </div>
                     {property.society_maintenance_approx && (
