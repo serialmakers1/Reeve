@@ -456,7 +456,7 @@ function PropertyCardGrid({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: 
         </div>
         <div className="flex gap-1.5 pt-2">
           <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
-            1 Month Deposit
+            2 Month Deposit
           </span>
           <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
             Zero Brokerage
@@ -523,7 +523,7 @@ function PropertyCardList({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: 
           </div>
           <div className="flex gap-1.5">
             <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
-              1 Month Deposit
+              2 Month Deposit
             </span>
             <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
               Zero Brokerage
