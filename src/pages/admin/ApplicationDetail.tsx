@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Check, X, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Check, X, AlertTriangle, Info, Pencil } from "lucide-react";
 import { format } from "date-fns";
 
 const CONFIRMED_VIA_OPTIONS = [
@@ -150,6 +150,13 @@ export default function AdminApplicationDetail() {
   const [verifiedIncome, setVerifiedIncome] = useState<number | null>(null);
   const [savingIncome, setSavingIncome] = useState(false);
 
+  // Visit context state
+  const [visitFeedback, setVisitFeedback] = useState<{ notes: string; created_at: string }[]>([]);
+  const [tenantAdminNotes, setTenantAdminNotes] = useState<string | null>(null);
+  const [editingTenantNotes, setEditingTenantNotes] = useState(false);
+  const [tenantNotesText, setTenantNotesText] = useState("");
+  const [tenantNotesSaving, setTenantNotesSaving] = useState(false);
+
   // Owner proxy action state
   const [staffUsers, setStaffUsers] = useState<{ id: string; full_name: string }[]>([]);
   const [ownerProxyAction, setOwnerProxyAction] = useState<string>(''); // owner_accepted | owner_rejected | owner_countered
@@ -264,6 +271,49 @@ export default function AdminApplicationDetail() {
     };
     fetchDocs();
   }, [app?.tenant_id, id]);
+
+  useEffect(() => {
+    if (!app?.tenant_id || !app?.property_id) return;
+    const fetchVisitContext = async () => {
+      const [feedbackResult, profileResult] = await Promise.all([
+        supabase
+          .from("visit_events")
+          .select("notes, created_at")
+          .eq("tenant_id", app.tenant_id)
+          .eq("property_id", app.property_id)
+          .eq("note_type", "property_feedback" as any)
+          .not("notes", "is", null)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("profiles")
+          .select("admin_notes")
+          .eq("user_id", app.tenant_id)
+          .maybeSingle(),
+      ]);
+      if (feedbackResult.data) setVisitFeedback(feedbackResult.data as any);
+      const notes = (profileResult.data as any)?.admin_notes ?? null;
+      setTenantAdminNotes(notes);
+      setTenantNotesText(notes ?? "");
+    };
+    fetchVisitContext();
+  }, [app?.tenant_id, app?.property_id]);
+
+  const handleSaveTenantNotes = async () => {
+    if (!app?.tenant_id) return;
+    setTenantNotesSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ admin_notes: tenantNotesText } as any)
+      .eq("user_id", app.tenant_id);
+    if (error) {
+      toast({ title: "Failed to save notes", variant: "destructive" });
+    } else {
+      setTenantAdminNotes(tenantNotesText);
+      setEditingTenantNotes(false);
+      toast({ title: "Tenant notes saved" });
+    }
+    setTenantNotesSaving(false);
+  };
 
   const handleStatusChange = async (newStatus: string, extra?: Record<string, unknown>) => {
     if (!id) return;
@@ -618,6 +668,90 @@ export default function AdminApplicationDetail() {
             <Row label="Locality" value={app.property?.locality} />
             <Row label="BHK" value={app.property?.bhk} />
             <Row label="Listed Rent" value={formatCurrency(app.property?.listed_rent ?? null)} />
+          </CardContent>
+        </Card>
+
+        {/* Section — Visit Feedback for this Property (admin only) */}
+        <Card className="border-blue-100 bg-blue-50/40">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Info className="h-4 w-4 text-blue-500 shrink-0" />
+              Visit Feedback for this Property
+              <span className="ml-auto text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                Admin only
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {visitFeedback.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">
+                No visit feedback recorded for this property.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {visitFeedback.map((fb, i) => (
+                  <blockquote key={i} className="border-l-2 border-blue-300 pl-3">
+                    <p className="text-sm text-foreground">"{fb.notes}"</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {format(new Date(fb.created_at), "d MMM yyyy, h:mm a")}
+                    </p>
+                  </blockquote>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Section — Internal Tenant Notes (admin only) */}
+        <Card className="border-amber-100 bg-amber-50/40">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Info className="h-4 w-4 text-amber-500 shrink-0" />
+              Internal Tenant Notes
+              <span className="ml-auto text-xs font-normal text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                Admin only
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {editingTenantNotes ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={tenantNotesText}
+                  onChange={(e) => setTenantNotesText(e.target.value)}
+                  rows={3}
+                  placeholder="Internal notes about this tenant…"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" className="min-h-[36px]" disabled={tenantNotesSaving} onClick={handleSaveTenantNotes}>
+                    {tenantNotesSaving ? "Saving…" : "Save"}
+                  </Button>
+                  <Button size="sm" variant="outline" className="min-h-[36px]" onClick={() => { setEditingTenantNotes(false); setTenantNotesText(tenantAdminNotes ?? ""); }}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-2">
+                {tenantAdminNotes ? (
+                  <p className="text-sm text-foreground bg-amber-50 border border-amber-200 rounded-md px-3 py-2 flex-1">
+                    {tenantAdminNotes}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic flex-1">
+                    No internal notes for this tenant.
+                  </p>
+                )}
+                <button
+                  onClick={() => setEditingTenantNotes(true)}
+                  className="shrink-0 p-1.5 rounded hover:bg-amber-100 text-amber-600 min-h-[36px] min-w-[36px] flex items-center justify-center"
+                  title="Edit notes"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

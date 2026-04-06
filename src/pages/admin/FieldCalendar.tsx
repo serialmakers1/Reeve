@@ -5,11 +5,35 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, MapPin } from "lucide-react";
-import { format, startOfWeek, addDays, addWeeks, subWeeks, isToday, isSameDay } from "date-fns";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
+  AlertTriangle,
+  MapPin,
+  Loader2,
+} from "lucide-react";
+import {
+  format,
+  startOfWeek,
+  addDays,
+  addWeeks,
+  subWeeks,
+  isToday,
+  isSameDay,
+} from "date-fns";
+import VisitSchedulerModal from "@/components/VisitSchedulerModal";
 
 // UTC+5:30 offset in ms
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -45,6 +69,7 @@ interface CalendarEvent {
   badgeVariant: string;
   detail: Record<string, string | null>;
   tenantId?: string;
+  propertyId?: string;
 }
 
 const HOUR_START = 8;
@@ -60,6 +85,18 @@ export default function FieldCalendar() {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [activeLocality, setActiveLocality] = useState<string | null>(null);
+
+  // Reschedule state
+  const [schedulerOpen, setSchedulerOpen] = useState(false);
+  const [reschedulingEvent, setReschedulingEvent] = useState<CalendarEvent | null>(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+
+  // Notes modal state (after Mark Complete)
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [completingEvent, setCompletingEvent] = useState<CalendarEvent | null>(null);
+  const [propertyFeedback, setPropertyFeedback] = useState("");
+  const [adminNoteText, setAdminNoteText] = useState("");
+  const [notesLoading, setNotesLoading] = useState(false);
 
   // Sync mobile default
   useEffect(() => {
@@ -77,12 +114,16 @@ export default function FieldCalendar() {
     const [inspRes, visitRes] = await Promise.all([
       supabase
         .from("properties")
-        .select("id, building_name, locality, city, inspection_date, inspection_start_time, inspection_end_time, status, inspection_notes")
+        .select(
+          "id, building_name, locality, city, inspection_date, inspection_start_time, inspection_end_time, status, inspection_notes"
+        )
         .not("inspection_date", "is", null)
         .in("status", ["inspection_proposed", "inspection_scheduled"]),
       supabase
         .from("visits")
-        .select("id, scheduled_at, status, tenant_id, property:properties!inner(building_name, locality, city), tenant:users!visits_tenant_id_fkey(full_name)")
+        .select(
+          "id, property_id, scheduled_at, status, tenant_id, property:properties!inner(building_name, locality, city), tenant:users!visits_tenant_id_fkey(full_name)"
+        )
         .in("status", ["scheduled", "confirmed", "rescheduled"]),
     ]);
 
@@ -93,8 +134,12 @@ export default function FieldCalendar() {
         if (!p.inspection_date) continue;
         const dateObj = new Date(p.inspection_date + "T00:00:00Z");
         const istDate = toIST(dateObj);
-        const startH = p.inspection_start_time ? parseTimeToHours(p.inspection_start_time) : 10;
-        const endH = p.inspection_end_time ? parseTimeToHours(p.inspection_end_time) : startH + 1;
+        const startH = p.inspection_start_time
+          ? parseTimeToHours(p.inspection_start_time)
+          : 10;
+        const endH = p.inspection_end_time
+          ? parseTimeToHours(p.inspection_end_time)
+          : startH + 1;
         const isScheduled = p.status === "inspection_scheduled";
 
         mapped.push({
@@ -106,7 +151,9 @@ export default function FieldCalendar() {
           startHour: startH,
           endHour: endH,
           status: p.status,
-          color: isScheduled ? "bg-green-100 dark:bg-green-900/30" : "bg-amber-100 dark:bg-amber-900/30",
+          color: isScheduled
+            ? "bg-green-100 dark:bg-green-900/30"
+            : "bg-amber-100 dark:bg-amber-900/30",
           borderColor: isScheduled ? "border-green-500" : "border-amber-500",
           badgeLabel: isScheduled ? "Confirmed" : "Proposed",
           badgeVariant: isScheduled ? "default" : "secondary",
@@ -142,9 +189,15 @@ export default function FieldCalendar() {
           status: v.status,
           color: "bg-blue-100 dark:bg-blue-900/30",
           borderColor: "border-blue-500",
-          badgeLabel: v.status === "confirmed" ? "Confirmed" : "Scheduled",
+          badgeLabel:
+            v.status === "confirmed"
+              ? "Confirmed"
+              : v.status === "rescheduled"
+              ? "Rescheduled"
+              : "Scheduled",
           badgeVariant: "secondary",
           tenantId: v.tenant_id,
+          propertyId: v.property_id,
           detail: {
             Type: "Tenant Visit",
             Tenant: v.tenant?.full_name || "—",
@@ -162,12 +215,249 @@ export default function FieldCalendar() {
     setLoading(false);
   };
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const days = view === "week"
-    ? Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-    : [currentDate];
+  // ─── Action: Reschedule ───────────────────────────────────────────────────
 
-  const hours = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i);
+  const handleRescheduleConfirm = async (scheduledAt: Date) => {
+    if (!reschedulingEvent) return;
+    setRescheduleLoading(true);
+    try {
+      // a) Cancel old visit
+      const { error: cancelErr } = await supabase
+        .from("visits")
+        .update({
+          status: "cancelled" as any,
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: "admin",
+        })
+        .eq("id", reschedulingEvent.id);
+      if (cancelErr) throw cancelErr;
+
+      // b) Insert new rescheduled visit
+      const { data: newVisit, error: insertErr } = await supabase
+        .from("visits")
+        .insert({
+          property_id: reschedulingEvent.propertyId,
+          tenant_id: reschedulingEvent.tenantId,
+          scheduled_at: scheduledAt.toISOString(),
+          status: "rescheduled" as any,
+          rescheduled_by: "admin",
+        })
+        .select("id")
+        .maybeSingle();
+      if (insertErr) throw insertErr;
+      if (!newVisit) throw new Error("Visit insert returned no data");
+
+      // c) Log event
+      await supabase.from("visit_events").insert({
+        visit_id: newVisit.id,
+        tenant_id: reschedulingEvent.tenantId,
+        property_id: reschedulingEvent.propertyId,
+        event_type: "rescheduled",
+        initiated_by: "admin",
+        scheduled_at: scheduledAt.toISOString(),
+      });
+
+      setSchedulerOpen(false);
+      setReschedulingEvent(null);
+      toast({ title: "Visit rescheduled" });
+      fetchData();
+    } catch {
+      toast({
+        title: "Something went wrong",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRescheduleLoading(false);
+    }
+  };
+
+  // ─── Action: Cancel ───────────────────────────────────────────────────────
+
+  const handleCancel = async (ev: CalendarEvent) => {
+    const ok = window.confirm("Cancel this visit on behalf of the tenant?");
+    if (!ok) return;
+
+    try {
+      const { error } = await supabase
+        .from("visits")
+        .update({
+          status: "cancelled" as any,
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: "admin",
+        })
+        .eq("id", ev.id);
+      if (error) throw error;
+
+      await supabase.from("visit_events").insert({
+        visit_id: ev.id,
+        tenant_id: ev.tenantId,
+        property_id: ev.propertyId,
+        event_type: "cancelled",
+        initiated_by: "admin",
+      });
+
+      toast({ title: "Visit cancelled" });
+      fetchData();
+    } catch {
+      toast({
+        title: "Something went wrong",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // ─── Action: Mark Complete (step 1 — update visit, open notes modal) ──────
+
+  const handleMarkComplete = async (ev: CalendarEvent) => {
+    const { error } = await supabase
+      .from("visits")
+      .update({
+        status: "completed" as any,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", ev.id);
+
+    if (error) {
+      toast({ title: "Failed to update visit", variant: "destructive" });
+      return;
+    }
+
+    // Open notes modal
+    setCompletingEvent(ev);
+    setPropertyFeedback("");
+    setAdminNoteText("");
+    setNotesModalOpen(true);
+  };
+
+  // ─── Action: Mark Complete (step 2 — save notes) ─────────────────────────
+
+  const handleSaveNotes = async () => {
+    if (!completingEvent) return;
+    setNotesLoading(true);
+    try {
+      if (propertyFeedback.trim()) {
+        await supabase.from("visit_events").insert({
+          visit_id: completingEvent.id,
+          tenant_id: completingEvent.tenantId,
+          property_id: completingEvent.propertyId,
+          event_type: "completed",
+          initiated_by: "admin",
+          notes: propertyFeedback.trim(),
+          note_type: "property_feedback",
+        });
+      }
+
+      if (adminNoteText.trim()) {
+        await supabase.from("visit_events").insert({
+          visit_id: completingEvent.id,
+          tenant_id: completingEvent.tenantId,
+          property_id: completingEvent.propertyId,
+          event_type: "completed",
+          initiated_by: "admin",
+          notes: adminNoteText.trim(),
+          note_type: "admin_user_note",
+        });
+
+        await supabase
+          .from("profiles")
+          .update({ admin_notes: adminNoteText.trim() })
+          .eq("user_id", completingEvent.tenantId);
+      }
+
+      setNotesModalOpen(false);
+      setCompletingEvent(null);
+      toast({ title: "Visit marked complete" });
+      fetchData();
+    } catch {
+      toast({
+        title: "Something went wrong",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
+  const handleSkipNotes = () => {
+    setNotesModalOpen(false);
+    setCompletingEvent(null);
+    toast({ title: "Visit marked complete" });
+    fetchData();
+  };
+
+  // ─── Action: No-Show ─────────────────────────────────────────────────────
+
+  const handleMarkNoShow = async (ev: CalendarEvent) => {
+    const ok = window.confirm(
+      "Mark this tenant as no-show? This will increment their no-show count and may block future scheduling."
+    );
+    if (!ok) return;
+
+    // a) Update visit
+    const { error: visitError } = await supabase
+      .from("visits")
+      .update({
+        status: "no_show" as any,
+        no_show_at: new Date().toISOString(),
+      })
+      .eq("id", ev.id);
+
+    if (visitError) {
+      toast({ title: "Failed to update visit", variant: "destructive" });
+      return;
+    }
+
+    // b) Log event
+    await supabase.from("visit_events").insert({
+      visit_id: ev.id,
+      tenant_id: ev.tenantId,
+      property_id: ev.propertyId,
+      event_type: "no_show",
+      initiated_by: "admin",
+    });
+
+    // c) Get profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, no_show_count")
+      .eq("user_id", ev.tenantId!)
+      .maybeSingle();
+
+    // d) Increment no_show_count (trigger auto-sets visit_scheduling_blocked at 3)
+    if (profile) {
+      const newCount = (profile.no_show_count ?? 0) + 1;
+      await supabase
+        .from("profiles")
+        .update({ no_show_count: newCount })
+        .eq("id", profile.id);
+
+      // f) Extra toast if now blocked
+      if (newCount >= 3) {
+        toast({
+          title: "This tenant has been blocked from scheduling further visits.",
+        });
+      }
+    }
+
+    toast({ title: "Marked as no-show" });
+    fetchData();
+  };
+
+  // ─── Calendar layout helpers ──────────────────────────────────────────────
+
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const days =
+    view === "week"
+      ? Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+      : [currentDate];
+
+  const hours = Array.from(
+    { length: HOUR_END - HOUR_START },
+    (_, i) => HOUR_START + i
+  );
 
   // Visible events for current period
   const visibleEvents = useMemo(
@@ -197,7 +487,10 @@ export default function FieldCalendar() {
 
   // Locality chips data
   const localityChips = useMemo(() => {
-    const locMap = new Map<string, { count: number; types: Set<"inspection" | "visit"> }>();
+    const locMap = new Map<
+      string,
+      { count: number; types: Set<"inspection" | "visit"> }
+    >();
     for (const ev of visibleEvents) {
       const loc = getEventLocality(ev);
       if (!loc) continue;
@@ -241,7 +534,11 @@ export default function FieldCalendar() {
       arr.push(ev);
       locGroups.set(loc, arr);
     }
-    const labels: { locality: string; topHour: number; bottomHour: number }[] = [];
+    const labels: {
+      locality: string;
+      topHour: number;
+      bottomHour: number;
+    }[] = [];
     for (const [loc, evts] of locGroups) {
       if (evts.length < 2) continue;
       const minH = Math.min(...evts.map((e) => e.startHour));
@@ -292,75 +589,30 @@ export default function FieldCalendar() {
     return "bg-green-500";
   }
 
-  const handleMarkComplete = async (visitId: string) => {
-    const { error } = await supabase
-      .from('visits')
-      .update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-      })
-      .eq('id', visitId)
-
-    if (error) {
-      toast({ title: 'Failed to update visit', variant: 'destructive' })
-      return
-    }
-    toast({ title: 'Visit marked as complete' })
-    fetchData()
-  }
-
-  const handleMarkNoShow = async (visitId: string, tenantId: string) => {
-    // Step 1 — update visit
-    const { error: visitError } = await supabase
-      .from('visits')
-      .update({
-        status: 'no_show',
-        no_show_at: new Date().toISOString(),
-      })
-      .eq('id', visitId)
-
-    if (visitError) {
-      toast({ title: 'Failed to update visit', variant: 'destructive' })
-      return
-    }
-
-    // Step 2 — increment no_show_count on profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, no_show_count')
-      .eq('user_id', tenantId)
-      .maybeSingle()
-
-    if (profile) {
-      const newCount = (profile.no_show_count ?? 0) + 1
-      await supabase
-        .from('profiles')
-        .update({
-          no_show_count: newCount,
-          visit_priority_low: newCount >= 2,
-        } as any)
-        .eq('id', profile.id)
-    }
-
-    toast({ title: 'Marked as no-show' })
-    fetchData()
-  }
-
   if (authLoading) return null;
 
   const showLocalityBar = !loading && localityChips.size > 1;
 
   return (
     <AdminLayout>
-      <div className="space-y-4" onClick={(e) => {
-        // Deselect locality when clicking on grid background
-        if ((e.target as HTMLElement).closest('[data-locality-chip]') || (e.target as HTMLElement).closest('[data-event-block]')) return;
-        setActiveLocality(null);
-      }}>
+      <div
+        className="space-y-4"
+        onClick={(e) => {
+          // Deselect locality when clicking on grid background
+          if (
+            (e.target as HTMLElement).closest("[data-locality-chip]") ||
+            (e.target as HTMLElement).closest("[data-event-block]")
+          )
+            return;
+          setActiveLocality(null);
+        }}
+      >
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-foreground">Field Calendar</h1>
+            <h1 className="text-xl font-bold text-foreground">
+              Field Calendar
+            </h1>
             <p className="text-sm text-muted-foreground">
               {view === "week"
                 ? `${format(days[0], "dd MMM")} – ${format(days[days.length - 1], "dd MMM yyyy")}`
@@ -399,32 +651,41 @@ export default function FieldCalendar() {
         {/* Locality Summary Bar */}
         {showLocalityBar && (
           <div className="flex gap-2 overflow-x-auto pb-1 -mb-2">
-            {Array.from(localityChips.entries()).map(([loc, { count, types }]) => (
-              <button
-                key={loc}
-                data-locality-chip
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveLocality((prev) => (prev === loc ? null : loc));
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
-                  activeLocality === loc
-                    ? "bg-primary/10 border-primary text-primary ring-1 ring-primary/30"
-                    : "bg-card border-border text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                <span className={`h-2 w-2 rounded-full ${getChipDotColor(types)}`} />
-                {loc}
-                <span className="text-muted-foreground">({count})</span>
-              </button>
-            ))}
+            {Array.from(localityChips.entries()).map(
+              ([loc, { count, types }]) => (
+                <button
+                  key={loc}
+                  data-locality-chip
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveLocality((prev) => (prev === loc ? null : loc));
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
+                    activeLocality === loc
+                      ? "bg-primary/10 border-primary text-primary ring-1 ring-primary/30"
+                      : "bg-card border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full ${getChipDotColor(types)}`}
+                  />
+                  {loc}
+                  <span className="text-muted-foreground">({count})</span>
+                </button>
+              )
+            )}
           </div>
         )}
 
         {/* Calendar Grid */}
         {loading ? (
           <div className="border rounded-lg overflow-hidden">
-            <div className="grid gap-0" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
+            <div
+              className="grid gap-0"
+              style={{
+                gridTemplateColumns: `60px repeat(${days.length}, 1fr)`,
+              }}
+            >
               <div className="h-10 border-b bg-muted" />
               {days.map((_, i) => (
                 <Skeleton key={i} className="h-10 border-b border-l" />
@@ -433,7 +694,10 @@ export default function FieldCalendar() {
                 <>
                   <Skeleton key={`t-${hi}`} className="h-[60px] border-b" />
                   {days.map((_, di) => (
-                    <Skeleton key={`c-${hi}-${di}`} className="h-[60px] border-b border-l" />
+                    <Skeleton
+                      key={`c-${hi}-${di}`}
+                      className="h-[60px] border-b border-l"
+                    />
                   ))}
                 </>
               ))}
@@ -444,14 +708,18 @@ export default function FieldCalendar() {
             {/* Day headers */}
             <div
               className="grid sticky top-0 z-10 bg-card border-b"
-              style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}
+              style={{
+                gridTemplateColumns: `60px repeat(${days.length}, 1fr)`,
+              }}
             >
               <div className="h-12 border-r" />
               {days.map((d) => (
                 <div
                   key={d.toISOString()}
                   className={`h-12 flex flex-col items-center justify-center border-r text-sm ${
-                    isToday(d) ? "bg-primary/10 font-bold text-primary" : "text-muted-foreground"
+                    isToday(d)
+                      ? "bg-primary/10 font-bold text-primary"
+                      : "text-muted-foreground"
                   }`}
                 >
                   <span className="text-xs uppercase">{format(d, "EEE")}</span>
@@ -463,25 +731,29 @@ export default function FieldCalendar() {
             {/* Time grid */}
             <div className="relative">
               {/* Day view locality background labels */}
-              {view === "day" && dayViewLocalityLabels.map((label) => {
-                const top = (label.topHour - HOUR_START) * HOUR_HEIGHT;
-                const height = (label.bottomHour - label.topHour) * HOUR_HEIGHT;
-                return (
-                  <div
-                    key={label.locality}
-                    className="absolute right-2 pointer-events-none flex items-start justify-end z-[1]"
-                    style={{ top: `${top}px`, height: `${height}px` }}
-                  >
-                    <span className="text-[11px] font-medium text-muted-foreground/30 uppercase tracking-wider mt-1">
-                      {label.locality}
-                    </span>
-                  </div>
-                );
-              })}
+              {view === "day" &&
+                dayViewLocalityLabels.map((label) => {
+                  const top = (label.topHour - HOUR_START) * HOUR_HEIGHT;
+                  const height =
+                    (label.bottomHour - label.topHour) * HOUR_HEIGHT;
+                  return (
+                    <div
+                      key={label.locality}
+                      className="absolute right-2 pointer-events-none flex items-start justify-end z-[1]"
+                      style={{ top: `${top}px`, height: `${height}px` }}
+                    >
+                      <span className="text-[11px] font-medium text-muted-foreground/30 uppercase tracking-wider mt-1">
+                        {label.locality}
+                      </span>
+                    </div>
+                  );
+                })}
 
               <div
                 className="grid"
-                style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}
+                style={{
+                  gridTemplateColumns: `60px repeat(${days.length}, 1fr)`,
+                }}
               >
                 {hours.map((h) => (
                   <>
@@ -490,7 +762,11 @@ export default function FieldCalendar() {
                       className="h-[60px] border-r border-b flex items-start justify-end pr-2 pt-0.5"
                     >
                       <span className="text-[10px] text-muted-foreground">
-                        {h > 12 ? `${h - 12} PM` : h === 12 ? "12 PM" : `${h} AM`}
+                        {h > 12
+                          ? `${h - 12} PM`
+                          : h === 12
+                          ? "12 PM"
+                          : `${h} AM`}
                       </span>
                     </div>
                     {days.map((d) => {
@@ -507,12 +783,19 @@ export default function FieldCalendar() {
                         >
                           {slotEvents.map((ev) => {
                             const topOffset = (ev.startHour - h) * HOUR_HEIGHT;
-                            const height = Math.max((ev.endHour - ev.startHour) * HOUR_HEIGHT, 20);
+                            const height = Math.max(
+                              (ev.endHour - ev.startHour) * HOUR_HEIGHT,
+                              20
+                            );
                             const hasConflict = conflictIds.has(ev.id);
-                            const hasSameDayLoc = sameDayLocalityIds.has(ev.id);
+                            const hasSameDayLoc = sameDayLocalityIds.has(
+                              ev.id
+                            );
                             const evLocality = getEventLocality(ev);
-                            const isDimmed = activeLocality && evLocality !== activeLocality;
-                            const isHighlighted = activeLocality && evLocality === activeLocality;
+                            const isDimmed =
+                              activeLocality && evLocality !== activeLocality;
+                            const isHighlighted =
+                              activeLocality && evLocality === activeLocality;
 
                             return (
                               <Popover key={ev.id}>
@@ -520,7 +803,9 @@ export default function FieldCalendar() {
                                   <button
                                     data-event-block
                                     className={`absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-0.5 overflow-hidden text-left cursor-pointer hover:opacity-90 transition-all ${ev.color} ${ev.borderColor} ${
-                                      hasConflict ? "!border-l-red-500 ring-1 ring-red-300" : ""
+                                      hasConflict
+                                        ? "!border-l-red-500 ring-1 ring-red-300"
+                                        : ""
                                     } ${isHighlighted ? "ring-2 ring-primary/50 shadow-md" : ""} ${isDimmed ? "opacity-30" : ""}`}
                                     style={{
                                       top: `${topOffset}px`,
@@ -552,13 +837,19 @@ export default function FieldCalendar() {
                                     )}
                                   </button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-64 text-sm space-y-2" side="right">
+                                <PopoverContent
+                                  className="w-72 text-sm space-y-2"
+                                  side="right"
+                                >
                                   <div className="flex items-center justify-between">
-                                    <span className="font-semibold text-foreground">{ev.detail.Type}</span>
+                                    <span className="font-semibold text-foreground">
+                                      {ev.detail.Type}
+                                    </span>
                                     <Badge
                                       variant={ev.badgeVariant as any}
                                       className={
-                                        ev.type === "inspection" && ev.status === "inspection_scheduled"
+                                        ev.type === "inspection" &&
+                                        ev.status === "inspection_scheduled"
                                           ? "bg-green-100 text-green-800"
                                           : ev.type === "inspection"
                                           ? "bg-amber-100 text-amber-800"
@@ -571,18 +862,57 @@ export default function FieldCalendar() {
                                   {Object.entries(ev.detail)
                                     .filter(([k, v]) => k !== "Type" && v)
                                     .map(([k, v]) => (
-                                      <div key={k} className="flex justify-between gap-2">
-                                        <span className="text-muted-foreground">{k}</span>
-                                        <span className="text-foreground text-right">{v}</span>
+                                      <div
+                                        key={k}
+                                        className="flex justify-between gap-2"
+                                      >
+                                        <span className="text-muted-foreground">
+                                          {k}
+                                        </span>
+                                        <span className="text-foreground text-right">
+                                          {v}
+                                        </span>
                                       </div>
                                     ))}
+
+                                  {/* Action buttons — visits only, not in terminal state */}
                                   {ev.type === "visit" &&
-                                    !["completed", "no_show", "cancelled"].includes(ev.status) && (
-                                      <div className="flex gap-2 pt-1">
-                                        <Button size="sm" variant="outline" onClick={() => handleMarkComplete(ev.id)}>
+                                    !["completed", "no_show", "cancelled"].includes(
+                                      ev.status
+                                    ) && (
+                                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setReschedulingEvent(ev);
+                                            setSchedulerOpen(true);
+                                          }}
+                                        >
+                                          Reschedule
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleCancel(ev)}
+                                        >
+                                          Cancel
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-green-700 hover:text-green-800 hover:bg-green-50 border-green-200"
+                                          onClick={() =>
+                                            handleMarkComplete(ev)
+                                          }
+                                        >
                                           Mark Complete
                                         </Button>
-                                        <Button size="sm" variant="destructive" onClick={() => handleMarkNoShow(ev.id, ev.tenantId!)}>
+                                        <Button
+                                          size="sm"
+                                          variant="destructive"
+                                          onClick={() => handleMarkNoShow(ev)}
+                                        >
                                           No-Show
                                         </Button>
                                       </div>
@@ -605,10 +935,73 @@ export default function FieldCalendar() {
         {!loading && visibleEvents.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <CalendarDays className="h-12 w-12 mb-3 opacity-40" />
-            <p className="text-sm">No field activity this {view === "week" ? "week" : "day"}</p>
+            <p className="text-sm">
+              No field activity this {view === "week" ? "week" : "day"}
+            </p>
           </div>
         )}
       </div>
+
+      {/* Reschedule modal */}
+      <VisitSchedulerModal
+        open={schedulerOpen}
+        onClose={() => {
+          setSchedulerOpen(false);
+          setReschedulingEvent(null);
+        }}
+        onConfirm={handleRescheduleConfirm}
+        title="Reschedule Visit"
+        confirmLabel="Confirm Reschedule"
+        loading={rescheduleLoading}
+      />
+
+      {/* Post-complete notes modal */}
+      <Dialog open={notesModalOpen} onOpenChange={setNotesModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Visit Notes</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">
+                Property feedback from tenant
+              </label>
+              <Textarea
+                placeholder="What did the tenant say about the property?"
+                value={propertyFeedback}
+                onChange={(e) => setPropertyFeedback(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">
+                Internal notes about this tenant
+              </label>
+              <Textarea
+                placeholder="For internal use only. Visible when tenant applies."
+                value={adminNoteText}
+                onChange={(e) => setAdminNoteText(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="ghost"
+              onClick={handleSkipNotes}
+              disabled={notesLoading}
+            >
+              Skip
+            </Button>
+            <Button onClick={handleSaveNotes} disabled={notesLoading}>
+              {notesLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Save Notes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

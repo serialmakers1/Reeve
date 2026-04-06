@@ -51,12 +51,22 @@ Every new protected route must be wrapped in <OnboardingGuard>.
 draft → inspection_proposed → inspection_scheduled → inspected → listed → occupied → off_market
 Display labels and colors live in src/lib/propertyStatus.ts — keep display logic there.
 
-## Database Tables (22 total)
+## Database Tables (23 total)
 agreements, applications, application_notes, application_residents, documents,
 eligibility, favourites, inspection_callbacks, keys_tracking, leads, leases,
 maintenance_requests, owner_action_log, owner_bank_details, payments, profiles,
-properties, property_condition_reports, property_images, users, visits
+properties, property_condition_reports, property_images, users, visit_events, visits
 View: properties_with_flat_number
+
+## Visit Events
+- visit_events: append-only log table for all visit state changes (scheduled, rescheduled, cancelled, completed, no_show). Never update or delete rows.
+- profiles.visit_scheduling_blocked: set true automatically by trigger when no_show_count >= 3. Blocks tenant from scheduling new visits.
+- visits.rescheduled_by / visits.cancelled_by: 'tenant' or 'admin' — tracks who initiated the action.
+
+## Shared Visit Scheduler
+- VisitSchedulerModal: shared 2-step date+slot picker (src/components/VisitSchedulerModal.tsx). min=today, max=+30days. Slots: Morning(9AM)/Afternoon(12PM)/Evening(4PM). No Supabase logic — pure picker. onConfirm receives UTC Date (IST slots converted: Morning=03:30Z, Afternoon=06:30Z, Evening=10:30Z). Auto-advances to Step 2 on date pick. Used by PropertyDetail, VisitsList, FieldCalendar.
+- FieldCalendar: visits query includes rescheduled status. 4 admin actions (Reschedule/Cancel/Mark Complete/No-Show) write to both visits and visit_events. Mark Complete opens inline notes modal for property_feedback + admin_user_note. No-Show increments no_show_count and shows block toast at 3.
+- VisitsList.tsx: shows full visit_events timeline per property. Reschedule=cancel old+insert new visit+log event. Cancel=update status+log event. Both write to visit_events. Falls back to visit rows if no events exist. Blocks actions if profile.visit_scheduling_blocked=true.
 
 ## TypeScript Config
 strictNullChecks: false, noImplicitAny: false — intentional, do not tighten.
@@ -137,3 +147,9 @@ Multi-row .maybeSingle() causes PGRST116 errors that surface as "Could not check
 Derive each flag via .find() on the full applicationHistory array — never rely on sort order
 alone, as attempt_number ties (e.g. withdrawn + draft both at attempt 1) make ordering
 non-deterministic.
+
+## Admin Pages
+- /admin/visits: Visit Logs page (src/pages/admin/VisitLogs.tsx). Reads from visit_events with tenant+property joins. Client-side filtering by type/date/tenant/property/initiatedBy. Row click opens Sheet with full detail + tenant stats.
+- TenantPipeline (/admin/applications): shows no_show badges. Drawer has unblock button and admin_notes editor.
+- AdminApplicationDetail: shows visit property_feedback notes and admin_notes from profiles before review actions.
+- PropertyDetail: checks visit_scheduling_blocked before allowing visit scheduling. Uses VisitSchedulerModal.

@@ -61,7 +61,8 @@ import {
   Compass,
   CalendarDays,
 } from "lucide-react";
-import VisitSchedulingModal from "@/components/VisitSchedulingModal";
+import VisitSchedulerModal from "@/components/VisitSchedulerModal";
+import { useToast } from "@/hooks/use-toast";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -367,6 +368,7 @@ const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, session, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
 
   const [property, setProperty] = useState<PropertyData | null>(null);
   const [rawAmenities, setRawAmenities] = useState<{ furnishing_items?: string[]; building?: string[] } | null>(null);
@@ -391,6 +393,8 @@ const PropertyDetail: React.FC = () => {
   const [showVisitConfirmation, setShowVisitConfirmation] = useState(false);
   const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
   const [eligibilityChecking, setEligibilityChecking] = useState(false);
+  const [visitSchedulingBlocked, setVisitSchedulingBlocked] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
 
   // Application history
   type AppHistoryEntry = {
@@ -431,6 +435,20 @@ const PropertyDetail: React.FC = () => {
   useEffect(() => {
     fetchExistingVisit();
   }, [fetchExistingVisit]);
+
+  // Fetch tenant profile (visit_scheduling_blocked) when session is known
+  useEffect(() => {
+    if (authLoading || !session) return;
+    const fetchProfile = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("visit_scheduling_blocked, no_show_count")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      setVisitSchedulingBlocked(!!(data as any)?.visit_scheduling_blocked);
+    };
+    fetchProfile();
+  }, [authLoading, session]);
 
   // Fetch property + images
   useEffect(() => {
@@ -556,6 +574,7 @@ const PropertyDetail: React.FC = () => {
       setLoginDrawerOpen(true);
       return;
     }
+    if (visitSchedulingBlocked) return;
     // Check eligibility before opening scheduling modal
     setEligibilityChecking(true);
     const { data } = await supabase
@@ -572,6 +591,37 @@ const PropertyDetail: React.FC = () => {
     } else {
       setEligibilityGateOpen(true);
     }
+  };
+
+  const handleScheduleConfirm = async (scheduledAt: Date) => {
+    if (!session || !id) return;
+    setScheduleLoading(true);
+    const { data: visitData, error: visitError } = await supabase
+      .from("visits")
+      .insert({
+        property_id: id,
+        tenant_id: session.user.id,
+        scheduled_at: scheduledAt.toISOString(),
+        status: "scheduled" as any,
+      })
+      .select("id")
+      .single();
+    if (visitError || !visitData) {
+      toast({ title: "Failed to schedule visit. Please try again.", variant: "destructive" });
+      setScheduleLoading(false);
+      return;
+    }
+    await supabase.from("visit_events").insert({
+      visit_id: visitData.id,
+      tenant_id: session.user.id,
+      property_id: id,
+      event_type: "scheduled" as any,
+      initiated_by: "tenant" as any,
+      scheduled_at: scheduledAt.toISOString(),
+    } as any);
+    setVisitModalOpen(false);
+    setScheduleLoading(false);
+    handleVisitScheduled();
   };
 
   const handleApply = async () => {
@@ -803,19 +853,13 @@ const PropertyDetail: React.FC = () => {
       <LoginDrawer open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen} propertyId={id} />
 
       {/* Visit Scheduling Modal */}
-      {session && id && property && (
-        <VisitSchedulingModal
-          open={visitModalOpen}
-          onOpenChange={setVisitModalOpen}
-          propertyId={id}
-          userId={session.user.id}
-          buildingName={property.building_name}
-          bhk={property.bhk}
-          existingVisit={existingVisit}
-          onVisitChanged={fetchExistingVisit}
-          onVisitScheduled={handleVisitScheduled}
-        />
-      )}
+      <VisitSchedulerModal
+        open={visitModalOpen}
+        onClose={() => setVisitModalOpen(false)}
+        onConfirm={handleScheduleConfirm}
+        title="Schedule a Visit"
+        loading={scheduleLoading}
+      />
 
       <div className="mx-auto max-w-4xl pb-36 lg:pb-8">
         {/* Back button */}
@@ -1232,6 +1276,12 @@ const PropertyDetail: React.FC = () => {
                             Manage your visit →
                           </a>
                         </div>
+                      ) : visitSchedulingBlocked ? (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 space-y-1">
+                          <p className="text-sm font-medium text-amber-800">Visit scheduling is blocked</p>
+                          <p className="text-xs text-amber-700">Your account has been flagged after 3 missed visits.</p>
+                          <p className="text-xs text-amber-700">Contact us at <a href="mailto:support@reeve.in" className="underline">support@reeve.in</a> to restore access.</p>
+                        </div>
                       ) : (
                         <Button
                           onClick={handleScheduleVisit}
@@ -1274,6 +1324,11 @@ const PropertyDetail: React.FC = () => {
                 <a href="/dashboard/visits" className="text-xs text-blue-600 underline">
                   Manage →
                 </a>
+              </div>
+            ) : visitSchedulingBlocked ? (
+              <div className="flex-1 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2 min-h-[48px] flex flex-col justify-center">
+                <p className="text-xs font-medium text-amber-800">Scheduling blocked</p>
+                <p className="text-xs text-amber-700">3 missed visits — contact support@reeve.in</p>
               </div>
             ) : (
               <Button
