@@ -1,0 +1,8 @@
+## [2026-04-06] migrate | Created visit_events table, extended profiles and visits, added no-show auto-block trigger [11:33 IST]
+## [2026-04-06] feat | Created shared VisitSchedulerModal component [11:37 IST]
+## [2026-04-06] feat | Rewrote VisitsList: event timeline, fixed date picker, status labels, scheduling block [11:45 IST]
+## [2026-04-06] feat | Added 4 admin visit actions to FieldCalendar + fixed rescheduled status filter [11:52 IST]
+## [2026-04-06] feat | Built /admin/visits Visit Logs page with filters and row detail drawer [12:04 IST]
+## [2026-04-06] feat | Added no-show monitoring and unblock capability to TenantPipeline [12:18 IST]
+## [2026-04-06] feat | Surfaced visit notes and admin tenant notes in AdminApplicationDetail [12:35 IST]
+## [2026-04-06] feat | Added scheduling block gate and VisitSchedulerModal to PropertyDetail [12:52 IST]
