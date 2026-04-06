@@ -51,6 +51,14 @@ Every new protected route must be wrapped in <OnboardingGuard>.
 draft → inspection_proposed → inspection_scheduled → inspected → listed → occupied → off_market
 Display labels and colors live in src/lib/propertyStatus.ts — keep display logic there.
 
+## RLS Policy Patterns
+- Admin SELECT/UPDATE: single policy using `USING (is_admin())` — no role binding, no WITH CHECK
+- User SELECT: `USING (user_id = auth.uid())`
+- User INSERT: `WITH CHECK (auth.uid() IS NOT NULL AND user_id = auth.uid())`
+- User UPDATE (restricted): `USING (user_id = auth.uid() AND status = '<allowed_status>')`
+- `is_admin()` covers roles: admin, super_admin (no ops role in this project)
+- Multiple SELECT policies on one table are OR-ed by Postgres — separate user+admin SELECT policies are valid
+
 ## Database Tables (23 total)
 agreements, applications, application_notes, application_residents, documents,
 eligibility, favourites, inspection_callbacks, keys_tracking, leads, leases,
@@ -148,8 +156,21 @@ Derive each flag via .find() on the full applicationHistory array — never rely
 alone, as attempt_number ties (e.g. withdrawn + draft both at attempt 1) make ordering
 non-deterministic.
 
+## Callback Request Components
+- RequestCallbackButton: `src/components/RequestCallbackButton.tsx`
+  Usage: `<RequestCallbackButton context="property" propertyId={id} defaultIntent="tenant" />`
+  Checks session → redirects to /login?returnTo=<path> if unauthenticated.
+  Checks for active callback (status pending/called) before opening modal — shows toast if one exists.
+- RequestCallbackModal: `src/components/RequestCallbackModal.tsx`
+  4-step: Intent → Contact → Schedule (3A India / 3B International) → Confirm+Submit
+  Slot constants: `CALLBACK_SLOT_KEYS`, `CALLBACK_SLOT_LABELS` (exported from RequestCallbackModal.tsx)
+  IST utilities: `getISTHour()`, `formatInIST(d)`, `localTimeToIST(timeStr, tz, refDate)` — all in RequestCallbackModal.tsx
+  Auth: uses `await supabase.auth.getSession()` inside async handlers (never hook-derived user)
+  Supabase: uses `(supabase as any).from('callback_requests')` — table not yet in auto-generated types
+
 ## Admin Pages
 - /admin/visits: Visit Logs page (src/pages/admin/VisitLogs.tsx). Reads from visit_events with tenant+property joins. Client-side filtering by type/date/tenant/property/initiatedBy. Row click opens Sheet with full detail + tenant stats.
+- /admin/callbacks: Callback queue page (src/pages/admin/Callbacks.tsx). Reads from callback_requests with user+property joins. Status tabs (pending/called/completed/missed/cancelled/all) with counts. Client-side filtering by intent/type/channel/date. Row actions: mark called, mark completed, mark missed, cancel. Sheet drawer with admin_notes (saves on blur/⌘Enter).
 - TenantPipeline (/admin/applications): shows no_show badges. Drawer has unblock button and admin_notes editor.
 - AdminApplicationDetail: shows visit property_feedback notes and admin_notes from profiles before review actions.
 - PropertyDetail: checks visit_scheduling_blocked before allowing visit scheduling. Uses VisitSchedulerModal.

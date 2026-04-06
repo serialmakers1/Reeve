@@ -1,3 +1,6 @@
+## [2026-04-06] feat | Build /admin/callbacks page + App.tsx route [12:45 IST]
+## [2026-04-06] feature | Build RequestCallbackButton + RequestCallbackModal [12:30 IST]
+## [2026-04-06] migration | Create callback_requests table [12:00 IST]
 ## [2026-04-06] migrate | Created visit_events table, extended profiles and visits, added no-show auto-block trigger [11:33 IST]
 ## [2026-04-06] feat | Created shared VisitSchedulerModal component [11:37 IST]
 ## [2026-04-06] feat | Rewrote VisitsList: event timeline, fixed date picker, status labels, scheduling block [11:45 IST]
