@@ -65,6 +65,7 @@ import InspectionForm from "./pages/admin/InspectionForm";
 import Leads from "./pages/admin/Leads";
 import FieldCalendar from "./pages/admin/FieldCalendar";
 import VisitLogs from "./pages/admin/VisitLogs";
+import Callbacks from "./pages/admin/Callbacks";
 import { Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
@@ -136,6 +137,7 @@ function AppInner() {
       <Route path="/admin/inspections/:propertyId" element={<OnboardingGuard><InspectionForm /></OnboardingGuard>} />
       <Route path="/admin/calendar" element={<OnboardingGuard><FieldCalendar /></OnboardingGuard>} />
       <Route path="/admin/visits" element={<OnboardingGuard><VisitLogs /></OnboardingGuard>} />
+      <Route path="/admin/callbacks" element={<OnboardingGuard><Callbacks /></OnboardingGuard>} />
       <Route path="/admin/applications" element={<OnboardingGuard><TenantPipeline /></OnboardingGuard>} />
       <Route path="/admin/applications/:id" element={<OnboardingGuard><AdminApplicationDetail /></OnboardingGuard>} />
       <Route path="*" element={<NotFound />} />
