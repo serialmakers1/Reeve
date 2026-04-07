@@ -91,44 +91,18 @@ const CHANNEL_ICONS: Record<ContactChannel, React.ReactNode> = {
   botim: <Phone className="h-4 w-4" />,
 };
 
-// ─── IANA timezone list ───────────────────────────────────────────────────────
+// ─── Common timezone options ──────────────────────────────────────────────────
 
-const ALL_TIMEZONES: string[] = (() => {
-  try {
-    return (Intl as any).supportedValuesOf("timeZone") as string[];
-  } catch {
-    return [
-      "America/New_York",
-      "America/Chicago",
-      "America/Denver",
-      "America/Los_Angeles",
-      "America/Toronto",
-      "America/Vancouver",
-      "America/Sao_Paulo",
-      "America/Argentina/Buenos_Aires",
-      "Europe/London",
-      "Europe/Paris",
-      "Europe/Berlin",
-      "Europe/Moscow",
-      "Asia/Kolkata",
-      "Asia/Karachi",
-      "Asia/Dhaka",
-      "Asia/Dubai",
-      "Asia/Singapore",
-      "Asia/Tokyo",
-      "Asia/Shanghai",
-      "Asia/Seoul",
-      "Australia/Sydney",
-      "Australia/Melbourne",
-      "Australia/Perth",
-      "Pacific/Auckland",
-      "Pacific/Honolulu",
-      "Africa/Cairo",
-      "Africa/Nairobi",
-      "Africa/Lagos",
-    ];
-  }
-})();
+const COMMON_TIMEZONES: { label: string; value: string }[] = [
+  { label: "US East (New York)", value: "America/New_York" },
+  { label: "US Central (Chicago)", value: "America/Chicago" },
+  { label: "US Mountain (Denver)", value: "America/Denver" },
+  { label: "US West (Los Angeles)", value: "America/Los_Angeles" },
+  { label: "UK (London)", value: "Europe/London" },
+  { label: "Central Europe (Paris)", value: "Europe/Paris" },
+  { label: "Gulf (Dubai)", value: "Asia/Dubai" },
+  { label: "Singapore / KL", value: "Asia/Singapore" },
+];
 
 // ─── IST utilities (src/components/RequestCallbackModal.tsx) ─────────────────
 
@@ -248,6 +222,24 @@ export function convertISTSlotToLocal(istHour: number, timezone: string): string
   }).format(utcDate);
 }
 
+/**
+ * Returns a human-readable time range for a slot key in the given timezone.
+ * India (IST): uses CALLBACK_SLOT_LABELS directly.
+ * International: converts both slot start and end hours to local time.
+ * e.g. formatSlotRange("09_10", "America/New_York") → "11:30 PM – 12:30 AM"
+ */
+export function formatSlotRange(slotKey: string, timezone: string | null): string {
+  if (!timezone) return CALLBACK_SLOT_LABELS[slotKey] ?? slotKey;
+  if (timezone === "Asia/Kolkata") return CALLBACK_SLOT_LABELS[slotKey] ?? slotKey;
+  const parts = slotKey.split("_");
+  if (parts.length !== 2) return CALLBACK_SLOT_LABELS[slotKey] ?? slotKey;
+  const startHour = parseInt(parts[0], 10);
+  const endHour = parseInt(parts[1], 10);
+  const startStr = convertISTSlotToLocal(startHour, timezone);
+  const endStr = convertISTSlotToLocal(endHour, timezone);
+  return `${startStr} – ${endStr}`;
+}
+
 /** Derives the 1-hour slot key from an IST hour (9 → "09_10"). */
 function slotFromISTHour(istHour: number): string {
   const clamped = Math.max(9, Math.min(19, istHour));
@@ -325,10 +317,10 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   // ── Step 3B (International) ─────────────────────────────────────────────────
   const [channel, setChannel] = useState<ContactChannel | null>(null);
   const [contactHandle, setContactHandle] = useState("");
-  const [timezone, setTimezone] = useState(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone
-  );
-  const [tzSearch, setTzSearch] = useState("");
+  const [intlCountryCode, setIntlCountryCode] = useState("");
+  const [intlPhone, setIntlPhone] = useState("");
+  const [intlPhoneError, setIntlPhoneError] = useState<string | null>(null);
+  const [timezone, setTimezone] = useState("");
   const [intlSelectedDate, setIntlSelectedDate] = useState<Date | null>(null);
   const [intlSelectedSlot, setIntlSelectedSlot] = useState<string | null>(null);
   const [localTime, setLocalTime] = useState("");
@@ -356,8 +348,10 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
       setSelectedSlot(null);
       setChannel(null);
       setContactHandle("");
-      setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-      setTzSearch("");
+      setIntlCountryCode("");
+      setIntlPhone("");
+      setIntlPhoneError(null);
+      setTimezone("");
       setIntlSelectedDate(null);
       setIntlSelectedSlot(null);
       setLocalTime("");
@@ -469,17 +463,6 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
     [] // stable per mount — date changes handled by timezone
   );
 
-  // ── Filtered timezones ────────────────────────────────────────────────────────
-  const filteredTimezones = useMemo(
-    () =>
-      tzSearch
-        ? ALL_TIMEZONES.filter((tz) =>
-            tz.toLowerCase().includes(tzSearch.toLowerCase())
-          )
-        : ALL_TIMEZONES,
-    [tzSearch]
-  );
-
   // ── Live IST preview (Step 3B time input) ────────────────────────────────────
   const liveISTPreview = useMemo(() => {
     if (!localTime || nightWindow) return null;
@@ -501,6 +484,9 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
 
   const step3BValid =
     channel !== null &&
+    intlCountryCode.trim() !== "" &&
+    intlPhone.trim() !== "" &&
+    timezone !== "" &&
     intlSelectedDate !== null &&
     (nightWindow || intlSelectedSlot !== null);
 
@@ -558,10 +544,12 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
         user_id: session.user.id,
         intent,
         name: name.trim(),
-        phone: phone.trim() || null,
+        phone: isInternational ? null : (phone.trim() ? `+91${phone.trim()}` : null),
         is_international: isInternational,
         contact_channel: isInternational ? channel : "phone",
-        contact_handle: isInternational && contactHandle.trim() ? contactHandle.trim() : null,
+        contact_handle: isInternational && intlCountryCode.trim() && intlPhone.trim()
+          ? `+${intlCountryCode.trim()}${intlPhone.trim()}`
+          : null,
         timezone: isInternational ? timezone : null,
         preferred_date: preferredDate,
         preferred_slot: finalSlot,
@@ -715,35 +703,37 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
             />
           </div>
 
-          {/* Phone */}
-          <div className="space-y-1.5">
-            <Label htmlFor="cb-phone">
-              Phone number
-              {!isInternational && (
-                <span className="text-destructive"> *</span>
+          {/* Phone — India only */}
+          {!isInternational && (
+            <div className="space-y-1.5">
+              <Label htmlFor="cb-phone">
+                Phone number <span className="text-destructive">*</span>
+              </Label>
+              <div className="flex">
+                <span className="flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground select-none shrink-0">
+                  +91
+                </span>
+                <Input
+                  id="cb-phone"
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="10-digit mobile number"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setPhoneError(null);
+                  }}
+                  onBlur={validatePhone}
+                  className={cn("rounded-l-none min-h-[44px]", phoneError && "border-destructive")}
+                />
+              </div>
+              {phoneError && (
+                <p className="flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="h-3 w-3" /> {phoneError}
+                </p>
               )}
-            </Label>
-            <Input
-              id="cb-phone"
-              type="tel"
-              inputMode="numeric"
-              placeholder={
-                isInternational ? "+1 234 567 8900" : "10-digit mobile number"
-              }
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                setPhoneError(null);
-              }}
-              onBlur={validatePhone}
-              className={cn("min-h-[44px]", phoneError && "border-destructive")}
-            />
-            {phoneError && (
-              <p className="flex items-center gap-1 text-xs text-destructive">
-                <AlertCircle className="h-3 w-3" /> {phoneError}
-              </p>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* International checkbox */}
           <div className="flex items-center gap-2 pt-1">
@@ -946,43 +936,70 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
         </div>
       </div>
 
-      {/* Handle */}
+      {/* International phone */}
       <div className="space-y-1.5">
-        <Label htmlFor="cb-handle">Username / number (optional)</Label>
-        <Input
-          id="cb-handle"
-          type="text"
-          placeholder="@username or phone number"
-          value={contactHandle}
-          onChange={(e) => setContactHandle(e.target.value)}
-          className="min-h-[44px]"
-        />
+        <Label>
+          Phone number <span className="text-destructive">*</span>
+        </Label>
+        <div className="flex gap-2">
+          <div className="flex shrink-0 w-24">
+            <span className="flex items-center rounded-l-md border border-r-0 border-input bg-muted px-2 text-sm text-muted-foreground select-none shrink-0">
+              +
+            </span>
+            <Input
+              id="cb-intl-cc"
+              type="tel"
+              inputMode="numeric"
+              placeholder="1"
+              value={intlCountryCode}
+              onChange={(e) => { setIntlCountryCode(e.target.value.replace(/\D/g, "")); setIntlPhoneError(null); }}
+              className="rounded-l-none min-h-[44px] w-full"
+              aria-label="Country code"
+            />
+          </div>
+          <Input
+            id="cb-intl-phone"
+            type="tel"
+            inputMode="numeric"
+            placeholder="Phone number"
+            value={intlPhone}
+            onChange={(e) => { setIntlPhone(e.target.value.replace(/\D/g, "")); setIntlPhoneError(null); }}
+            onBlur={() => {
+              if (intlCountryCode.trim() && !intlPhone.trim()) {
+                setIntlPhoneError("Enter your phone number");
+              } else if (!intlCountryCode.trim() && intlPhone.trim()) {
+                setIntlPhoneError("Enter your country code");
+              } else {
+                setIntlPhoneError(null);
+              }
+            }}
+            className={cn("min-h-[44px] flex-1", intlPhoneError && "border-destructive")}
+            aria-label="Phone number"
+          />
+        </div>
+        {intlPhoneError && (
+          <p className="flex items-center gap-1 text-xs text-destructive">
+            <AlertCircle className="h-3 w-3" /> {intlPhoneError}
+          </p>
+        )}
       </div>
 
       {/* Timezone */}
       <div className="space-y-1.5">
-        <Label htmlFor="cb-tz-search">Your timezone</Label>
-        <Input
-          id="cb-tz-search"
-          type="text"
-          placeholder="Search timezone..."
-          value={tzSearch}
-          onChange={(e) => setTzSearch(e.target.value)}
-          className="min-h-[44px]"
-        />
+        <Label htmlFor="cb-timezone">
+          Your timezone <span className="text-destructive">*</span>
+        </Label>
         <select
+          id="cb-timezone"
           value={timezone}
-          onChange={(e) => {
-            setTimezone(e.target.value);
-            setTzSearch(e.target.value);
-          }}
-          className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
-          size={4}
+          onChange={(e) => setTimezone(e.target.value)}
+          className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 min-h-[44px]"
           aria-label="Select timezone"
         >
-          {filteredTimezones.map((tz) => (
-            <option key={tz} value={tz}>
-              {tz}
+          <option value="" disabled>Select your timezone…</option>
+          {COMMON_TIMEZONES.map(({ label, value }) => (
+            <option key={value} value={value}>
+              {label}
             </option>
           ))}
         </select>
@@ -1050,7 +1067,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
       )}
 
       {/* Night window */}
-      <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
+      {intlSelectedDate && <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
         <Checkbox
           id="cb-night"
           checked={nightWindow}
@@ -1074,7 +1091,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
             Best for US / UK / Europe — 2 AM IST is daytime for you
           </p>
         </div>
-      </div>
+      </div>}
 
       <div className="flex gap-3">
         <Button
@@ -1120,27 +1137,26 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
     if (!isInternational) {
       const dateLabel =
         selectedDate ? format(selectedDate, "EEEE, d MMMM") : "";
-      const slotLabel = selectedSlot
-        ? CALLBACK_SLOT_LABELS[selectedSlot]
-        : "";
-      const phoneDisplay = phone.trim() || "your number";
+      const phoneDisplay = phone.trim() ? `+91${phone.trim()}` : "your number";
       if (selectedSlot === "asap") {
         summaryLine = `We'll call ${phoneDisplay} within 60 minutes (during working hours)`;
       } else {
-        summaryLine = `We'll call ${phoneDisplay} on ${dateLabel} between ${slotLabel}`;
+        const slotRange = selectedSlot ? formatSlotRange(selectedSlot, "Asia/Kolkata") : "";
+        summaryLine = `We'll call ${phoneDisplay} on ${dateLabel} between ${slotRange} IST`;
       }
     } else {
-      const chLabel = channel ? CHANNEL_LABELS[channel] : "your account";
+      const phoneDisplay = intlCountryCode.trim() && intlPhone.trim()
+        ? `+${intlCountryCode.trim()}${intlPhone.trim()}`
+        : "your number";
       const dateLabel = intlSelectedDate
-        ? format(intlSelectedDate, "d MMMM")
+        ? format(intlSelectedDate, "EEEE, d MMMM")
         : "";
       if (nightWindow) {
-        summaryLine = `We'll message you on ${chLabel} on ${dateLabel} at the night window (2:00 – 3:00 AM IST)`;
+        const nightLocal = timezone ? ` (${convertISTSlotToLocal(2, timezone)} – ${convertISTSlotToLocal(3, timezone)} your time)` : "";
+        summaryLine = `We'll call ${phoneDisplay} on ${dateLabel} at the night window (2:00 – 3:00 AM IST${nightLocal})`;
       } else {
-        const localLabel = intlSelectedSlot && timezone
-          ? convertISTSlotToLocal(parseInt(intlSelectedSlot.split("_")[0], 10), timezone)
-          : intlSelectedSlot ?? "";
-        summaryLine = `We'll message you on ${chLabel} on ${dateLabel} at ${localLabel} your time`;
+        const slotRange = intlSelectedSlot ? formatSlotRange(intlSelectedSlot, timezone || null) : "";
+        summaryLine = `We'll call ${phoneDisplay} on ${dateLabel} between ${slotRange} your time`;
       }
     }
 
@@ -1174,12 +1190,20 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
             </span>
             <span className="text-foreground">{name.trim()}</span>
           </div>
-          {phone.trim() && (
+          {!isInternational && phone.trim() && (
             <div className="flex items-start gap-2">
               <span className="mt-0.5 text-xs font-medium text-muted-foreground w-16 shrink-0">
                 Phone
               </span>
-              <span className="text-foreground">{phone.trim()}</span>
+              <span className="text-foreground">+91{phone.trim()}</span>
+            </div>
+          )}
+          {isInternational && intlCountryCode.trim() && intlPhone.trim() && (
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 text-xs font-medium text-muted-foreground w-16 shrink-0">
+                Phone
+              </span>
+              <span className="text-foreground">+{intlCountryCode.trim()}{intlPhone.trim()}</span>
             </div>
           )}
           <div className="mt-1 rounded-lg bg-background border border-border p-3 text-sm text-foreground leading-relaxed">
