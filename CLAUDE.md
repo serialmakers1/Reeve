@@ -168,6 +168,10 @@ non-deterministic.
   4-step: Intent → Contact → Schedule (3A India / 3B International) → Confirm+Submit
   Slot constants: `CALLBACK_SLOT_KEYS`, `CALLBACK_SLOT_LABELS` (exported from RequestCallbackModal.tsx)
   IST utilities: `getISTHour()`, `formatInIST(d)`, `localTimeToIST(timeStr, tz, refDate)` — all in RequestCallbackModal.tsx
+  `normaliseIndianPhone(raw)` — strips +91/91 prefix from E.164 numbers before pre-filling the phone field
+  `convertISTSlotToLocal(istHour, timezone)` — converts IST slot start hour to formatted local time string using Intl API; exported
+  DialogContent uses `onInteractOutside={(e) => e.preventDefault()}` to prevent mobile backdrop tap from closing modal
+  Step 3B international: slot grid replaces free-form time input; `intlSelectedSlot` state; night window label shows local converted time
   Auth: uses `await supabase.auth.getSession()` inside async handlers (never hook-derived user)
   Supabase: uses `(supabase as any).from('callback_requests')` — table not yet in auto-generated types
 
