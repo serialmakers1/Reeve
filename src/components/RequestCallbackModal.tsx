@@ -218,6 +218,36 @@ function localTimeToIST(
   return new Date(naiveUTCMs - offsetMs);
 }
 
+/**
+ * Converts an IST slot start hour to a formatted local time string in the given timezone.
+ * e.g. convertISTSlotToLocal(9, "America/Toronto") → "11:30 PM" (previous day, but we show time only)
+ * Uses only the native Intl API.
+ */
+export function convertISTSlotToLocal(istHour: number, timezone: string): string {
+  // Build a reference UTC date: IST = UTC+5:30, so istHour:00 IST = (istHour - 5):30 UTC
+  // Use today's date in IST as the reference day
+  const now = new Date();
+  const istParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(now);
+  const istYear = parseInt(istParts.find((p) => p.type === "year")!.value, 10);
+  const istMonth = parseInt(istParts.find((p) => p.type === "month")!.value, 10) - 1;
+  const istDay = parseInt(istParts.find((p) => p.type === "day")!.value, 10);
+  // IST offset is +5:30 = 330 min = 19800s. So UTC = IST - 5:30.
+  // istHour:00 IST on istDay → UTC = Date.UTC(istYear, istMonth, istDay, istHour - 5, -30) but JS handles underflow
+  const utcMs = Date.UTC(istYear, istMonth, istDay, istHour - 5, -30, 0);
+  const utcDate = new Date(utcMs);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(utcDate);
+}
+
 /** Derives the 1-hour slot key from an IST hour (9 → "09_10"). */
 function slotFromISTHour(istHour: number): string {
   const clamped = Math.max(9, Math.min(19, istHour));
@@ -246,6 +276,13 @@ function formatDatePill(date: Date, index: number): string {
 // ─── Phone validation ─────────────────────────────────────────────────────────
 
 const PHONE_REGEX = /^[6-9]\d{9}$/;
+
+/** Strips +91 or 91 prefix from an E.164 Indian number, returning just the 10 digits. */
+function normaliseIndianPhone(raw: string): string {
+  if (raw.startsWith("+91") && raw.length === 13) return raw.slice(3);
+  if (raw.startsWith("91") && raw.length === 12) return raw.slice(2);
+  return raw;
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -293,6 +330,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   );
   const [tzSearch, setTzSearch] = useState("");
   const [intlSelectedDate, setIntlSelectedDate] = useState<Date | null>(null);
+  const [intlSelectedSlot, setIntlSelectedSlot] = useState<string | null>(null);
   const [localTime, setLocalTime] = useState("");
   const [nightWindow, setNightWindow] = useState(false);
   const [preferredDatetimeIST, setPreferredDatetimeIST] =
@@ -321,6 +359,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
       setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
       setTzSearch("");
       setIntlSelectedDate(null);
+      setIntlSelectedSlot(null);
       setLocalTime("");
       setNightWindow(false);
       setPreferredDatetimeIST(null);
@@ -358,7 +397,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
         if (cancelled) return;
         if (data) {
           setName((prev) => prev || data.full_name || "");
-          setPhone((prev) => prev || data.phone || "");
+          setPhone((prev) => prev || normaliseIndianPhone(data.phone || ""));
         }
       } finally {
         if (!cancelled) setUserLoading(false);
@@ -463,7 +502,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   const step3BValid =
     channel !== null &&
     intlSelectedDate !== null &&
-    (nightWindow || (localTime.length >= 4 && preferredDatetimeIST !== null));
+    (nightWindow || intlSelectedSlot !== null);
 
   // ── Submit ────────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -498,8 +537,20 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
           );
           finalDatetimeIST = nightWindowUTC.toISOString();
         } else {
-          finalDatetimeIST = preferredDatetimeIST!.toISOString();
-          finalSlot = slotFromISTHour(getISTHourFromDate(preferredDatetimeIST!));
+          finalSlot = intlSelectedSlot;
+          // Derive a UTC datetime for the start of the selected IST slot
+          const istStartHour = parseInt(intlSelectedSlot!.split("_")[0], 10);
+          const d = intlSelectedDate!;
+          const istParts = new Intl.DateTimeFormat("en-US", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+          }).formatToParts(d);
+          const y = parseInt(istParts.find((p) => p.type === "year")!.value, 10);
+          const mo = parseInt(istParts.find((p) => p.type === "month")!.value, 10) - 1;
+          const dy = parseInt(istParts.find((p) => p.type === "day")!.value, 10);
+          finalDatetimeIST = new Date(Date.UTC(y, mo, dy, istStartHour - 5, -30)).toISOString();
         }
       }
 
@@ -921,7 +972,10 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
         />
         <select
           value={timezone}
-          onChange={(e) => setTimezone(e.target.value)}
+          onChange={(e) => {
+            setTimezone(e.target.value);
+            setTzSearch(e.target.value);
+          }}
           className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
           size={4}
           aria-label="Select timezone"
@@ -960,6 +1014,41 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
         </div>
       </div>
 
+      {/* Slot grid */}
+      {intlSelectedDate && (
+        <div>
+          <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Time slot {timezone ? `(${timezone})` : ""}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {(CALLBACK_SLOT_KEYS.filter((k) => k !== "asap") as string[]).map((key) => {
+              const istHour = parseInt(key.split("_")[0], 10);
+              const localLabel = timezone
+                ? convertISTSlotToLocal(istHour, timezone)
+                : CALLBACK_SLOT_LABELS[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    setIntlSelectedSlot(key);
+                    setNightWindow(false);
+                  }}
+                  className={cn(
+                    "rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-all",
+                    intlSelectedSlot === key && !nightWindow
+                      ? "border-primary bg-accent shadow-sm"
+                      : "border-border bg-card hover:border-primary/40"
+                  )}
+                >
+                  {localLabel}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Night window */}
       <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
         <Checkbox
@@ -967,7 +1056,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
           checked={nightWindow}
           onCheckedChange={(v) => {
             setNightWindow(!!v);
-            if (v) setLocalTime("");
+            if (v) setIntlSelectedSlot(null);
           }}
           className="mt-0.5"
         />
@@ -977,43 +1066,15 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
             className="flex cursor-pointer items-center gap-1.5 text-sm font-medium"
           >
             <Moon className="h-4 w-4 text-muted-foreground" />
-            Night window (2:00 – 3:00 AM IST)
+            {timezone
+              ? `Night window (2:00–3:00 AM IST · ${convertISTSlotToLocal(2, timezone)} your time)`
+              : "Night window (2:00–3:00 AM IST)"}
           </Label>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Best for US / UK / Europe — 2 AM IST is daytime for you
           </p>
         </div>
       </div>
-
-      {/* Time picker */}
-      {!nightWindow && (
-        <div className="space-y-1.5">
-          <Label htmlFor="cb-time">
-            Preferred time{" "}
-            <span className="font-normal text-muted-foreground">
-              (in your local timezone)
-            </span>
-          </Label>
-          <Input
-            id="cb-time"
-            type="time"
-            value={localTime}
-            onChange={(e) => setLocalTime(e.target.value)}
-            className="min-h-[44px]"
-          />
-          {liveISTPreview && (
-            <p className="text-xs text-muted-foreground">
-              = {liveISTPreview} IST
-            </p>
-          )}
-          {timeNotice && (
-            <div className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {timeNotice}
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="flex gap-3">
         <Button
@@ -1076,10 +1137,10 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
       if (nightWindow) {
         summaryLine = `We'll message you on ${chLabel} on ${dateLabel} at the night window (2:00 – 3:00 AM IST)`;
       } else {
-        const istLabel = preferredDatetimeIST
-          ? formatInIST(preferredDatetimeIST)
-          : "";
-        summaryLine = `We'll message you on ${chLabel} on ${dateLabel} at ${localTime} your time (${istLabel} IST)`;
+        const localLabel = intlSelectedSlot && timezone
+          ? convertISTSlotToLocal(parseInt(intlSelectedSlot.split("_")[0], 10), timezone)
+          : intlSelectedSlot ?? "";
+        summaryLine = `We'll message you on ${chLabel} on ${dateLabel} at ${localLabel} your time`;
       }
     }
 
@@ -1180,21 +1241,19 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   const title =
     step === 4 && success ? "" : "Request a Callback";
 
-  const inner = (
-    <div className="space-y-4 p-4">{renderContent()}</div>
-  );
-
   // ── Dialog / Drawer ──────────────────────────────────────────────────────────
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-        <DrawerContent className="max-h-[92vh] overflow-y-auto">
+        <DrawerContent className="flex flex-col max-h-[92dvh]">
           {title && (
-            <DrawerHeader>
+            <DrawerHeader className="shrink-0">
               <DrawerTitle>{title}</DrawerTitle>
             </DrawerHeader>
           )}
-          {inner}
+          <div className="overflow-y-auto flex-1 p-4">
+            {renderContent()}
+          </div>
         </DrawerContent>
       </Drawer>
     );
@@ -1202,13 +1261,18 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
+      <DialogContent
+        className="flex flex-col max-h-[90dvh] sm:max-w-2xl overflow-hidden top-4 translate-y-0 sm:top-1/2 sm:-translate-y-1/2"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         {title && (
-          <DialogHeader>
+          <DialogHeader className="shrink-0 px-4 pt-4 pb-0">
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
         )}
-        {inner}
+        <div className="overflow-y-auto flex-1 p-4">
+          {renderContent()}
+        </div>
       </DialogContent>
     </Dialog>
   );
