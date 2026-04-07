@@ -161,6 +161,9 @@ non-deterministic.
   Usage: `<RequestCallbackButton context="property" propertyId={id} defaultIntent="tenant" />`
   Checks session → redirects to /login?returnTo=<path> if unauthenticated.
   Checks for active callback (status pending/called) before opening modal — shows toast if one exists.
+  `className` prop forwarded to inner Button — use it to override button appearance (e.g., outline, link-style).
+  Placed in: Contact.tsx (general, no props), AdminLayout.tsx (sidebar nav — via Phone icon, no component),
+    ApplicationDetail.tsx (defaultIntent="tenant" + propertyId), MyPropertyDetail.tsx (defaultIntent="owner" context="owner_landing" + propertyId).
 - RequestCallbackModal: `src/components/RequestCallbackModal.tsx`
   4-step: Intent → Contact → Schedule (3A India / 3B International) → Confirm+Submit
   Slot constants: `CALLBACK_SLOT_KEYS`, `CALLBACK_SLOT_LABELS` (exported from RequestCallbackModal.tsx)

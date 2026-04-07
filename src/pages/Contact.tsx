@@ -1,5 +1,6 @@
 import Layout from "@/components/Layout";
-import { MessageCircle, Mail } from "lucide-react";
+import { MessageCircle, Mail, Phone } from "lucide-react";
+import RequestCallbackButton from "@/components/RequestCallbackButton";
 
 const Contact = () => {
   return (
@@ -20,7 +21,7 @@ const Contact = () => {
           </p>
           <hr className="border-t border-slate-200 mt-10 mb-12" />
 
-          <div className="grid sm:grid-cols-2 gap-5 mt-4">
+          <div className="grid sm:grid-cols-3 gap-5 mt-4">
             <a
               href="https://wa.me/917899874281?text=Hi%20Reeve%2C%20I%27d%20like%20to%20get%20in%20touch"
               target="_blank"
@@ -60,6 +61,21 @@ const Contact = () => {
                 support@reeve.in →
               </span>
             </a>
+            <div className="rounded-2xl border border-slate-200 bg-[#F8FAFF] p-7 flex flex-col items-start gap-4 hover:-translate-y-0.5 hover:shadow-md transition duration-200">
+              <div className="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center shrink-0">
+                <Phone className="h-6 w-6 text-violet-600" />
+              </div>
+              <p className="text-base font-semibold text-slate-900">Request a Callback</p>
+              <p className="text-sm text-slate-500 leading-6">
+                Schedule a call with our team. We'll reach you at your preferred time.
+              </p>
+              <span className="inline-flex rounded-full bg-violet-50 border border-violet-200 px-3 py-1 text-xs font-semibold text-violet-700">
+                Available 9 AM – 8 PM IST
+              </span>
+              <RequestCallbackButton
+                className="bg-transparent hover:bg-transparent shadow-none border-0 p-0 min-h-0 h-auto text-sm font-semibold text-violet-700 hover:text-violet-800 mt-auto pt-2"
+              />
+            </div>
           </div>
 
           <div className="text-center mt-10 text-sm text-slate-400 leading-7">
