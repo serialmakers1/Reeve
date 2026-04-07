@@ -12,7 +12,6 @@ import {
   XCircle,
   Pause,
   MessageCircle,
-  Phone,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
@@ -24,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import RequestCallbackButton from "@/components/RequestCallbackButton";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   submitted: { label: "Submitted", color: "bg-blue-100 text-blue-800" },
@@ -488,14 +488,11 @@ export default function ApplicationDetail() {
                       <MessageCircle className="h-4 w-4" />
                       WhatsApp Us
                     </a>
-                    <Button
-                      variant="outline"
-                      className="min-h-[44px]"
-                      onClick={() => toast({ title: "Callback requested. Our team will reach you within 2 hours." })}
-                    >
-                      <Phone className="h-4 w-4 mr-2" />
-                      Request a Callback
-                    </Button>
+                    <RequestCallbackButton
+                      defaultIntent="tenant"
+                      propertyId={app.property_id}
+                      className="border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+                    />
                   </div>
                 </div>
               </div>

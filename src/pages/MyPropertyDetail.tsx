@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import RequestCallbackButton from "@/components/RequestCallbackButton";
 
 /* ─────────────────────────────────────────
    Types
@@ -936,12 +937,12 @@ export default function MyPropertyDetail() {
               >
                 💬 WhatsApp Reeve
               </a>
-              <a
-                href="tel:+917899874281"
-                className="flex items-center justify-center gap-2 w-full min-h-[44px] rounded-lg border border-border text-foreground text-sm font-medium px-4 py-3 hover:bg-muted transition-colors"
-              >
-                📞 Call Reeve
-              </a>
+              <RequestCallbackButton
+                defaultIntent="owner"
+                context="owner_landing"
+                propertyId={property.id}
+                className="w-full border border-border bg-transparent text-foreground hover:bg-muted hover:text-foreground transition-colors"
+              />
               <a
                 href="mailto:support@reeve.in"
                 className="flex items-center justify-center gap-2 w-full min-h-[44px] rounded-lg border border-border text-foreground text-sm font-medium px-4 py-3 hover:bg-muted transition-colors"
