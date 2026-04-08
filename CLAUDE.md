@@ -169,7 +169,7 @@ non-deterministic.
   Slot constants: `CALLBACK_SLOT_KEYS`, `CALLBACK_SLOT_LABELS` (exported from RequestCallbackModal.tsx)
   IST utilities: `getISTHour()`, `formatInIST(d)`, `localTimeToIST(timeStr, tz, refDate)` — all in RequestCallbackModal.tsx
   `normaliseIndianPhone(raw)` — strips +91/91 prefix from E.164 numbers before pre-filling the phone field
-  `convertISTSlotToLocal(istHour, timezone)` — converts IST slot start hour to formatted local time string using Intl API; exported
+  `convertISTSlotToLocal(istHour, timezone)` — returns "[start] – [end]" range string for the 1-hour IST slot starting at istHour, converted to the given timezone; exported
   `formatSlotRange(slotKey, timezone)` — returns "HH:MM AM – HH:MM PM" range for a slot key in the given timezone; exported
   DialogContent uses `onInteractOutside={(e) => e.preventDefault()}` to prevent mobile backdrop tap from closing modal
   iOS keyboard gap fix: `visualViewport` resize listener (iOS-only) sets `--modal-visual-height` + `--modal-offset-top` CSS custom props on `modalRef` (attached to DialogContent). `style={{ maxHeight: 'var(--modal-visual-height, 90dvh)' }}` on DialogContent; both scroll divs use `min-h-0` + `WebkitOverflowScrolling: touch`. Modal structure: flex-col; header flex-none; body flex-1 overflow-y-auto min-h-0; footer in body.
@@ -180,6 +180,7 @@ non-deterministic.
   Night window gated on `intlSelectedDate` selection (hidden until date is picked)
   Step 4 summary: always says "call"; India shows `+91XXXXXXXXXX`; international shows `+CC phone`; time shown as slot range
   step3BValid requires: channel + intlCountryCode + intlPhone + timezone !== "" + intlSelectedDate + (nightWindow || intlSelectedSlot)
+  Slot greying rule: `currentISTHour >= slotStartHour` for today's date, applied to both India (Step 3A) and International (Step 3B) flows; night window exempt
   Auth: uses `await supabase.auth.getSession()` inside async handlers (never hook-derived user)
   Supabase: uses `(supabase as any).from('callback_requests')` — table not yet in auto-generated types
 

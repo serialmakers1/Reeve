@@ -192,12 +192,13 @@ function localTimeToIST(
 }
 
 /**
- * Converts an IST slot start hour to a formatted local time string in the given timezone.
- * e.g. convertISTSlotToLocal(9, "America/Toronto") → "11:30 PM" (previous day, but we show time only)
+ * Converts an IST slot start hour to a formatted local time RANGE string in the given timezone.
+ * e.g. convertISTSlotToLocal(9, "America/New_York") → "10:30 PM – 11:30 PM"
+ * The range covers istHour:00 IST to (istHour+1):00 IST, both converted to local time.
  * Uses only the native Intl API.
  */
 export function convertISTSlotToLocal(istHour: number, timezone: string): string {
-  // Build a reference UTC date: IST = UTC+5:30, so istHour:00 IST = (istHour - 5):30 UTC
+  // Build reference UTC dates: IST = UTC+5:30, so istHour:00 IST = (istHour-5):-30 UTC
   // Use today's date in IST as the reference day
   const now = new Date();
   const istParts = new Intl.DateTimeFormat("en-US", {
@@ -209,16 +210,18 @@ export function convertISTSlotToLocal(istHour: number, timezone: string): string
   const istYear = parseInt(istParts.find((p) => p.type === "year")!.value, 10);
   const istMonth = parseInt(istParts.find((p) => p.type === "month")!.value, 10) - 1;
   const istDay = parseInt(istParts.find((p) => p.type === "day")!.value, 10);
-  // IST offset is +5:30 = 330 min = 19800s. So UTC = IST - 5:30.
-  // istHour:00 IST on istDay → UTC = Date.UTC(istYear, istMonth, istDay, istHour - 5, -30) but JS handles underflow
-  const utcMs = Date.UTC(istYear, istMonth, istDay, istHour - 5, -30, 0);
-  const utcDate = new Date(utcMs);
-  return new Intl.DateTimeFormat("en-US", {
+
+  const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(utcDate);
+  });
+
+  const startUtcMs = Date.UTC(istYear, istMonth, istDay, istHour - 5, -30, 0);
+  const endUtcMs = Date.UTC(istYear, istMonth, istDay, istHour + 1 - 5, -30, 0);
+
+  return `${fmt.format(new Date(startUtcMs))} – ${fmt.format(new Date(endUtcMs))}`;
 }
 
 /**
@@ -233,10 +236,8 @@ export function formatSlotRange(slotKey: string, timezone: string | null): strin
   const parts = slotKey.split("_");
   if (parts.length !== 2) return CALLBACK_SLOT_LABELS[slotKey] ?? slotKey;
   const startHour = parseInt(parts[0], 10);
-  const endHour = parseInt(parts[1], 10);
-  const startStr = convertISTSlotToLocal(startHour, timezone);
-  const endStr = convertISTSlotToLocal(endHour, timezone);
-  return `${startStr} – ${endStr}`;
+  // convertISTSlotToLocal already returns "[start] – [end]" range
+  return convertISTSlotToLocal(startHour, timezone);
 }
 
 /** Derives the 1-hour slot key from an IST hour (9 → "09_10"). */
@@ -253,8 +254,8 @@ function isSlotDisabled(slotKey: string, dateIsToday: boolean): boolean {
     return h < 9 || h >= 20;
   }
   if (!dateIsToday) return false;
-  const endHour = parseInt(slotKey.split("_")[1], 10);
-  return getISTHour() >= endHour;
+  const startHour = parseInt(slotKey.split("_")[0], 10);
+  return getISTHour() >= startHour;
 }
 
 /** Formats a date pill label: "Today" / "Tomorrow" / "Wed 9". */
@@ -919,7 +920,10 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   };
 
   // ── Step 3B: International schedule ──────────────────────────────────────────
-  const renderStep3B = () => (
+  const renderStep3B = () => {
+    const intlDateIsToday = intlSelectedDate ? isToday(intlSelectedDate) : false;
+    const currentISTHour = getISTHour();
+    return (
     <div className="space-y-4">
       <StepIndicator />
       <div>
@@ -1063,19 +1067,24 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
               const localLabel = timezone
                 ? convertISTSlotToLocal(istHour, timezone)
                 : CALLBACK_SLOT_LABELS[key];
+              const isGreyed = intlDateIsToday && currentISTHour >= istHour;
               return (
                 <button
                   key={key}
                   type="button"
+                  disabled={isGreyed}
                   onClick={() => {
                     setIntlSelectedSlot(key);
                     setNightWindow(false);
                   }}
                   className={cn(
                     "rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-all",
-                    intlSelectedSlot === key && !nightWindow
+                    intlSelectedSlot === key && !nightWindow && !isGreyed
                       ? "border-primary bg-accent shadow-sm"
-                      : "border-border bg-card hover:border-primary/40"
+                      : "border-border bg-card",
+                    isGreyed
+                      ? "cursor-not-allowed opacity-40"
+                      : "hover:border-primary/40"
                   )}
                 >
                   {localLabel}
@@ -1130,7 +1139,8 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
         </Button>
       </div>
     </div>
-  );
+    );
+  };
 
   // ── Step 4: Confirm ────────────────────────────────────────────────────────
   const renderStep4 = () => {
@@ -1172,7 +1182,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
         ? format(intlSelectedDate, "EEEE, d MMMM")
         : "";
       if (nightWindow) {
-        const nightLocal = timezone ? ` (${convertISTSlotToLocal(2, timezone)} – ${convertISTSlotToLocal(3, timezone)} your time)` : "";
+        const nightLocal = timezone ? ` (${convertISTSlotToLocal(2, timezone)} your time)` : "";
         summaryLine = `We'll call ${phoneDisplay} on ${dateLabel} at the night window (2:00 – 3:00 AM IST${nightLocal})`;
       } else {
         const slotRange = intlSelectedSlot ? formatSlotRange(intlSelectedSlot, timezone || null) : "";
