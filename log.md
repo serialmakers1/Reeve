@@ -1,3 +1,6 @@
+## [2026-04-08] security | send-sms-otp: webhook signature verification added [18:00 IST]
+## [2026-04-08] add | Edge function send-sms-otp deployed [17:30 IST]
+## [2026-04-08] migrate | DB migration: drop onboarding_completed, fix handle_new_user trigger for phone OTP [17:00 IST]
 ## [2026-04-08] fix | RequestCallbackModal: iOS keyboard gap — disable vaul repositionInputs, handle keyboard ourselves [16:00 IST]
 ## [2026-04-08] fix | RequestCallbackModal: iOS keyboard gap — visualViewport targets Drawer scroll container, not Dialog [15:00 IST]
 ## [2026-04-08] fix | RequestCallbackModal: iOS keyboard gap via structural approach — top-anchored h-dvh, overflow-y-scroll, scrollIntoView on focus [14:00 IST]
