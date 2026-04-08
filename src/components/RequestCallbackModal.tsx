@@ -1315,7 +1315,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   // ── Dialog / Drawer ──────────────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }} repositionInputs={false}>
         <DrawerContent className="flex flex-col max-h-[92dvh]">
           {title && (
             <DrawerHeader className="shrink-0">
