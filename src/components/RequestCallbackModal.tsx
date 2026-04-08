@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { addDays, startOfDay, format, isToday } from "date-fns";
 import {
   Dialog,
@@ -297,6 +297,9 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
+  // ── Drawer scroll container ref (iOS keyboard fix) ──────────────────────────
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   // ── Navigation ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState(1);
 
@@ -371,6 +374,31 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
       return () => clearTimeout(t);
     }
   }, [success, onClose]);
+
+  // ── iOS keyboard gap fix: resize Drawer scroll container via visualViewport ──
+  useEffect(() => {
+    if (!isMobile || !open) return;
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (!isIOS || !window.visualViewport) return;
+
+    const vv = window.visualViewport;
+    const update = () => {
+      if (!scrollRef.current) return;
+      if (vv.height >= window.innerHeight * 0.85) {
+        // Keyboard closed — remove inline override, let CSS take over
+        scrollRef.current.style.maxHeight = "";
+      } else {
+        // Keyboard open — constrain to space above keyboard
+        // ~120px for DrawerHeader + drag handle, ~72px bottom safe-area / nav
+        const available = Math.max(100, vv.height - 120 - 72);
+        scrollRef.current.style.maxHeight = available + "px";
+      }
+    };
+
+    update();
+    vv.addEventListener("resize", update);
+    return () => vv.removeEventListener("resize", update);
+  }, [isMobile, open]);
 
   // ── Fetch user data on step 2 ────────────────────────────────────────────────
   useEffect(() => {
@@ -576,7 +604,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   // ── iOS keyboard: scroll focused input into view after keyboard animates ──────
   const scrollToInput = (e: React.FocusEvent<HTMLInputElement>) => {
     const el = e.currentTarget;
-    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
+    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "nearest" }), 300);
   };
 
   // ── Step indicator ────────────────────────────────────────────────────────────
@@ -1295,6 +1323,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
             </DrawerHeader>
           )}
           <div
+            ref={scrollRef}
             className="overflow-y-scroll flex-1 min-h-0 p-4"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
