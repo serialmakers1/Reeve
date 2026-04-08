@@ -103,11 +103,30 @@ export default function Profile() {
     };
   }, []);
 
-  // After Google OAuth return: refresh user then consume pendingReturnTo
+  // After Google OAuth return: write email_verified to public.users, refresh, consume pendingReturnTo
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, authSession) => {
       if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        // If the session now has a verified email (i.e. Google identity was linked),
+        // write it back to public.users so our gate reads it correctly.
+        const uid = authSession?.user?.id;
+        const email = authSession?.user?.email;
+        const hasEmailIdentity = (authSession?.user as any)?.identities?.some(
+          (i: any) => i.provider === "google" || i.provider === "email"
+        );
+        if (uid && email && hasEmailIdentity) {
+          await supabase
+            .from("users")
+            .update({
+              email,
+              email_verified: true,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", uid);
+        }
+
         await refreshUser();
+
         const raw = localStorage.getItem("pendingReturnTo");
         if (raw) {
           try {
