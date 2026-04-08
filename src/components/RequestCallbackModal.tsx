@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { addDays, startOfDay, format, isToday } from "date-fns";
 import {
   Dialog,
@@ -297,6 +297,9 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
+  // ── iOS visual viewport ref ─────────────────────────────────────────────────
+  const modalRef = useRef<HTMLDivElement>(null);
+
   // ── Navigation ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState(1);
 
@@ -371,6 +374,24 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
       return () => clearTimeout(t);
     }
   }, [success, onClose]);
+
+  // ── iOS keyboard gap fix: sync modal height to visual viewport ──────────────
+  useEffect(() => {
+    if (!open) return;
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (!isIOS || !window.visualViewport) return;
+
+    const vv = window.visualViewport;
+    const update = () => {
+      if (!modalRef.current) return;
+      modalRef.current.style.setProperty("--modal-visual-height", vv.height + "px");
+      modalRef.current.style.setProperty("--modal-offset-top", vv.offsetTop + "px");
+    };
+
+    update(); // set initial values immediately
+    vv.addEventListener("resize", update);
+    return () => vv.removeEventListener("resize", update);
+  }, [open]);
 
   // ── Fetch user data on step 2 ────────────────────────────────────────────────
   useEffect(() => {
@@ -1275,7 +1296,10 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
               <DrawerTitle>{title}</DrawerTitle>
             </DrawerHeader>
           )}
-          <div className="overflow-y-auto flex-1 p-4">
+          <div
+            className="overflow-y-auto flex-1 min-h-0 p-4"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
             {renderContent()}
           </div>
         </DrawerContent>
@@ -1286,7 +1310,9 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
+        ref={modalRef}
         className="flex flex-col max-h-[90dvh] sm:max-w-2xl overflow-hidden top-4 translate-y-0 sm:top-1/2 sm:-translate-y-1/2"
+        style={{ maxHeight: "var(--modal-visual-height, 90dvh)" }}
         onInteractOutside={(e) => e.preventDefault()}
       >
         {title && (
@@ -1294,7 +1320,10 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
         )}
-        <div className="overflow-y-auto flex-1 p-4">
+        <div
+          className="overflow-y-auto flex-1 min-h-0 p-4"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           {renderContent()}
         </div>
       </DialogContent>

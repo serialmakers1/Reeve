@@ -172,6 +172,7 @@ non-deterministic.
   `convertISTSlotToLocal(istHour, timezone)` — converts IST slot start hour to formatted local time string using Intl API; exported
   `formatSlotRange(slotKey, timezone)` — returns "HH:MM AM – HH:MM PM" range for a slot key in the given timezone; exported
   DialogContent uses `onInteractOutside={(e) => e.preventDefault()}` to prevent mobile backdrop tap from closing modal
+  iOS keyboard gap fix: `visualViewport` resize listener (iOS-only) sets `--modal-visual-height` + `--modal-offset-top` CSS custom props on `modalRef` (attached to DialogContent). `style={{ maxHeight: 'var(--modal-visual-height, 90dvh)' }}` on DialogContent; both scroll divs use `min-h-0` + `WebkitOverflowScrolling: touch`. Modal structure: flex-col; header flex-none; body flex-1 overflow-y-auto min-h-0; footer in body.
   Step 2: India phone = `+91 (fixed prefix span) + 10-digit Input`; stored as `+91XXXXXXXXXX` in DB
   Step 3B international: slot grid replaces free-form time input; `intlSelectedSlot` state; night window label shows local converted time
   Step 3B timezone: simple 8-option `<select>` (COMMON_TIMEZONES); no search; initial value = `""` (required field)
