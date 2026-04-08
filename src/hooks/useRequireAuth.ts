@@ -2,8 +2,6 @@ import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
-const REGULAR_USER_ROLES = new Set(['user', 'tenant', 'owner']);
-
 export function useRequireAuth({ requireAdmin = false }: { requireAdmin?: boolean } = {}) {
   const { session, user, isLoading, isAuthenticated, signOut, refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -28,16 +26,6 @@ export function useRequireAuth({ requireAdmin = false }: { requireAdmin?: boolea
         navigate('/', { replace: true });
         return;
       }
-    }
-
-    // Don't redirect from onboarding — it would loop
-    const currentPath = window.location.pathname;
-    if (currentPath === '/onboarding') return;
-
-    // Regular users who haven't completed onboarding → /onboarding
-    const isRegularUser = user && REGULAR_USER_ROLES.has(user.role);
-    if (isRegularUser && user && !user.onboarding_completed) {
-      navigate('/onboarding?redirectTo=' + encodeURIComponent(currentPath), { replace: true });
     }
   }, [isAuthenticated, isLoading, user, navigate, location, requireAdmin]);
 

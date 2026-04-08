@@ -6,30 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-
-const OnboardingGuard = ({ children }: { children: React.ReactNode }) => {
-  const navigate = useNavigate();
-
-  React.useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) return; // not logged in — per-page guards handle this
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('onboarding_completed')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-      if (userData && userData.onboarding_completed === false) {
-        navigate('/onboarding', { replace: true });
-      }
-    };
-    check();
-  }, [navigate]);
-
-  return <>{children}</>;
-};
 import Index from "./pages/Index";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
@@ -54,7 +30,6 @@ import PropertyEdit from "./pages/admin/PropertyEdit";
 import AdminProperties from "./pages/admin/Properties";
 import TenantPipeline from "./pages/admin/TenantPipeline";
 import AdminApplicationDetail from "./pages/admin/ApplicationDetail";
-import Onboarding from "./pages/Onboarding";
 import MyProperties from "./pages/MyProperties";
 import MyPropertyNew from "./pages/MyPropertyNew";
 import MyPropertyDetail from "./pages/MyPropertyDetail";
@@ -108,38 +83,36 @@ function AppInner() {
       <Route path="/contact" element={<Contact />} />
       <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
       <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
-      <Route path="/onboarding" element={<Onboarding />} />
-      <Route path="/eligibility" element={<OnboardingGuard><Eligibility /></OnboardingGuard>} />
-      <Route path="/my-properties" element={<OnboardingGuard><MyProperties /></OnboardingGuard>} />
-      <Route path="/my-properties/new" element={<OnboardingGuard><MyPropertyNew /></OnboardingGuard>} />
-      <Route path="/my-properties/:id" element={<OnboardingGuard><MyPropertyDetail /></OnboardingGuard>} />
-      <Route path="/my-properties/:propertyId/applications/:applicationId" element={<OnboardingGuard><OwnerApplicationDetail /></OnboardingGuard>} />
-      <Route path="/profile" element={<OnboardingGuard><Profile /></OnboardingGuard>} />
+      <Route path="/eligibility" element={<Eligibility />} />
+      <Route path="/my-properties" element={<MyProperties />} />
+      <Route path="/my-properties/new" element={<MyPropertyNew />} />
+      <Route path="/my-properties/:id" element={<MyPropertyDetail />} />
+      <Route path="/my-properties/:propertyId/applications/:applicationId" element={<OwnerApplicationDetail />} />
+      <Route path="/profile" element={<Profile />} />
       <Route path="/owner" element={<Navigate to="/my-properties" replace />} />
       <Route path="/owner/dashboard" element={<Navigate to="/my-properties" replace />} />
       <Route path="/owner/properties/new" element={<Navigate to="/my-properties/new" replace />} />
       <Route path="/owner/properties/:id" element={<Navigate to="/my-properties" replace />} />
       <Route path="/owner/applications/:id" element={<Navigate to="/dashboard/applications" replace />} />
-      <Route path="/owner/onboarding" element={<Navigate to="/onboarding" replace />} />
-      <Route path="/dashboard" element={<OnboardingGuard><Dashboard /></OnboardingGuard>} />
-      <Route path="/dashboard/favourites" element={<OnboardingGuard><DashboardFavourites /></OnboardingGuard>} />
-      <Route path="/dashboard/applications" element={<OnboardingGuard><ApplicationsList /></OnboardingGuard>} />
-      <Route path="/dashboard/applications/new" element={<OnboardingGuard><NewApplication /></OnboardingGuard>} />
-      <Route path="/dashboard/visits" element={<OnboardingGuard><VisitsList /></OnboardingGuard>} />
-      <Route path="/dashboard/applications/:id" element={<OnboardingGuard><ApplicationDetail /></OnboardingGuard>} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
+      <Route path="/dashboard/applications" element={<ApplicationsList />} />
+      <Route path="/dashboard/applications/new" element={<NewApplication />} />
+      <Route path="/dashboard/visits" element={<VisitsList />} />
+      <Route path="/dashboard/applications/:id" element={<ApplicationDetail />} />
       <Route path="/admin" element={<Navigate to="/admin/owners" replace />} />
       <Route path="/admin/tenants" element={<Navigate to="/admin/applications" replace />} />
-      <Route path="/admin/owners" element={<OnboardingGuard><OwnerPipeline /></OnboardingGuard>} />
-      <Route path="/admin/leads" element={<OnboardingGuard><Leads /></OnboardingGuard>} />
-      <Route path="/admin/properties" element={<OnboardingGuard><AdminProperties /></OnboardingGuard>} />
-      <Route path="/admin/properties/:id" element={<OnboardingGuard><PropertyEdit /></OnboardingGuard>} />
-      <Route path="/admin/inspections" element={<OnboardingGuard><InspectionsList /></OnboardingGuard>} />
-      <Route path="/admin/inspections/:propertyId" element={<OnboardingGuard><InspectionForm /></OnboardingGuard>} />
-      <Route path="/admin/calendar" element={<OnboardingGuard><FieldCalendar /></OnboardingGuard>} />
-      <Route path="/admin/visits" element={<OnboardingGuard><VisitLogs /></OnboardingGuard>} />
-      <Route path="/admin/callbacks" element={<OnboardingGuard><Callbacks /></OnboardingGuard>} />
-      <Route path="/admin/applications" element={<OnboardingGuard><TenantPipeline /></OnboardingGuard>} />
-      <Route path="/admin/applications/:id" element={<OnboardingGuard><AdminApplicationDetail /></OnboardingGuard>} />
+      <Route path="/admin/owners" element={<OwnerPipeline />} />
+      <Route path="/admin/leads" element={<Leads />} />
+      <Route path="/admin/properties" element={<AdminProperties />} />
+      <Route path="/admin/properties/:id" element={<PropertyEdit />} />
+      <Route path="/admin/inspections" element={<InspectionsList />} />
+      <Route path="/admin/inspections/:propertyId" element={<InspectionForm />} />
+      <Route path="/admin/calendar" element={<FieldCalendar />} />
+      <Route path="/admin/visits" element={<VisitLogs />} />
+      <Route path="/admin/callbacks" element={<Callbacks />} />
+      <Route path="/admin/applications" element={<TenantPipeline />} />
+      <Route path="/admin/applications/:id" element={<AdminApplicationDetail />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
