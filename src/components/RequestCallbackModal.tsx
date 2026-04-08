@@ -94,14 +94,13 @@ const CHANNEL_ICONS: Record<ContactChannel, React.ReactNode> = {
 // ─── Common timezone options ──────────────────────────────────────────────────
 
 const COMMON_TIMEZONES: { label: string; value: string }[] = [
-  { label: "US East (New York)", value: "America/New_York" },
-  { label: "US Central (Chicago)", value: "America/Chicago" },
-  { label: "US Mountain (Denver)", value: "America/Denver" },
-  { label: "US West (Los Angeles)", value: "America/Los_Angeles" },
-  { label: "UK (London)", value: "Europe/London" },
-  { label: "Central Europe (Paris)", value: "Europe/Paris" },
-  { label: "Gulf (Dubai)", value: "Asia/Dubai" },
-  { label: "Singapore / KL", value: "Asia/Singapore" },
+  { label: "India (IST, UTC+5:30)", value: "Asia/Kolkata" },
+  { label: "UAE / Gulf (GST, UTC+4)", value: "Asia/Dubai" },
+  { label: "UK (GMT/BST, UTC+0/+1)", value: "Europe/London" },
+  { label: "Singapore / Malaysia (SGT, UTC+8)", value: "Asia/Singapore" },
+  { label: "Australia – Sydney (AEDT, UTC+10/+11)", value: "Australia/Sydney" },
+  { label: "USA – East Coast (EST, UTC-5/-4)", value: "America/New_York" },
+  { label: "USA – West Coast (PST, UTC-8/-7)", value: "America/Los_Angeles" },
 ];
 
 // ─── IST utilities (src/components/RequestCallbackModal.tsx) ─────────────────
