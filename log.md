@@ -1,3 +1,4 @@
+## [2026-04-08] fix | RequestCallbackModal: iOS keyboard gap via structural approach — top-anchored h-dvh, overflow-y-scroll, scrollIntoView on focus [14:00 IST]
 ## [2026-04-08] fix | RequestCallbackModal: slot ranges, night window range, greying rule >= for India and international [13:00 IST]
 ## [2026-04-08] fix | RequestCallbackModal: correct timezone select to 7 options [12:30 IST]
 ## [2026-04-08] fix | RequestCallbackModal: iOS keyboard gap via visualViewport listener [12:00 IST]

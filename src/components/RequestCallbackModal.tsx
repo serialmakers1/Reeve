@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { addDays, startOfDay, format, isToday } from "date-fns";
 import {
   Dialog,
@@ -297,9 +297,6 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
-  // ── iOS visual viewport ref ─────────────────────────────────────────────────
-  const modalRef = useRef<HTMLDivElement>(null);
-
   // ── Navigation ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState(1);
 
@@ -374,24 +371,6 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
       return () => clearTimeout(t);
     }
   }, [success, onClose]);
-
-  // ── iOS keyboard gap fix: sync modal height to visual viewport ──────────────
-  useEffect(() => {
-    if (!open) return;
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    if (!isIOS || !window.visualViewport) return;
-
-    const vv = window.visualViewport;
-    const update = () => {
-      if (!modalRef.current) return;
-      modalRef.current.style.setProperty("--modal-visual-height", vv.height + "px");
-      modalRef.current.style.setProperty("--modal-offset-top", vv.offsetTop + "px");
-    };
-
-    update(); // set initial values immediately
-    vv.addEventListener("resize", update);
-    return () => vv.removeEventListener("resize", update);
-  }, [open]);
 
   // ── Fetch user data on step 2 ────────────────────────────────────────────────
   useEffect(() => {
@@ -594,6 +573,12 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
     }
   };
 
+  // ── iOS keyboard: scroll focused input into view after keyboard animates ──────
+  const scrollToInput = (e: React.FocusEvent<HTMLInputElement>) => {
+    const el = e.currentTarget;
+    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
+  };
+
   // ── Step indicator ────────────────────────────────────────────────────────────
   const StepIndicator = () => (
     <div className="flex items-center justify-center gap-1.5 pb-2">
@@ -720,6 +705,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
               placeholder="Your name"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onFocus={scrollToInput}
               className="min-h-[44px]"
             />
           </div>
@@ -745,6 +731,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
                     setPhoneError(null);
                   }}
                   onBlur={validatePhone}
+                  onFocus={scrollToInput}
                   className={cn("rounded-l-none min-h-[44px]", phoneError && "border-destructive")}
                 />
               </div>
@@ -977,6 +964,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
               placeholder="1"
               value={intlCountryCode}
               onChange={(e) => { setIntlCountryCode(e.target.value.replace(/\D/g, "")); setIntlPhoneError(null); }}
+              onFocus={scrollToInput}
               className="rounded-l-none min-h-[44px] w-full"
               aria-label="Country code"
             />
@@ -997,6 +985,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
                 setIntlPhoneError(null);
               }
             }}
+            onFocus={scrollToInput}
             className={cn("min-h-[44px] flex-1", intlPhoneError && "border-destructive")}
             aria-label="Phone number"
           />
@@ -1306,7 +1295,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
             </DrawerHeader>
           )}
           <div
-            className="overflow-y-auto flex-1 min-h-0 p-4"
+            className="overflow-y-scroll flex-1 min-h-0 p-4"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             {renderContent()}
@@ -1319,9 +1308,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
-        ref={modalRef}
-        className="flex flex-col max-h-[90dvh] sm:max-w-2xl overflow-hidden top-4 translate-y-0 sm:top-1/2 sm:-translate-y-1/2"
-        style={{ maxHeight: "var(--modal-visual-height, 90dvh)" }}
+        className="flex flex-col h-dvh sm:h-auto sm:max-w-2xl sm:max-h-[90dvh] overflow-hidden top-0 translate-y-0 rounded-none sm:rounded-lg sm:top-1/2 sm:-translate-y-1/2"
         onInteractOutside={(e) => e.preventDefault()}
       >
         {title && (
@@ -1330,7 +1317,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
           </DialogHeader>
         )}
         <div
-          className="overflow-y-auto flex-1 min-h-0 p-4"
+          className="overflow-y-scroll flex-1 min-h-0 p-4"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {renderContent()}

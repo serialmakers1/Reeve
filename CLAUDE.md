@@ -172,7 +172,7 @@ non-deterministic.
   `convertISTSlotToLocal(istHour, timezone)` — returns "[start] – [end]" range string for the 1-hour IST slot starting at istHour, converted to the given timezone; exported
   `formatSlotRange(slotKey, timezone)` — returns "HH:MM AM – HH:MM PM" range for a slot key in the given timezone; exported
   DialogContent uses `onInteractOutside={(e) => e.preventDefault()}` to prevent mobile backdrop tap from closing modal
-  iOS keyboard gap fix: `visualViewport` resize listener (iOS-only) sets `--modal-visual-height` + `--modal-offset-top` CSS custom props on `modalRef` (attached to DialogContent). `style={{ maxHeight: 'var(--modal-visual-height, 90dvh)' }}` on DialogContent; both scroll divs use `min-h-0` + `WebkitOverflowScrolling: touch`. Modal structure: flex-col; header flex-none; body flex-1 overflow-y-auto min-h-0; footer in body.
+  iOS keyboard gap fix: structural approach — no visualViewport listener. DialogContent uses `h-dvh sm:h-auto sm:max-h-[90dvh] top-0 translate-y-0 sm:top-1/2 sm:-translate-y-1/2 rounded-none sm:rounded-lg`. Both scroll divs use `overflow-y-scroll` (not auto) + `WebkitOverflowScrolling: touch` + `flex-1 min-h-0`. All text/tel inputs have `onFocus={scrollToInput}` (100ms `scrollIntoView nearest smooth`). Modal structure: flex-col; header flex-none; body flex-1 overflow-y-scroll min-h-0.
   Step 2: India phone = `+91 (fixed prefix span) + 10-digit Input`; stored as `+91XXXXXXXXXX` in DB
   Step 3B international: slot grid replaces free-form time input; `intlSelectedSlot` state; night window label shows local converted time
   Step 3B timezone: simple 8-option `<select>` (COMMON_TIMEZONES); no search; initial value = `""` (required field)
