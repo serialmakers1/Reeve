@@ -1,3 +1,5 @@
+## [2026-04-08] fix | RequestCallbackModal: iOS keyboard gap via visualViewport listener [12:00 IST]
+## [2026-04-07] fix | Fix 6 UI/logic bugs in RequestCallbackModal: +91 prefix, timezone select, intl phone fields, night window gate, step 4 phone display, call/range summary [12:00 IST]
 ## [2026-04-07] fix | Fix 4 bugs in RequestCallbackModal: phone normalise, modal size, mobile keyboard, timezone slots [11:00 IST]
 ## [2026-04-07] feature | Wire RequestCallbackButton into Contact, Admin sidebar, ApplicationDetail, MyPropertyDetail [10:00 IST]
 ## [2026-04-06] feat | Build /admin/callbacks page + App.tsx route [12:45 IST]
