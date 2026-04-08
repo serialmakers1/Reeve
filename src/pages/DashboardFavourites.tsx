@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Heart, Search, X } from "lucide-react";
@@ -51,8 +51,8 @@ function furnishingLabel(f: string): string {
 
 export default function DashboardFavourites() {
   const navigate = useNavigate();
-  const { user, isLoading: authLoading } = useAuth();
-  const { isFavourited, toggleFavourite, isLoggedIn, loading: favLoading } = useFavourites();
+  const { user, loading: authLoading } = useRequireAuth();
+  const { isFavourited, toggleFavourite, loading: favLoading } = useFavourites();
 
   const [properties, setProperties] = useState<FavProperty[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,10 +61,6 @@ export default function DashboardFavourites() {
 
   useEffect(() => {
     if (authLoading || favLoading) return;
-    if (!isLoggedIn) {
-      navigate("/login");
-      return;
-    }
 
     const fetchData = async () => {
       if (!user?.id) return;
@@ -130,7 +126,7 @@ export default function DashboardFavourites() {
     };
 
     fetchData();
-  }, [authLoading, favLoading, isLoggedIn, navigate, user?.id]);
+  }, [authLoading, favLoading, user?.id]);
 
   const handleUnfavourite = async (propertyId: string) => {
     await toggleFavourite(propertyId);

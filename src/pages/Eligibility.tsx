@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import posthog from "posthog-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,7 +97,7 @@ function formatIndianRupee(n: number): string {
 
 export default function EligibilityPage() {
   const navigate = useNavigate();
-  const { user, session, isLoading: authLoading } = useAuth();
+  const { user, session, loading: authLoading } = useRequireAuth();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
   const propertyIdParam = searchParams.get('property_id');
@@ -190,10 +190,7 @@ export default function EligibilityPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user?.id) {
-      setPageView('login');
-      return;
-    }
+    if (!user?.id) return;
     loadExisting(user.id);
   }, [user?.id, authLoading, loadExisting]);
 

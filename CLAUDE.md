@@ -26,9 +26,13 @@ npm run test       # vitest
 - Always use apply_migration for DDL. Never raw SQL for schema changes.
 
 ## Auth Architecture
-- Auth system: phone OTP (MSG91) + Google OAuth. Email OTP is legacy — do not use for new flows.
+- Auth system: phone OTP (MSG91) + Google OAuth. Email OTP removed — do not use for new flows.
+- Login: phone 10-digit input → `+91` prefix → SMS OTP via `signInWithOtp({ phone })`. Google OAuth as equal-weight alternative.
+- After verify success: navigate to `returnTo || '/'` — no onboarding check, no redirectByRole.
 - `handle_new_user` trigger fires for phone OTP users (phone_confirmed_at IS NOT NULL) — no longer email-only.
-- `ensure_user_exists` DB function is kept but must NOT be called from frontend code.
+- `ensure_user_exists` DB function kept in DB but must NOT be called from frontend code.
+- `useAuth` AppUser: `phone_verified`, `email_verified`, `auth_provider` fields added; `onboarding_completed` removed.
+- `useRequireAuth` returns `loading` (not `isLoading`) — use `loading: authLoading` when aliasing.
 - `send-sms-otp` edge function deployed — Supabase Send SMS Hook handler, delivers OTP via MSG91.
   MSG91_TEMPLATE_ID: 1207177503631409147, sender: REEVPM.
   Secrets required: MSG91_AUTH_KEY, MSG91_TEMPLATE_ID (set via `supabase secrets set`).
@@ -46,8 +50,9 @@ user | tenant | owner | admin | super_admin
 Post-login redirect handled by authUtils.getDefaultRouteForRole(role)
 
 ## Route Guards
-All authenticated routes use <OnboardingGuard>. Every new protected route must be wrapped in <OnboardingGuard>.
-NOTE: `onboarding_completed` column has been dropped from `public.users` — do not reference it in any new code.
+All route protection is via `useRequireAuth()` inside the page component — no wrapper in App.tsx.
+OnboardingGuard has been removed. Do not add it back.
+`onboarding_completed` column dropped from DB and removed from code — do not reference in any new code.
 
 ## Layout Rules
 - All public/tenant pages use <Layout> (src/components/Layout.tsx) — includes Header + Footer

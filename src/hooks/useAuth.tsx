@@ -11,7 +11,9 @@ export interface AppUser {
   full_name: string;
   phone: string | null;
   role: UserRole;
-  onboarding_completed: boolean;
+  phone_verified: boolean;
+  email_verified: boolean;
+  auth_provider: string | null;
 }
 
 interface AuthState {
@@ -24,7 +26,7 @@ interface AuthState {
 async function fetchUserRow(userId: string): Promise<AppUser | null> {
   const { data } = await supabase
     .from("users")
-    .select("id, email, full_name, phone, role, onboarding_completed")
+    .select("id, email, full_name, phone, role, phone_verified, email_verified, auth_provider")
     .eq("id", userId)
     .maybeSingle();
 
@@ -35,7 +37,9 @@ async function fetchUserRow(userId: string): Promise<AppUser | null> {
     full_name: data.full_name ?? "",
     phone: data.phone ?? null,
     role: data.role as UserRole,
-    onboarding_completed: data.onboarding_completed ?? false,
+    phone_verified: data.phone_verified ?? false,
+    email_verified: data.email_verified ?? false,
+    auth_provider: data.auth_provider ?? null,
   };
 }
 
@@ -65,11 +69,6 @@ export function useAuth() {
     fetchingRef.current = true;
 
     try {
-      // Ensure user row exists — idempotent, covers all session paths
-      // (fresh sign-in, token refresh, and session bootstrap from localStorage)
-      const { error: rpcError } = await supabase.rpc('ensure_user_exists');
-      if (rpcError) console.error('ensure_user_exists error:', rpcError);
-
       const appUser = await fetchUserWithRetry(session.user.id);
       setState({
         session,

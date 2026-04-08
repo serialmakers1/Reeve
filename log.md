@@ -1,3 +1,4 @@
+## [2026-04-08] refactor | Core auth: phone OTP + Google OAuth, remove onboarding, fix route protection [18:30 IST]
 ## [2026-04-08] security | send-sms-otp: webhook signature verification added [18:00 IST]
 ## [2026-04-08] add | Edge function send-sms-otp deployed [17:30 IST]
 ## [2026-04-08] migrate | DB migration: drop onboarding_completed, fix handle_new_user trigger for phone OTP [17:00 IST]
