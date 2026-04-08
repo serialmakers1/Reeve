@@ -575,6 +575,23 @@ const PropertyDetail: React.FC = () => {
       return;
     }
     if (visitSchedulingBlocked) return;
+
+    // Dual verification gate — fresh DB read
+    const { data: verif } = await supabase
+      .from("users")
+      .select("phone_verified, email_verified")
+      .eq("id", session.user.id)
+      .single();
+    if (!verif?.phone_verified || !verif?.email_verified) {
+      localStorage.setItem(
+        "pendingReturnTo",
+        JSON.stringify({ url: window.location.pathname + window.location.search, ts: Date.now() })
+      );
+      posthog?.capture("verification_gate_shown", { trigger: "schedule_visit" });
+      navigate("/profile");
+      return;
+    }
+
     // Check eligibility before opening scheduling modal
     setEligibilityChecking(true);
     const { data } = await supabase

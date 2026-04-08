@@ -1,3 +1,4 @@
+## [2026-04-08] feat | Profile redesign: 4-section layout (name, phone OTP verify, Google link, emergency contact) + dual verification gate on Schedule Visit and Apply [19:30 IST]
 ## [2026-04-08] refactor | Core auth: phone OTP + Google OAuth, remove onboarding, fix route protection [18:30 IST]
 ## [2026-04-08] security | send-sms-otp: webhook signature verification added [18:00 IST]
 ## [2026-04-08] add | Edge function send-sms-otp deployed [17:30 IST]

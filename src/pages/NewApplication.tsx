@@ -743,10 +743,28 @@ export default function NewApplicationPage() {
 
   const handleSubmit = async () => {
     if (!validate(8)) return;
+
+    // Dual verification gate — fresh DB read
+    if (session?.user?.id) {
+      const { data: verif } = await supabase
+        .from("users")
+        .select("phone_verified, email_verified")
+        .eq("id", session.user.id)
+        .single();
+      if (!verif?.phone_verified || !verif?.email_verified) {
+        localStorage.setItem(
+          "pendingReturnTo",
+          JSON.stringify({ url: window.location.pathname + window.location.search, ts: Date.now() })
+        );
+        posthog?.capture("verification_gate_shown", { trigger: "apply" });
+        navigate("/profile");
+        return;
+      }
+    }
+
     setSaving(true);
 
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    const userId = currentSession?.user?.id;
+    const userId = session?.user?.id;
 
     const rent = rentChoice === "accept" ? property!.listed_rent : Number(proposedRent);
     const now = new Date().toISOString();
