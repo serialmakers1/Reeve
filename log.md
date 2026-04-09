@@ -1,3 +1,4 @@
+## [2026-04-09] diagnose | Profile phone+Google linking diagnostic [13:30 IST]
 ## [2026-04-09] fix | useAuth: retry loadUser on null row to fix trigger race condition [13:00 IST]
 ## [2026-04-09] fix | Login: fix Google OAuth redirect — remove !user guard from redirect useEffect [12:30 IST]
 ## [2026-04-09] fix | Add on_auth_user_updated trigger for phone OTP user row creation [11:30 IST]

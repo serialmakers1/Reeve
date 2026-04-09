@@ -195,6 +195,7 @@ export default function Profile() {
   };
 
   const handleSendPhoneOtp = async () => {
+    console.log('SEND_OTP_START', { newPhone });
     const digits = newPhone.replace(/\D/g, "");
     if (digits.length !== 10) {
       setPhoneError("Please enter a valid 10-digit number.");
@@ -203,17 +204,31 @@ export default function Profile() {
     setPhoneSending(true);
     setPhoneError(null);
 
-    const { error } = await supabase.auth.updateUser({ phone: "+91" + digits });
-    setPhoneSending(false);
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log('SEND_OTP_SESSION', {
+      hasSession: !!sessionData?.session,
+      userId: sessionData?.session?.user?.id,
+      phone: "+91" + digits,
+    });
 
-    if (error) {
-      setPhoneError(error.message || "Could not send OTP. Please try again.");
-      return;
+    try {
+      const { error } = await supabase.auth.updateUser({ phone: "+91" + digits });
+      console.log('SEND_OTP_RESULT', { error: JSON.stringify(error) });
+      setPhoneSending(false);
+
+      if (error) {
+        setPhoneError(error.message || "Could not send OTP. Please try again.");
+        return;
+      }
+
+      setPhoneStep("otp");
+      setPhoneOtp("");
+      startPhoneCooldown();
+    } catch (e) {
+      console.log('SEND_OTP_THREW', { e: String(e) });
+      setPhoneSending(false);
+      setPhoneError("Could not send OTP. Please try again.");
     }
-
-    setPhoneStep("otp");
-    setPhoneOtp("");
-    startPhoneCooldown();
   };
 
   const handleVerifyPhoneOtp = async () => {
@@ -259,6 +274,7 @@ export default function Profile() {
   // ─── Handlers: Section 3 ──────────────────────────────────────────────────
 
   const handleLinkGoogle = async () => {
+    console.log("LINK_GOOGLE_START");
     setGoogleLinking(true);
     // Store return URL before navigating away
     localStorage.setItem(
@@ -266,12 +282,14 @@ export default function Profile() {
       JSON.stringify({ url: "/profile", ts: Date.now() })
     );
     posthog?.capture("google_link_initiated");
-    const { error } = await supabase.auth.linkIdentity({
+    console.log("LINK_GOOGLE_CALLING_LINK_IDENTITY", { redirectTo: window.location.origin + "/profile" });
+    const { data, error } = await supabase.auth.linkIdentity({
       provider: "google",
       options: {
         redirectTo: window.location.origin + "/profile",
       },
     });
+    console.log("LINK_GOOGLE_LINK_IDENTITY_RESULT", { data, error });
     if (error) {
       setGoogleLinking(false);
       localStorage.removeItem("pendingReturnTo");
