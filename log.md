@@ -1,3 +1,4 @@
+## [2026-04-09] fix | send-sms-otp: fix Content-Type header on hook response — Supabase Auth requires application/json on all responses [10:00 IST]
 ## [2026-04-08] fix | send-sms-otp: fix webhook secret extraction — pass raw base64 string to Webhook constructor, not decoded bytes [20:00 IST]
 ## [2026-04-08] feat | Profile redesign: 4-section layout (name, phone OTP verify, Google link, emergency contact) + dual verification gate on Schedule Visit and Apply [19:30 IST]
 ## [2026-04-08] refactor | Core auth: phone OTP + Google OAuth, remove onboarding, fix route protection [18:30 IST]

@@ -84,7 +84,10 @@ Deno.serve(async (req: Request) => {
     if (!rawPhone || !otp) {
       // Malformed payload — log and return 200 to avoid infinite Supabase retries
       console.error("MSG91_FAILURE | malformed_payload | missing phone or otp");
-      return new Response(null, { status: 200 });
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // D) Strip leading + so MSG91 receives E.164 without the plus
@@ -136,15 +139,25 @@ Deno.serve(async (req: Request) => {
       console.error(
         `MSG91_FAILURE | phone_suffix=${phoneSuffix} | status=${msg91Res.status} | body=${body}`,
       );
-      return new Response(null, { status: 200 });
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    // J) Success — empty body (Supabase hook requirement: must be exactly empty, not {})
-    return new Response(null, { status: 200 });
+    // J) Success — return empty JSON object with Content-Type: application/json
+    // Supabase Auth hook requires Content-Type: application/json on all responses.
+    return new Response(JSON.stringify({}), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (err) {
     // K) Catch-all — log and return 200 to prevent infinite Supabase retries
     const error = err instanceof Error ? err.message : String(err);
     console.error(`MSG91_FAILURE | unexpected_error=${error}`);
-    return new Response(null, { status: 200 });
+    return new Response(JSON.stringify({}), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 });
