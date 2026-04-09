@@ -206,7 +206,7 @@ export default function Profile() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         phone: "+91" + digits,
-        options: { shouldCreateUser: false },
+        options: { shouldCreateUser: true },
       });
       setPhoneSending(false);
 

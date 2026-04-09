@@ -1,3 +1,4 @@
+## [2026-04-09] fix | Profile: fix shouldCreateUser for phone OTP [14:15 IST]
 ## [2026-04-09] fix | Profile: fix phone OTP for Google OAuth users [14:00 IST]
 ## [2026-04-09] diagnose | Profile phone+Google linking diagnostic [13:30 IST]
 ## [2026-04-09] fix | useAuth: retry loadUser on null row to fix trigger race condition [13:00 IST]
