@@ -95,6 +95,8 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
 
+    // DIAGNOSTIC — remove after investigation
+    console.log("SIGNIN_PAYLOAD:", JSON.stringify({ phone: "+91" + phone }));
     const { error: otpError } = await supabase.auth.signInWithOtp({
       phone: "+91" + phone,
     });
