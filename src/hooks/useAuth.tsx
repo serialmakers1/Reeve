@@ -24,11 +24,13 @@ interface AuthState {
 }
 
 async function fetchUserRow(userId: string): Promise<AppUser | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("users")
     .select("id, email, full_name, phone, role, phone_verified, email_verified, auth_provider")
     .eq("id", userId)
     .maybeSingle();
+  // DIAGNOSTIC — remove after investigation
+  console.log("LOAD_USER_RESULT", { data: JSON.stringify(data), error: JSON.stringify(error) });
 
   if (!data) return null;
   return {
