@@ -125,11 +125,14 @@ export default function LoginPage() {
     setError(null);
 
     try {
+      // DIAGNOSTIC — remove after investigation
+      console.log("VERIFY_START", { phone: "+91" + phone, otp });
       const { data, error: verifyError } = await supabase.auth.verifyOtp({
         phone: "+91" + phone,
         token: otp,
         type: "sms",
       });
+      console.log("VERIFY_RESULT", { data: JSON.stringify(data), error: JSON.stringify(verifyError) });
 
       if (verifyError) {
         verifyAttemptRef.current += 1;
@@ -149,6 +152,7 @@ export default function LoginPage() {
           method: "phone_otp",
         });
         navigate(returnTo || "/", { replace: true });
+        console.log("NAVIGATED_TO", returnTo || "/");
       }
     } finally {
       setIsVerifying(false);
