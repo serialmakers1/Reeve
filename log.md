@@ -1,3 +1,4 @@
+## [2026-04-09] feature | verify-phone-otp edge function: phone linking for OAuth users [14:30 IST]
 ## [2026-04-09] fix | Profile: fix shouldCreateUser for phone OTP [14:15 IST]
 ## [2026-04-09] fix | Profile: fix phone OTP for Google OAuth users [14:00 IST]
 ## [2026-04-09] diagnose | Profile phone+Google linking diagnostic [13:30 IST]

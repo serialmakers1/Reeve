@@ -230,22 +230,19 @@ export default function Profile() {
     setPhoneError(null);
 
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        phone: "+91" + digits,
-        token: phoneOtp,
-        type: "sms",
+      // Edge function verifies OTP server-side and links phone to the Google OAuth
+      // user via Admin API — without replacing the current session.
+      const { error } = await supabase.functions.invoke("verify-phone-otp", {
+        body: { phone: "+91" + digits, token: phoneOtp },
       });
 
       setPhoneVerifying(false);
 
       if (error) {
-        setPhoneError(error.message || "Invalid or expired code. Please try again.");
+        setPhoneError("Invalid or expired code. Please try again.");
         setPhoneOtp("");
         return;
       }
-
-      // Link phone to auth.users after verification is confirmed
-      await supabase.auth.updateUser({ phone: "+91" + digits });
 
       // Update public.users with phone and mark phone_verified
       const userId = session?.user?.id;
