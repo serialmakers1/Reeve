@@ -94,6 +94,8 @@ export function useAuth() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        // DIAGNOSTIC — remove after investigation
+        console.log("AUTH_STATE_CHANGE", event, session?.user?.id);
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
           loadUser(session);
         } else if (event === "SIGNED_OUT") {
