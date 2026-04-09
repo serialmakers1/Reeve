@@ -24,13 +24,11 @@ interface AuthState {
 }
 
 async function fetchUserRow(userId: string): Promise<AppUser | null> {
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("users")
     .select("id, email, full_name, phone, role, phone_verified, email_verified, auth_provider")
     .eq("id", userId)
     .maybeSingle();
-  // DIAGNOSTIC — remove after investigation
-  console.log("LOAD_USER_RESULT", { data: JSON.stringify(data), error: JSON.stringify(error) });
 
   if (!data) return null;
   return {
@@ -96,8 +94,6 @@ export function useAuth() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // DIAGNOSTIC — remove after investigation
-        console.log("AUTH_STATE_CHANGE", event, session?.user?.id);
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
           loadUser(session);
         } else if (event === "SIGNED_OUT") {

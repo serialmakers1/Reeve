@@ -38,14 +38,13 @@ export default function LoginPage() {
     if (step === "otp") otpRef.current?.focus();
   }, [step]);
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated — does not require user row to be loaded
+  // since role-based routing was removed. Fires as soon as session is confirmed.
   useEffect(() => {
-    // DIAGNOSTIC — remove after investigation
-    console.log("AUTH_REDIRECT_CHECK", { isAuthenticated, authLoading, userRole: user?.role, returnTo });
     if (authLoading) return;
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated) return;
     navigate(returnTo || "/", { replace: true });
-  }, [authLoading, isAuthenticated, user, navigate, returnTo]);
+  }, [authLoading, isAuthenticated, navigate, returnTo]);
 
   // Fire sms_fallback_shown once when fallback becomes visible
   useEffect(() => {
@@ -97,8 +96,6 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
 
-    // DIAGNOSTIC — remove after investigation
-    console.log("SIGNIN_PAYLOAD:", JSON.stringify({ phone: "+91" + phone }));
     const { error: otpError } = await supabase.auth.signInWithOtp({
       phone: "+91" + phone,
     });
@@ -127,14 +124,11 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      // DIAGNOSTIC — remove after investigation
-      console.log("VERIFY_START", { phone: "+91" + phone, otp });
       const { data, error: verifyError } = await supabase.auth.verifyOtp({
         phone: "+91" + phone,
         token: otp,
         type: "sms",
       });
-      console.log("VERIFY_RESULT", { data: JSON.stringify(data), error: JSON.stringify(verifyError) });
 
       if (verifyError) {
         verifyAttemptRef.current += 1;
@@ -154,7 +148,6 @@ export default function LoginPage() {
           method: "phone_otp",
         });
         navigate(returnTo || "/", { replace: true });
-        console.log("NAVIGATED_TO", returnTo || "/");
       }
     } finally {
       setIsVerifying(false);
