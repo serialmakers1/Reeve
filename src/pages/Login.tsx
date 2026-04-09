@@ -40,6 +40,8 @@ export default function LoginPage() {
 
   // Redirect if already authenticated
   useEffect(() => {
+    // DIAGNOSTIC — remove after investigation
+    console.log("AUTH_REDIRECT_CHECK", { isAuthenticated, authLoading, userRole: user?.role, returnTo });
     if (authLoading) return;
     if (!isAuthenticated || !user) return;
     navigate(returnTo || "/", { replace: true });
