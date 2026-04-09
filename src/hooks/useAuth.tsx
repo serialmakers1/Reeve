@@ -23,32 +23,42 @@ interface AuthState {
   isAuthenticated: boolean;
 }
 
-async function fetchUserRow(userId: string): Promise<AppUser | null> {
-  const { data } = await supabase
+async function fetchUserRow(userId: string): Promise<{ user: AppUser | null; error: unknown }> {
+  const { data, error } = await supabase
     .from("users")
     .select("id, email, full_name, phone, role, phone_verified, email_verified, auth_provider")
     .eq("id", userId)
     .maybeSingle();
 
-  if (!data) return null;
+  if (error) return { user: null, error };
+  if (!data) return { user: null, error: null };
   return {
-    id: data.id,
-    email: data.email ?? null,
-    full_name: data.full_name ?? "",
-    phone: data.phone ?? null,
-    role: data.role as UserRole,
-    phone_verified: data.phone_verified ?? false,
-    email_verified: data.email_verified ?? false,
-    auth_provider: data.auth_provider ?? null,
+    user: {
+      id: data.id,
+      email: data.email ?? null,
+      full_name: data.full_name ?? "",
+      phone: data.phone ?? null,
+      role: data.role as UserRole,
+      phone_verified: data.phone_verified ?? false,
+      email_verified: data.email_verified ?? false,
+      auth_provider: data.auth_provider ?? null,
+    },
+    error: null,
   };
 }
 
+// Retries up to 3 times with exponential backoff when the row doesn't exist yet
+// (data null, error null — trigger lag). Stops immediately on a real error.
 async function fetchUserWithRetry(userId: string): Promise<AppUser | null> {
-  const user = await fetchUserRow(userId);
-  if (user) return user;
-  // Trigger may have a tiny delay — retry once after 1s
-  await new Promise((r) => setTimeout(r, 1000));
-  return fetchUserRow(userId);
+  const delays = [0, 500, 1000];
+  for (const delay of delays) {
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+    const { user, error } = await fetchUserRow(userId);
+    if (error) return null;
+    if (user) return user;
+    // null data + null error → row not yet created, retry
+  }
+  return null;
 }
 
 export function useAuth() {
