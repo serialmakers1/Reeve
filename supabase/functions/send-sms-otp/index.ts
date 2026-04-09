@@ -59,6 +59,10 @@ Deno.serve(async (req: Request) => {
     // Strip "v1,whsec_" prefix — Webhook constructor expects the raw base64 string,
     // not decoded bytes. It handles decoding internally.
     const secret = hookSecret.replace("v1,whsec_", "");
+    // DIAGNOSTIC LOGGING — remove after investigation
+    console.log("SECRET_PREFIX:", secret?.substring(0, 10));
+    console.log("HEADERS:", JSON.stringify(Object.fromEntries(req.headers)));
+    console.log("BODY_LENGTH:", rawBody?.length);
     const wh = new Webhook(secret);
     wh.verify(rawBody, {
       "webhook-id": req.headers.get("webhook-id") ?? "",
