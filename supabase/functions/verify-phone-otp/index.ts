@@ -5,14 +5,25 @@ const PHONE_REGEX = /^\+91\d{10}$/;
 // Supabase OTPs are 6 digits; accept 4–8 to be safe
 const TOKEN_REGEX = /^\d{4,8}$/;
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
+};
+
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
 }
 
 Deno.serve(async (req: Request) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 200, headers: CORS_HEADERS });
+  }
+
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }
@@ -40,8 +51,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const userJson = await userRes.json();
-    const userId: string | undefined = userJson?.id;
-    if (!userId) {
+    const googleUserId: string | undefined = userJson?.id;
+    if (!googleUserId) {
       return json({ error: "Unauthorized" }, 401);
     }
 
@@ -67,7 +78,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── 3. Verify OTP via Supabase Auth ───────────────────────────────────────
-    // Returns a phone-session on success — we discard it, never forward to client.
+    // Returns a session for the phone-only user — extract their ID for cleanup,
+    // then discard the session entirely (never forwarded to client).
     const verifyRes = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
       method: "POST",
       headers: {
@@ -82,12 +94,14 @@ Deno.serve(async (req: Request) => {
       const msg = verifyErr?.msg || verifyErr?.message || "Invalid or expired OTP";
       return json({ error: msg }, 400);
     }
-    // Phone OTP confirmed valid — phone-session discarded here.
 
-    // ── 4. Link phone to the original user via Admin API ──────────────────────
-    // PATCH sets phone + phone_confirm: true on the Google OAuth user without
-    // touching their session.
-    const patchRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    const verifyData = await verifyRes.json().catch(() => ({}));
+    // ID of the spurious phone-only auth.users row created by signInWithOtp
+    const phoneUserId: string | undefined = verifyData?.user?.id;
+
+    // ── 4. Link phone to the original Google OAuth user via Admin API ─────────
+    // PATCH sets phone + phone_confirm: true without touching the caller's session.
+    const patchRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${googleUserId}`, {
       method: "PATCH",
       headers: {
         "apikey": serviceRoleKey,
@@ -101,6 +115,27 @@ Deno.serve(async (req: Request) => {
       const patchErr = await patchRes.json().catch(() => ({}));
       const msg = patchErr?.message || "Failed to link phone to user";
       return json({ error: msg }, 500);
+    }
+
+    // ── 5. Clean up spurious phone-only auth.users row ────────────────────────
+    // signInWithOtp({ shouldCreateUser: true }) created a separate auth.users row
+    // for the phone number. Now that the phone is linked to the Google user,
+    // delete the orphan row.
+    if (phoneUserId && phoneUserId !== googleUserId) {
+      console.log(`verify-phone-otp: cleaning up spurious phone user ${phoneUserId}`);
+      const deleteRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${phoneUserId}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": serviceRoleKey,
+          "Authorization": `Bearer ${serviceRoleKey}`,
+        },
+      });
+      if (!deleteRes.ok) {
+        // Non-fatal — log but don't fail the request
+        console.error(`verify-phone-otp: failed to delete phone user ${phoneUserId}`, await deleteRes.text().catch(() => ""));
+      } else {
+        console.log(`verify-phone-otp: deleted spurious phone user ${phoneUserId}`);
+      }
     }
 
     return json({ success: true }, 200);
