@@ -111,6 +111,12 @@ export default function Profile() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, authSession) => {
       if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        console.log('LINK_RETURN_SESSION', {
+          email: authSession?.user?.email,
+          fullName: authSession?.user?.user_metadata?.full_name,
+          identities: JSON.stringify((authSession?.user as any)?.identities?.map((i: any) =>
+            ({ provider: i.provider, email: i.identity_data?.email })))
+        });
         // If the session now has a verified email (i.e. Google identity was linked),
         // write it back to public.users so our gate reads it correctly.
         const uid = authSession?.user?.id;
