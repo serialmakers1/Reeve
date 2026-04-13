@@ -1,3 +1,4 @@
+## [2026-04-13] fix | verify-phone-otp: delete spurious phone user before PUT to prevent unique constraint violation [14:30 IST]
 ## [2026-04-13] fix | verify-phone-otp: fix Admin API HTTP method PATCH→PUT for user update [14:00 IST]
 ## [2026-04-13] fix | Profile: use fetch instead of functions.invoke to fix missing Authorization header [13:30 IST]
 ## [2026-04-13] fix | Profile: capture Google token before signInWithOtp to fix 401 on verify-phone-otp [13:00 IST]

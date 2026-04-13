@@ -110,8 +110,27 @@ Deno.serve(async (req: Request) => {
     // ID of the spurious phone-only auth.users row created by signInWithOtp
     const phoneUserId: string | undefined = verifyData?.user?.id;
 
-    // ── 4. Link phone to the original Google OAuth user via Admin API ─────────
-    // PATCH sets phone + phone_confirm: true without touching the caller's session.
+    // ── 4. Delete spurious phone-only auth.users row before PUT ──────────────
+    // Must happen BEFORE the PUT — the PUT sets phone on the Google user, which
+    // would collide with the phone already on the spurious row (unique constraint).
+    if (phoneUserId && phoneUserId !== googleUserId) {
+      console.log(`verify-phone-otp: deleting spurious phone user ${phoneUserId} before PUT`);
+      const deleteRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${phoneUserId}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": serviceRoleKey,
+          "Authorization": `Bearer ${serviceRoleKey}`,
+        },
+      });
+      if (!deleteRes.ok) {
+        console.error(`verify-phone-otp: failed to delete phone user ${phoneUserId}`, await deleteRes.text().catch(() => ""));
+      } else {
+        console.log(`verify-phone-otp: deleted spurious phone user ${phoneUserId}`);
+      }
+    }
+
+    // ── 6. Link phone to the original Google OAuth user via Admin API ─────────
+    // PUT sets phone + phone_confirm: true without touching the caller's session.
     console.log('STEP4_PRE_PATCH', {
       googleUserId,
       phone,
@@ -138,27 +157,6 @@ Deno.serve(async (req: Request) => {
       const patchErr = (() => { try { return JSON.parse(patchBody); } catch { return {}; } })();
       const msg = patchErr?.message || "Failed to link phone to user";
       return json({ error: msg }, 500);
-    }
-
-    // ── 5. Clean up spurious phone-only auth.users row ────────────────────────
-    // signInWithOtp({ shouldCreateUser: true }) created a separate auth.users row
-    // for the phone number. Now that the phone is linked to the Google user,
-    // delete the orphan row.
-    if (phoneUserId && phoneUserId !== googleUserId) {
-      console.log(`verify-phone-otp: cleaning up spurious phone user ${phoneUserId}`);
-      const deleteRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${phoneUserId}`, {
-        method: "DELETE",
-        headers: {
-          "apikey": serviceRoleKey,
-          "Authorization": `Bearer ${serviceRoleKey}`,
-        },
-      });
-      if (!deleteRes.ok) {
-        // Non-fatal — log but don't fail the request
-        console.error(`verify-phone-otp: failed to delete phone user ${phoneUserId}`, await deleteRes.text().catch(() => ""));
-      } else {
-        console.log(`verify-phone-otp: deleted spurious phone user ${phoneUserId}`);
-      }
     }
 
     return json({ success: true }, 200);
