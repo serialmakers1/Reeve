@@ -1,4 +1,7 @@
 project_id = "tfutuqqcxqqbirnsdpvz"
 
+[auth]
+external_manual_linking_enabled = true
+
 [functions.verify-phone-otp]
 verify_jwt = false

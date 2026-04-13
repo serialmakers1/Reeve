@@ -47,8 +47,9 @@ npm run test       # vitest
   PUT /auth/v1/admin/users/{googleUserId} with { phone, phone_confirm: true } (links phone to existing user).
   Has CORS headers — called via direct fetch from browser (NOT functions.invoke).
   Called via fetch(`${SUPABASE_URL}/functions/v1/verify-phone-otp`) with explicit Authorization header.
-  JWT verification: MUST be OFF in dashboard (verify_jwt = false in config.toml). Resets on every deploy —
+  JWT verification: MUST be OFF in dashboard (verify_jwt = false in config.toml — persisted, should not reset).
   CHECK dashboard after each deployment: Edge Functions → verify-phone-otp → Settings → JWT Verification = OFF.
+- supabase/config.toml: `verify_jwt = false` under [functions.verify-phone-otp]; `external_manual_linking_enabled = true` under [auth]. These prevent dashboard toggles from resetting on deploy.
 - useAuth() — single source of truth. Returns { session, user, isLoading, isAuthenticated, signOut, refreshUser }
 - useRequireAuth({ requireAdmin? }) — use on all protected pages
 - Never call supabase.auth.getSession() in rendering logic or useEffect data gates — use useAuth(). Event handlers performing one-time mutations may call it directly.
