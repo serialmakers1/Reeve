@@ -46,12 +46,19 @@ Deno.serve(async (req: Request) => {
       },
     });
 
+    const userData = await userRes.json();
+    console.log('AUTH_USER_RESPONSE', {
+      status: userRes.status,
+      userId: userData?.id,
+      email: userData?.email,
+      phone: userData?.phone,
+    });
+
     if (userRes.status !== 200) {
       return json({ error: "Unauthorized" }, 401);
     }
 
-    const userJson = await userRes.json();
-    const googleUserId: string | undefined = userJson?.id;
+    const googleUserId: string | undefined = userData?.id;
     if (!googleUserId) {
       return json({ error: "Unauthorized" }, 401);
     }
