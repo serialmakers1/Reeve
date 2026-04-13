@@ -232,6 +232,12 @@ export default function Profile() {
     try {
       // Edge function verifies OTP server-side and links phone to the Google OAuth
       // user via Admin API — without replacing the current session.
+      const { data: { session: invokeSession } } = await supabase.auth.getSession();
+      console.log('INVOKE_SESSION', {
+        hasSession: !!invokeSession,
+        userId: invokeSession?.user?.id,
+        accessToken: invokeSession?.access_token?.substring(0, 20),
+      });
       const { error } = await supabase.functions.invoke("verify-phone-otp", {
         body: { phone: "+91" + digits, token: phoneOtp },
       });
