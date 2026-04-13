@@ -78,6 +78,11 @@ export function useAuth() {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
 
+    // Immediately mark session + isAuthenticated so that if the DB query stalls
+    // and the safety timeout fires, state.session is non-null and no /login redirect
+    // occurs. isLoading stays true until the DB row is fetched.
+    setState(prev => ({ ...prev, session, isAuthenticated: true }));
+
     try {
       const appUser = await fetchUserWithRetry(session.user.id);
       setState({
@@ -104,13 +109,20 @@ export function useAuth() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        // Skip INITIAL_SESSION — getSession() handles bootstrap; processing it here
+        // would race with getSession's loadUser call and leave isLoading hanging.
+        if (event === "INITIAL_SESSION") return;
+
+        // Defer all async work out of the callback — Supabase holds an internal lock
+        // during onAuthStateChange; direct DB calls deadlock. 100ms gives getSession
+        // a headstart so it wins the fetchingRef race on page load.
         setTimeout(async () => {
           if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
             loadUser(session);
           } else if (event === "SIGNED_OUT") {
             setState({ session: null, user: null, isLoading: false, isAuthenticated: false });
           }
-        }, 0);
+        }, 100);
       }
     );
 

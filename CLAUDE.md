@@ -54,7 +54,8 @@ npm run test       # vitest
 - supabase/config.toml: `verify_jwt = false` under [functions.verify-phone-otp]; `external_manual_linking_enabled = true` under [auth]. These prevent dashboard toggles from resetting on deploy.
 - useAuth() — single source of truth. Returns { session, user, isLoading, isAuthenticated, signOut, refreshUser }
 - useAuth has a 5s safety timeout in the init useEffect: if isLoading is still true after 5s (e.g. stalled fetch after OAuth redirect), it is forced to false. This prevents infinite loading. Do not remove.
-- useAuth: entire onAuthStateChange body wrapped in setTimeout(0) to prevent Supabase DB deadlock. Supabase DB calls (supabase.from()) deadlock when made synchronously inside onAuthStateChange. The setTimeout(0) defers to the next event loop tick, unblocking the callback. Do not remove this wrapper.
+- useAuth: onAuthStateChange skips INITIAL_SESSION (getSession() handles bootstrap — processing both races and leaves isLoading hanging). All other events deferred via setTimeout(100ms) — gives getSession a headstart to win the fetchingRef race. Do not remove the INITIAL_SESSION guard or reduce the delay.
+- useAuth: loadUser immediately sets session + isAuthenticated: true in state BEFORE the DB query. This ensures the safety timeout never redirects to /login — if isLoading is still true at 5s, session is already in state so isAuthenticated stays true.
 - useRequireAuth({ requireAdmin? }) — use on all protected pages
 - Never call supabase.auth.getSession() in rendering logic or useEffect data gates — use useAuth(). Event handlers performing one-time mutations may call it directly.
 - Never reference `session.user.id` in component render logic or Supabase queries — use `user.id` from `useRequireAuth()` or `useAuth()` instead. `session` is only valid inside async event handlers that explicitly call `await supabase.auth.getSession()`.
