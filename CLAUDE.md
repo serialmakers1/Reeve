@@ -40,6 +40,8 @@ npm run test       # vitest
   verify_jwt=false (called by Supabase Auth internally, not by browser).
 - Profile: Google OAuth token must be captured BEFORE signInWithOtp is called (stored in googleTokenRef) and passed explicitly as Authorization header to verify-phone-otp. signInWithOtp replaces the Supabase client session — never rely on auto-attached session token after calling it.
 - public.users phone format: stored as `91XXXXXXXXXX` (no + prefix) to match auth.users format. Display strips both `+91` and `91` prefix (`replace(/^(\+91|91)/, "")`) then shows `+91 {digits}`. Do NOT store as `+91XXXXXXXXXX` in public.users.
+- After linkIdentity, session.user.email is "" — must extract email from `identities[].identity_data.email` (Google identity). Same for full_name: `identity_data.full_name ?? identity_data.name`. Never rely on session.user.email or user_metadata for post-linkIdentity data.
+- Profile: "Change Phone Number" button hidden once phone_verified is true — phone shown read-only only.
 - `verify-phone-otp` edge function — verifies phone OTP for Google OAuth users without replacing session.
   Flow: validate caller JWT → POST /auth/v1/verify (confirm OTP, extract phoneUserId from response) →
   DELETE auth.users/{phoneUserId} (spurious phone row, must be before PUT to avoid unique constraint) →

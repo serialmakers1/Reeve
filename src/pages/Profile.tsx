@@ -111,27 +111,28 @@ export default function Profile() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, authSession) => {
       if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        console.log('LINK_RETURN_SESSION', {
-          email: authSession?.user?.email,
-          fullName: authSession?.user?.user_metadata?.full_name,
-          identities: JSON.stringify((authSession?.user as any)?.identities?.map((i: any) =>
-            ({ provider: i.provider, email: i.identity_data?.email })))
-        });
-        // If the session now has a verified email (i.e. Google identity was linked),
-        // write it back to public.users so our gate reads it correctly.
+        // Extract email and name from Google identity — session.user.email is ""
+        // after linkIdentity returns, but identity_data has the correct values.
         const uid = authSession?.user?.id;
-        const email = authSession?.user?.email;
-        const hasEmailIdentity = (authSession?.user as any)?.identities?.some(
-          (i: any) => i.provider === "google" || i.provider === "email"
+        const googleIdentity = (authSession?.user as any)?.identities?.find(
+          (i: any) => i.provider === "google"
         );
+        const email = googleIdentity?.identity_data?.email ?? authSession?.user?.email ?? "";
+        const fullName = googleIdentity?.identity_data?.full_name ?? googleIdentity?.identity_data?.name ?? "";
+        const hasEmailIdentity = !!googleIdentity;
+
         if (uid && email && hasEmailIdentity) {
+          const updateData: Record<string, unknown> = {
+            email,
+            email_verified: true,
+            updated_at: new Date().toISOString(),
+          };
+          if (fullName) {
+            updateData.full_name = fullName;
+          }
           await supabase
             .from("users")
-            .update({
-              email,
-              email_verified: true,
-              updated_at: new Date().toISOString(),
-            })
+            .update(updateData)
             .eq("id", uid);
         }
 
@@ -432,13 +433,15 @@ export default function Profile() {
               {currentPhone && (
                 <p className="text-sm text-muted-foreground">+91 {currentPhone}</p>
               )}
-              <Button
-                variant="outline"
-                onClick={() => { setPhoneStep("enter"); setPhoneError(null); }}
-                className="w-full min-h-[44px]"
-              >
-                {phoneVerified ? "Change Phone Number" : "Verify Phone Number"}
-              </Button>
+              {!phoneVerified && (
+                <Button
+                  variant="outline"
+                  onClick={() => { setPhoneStep("enter"); setPhoneError(null); }}
+                  className="w-full min-h-[44px]"
+                >
+                  Verify Phone Number
+                </Button>
+              )}
             </>
           )}
 
@@ -553,9 +556,14 @@ export default function Profile() {
           </div>
 
           {hasGoogle ? (
-            <p className="text-sm text-muted-foreground">
-              Your Google account is linked. You can sign in with Google or phone OTP.
-            </p>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                Your Google account is linked. You can sign in with Google or phone OTP.
+              </p>
+              {user?.email && (
+                <p className="text-sm text-muted-foreground">{user.email}</p>
+              )}
+            </div>
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
