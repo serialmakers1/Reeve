@@ -54,10 +54,17 @@ async function fetchUserWithRetry(userId: string): Promise<AppUser | null> {
   for (const delay of delays) {
     if (delay > 0) await new Promise((r) => setTimeout(r, delay));
     const { user, error } = await fetchUserRow(userId);
-    if (error) return null;
-    if (user) return user;
+    if (error) {
+      console.log('FETCH_RETRY_DONE', { userId, result: 'error', error: JSON.stringify(error) });
+      return null;
+    }
+    if (user) {
+      console.log('FETCH_RETRY_DONE', { userId, result: 'found', error: null });
+      return user;
+    }
     // null data + null error → row not yet created, retry
   }
+  console.log('FETCH_RETRY_DONE', { userId, result: 'not_found', error: null });
   return null;
 }
 
@@ -80,6 +87,11 @@ export function useAuth() {
 
     try {
       const appUser = await fetchUserWithRetry(session.user.id);
+      console.log('LOAD_USER_DONE', {
+        userId: session.user.id,
+        hasUser: !!appUser,
+        currentLoading: state.isLoading,
+      });
       setState({
         session,
         user: appUser,
