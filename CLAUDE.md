@@ -30,6 +30,7 @@ npm run test       # vitest
 - Login: phone 10-digit input → `+91` prefix → SMS OTP via `signInWithOtp({ phone })`. Google OAuth as equal-weight alternative.
 - After verify success: navigate to `returnTo || '/'` — no onboarding check, no redirectByRole.
 - `handle_new_user` trigger fires for phone OTP users (phone_confirmed_at IS NOT NULL) — no longer email-only.
+- `handle_user_updated` trigger handles both phone_confirmed_at (phone OTP) and email_confirmed_at (Google OAuth) transitions. Google OAuth users get their public.users row via the UPDATE trigger, not the INSERT trigger.
 - `ensure_user_exists` DB function kept in DB but must NOT be called from frontend code.
 - `useAuth` AppUser: `phone_verified`, `email_verified`, `auth_provider` fields added; `onboarding_completed` removed.
 - `useRequireAuth` returns `loading` (not `isLoading`) — use `loading: authLoading` when aliasing.
