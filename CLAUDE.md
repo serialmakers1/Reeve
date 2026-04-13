@@ -54,6 +54,7 @@ npm run test       # vitest
 - supabase/config.toml: `verify_jwt = false` under [functions.verify-phone-otp]; `external_manual_linking_enabled = true` under [auth]. These prevent dashboard toggles from resetting on deploy.
 - useAuth() — single source of truth. Returns { session, user, isLoading, isAuthenticated, signOut, refreshUser }
 - useAuth has a 5s safety timeout in the init useEffect: if isLoading is still true after 5s (e.g. stalled fetch after OAuth redirect), it is forced to false. This prevents infinite loading. Do not remove.
+- useAuth: entire onAuthStateChange body wrapped in setTimeout(0) to prevent Supabase DB deadlock. Supabase DB calls (supabase.from()) deadlock when made synchronously inside onAuthStateChange. The setTimeout(0) defers to the next event loop tick, unblocking the callback. Do not remove this wrapper.
 - useRequireAuth({ requireAdmin? }) — use on all protected pages
 - Never call supabase.auth.getSession() in rendering logic or useEffect data gates — use useAuth(). Event handlers performing one-time mutations may call it directly.
 - Never reference `session.user.id` in component render logic or Supabase queries — use `user.id` from `useRequireAuth()` or `useAuth()` instead. `session` is only valid inside async event handlers that explicitly call `await supabase.auth.getSession()`.

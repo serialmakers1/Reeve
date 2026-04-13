@@ -54,17 +54,10 @@ async function fetchUserWithRetry(userId: string): Promise<AppUser | null> {
   for (const delay of delays) {
     if (delay > 0) await new Promise((r) => setTimeout(r, delay));
     const { user, error } = await fetchUserRow(userId);
-    if (error) {
-      console.log('FETCH_RETRY_DONE', { userId, result: 'error', error: JSON.stringify(error) });
-      return null;
-    }
-    if (user) {
-      console.log('FETCH_RETRY_DONE', { userId, result: 'found', error: null });
-      return user;
-    }
+    if (error) return null;
+    if (user) return user;
     // null data + null error → row not yet created, retry
   }
-  console.log('FETCH_RETRY_DONE', { userId, result: 'not_found', error: null });
   return null;
 }
 
@@ -87,11 +80,6 @@ export function useAuth() {
 
     try {
       const appUser = await fetchUserWithRetry(session.user.id);
-      console.log('LOAD_USER_DONE', {
-        userId: session.user.id,
-        hasUser: !!appUser,
-        currentLoading: state.isLoading,
-      });
       setState({
         session,
         user: appUser,
@@ -114,19 +102,15 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem('reeve-auth');
-    console.log('INIT_STORAGE', {
-      hasStoredSession: !!stored,
-      storedLength: stored?.length ?? 0,
-    });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-          loadUser(session);
-        } else if (event === "SIGNED_OUT") {
-          setState({ session: null, user: null, isLoading: false, isAuthenticated: false });
-        }
+        setTimeout(async () => {
+          if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+            loadUser(session);
+          } else if (event === "SIGNED_OUT") {
+            setState({ session: null, user: null, isLoading: false, isAuthenticated: false });
+          }
+        }, 0);
       }
     );
 
