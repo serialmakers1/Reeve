@@ -119,7 +119,7 @@ Deno.serve(async (req: Request) => {
     });
 
     const patchRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${googleUserId}`, {
-      method: "PATCH",
+      method: "PUT",
       headers: {
         "apikey": serviceRoleKey,
         "Authorization": `Bearer ${serviceRoleKey}`,
