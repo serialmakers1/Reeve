@@ -30,32 +30,22 @@ npm run test       # vitest
 - Login: phone 10-digit input → `+91` prefix → SMS OTP via `signInWithOtp({ phone })`. Google OAuth as equal-weight alternative.
 - After verify success: navigate to `returnTo || '/'` — no onboarding check, no redirectByRole.
 - `handle_new_user` trigger fires for phone OTP users (phone_confirmed_at IS NOT NULL) — no longer email-only.
-- `handle_user_updated` trigger handles both phone_confirmed_at (phone OTP) and email_confirmed_at (Google OAuth) transitions. Google OAuth users get their public.users row via the UPDATE trigger, not the INSERT trigger.
-- `ensure_user_exists` DB function kept in DB but must NOT be called from frontend code.
+- `handle_user_updated` trigger: handles phone_confirmed_at (phone OTP) and email_confirmed_at (Google OAuth). Google users get public.users row via UPDATE trigger. `ensure_user_exists` DB function exists but must NOT be called from frontend.
 - `useAuth` AppUser: `phone_verified`, `email_verified`, `auth_provider` fields added; `onboarding_completed` removed.
 - `useRequireAuth` returns `loading` (not `isLoading`) — use `loading: authLoading` when aliasing.
-- `send-sms-otp` edge function deployed — Supabase Send SMS Hook handler, delivers OTP via MSG91.
-  MSG91_TEMPLATE_ID: 1207177503631409147, sender: REEVPM.
-  Secrets required: MSG91_AUTH_KEY, MSG91_TEMPLATE_ID (set via `supabase secrets set`).
-  verify_jwt=false (called by Supabase Auth internally, not by browser).
-- Profile: Google OAuth token must be captured BEFORE signInWithOtp is called (stored in googleTokenRef) and passed explicitly as Authorization header to verify-phone-otp. signInWithOtp replaces the Supabase client session — never rely on auto-attached session token after calling it.
-- public.users phone format: stored as `91XXXXXXXXXX` (no + prefix) to match auth.users format. Display strips both `+91` and `91` prefix (`replace(/^(\+91|91)/, "")`) then shows `+91 {digits}`. Do NOT store as `+91XXXXXXXXXX` in public.users.
-- After linkIdentity, session.user.email is "" — must extract email from `identities[].identity_data.email` (Google identity). Same for full_name: `identity_data.full_name ?? identity_data.name`. Never rely on session.user.email or user_metadata for post-linkIdentity data.
-- Profile: "Change Phone Number" button hidden once phone_verified is true — phone shown read-only only.
-- `verify-phone-otp` edge function — verifies phone OTP for Google OAuth users without replacing session.
-  Flow: validate caller JWT → POST /auth/v1/verify (confirm OTP, extract phoneUserId from response) →
-  DELETE auth.users/{phoneUserId} (spurious phone row, must be before PUT to avoid unique constraint) →
-  DELETE public.users?id=eq.{phoneUserId} (row created by handle_user_updated trigger, non-fatal) →
-  PUT /auth/v1/admin/users/{googleUserId} with { phone, phone_confirm: true } (links phone to existing user).
-  Has CORS headers — called via direct fetch from browser (NOT functions.invoke).
-  Called via fetch(`${SUPABASE_URL}/functions/v1/verify-phone-otp`) with explicit Authorization header.
-  JWT verification: MUST be OFF in dashboard (verify_jwt = false in config.toml — persisted, should not reset).
-  CHECK dashboard after each deployment: Edge Functions → verify-phone-otp → Settings → JWT Verification = OFF.
-- supabase/config.toml: `verify_jwt = false` under [functions.verify-phone-otp]; `external_manual_linking_enabled = true` under [auth]. These prevent dashboard toggles from resetting on deploy.
+- `send-sms-otp` edge function: Supabase Send SMS Hook → MSG91 (TEMPLATE_ID: 1207177503631409147, sender: REEVPM). Secrets: MSG91_AUTH_KEY, MSG91_TEMPLATE_ID. verify_jwt=false (called by Supabase Auth internally).
+- Profile phone verify: capture Google token in googleTokenRef BEFORE signInWithOtp (it replaces the session). Pass via Authorization header to verify-phone-otp using raw fetch (not functions.invoke).
+- public.users phone: stored as `91XXXXXXXXXX` (no + prefix). Display: `.replace(/^(\+91|91)/, "")` → show `+91 {digits}`.
+- After linkIdentity: session.user.email is "" — read from `identities[].identity_data.email`; full_name from `identity_data.full_name ?? identity_data.name`.
+- Profile: "Change Phone Number" hidden once phone_verified. Email shown read-only in Google section after linking.
+- `verify-phone-otp` edge function: validate JWT → POST /auth/v1/verify → DELETE auth.users/{phoneUserId} → DELETE public.users?id=eq.{phoneUserId} → PUT /auth/v1/admin/users/{googleUserId} { phone, phone_confirm: true }. Direct fetch, verify_jwt=false in config.toml. Check JWT=OFF in dashboard after each deploy.
 - useAuth() — single source of truth. Returns { session, user, isLoading, isAuthenticated, signOut, refreshUser }
-- useAuth has a 5s safety timeout in the init useEffect: if isLoading is still true after 5s (e.g. stalled fetch after OAuth redirect), it is forced to false. This prevents infinite loading. Do not remove.
-- useAuth: onAuthStateChange skips INITIAL_SESSION (getSession() handles bootstrap — processing both races and leaves isLoading hanging). All other events deferred via setTimeout(100ms) — gives getSession a headstart to win the fetchingRef race. Do not remove the INITIAL_SESSION guard or reduce the delay.
-- useAuth: loadUser immediately sets session + isAuthenticated: true in state BEFORE the DB query. This ensures the safety timeout never redirects to /login — if isLoading is still true at 5s, session is already in state so isAuthenticated stays true.
+- useAuth critical patterns (do NOT remove any of these):
+  - onAuthStateChange returns early on INITIAL_SESSION — getSession() handles bootstrap; processing both races and hangs isLoading
+  - onAuthStateChange deferred via setTimeout(100ms) — Supabase holds internal lock during callback; DB calls deadlock without deferral
+  - loadUser sets session + isAuthenticated: true BEFORE the DB query — ensures safety timeout can't trigger /login redirect
+  - 5s safety timeout forces isLoading: false if DB fetch stalls — preserves session/isAuthenticated, never redirects
+- Known Supabase bug: navigator.locks (Web Locks API) with acquireTimeout: -1 causes deadlocks for multi-provider auth users (phone+Google). Fix: noOpLock in src/integrations/supabase/client.ts createClient({ auth: { lock: noOpLock } }). Do NOT remove — breaks phone+Google users on refresh. Trade-off: disables cross-tab session sync (acceptable, single-tab app).
 - useRequireAuth({ requireAdmin? }) — use on all protected pages
 - Never call supabase.auth.getSession() in rendering logic or useEffect data gates — use useAuth(). Event handlers performing one-time mutations may call it directly.
 - Never reference `session.user.id` in component render logic or Supabase queries — use `user.id` from `useRequireAuth()` or `useAuth()` instead. `session` is only valid inside async event handlers that explicitly call `await supabase.auth.getSession()`.
@@ -196,23 +186,11 @@ non-deterministic.
     ApplicationDetail.tsx (defaultIntent="tenant" + propertyId), MyPropertyDetail.tsx (defaultIntent="owner" context="owner_landing" + propertyId).
 - RequestCallbackModal: `src/components/RequestCallbackModal.tsx`
   4-step: Intent → Contact → Schedule (3A India / 3B International) → Confirm+Submit
-  Slot constants: `CALLBACK_SLOT_KEYS`, `CALLBACK_SLOT_LABELS` (exported from RequestCallbackModal.tsx)
-  IST utilities: `getISTHour()`, `formatInIST(d)`, `localTimeToIST(timeStr, tz, refDate)` — all in RequestCallbackModal.tsx
-  `normaliseIndianPhone(raw)` — strips +91/91 prefix from E.164 numbers before pre-filling the phone field
-  `convertISTSlotToLocal(istHour, timezone)` — returns "[start] – [end]" range string for the 1-hour IST slot starting at istHour, converted to the given timezone; exported
-  `formatSlotRange(slotKey, timezone)` — returns "HH:MM AM – HH:MM PM" range for a slot key in the given timezone; exported
-  DialogContent uses `onInteractOutside={(e) => e.preventDefault()}` to prevent mobile backdrop tap from closing modal
-  iOS keyboard gap fix: root cause = vaul's `repositionInputs` (defaults `true`) — its built-in iOS keyboard repositioning is broken and fights any external fix. Fix: `repositionInputs={false}` on `<Drawer` root (forwarded via `{...props}` in drawer.tsx). Own `visualViewport` resize listener targets `scrollRef` (Drawer inner scroll div): on keyboard open (vv.height < 85% window.innerHeight) sets `maxHeight = vv.height - 192px`; on close resets to `''`. Guard: iOS-only, deps `[isMobile, open]`. Drawer scroll div: `overflow-y-scroll flex-1 min-h-0` + `WebkitOverflowScrolling: touch` + `ref={scrollRef}`. All text/tel inputs: `onFocus={scrollToInput}` (300ms `scrollIntoView nearest smooth`). DialogContent unchanged — no ref, no visualViewport code.
-  Step 2: India phone = `+91 (fixed prefix span) + 10-digit Input`; stored as `+91XXXXXXXXXX` in DB
-  Step 3B international: slot grid replaces free-form time input; `intlSelectedSlot` state; night window label shows local converted time
-  Step 3B timezone: simple 8-option `<select>` (COMMON_TIMEZONES); no search; initial value = `""` (required field)
-  Step 3B phone: `+[countryCode] | phoneNumber` two-field row; `intlCountryCode` + `intlPhone` + `intlPhoneError` states
-  Night window gated on `intlSelectedDate` selection (hidden until date is picked)
-  Step 4 summary: always says "call"; India shows `+91XXXXXXXXXX`; international shows `+CC phone`; time shown as slot range
-  step3BValid requires: channel + intlCountryCode + intlPhone + timezone !== "" + intlSelectedDate + (nightWindow || intlSelectedSlot)
-  Slot greying rule: `currentISTHour >= slotStartHour` for today's date, applied to both India (Step 3A) and International (Step 3B) flows; night window exempt
-  Auth: uses `await supabase.auth.getSession()` inside async handlers (never hook-derived user)
-  Supabase: uses `(supabase as any).from('callback_requests')` — table not yet in auto-generated types
+  Exports: CALLBACK_SLOT_KEYS, CALLBACK_SLOT_LABELS, getISTHour(), formatInIST(), localTimeToIST(), normaliseIndianPhone(), convertISTSlotToLocal(), formatSlotRange()
+  iOS keyboard: `repositionInputs={false}` on Drawer root; visualViewport listener sets maxHeight on scrollRef; all inputs use onFocus={scrollToInput}
+  Step 3B: slot grid + 8-option timezone select + intlCountryCode/intlPhone fields; night window hidden until date picked
+  Slot greying: currentISTHour >= slotStartHour for today, both 3A and 3B; night window exempt
+  Auth: uses `await supabase.auth.getSession()` inside async handlers; `(supabase as any).from('callback_requests')` (not in generated types)
 
 ## Admin Pages
 - /admin/visits: Visit Logs page (src/pages/admin/VisitLogs.tsx). Reads from visit_events with tenant+property joins. Client-side filtering by type/date/tenant/property/initiatedBy. Row click opens Sheet with full detail + tenant stats.

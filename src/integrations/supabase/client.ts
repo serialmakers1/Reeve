@@ -8,11 +8,23 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Bypasses the Web Locks API (navigator.locks) which supabase-js uses with
+// acquireTimeout: -1 (infinite). Multi-provider users (phone+Google) trigger
+// additional token refresh operations that hold the lock longer, causing DB
+// calls in onAuthStateChange to queue behind an unreleased lock and hang.
+// Trade-off: disables cross-tab session sync — acceptable for this single-tab app.
+const noOpLock = async (
+  _name: string,
+  _acquireTimeout: number,
+  fn: () => Promise<unknown>
+): Promise<unknown> => fn();
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
     storageKey: 'reeve-auth',
+    lock: noOpLock,
   }
 });
