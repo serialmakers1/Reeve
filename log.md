@@ -1,3 +1,4 @@
+## [2026-04-13] fix | Profile: navigate to clean /profile after Google linking to clear OAuth fragments [16:30 IST]
 ## [2026-04-13] fix | Profile: fix Google linking email+name update, show email in Google section, hide change phone once verified [16:00 IST]
 ## [2026-04-13] fix | config: add manual linking + confirm phone display format correct [15:30 IST]
 ## [2026-04-13] fix | verify-phone-otp: cleanup spurious public.users row + standardise phone format [15:00 IST]

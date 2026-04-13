@@ -137,6 +137,7 @@ export default function Profile() {
         }
 
         await refreshUser();
+        navigate('/profile', { replace: true });
 
         const raw = localStorage.getItem("pendingReturnTo");
         if (raw) {
