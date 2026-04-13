@@ -1,3 +1,4 @@
+## [2026-04-13] fix | Profile: use fetch instead of functions.invoke to fix missing Authorization header [13:30 IST]
 ## [2026-04-13] fix | Profile: capture Google token before signInWithOtp to fix 401 on verify-phone-otp [13:00 IST]
 ## [2026-04-13] fix | verify-phone-otp: add CORS headers + cleanup spurious phone auth rows [12:30 IST]
 ## [2026-04-13] fix | handle_user_updated: add email_confirmed_at block for Google OAuth users [12:00 IST]

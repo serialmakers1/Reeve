@@ -19,11 +19,6 @@ function json(body: unknown, status: number): Response {
 }
 
 Deno.serve(async (req: Request) => {
-  console.log('RAW_AUTH_HEADER', {
-    auth: req.headers.get("Authorization")?.substring(0, 30) ?? "MISSING",
-    contentType: req.headers.get("content-type"),
-  });
-
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: CORS_HEADERS });
@@ -52,12 +47,6 @@ Deno.serve(async (req: Request) => {
     });
 
     const userData = await userRes.json();
-    console.log('AUTH_USER_RESPONSE', {
-      status: userRes.status,
-      userId: userData?.id,
-      email: userData?.email,
-      phone: userData?.phone,
-    });
 
     if (userRes.status !== 200) {
       return json({ error: "Unauthorized" }, 401);

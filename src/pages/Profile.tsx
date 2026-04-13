@@ -12,6 +12,9 @@ import posthog from "posthog-js";
 
 const PENDING_RETURN_TTL = 30 * 60 * 1000; // 30 minutes
 
+const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmdXR1cXFjeHFxYmlybnNkcHZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3ODQwNjQsImV4cCI6MjA4ODM2MDA2NH0.FcN10wXD1QkJaDCR3yt8ZXLWn_aGWpfJa-rWwNQWAtg";
+
 export default function Profile() {
   const { user, session, loading, refreshUser } = useRequireAuth();
   const { toast } = useToast();
@@ -208,10 +211,6 @@ export default function Profile() {
       // Capture Google OAuth token before signInWithOtp replaces the session
       const { data: { session: googleSession } } = await supabase.auth.getSession();
       googleTokenRef.current = googleSession?.access_token ?? null;
-      console.log('TOKEN_CAPTURED', {
-        hasToken: !!googleTokenRef.current,
-        tokenPrefix: googleTokenRef.current?.substring(0, 20),
-      });
 
       const { error } = await supabase.auth.signInWithOtp({
         phone: "+91" + digits,
@@ -239,24 +238,26 @@ export default function Profile() {
     setPhoneError(null);
 
     try {
-      // Edge function verifies OTP server-side and links phone to the Google OAuth
-      // user via Admin API — without replacing the current session.
-      // Pass the Google token explicitly — signInWithOtp replaced the client session.
-      console.log('TOKEN_AT_VERIFY', {
-        hasRef: !!googleTokenRef.current,
-        tokenPrefix: googleTokenRef.current?.substring(0, 20),
-      });
-      const { error } = await supabase.functions.invoke("verify-phone-otp", {
-        body: { phone: "+91" + digits, token: phoneOtp },
-        headers: googleTokenRef.current
-          ? { Authorization: `Bearer ${googleTokenRef.current}` }
-          : undefined,
-      });
+      // Direct fetch — functions.invoke doesn't reliably forward explicit headers.
+      // Google token captured before signInWithOtp replaced the client session.
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/verify-phone-otp`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${googleTokenRef.current}`,
+            "apikey": SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ phone: "+91" + digits, token: phoneOtp }),
+        }
+      );
 
       setPhoneVerifying(false);
 
-      if (error) {
-        setPhoneError("Invalid or expired code. Please try again.");
+      const result = await response.json();
+      if (!response.ok) {
+        setPhoneError(result.error || "Invalid or expired code. Please try again.");
         setPhoneOtp("");
         return;
       }
