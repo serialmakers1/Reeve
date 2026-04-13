@@ -102,6 +102,12 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
+    const stored = localStorage.getItem('reeve-auth');
+    console.log('INIT_STORAGE', {
+      hasStoredSession: !!stored,
+      storedLength: stored?.length ?? 0,
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
