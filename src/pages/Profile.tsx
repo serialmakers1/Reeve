@@ -31,6 +31,7 @@ export default function Profile() {
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneResendCooldown, setPhoneResendCooldown] = useState(0);
   const phoneCooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const googleTokenRef = useRef<string | null>(null);
 
   // ─── Section 3: Google Linking ────────────────────────────────────────────
   const [googleLinking, setGoogleLinking] = useState(false);
@@ -204,6 +205,10 @@ export default function Profile() {
     setPhoneError(null);
 
     try {
+      // Capture Google OAuth token before signInWithOtp replaces the session
+      const { data: { session: googleSession } } = await supabase.auth.getSession();
+      googleTokenRef.current = googleSession?.access_token ?? null;
+
       const { error } = await supabase.auth.signInWithOtp({
         phone: "+91" + digits,
         options: { shouldCreateUser: true },
@@ -232,14 +237,12 @@ export default function Profile() {
     try {
       // Edge function verifies OTP server-side and links phone to the Google OAuth
       // user via Admin API — without replacing the current session.
-      const { data: { session: invokeSession } } = await supabase.auth.getSession();
-      console.log('INVOKE_SESSION', {
-        hasSession: !!invokeSession,
-        userId: invokeSession?.user?.id,
-        accessToken: invokeSession?.access_token?.substring(0, 20),
-      });
+      // Pass the Google token explicitly — signInWithOtp replaced the client session.
       const { error } = await supabase.functions.invoke("verify-phone-otp", {
         body: { phone: "+91" + digits, token: phoneOtp },
+        headers: googleTokenRef.current
+          ? { Authorization: `Bearer ${googleTokenRef.current}` }
+          : undefined,
       });
 
       setPhoneVerifying(false);

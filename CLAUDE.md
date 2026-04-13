@@ -38,6 +38,7 @@ npm run test       # vitest
   MSG91_TEMPLATE_ID: 1207177503631409147, sender: REEVPM.
   Secrets required: MSG91_AUTH_KEY, MSG91_TEMPLATE_ID (set via `supabase secrets set`).
   verify_jwt=false (called by Supabase Auth internally, not by browser).
+- Profile: Google OAuth token must be captured BEFORE signInWithOtp is called (stored in googleTokenRef) and passed explicitly as Authorization header to verify-phone-otp. signInWithOtp replaces the Supabase client session — never rely on auto-attached session token after calling it.
 - `verify-phone-otp` edge function — verifies phone OTP for Google OAuth users without replacing session.
   Flow: validate caller JWT → POST /auth/v1/verify (confirm OTP, extract phoneUserId from response) →
   PATCH /auth/v1/admin/users/{googleUserId} with phone_confirm: true (links phone to existing user) →
