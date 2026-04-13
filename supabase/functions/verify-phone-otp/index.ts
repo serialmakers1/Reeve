@@ -57,6 +57,8 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Unauthorized" }, 401);
     }
 
+    console.log('STEP1_JWT_OK', { googleUserId });
+
     // ── 2. Parse and validate body ────────────────────────────────────────────
     let body: { phone?: string; token?: string };
     try {
@@ -78,6 +80,8 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Invalid token format" }, 400);
     }
 
+    console.log('STEP2_BODY', { phone, otp: otp.substring(0, 2) + '****' });
+
     // ── 3. Verify OTP via Supabase Auth ───────────────────────────────────────
     // Returns a session for the phone-only user — extract their ID for cleanup,
     // then discard the session entirely (never forwarded to client).
@@ -90,18 +94,30 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({ phone, token: otp, type: "sms" }),
     });
 
+    const verifyBody = await verifyRes.text();
+    console.log('STEP3_VERIFY', {
+      status: verifyRes.status,
+      body: verifyBody.substring(0, 200),
+    });
+
     if (!verifyRes.ok) {
-      const verifyErr = await verifyRes.json().catch(() => ({}));
+      const verifyErr = JSON.parse(verifyBody) ?? {};
       const msg = verifyErr?.msg || verifyErr?.message || "Invalid or expired OTP";
       return json({ error: msg }, 400);
     }
 
-    const verifyData = await verifyRes.json().catch(() => ({}));
+    const verifyData = (() => { try { return JSON.parse(verifyBody); } catch { return {}; } })();
     // ID of the spurious phone-only auth.users row created by signInWithOtp
     const phoneUserId: string | undefined = verifyData?.user?.id;
 
     // ── 4. Link phone to the original Google OAuth user via Admin API ─────────
     // PATCH sets phone + phone_confirm: true without touching the caller's session.
+    console.log('STEP4_PRE_PATCH', {
+      googleUserId,
+      phone,
+      patchUrl: SUPABASE_URL + '/auth/v1/admin/users/' + googleUserId,
+    });
+
     const patchRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${googleUserId}`, {
       method: "PATCH",
       headers: {
@@ -112,8 +128,14 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({ phone, phone_confirm: true }),
     });
 
+    const patchBody = await patchRes.text();
+    console.log('STEP4_PATCH_RESULT', {
+      status: patchRes.status,
+      body: patchBody.substring(0, 300),
+    });
+
     if (!patchRes.ok) {
-      const patchErr = await patchRes.json().catch(() => ({}));
+      const patchErr = (() => { try { return JSON.parse(patchBody); } catch { return {}; } })();
       const msg = patchErr?.message || "Failed to link phone to user";
       return json({ error: msg }, 500);
     }
