@@ -127,6 +127,25 @@ Deno.serve(async (req: Request) => {
       } else {
         console.log(`verify-phone-otp: deleted spurious phone user ${phoneUserId}`);
       }
+
+      // Also delete the public.users row the handle_user_updated trigger created
+      // for the spurious phone-only user (fires when phone_confirmed_at is set).
+      const deletePublicRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/users?id=eq.${phoneUserId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "apikey": serviceRoleKey,
+            "Authorization": `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (!deletePublicRes.ok) {
+        console.error(`verify-phone-otp: failed to delete public.users row for ${phoneUserId}`, await deletePublicRes.text().catch(() => ""));
+      } else {
+        console.log(`verify-phone-otp: deleted public.users row for spurious phone user ${phoneUserId}`);
+      }
     }
 
     // ── 6. Link phone to the original Google OAuth user via Admin API ─────────

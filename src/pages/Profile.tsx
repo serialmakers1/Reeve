@@ -268,7 +268,7 @@ export default function Profile() {
         await supabase
           .from("users")
           .update({
-            phone: "+91" + digits,
+            phone: "91" + digits,
             phone_verified: true,
             updated_at: new Date().toISOString(),
           })
@@ -355,7 +355,7 @@ export default function Profile() {
   const phoneVerified = user?.phone_verified ?? false;
   const emailVerified = user?.email_verified ?? false;
   const hasGoogle = identities.some((i) => i.provider === "google");
-  const currentPhone = user?.phone?.replace(/^\+91/, "") ?? "";
+  const currentPhone = user?.phone?.replace(/^(\+91|91)/, "") ?? "";
 
   return (
     <Layout>
