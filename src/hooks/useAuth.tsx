@@ -121,7 +121,22 @@ export function useAuth() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Safety timeout — if loading is still true after 5s (e.g. stalled DB
+    // fetch after OAuth redirect), force it to false so the page can proceed.
+    const safetyTimeout = setTimeout(() => {
+      setState(prev => {
+        if (prev.isLoading) {
+          console.warn('useAuth: safety timeout triggered — forcing loading to false');
+          return { ...prev, isLoading: false };
+        }
+        return prev;
+      });
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
+    };
   }, [loadUser]);
 
   const signOut = useCallback(async () => {
