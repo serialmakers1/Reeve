@@ -39,12 +39,16 @@ npm run test       # vitest
   Secrets required: MSG91_AUTH_KEY, MSG91_TEMPLATE_ID (set via `supabase secrets set`).
   verify_jwt=false (called by Supabase Auth internally, not by browser).
 - Profile: Google OAuth token must be captured BEFORE signInWithOtp is called (stored in googleTokenRef) and passed explicitly as Authorization header to verify-phone-otp. signInWithOtp replaces the Supabase client session — never rely on auto-attached session token after calling it.
+- public.users phone format: stored as `91XXXXXXXXXX` (no + prefix) to match auth.users format. Display strips both `+91` and `91` prefix (`replace(/^(\+91|91)/, "")`) then shows `+91 {digits}`. Do NOT store as `+91XXXXXXXXXX` in public.users.
 - `verify-phone-otp` edge function — verifies phone OTP for Google OAuth users without replacing session.
   Flow: validate caller JWT → POST /auth/v1/verify (confirm OTP, extract phoneUserId from response) →
-  PATCH /auth/v1/admin/users/{googleUserId} with phone_confirm: true (links phone to existing user) →
-  DELETE /auth/v1/admin/users/{phoneUserId} if phoneUserId != googleUserId (cleanup spurious phone row).
-  Has CORS headers — called via supabase.functions.invoke from browser.
-  Called via supabase.functions.invoke('verify-phone-otp', { body: { phone, token } }).
+  DELETE auth.users/{phoneUserId} (spurious phone row, must be before PUT to avoid unique constraint) →
+  DELETE public.users?id=eq.{phoneUserId} (row created by handle_user_updated trigger, non-fatal) →
+  PUT /auth/v1/admin/users/{googleUserId} with { phone, phone_confirm: true } (links phone to existing user).
+  Has CORS headers — called via direct fetch from browser (NOT functions.invoke).
+  Called via fetch(`${SUPABASE_URL}/functions/v1/verify-phone-otp`) with explicit Authorization header.
+  JWT verification: MUST be OFF in dashboard (verify_jwt = false in config.toml). Resets on every deploy —
+  CHECK dashboard after each deployment: Edge Functions → verify-phone-otp → Settings → JWT Verification = OFF.
 - useAuth() — single source of truth. Returns { session, user, isLoading, isAuthenticated, signOut, refreshUser }
 - useRequireAuth({ requireAdmin? }) — use on all protected pages
 - Never call supabase.auth.getSession() in rendering logic or useEffect data gates — use useAuth(). Event handlers performing one-time mutations may call it directly.
