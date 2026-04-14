@@ -107,6 +107,25 @@ export default function Profile() {
     };
   }, []);
 
+  // Mount-time hash-error check — runs before onAuthStateChange strips the hash.
+  // Supabase redirects back with error fragments when linkIdentity fails
+  // (e.g. #error=oauthError&error_description=Identity+is+already+linked+to+another+user).
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash || !hash.includes("error_description=")) return;
+
+    const params = new URLSearchParams(hash.slice(1));
+    const description = params.get("error_description") ?? "";
+    if (!description) return;
+
+    const message = description.toLowerCase().includes("already linked")
+      ? "This Google account is already linked to another profile."
+      : description;
+
+    toast({ title: message, variant: "destructive" });
+    navigate("/profile", { replace: true });
+  }, []);
+
   // After Google OAuth return: write email_verified to public.users, refresh, consume pendingReturnTo
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, authSession) => {
