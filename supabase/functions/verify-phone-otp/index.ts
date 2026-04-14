@@ -4,6 +4,9 @@ const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const PHONE_REGEX = /^\+91\d{10}$/;
 // Supabase OTPs are 6 digits; accept 4–8 to be safe
 const TOKEN_REGEX = /^\d{4,8}$/;
+// signInWithOtp creates a spurious auth.users row moments before verify is called.
+// Legitimate users have created_at well beyond this threshold.
+const SPURIOUS_ROW_MAX_AGE_MS = 60_000;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -110,7 +113,19 @@ Deno.serve(async (req: Request) => {
     // ID of the spurious phone-only auth.users row created by signInWithOtp
     const phoneUserId: string | undefined = verifyData?.user?.id;
 
-    // ── 4. Delete spurious phone-only auth.users row before PUT ──────────────
+    // ── 4. Guard: abort if phone belongs to a legitimate existing user ────────
+    // signInWithOtp creates a spurious row moments before this call (age < 60s).
+    // A real user would have created_at well beyond SPURIOUS_ROW_MAX_AGE_MS.
+    if (phoneUserId && phoneUserId !== googleUserId) {
+      const createdAt = verifyData?.user?.created_at;
+      const ageMs = createdAt ? Date.now() - new Date(createdAt).getTime() : Infinity;
+      console.log('STEP4_AGE_CHECK', { phoneUserId, createdAt, ageMs });
+      if (ageMs > SPURIOUS_ROW_MAX_AGE_MS) {
+        return json({ error: "This phone number is already registered to another account." }, 409);
+      }
+    }
+
+    // ── 5. Delete spurious phone-only auth.users row before PUT ──────────────
     // Must happen BEFORE the PUT — the PUT sets phone on the Google user, which
     // would collide with the phone already on the spurious row (unique constraint).
     if (phoneUserId && phoneUserId !== googleUserId) {
@@ -148,7 +163,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── 6. Link phone to the original Google OAuth user via Admin API ─────────
+    // ── 6. Link phone to the original Google OAuth user via Admin API ──────────
     // PUT sets phone + phone_confirm: true without touching the caller's session.
     console.log('STEP4_PRE_PATCH', {
       googleUserId,

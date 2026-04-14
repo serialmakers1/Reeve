@@ -1,3 +1,4 @@
+## [2026-04-14] fix | verify-phone-otp: add legitimate-user pre-check (SPURIOUS_ROW_MAX_AGE_MS=60s) — abort with 409 if phone belongs to existing user, never delete legitimate accounts [10:00 IST]
 ## [2026-04-13] fix | supabase client: add noOpLock to fix Web Lock deadlock causing white screen on profile refresh for phone+Google users [18:30 IST]
 ## [2026-04-13] fix | useAuth: fix white screen on profile refresh for phone+Google users — skip INITIAL_SESSION, increase setTimeout to 100ms [18:00 IST]
 ## [2026-04-13] fix | useAuth: wrap onAuthStateChange in setTimeout(0) to fix DB deadlock on page refresh [17:30 IST]
