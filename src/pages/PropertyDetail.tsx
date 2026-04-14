@@ -63,6 +63,7 @@ import {
 } from "lucide-react";
 import VisitSchedulerModal from "@/components/VisitSchedulerModal";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -367,8 +368,9 @@ function LoginDrawer({
 const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, session, isLoading: authLoading } = useAuth();
+  const { user, session, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [property, setProperty] = useState<PropertyData | null>(null);
   const [rawAmenities, setRawAmenities] = useState<{ furnishing_items?: string[]; building?: string[] } | null>(null);
@@ -569,35 +571,34 @@ const PropertyDetail: React.FC = () => {
   }, [lightboxImages.length]);
 
   // CTA handlers
-  const handleScheduleVisit = async () => {
-    if (!session) {
+  const handleVerificationGate = (destination: string): boolean => {
+    if (!isAuthenticated) {
       setLoginDrawerOpen(true);
-      return;
+      return false;
     }
-    if (visitSchedulingBlocked) return;
+    if (!user?.phone_verified || !user?.email_verified) {
+      const profileUrl = `/profile?returnTo=${encodeURIComponent(destination)}`;
+      posthog?.capture("verification_gate_shown", { trigger: "cta" });
+      if (isMobile) {
+        navigate(profileUrl);
+      } else {
+        window.open(profileUrl, "_blank");
+      }
+      return false;
+    }
+    return true;
+  };
 
-    // Dual verification gate — fresh DB read
-    const { data: verif } = await supabase
-      .from("users")
-      .select("phone_verified, email_verified")
-      .eq("id", session.user.id)
-      .single();
-    if (!verif?.phone_verified || !verif?.email_verified) {
-      localStorage.setItem(
-        "pendingReturnTo",
-        JSON.stringify({ url: window.location.pathname + window.location.search, ts: Date.now() })
-      );
-      posthog?.capture("verification_gate_shown", { trigger: "schedule_visit" });
-      navigate("/profile");
-      return;
-    }
+  const handleScheduleVisit = async () => {
+    if (!handleVerificationGate(window.location.pathname)) return;
+    if (visitSchedulingBlocked) return;
 
     // Check eligibility before opening scheduling modal
     setEligibilityChecking(true);
     const { data } = await supabase
       .from("eligibility")
       .select("status")
-      .eq("user_id", session.user.id)
+      .eq("user_id", user!.id)
       .eq("status", "passed")
       .limit(1)
       .maybeSingle();
@@ -642,15 +643,12 @@ const PropertyDetail: React.FC = () => {
   };
 
   const handleApply = async () => {
-    if (!session) {
-      setLoginDrawerOpen(true);
-      return;
-    }
+    if (!handleVerificationGate(window.location.pathname)) return;
 
     const { data } = await supabase
       .from("eligibility")
       .select("status")
-      .eq("user_id", session.user.id)
+      .eq("user_id", user!.id)
       .limit(1)
       .maybeSingle();
 
@@ -1300,14 +1298,30 @@ const PropertyDetail: React.FC = () => {
                           <p className="text-xs text-amber-700">Contact us at <a href="mailto:support@reeve.in" className="underline">support@reeve.in</a> to restore access.</p>
                         </div>
                       ) : (
-                        <Button
-                          onClick={handleScheduleVisit}
-                          variant="outline"
-                          className="w-full min-h-[44px]"
-                          disabled={eligibilityChecking}
-                        >
-                          {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : "Schedule a Visit"}
-                        </Button>
+                        <>
+                          {isAuthenticated && (!user?.phone_verified || !user?.email_verified) && (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2">
+                              <span className="text-amber-500 text-sm mt-0.5 shrink-0">⚠</span>
+                              <div>
+                                <p className="text-xs font-medium text-amber-800">Verify to schedule or apply</p>
+                                <button
+                                  onClick={() => window.open(`/profile?returnTo=${encodeURIComponent(window.location.pathname)}`, "_blank")}
+                                  className="text-xs text-amber-700 underline underline-offset-2"
+                                >
+                                  Complete verification →
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          <Button
+                            onClick={handleScheduleVisit}
+                            variant="outline"
+                            className="w-full min-h-[44px]"
+                            disabled={eligibilityChecking}
+                          >
+                            {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : "Schedule a Visit"}
+                          </Button>
+                        </>
                       )}
                       {renderApplySection(false)}
                     </>
@@ -1346,6 +1360,19 @@ const PropertyDetail: React.FC = () => {
               <div className="flex-1 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2 min-h-[48px] flex flex-col justify-center">
                 <p className="text-xs font-medium text-amber-800">Scheduling blocked</p>
                 <p className="text-xs text-amber-700">3 missed visits — contact support@reeve.in</p>
+              </div>
+            ) : isAuthenticated && (!user?.phone_verified || !user?.email_verified) ? (
+              <div className="flex-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 min-h-[48px] flex items-center gap-2">
+                <span className="text-amber-500 shrink-0">⚠</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-amber-800 leading-tight">Verify to schedule or apply</p>
+                  <button
+                    onClick={() => navigate(`/profile?returnTo=${encodeURIComponent(window.location.pathname)}`)}
+                    className="text-xs text-amber-700 underline"
+                  >
+                    Verify now →
+                  </button>
+                </div>
               </div>
             ) : (
               <Button
