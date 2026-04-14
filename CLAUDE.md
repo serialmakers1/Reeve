@@ -39,6 +39,10 @@ npm run test       # vitest
 - After linkIdentity: session.user.email is "" — read from `identities[].identity_data.email`; full_name from `identity_data.full_name ?? identity_data.name`.
 - Profile: "Change Phone Number" hidden once phone_verified. Email shown read-only in Google section after linking.
 - Profile.tsx: Mount useEffect (empty deps) reads window.location.hash for error_description fragments on load — must appear before onAuthStateChange useEffect so it fires first. If description contains "already linked" → "This Google account is already linked to another profile."; otherwise shows decoded description. navigate('/profile', {replace:true}) strips the hash after toast shown.
+- returnTo mechanism — two paths:
+  Phone OTP: ?returnTo= query param read via useSearchParams at render top level. After refreshUser() in handleVerifyPhoneOtp, if returnTo && returnTo !== '/profile', navigate there and return early.
+  Google link: sessionStorage key 'reeve-link-returnTo', written in handleLinkGoogle before linkIdentity, read+cleared in onAuthStateChange after USER_UPDATED. Do NOT put ?returnTo in linkIdentity redirectTo — Supabase whitelist strips query params.
+  onAuthStateChange uses single navigate (no /profile flash): sessionStorage first → localStorage pendingReturnTo fallback → /profile default.
 - `verify-phone-otp` edge function: validate JWT → POST /auth/v1/verify → age-check phoneUserId (if created_at > 60s ago → 409 "already registered") → DELETE auth.users/{phoneUserId} → DELETE public.users?id=eq.{phoneUserId} → PUT /auth/v1/admin/users/{googleUserId} { phone, phone_confirm: true }. Direct fetch, verify_jwt=false in config.toml. Check JWT=OFF in dashboard after each deploy. `SPURIOUS_ROW_MAX_AGE_MS = 60_000` — rows younger than 60s are assumed spurious (created by signInWithOtp); older rows are legitimate users and must never be deleted.
 - useAuth() — single source of truth. Returns { session, user, isLoading, isAuthenticated, signOut, refreshUser }
 - useAuth critical patterns (do NOT remove any of these):

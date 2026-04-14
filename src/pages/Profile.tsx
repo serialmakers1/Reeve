@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ export default function Profile() {
   const { user, session, loading, refreshUser } = useRequireAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const [initialized, setInitialized] = useState(false);
 
   // ─── Section 1: Full Name ──────────────────────────────────────────────────
@@ -156,18 +158,29 @@ export default function Profile() {
         }
 
         await refreshUser();
-        navigate('/profile', { replace: true });
-
-        const raw = localStorage.getItem("pendingReturnTo");
-        if (raw) {
-          try {
-            const { url, ts } = JSON.parse(raw);
-            localStorage.removeItem("pendingReturnTo");
-            if (Date.now() - ts < PENDING_RETURN_TTL && url && url !== "/profile") {
-              navigate(url, { replace: true });
+        // Single navigate — no /profile flash.
+        // Priority: sessionStorage (Google link returnTo) > localStorage (legacy) > /profile
+        const linkReturnTo = sessionStorage.getItem('reeve-link-returnTo');
+        if (linkReturnTo) {
+          sessionStorage.removeItem('reeve-link-returnTo');
+          navigate(linkReturnTo, { replace: true });
+        } else {
+          const raw = localStorage.getItem("pendingReturnTo");
+          if (raw) {
+            try {
+              const { url, ts } = JSON.parse(raw);
+              localStorage.removeItem("pendingReturnTo");
+              if (Date.now() - ts < PENDING_RETURN_TTL && url && url !== "/profile") {
+                navigate(url, { replace: true });
+              } else {
+                navigate('/profile', { replace: true });
+              }
+            } catch {
+              localStorage.removeItem("pendingReturnTo");
+              navigate('/profile', { replace: true });
             }
-          } catch {
-            localStorage.removeItem("pendingReturnTo");
+          } else {
+            navigate('/profile', { replace: true });
           }
         }
       }
@@ -303,6 +316,10 @@ export default function Profile() {
       }
 
       await refreshUser();
+      if (returnTo && returnTo !== '/profile') {
+        navigate(returnTo, { replace: true });
+        return;
+      }
       setPhoneStep("idle");
       setNewPhone("");
       setPhoneOtp("");
@@ -319,11 +336,11 @@ export default function Profile() {
 
   const handleLinkGoogle = async () => {
     setGoogleLinking(true);
-    // Store return URL before navigating away
-    localStorage.setItem(
-      "pendingReturnTo",
-      JSON.stringify({ url: "/profile", ts: Date.now() })
-    );
+    // Write returnTo to sessionStorage so onAuthStateChange can navigate back after OAuth.
+    // Do NOT put ?returnTo in redirectTo — Supabase whitelist strips query params.
+    if (returnTo && returnTo !== '/profile') {
+      sessionStorage.setItem('reeve-link-returnTo', returnTo);
+    }
     posthog?.capture("google_link_initiated");
     const { error } = await supabase.auth.linkIdentity({
       provider: "google",
@@ -333,7 +350,7 @@ export default function Profile() {
     });
     if (error) {
       setGoogleLinking(false);
-      localStorage.removeItem("pendingReturnTo");
+      sessionStorage.removeItem('reeve-link-returnTo');
       toast({ title: "Could not link Google. Please try again.", variant: "destructive" });
     }
     // On success the browser navigates away — no further action needed here
