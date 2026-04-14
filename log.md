@@ -1,3 +1,5 @@
+## [2026-04-14] refactor | Remove pendingReturnTo localStorage — replaced with query param + sessionStorage returnTo [13:00 IST]
+## [2026-04-14] feat | PropertyDetail + Eligibility: add verification gates (phone+Google) + proactive VerificationStrip UI [12:00 IST]
 ## [2026-04-14] feat | Profile: wire returnTo navigation for phone OTP and Google link success paths [11:00 IST]
 ## [2026-04-14] fix | Profile: parse OAuth error hash on mount to show toast when Google account already linked to another user [10:30 IST]
 ## [2026-04-14] fix | verify-phone-otp: add legitimate-user pre-check (SPURIOUS_ROW_MAX_AGE_MS=60s) — abort with 409 if phone belongs to existing user, never delete legitimate accounts [10:00 IST]
