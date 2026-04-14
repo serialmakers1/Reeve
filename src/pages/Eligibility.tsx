@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import posthog from "posthog-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,7 +98,8 @@ function formatIndianRupee(n: number): string {
 
 export default function EligibilityPage() {
   const navigate = useNavigate();
-  const { user, session, loading: authLoading } = useRequireAuth();
+  const { user, session, isAuthenticated, loading: authLoading } = useRequireAuth();
+  const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
   const propertyIdParam = searchParams.get('property_id');
@@ -565,7 +567,20 @@ export default function EligibilityPage() {
                 <Button
                   variant="outline"
                   className="min-h-[44px] w-full"
-                  onClick={() => navigate(`/dashboard/applications/new?property_id=${propertyContext.id}`)}
+                  onClick={() => {
+                    if (!user?.phone_verified || !user?.email_verified) {
+                      const returnPath = `/eligibility?property_id=${propertyContext.id}`;
+                      const profileUrl = `/profile?returnTo=${encodeURIComponent(returnPath)}`;
+                      posthog?.capture("verification_gate_shown", { trigger: "eligibility_apply" });
+                      if (isMobile) {
+                        navigate(profileUrl);
+                      } else {
+                        window.open(profileUrl, "_blank");
+                      }
+                      return;
+                    }
+                    navigate(`/dashboard/applications/new?property_id=${propertyContext.id}`);
+                  }}
                 >
                   Apply Now
                 </Button>
