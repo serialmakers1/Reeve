@@ -175,7 +175,7 @@ export default function Index() {
                   ))}
                 </ul>
                 <Link
-                  to="/savings/owner"
+                  to="/savings/owners"
                   className="mt-6 block w-full bg-white text-[#2563EB] text-center py-3 rounded-2xl font-semibold text-sm hover:bg-blue-50 transition-colors duration-200 min-h-[48px] flex items-center justify-center"
                   style={{ fontFamily: FONT_SANS }}
                 >
