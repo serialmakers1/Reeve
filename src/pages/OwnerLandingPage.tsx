@@ -437,6 +437,7 @@ export default function OwnerLandingPage(): React.ReactElement {
                     See owner savings ↓
                   </button>
                 </div>
+               </div>
 
               {/* Right — property status card */}
               <div className="owner-fade-up" style={{ transitionDelay: "160ms" }}>
