@@ -51,3 +51,5 @@
 ## [2026-04-06] feat | Added no-show monitoring and unblock capability to TenantPipeline [12:18 IST]
 ## [2026-04-06] feat | Surfaced visit notes and admin tenant notes in AdminApplicationDetail [12:35 IST]
 ## [2026-04-06] feat | Added scheduling block gate and VisitSchedulerModal to PropertyDetail [12:52 IST]
+
+## [2026-04-18] feat | Created OwnerClarityGuide.tsx — owner clarity guide page with 13 sections, TOC, progress bar [18:30 IST]
