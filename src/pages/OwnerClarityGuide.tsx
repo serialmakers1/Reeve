@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import posthog from "posthog-js";
 import Layout from "@/components/Layout";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 // ── Colour Tokens ─────────────────────────────────────────────────────────────
 
@@ -417,6 +418,7 @@ function SectionH2({ children }: { children: React.ReactNode }): React.ReactElem
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function OwnerClarityGuide(): React.ReactElement {
+  const { loading: authLoading } = useRequireAuth();
   const navigate = useNavigate();
   const [scrollPct, setScrollPct] = useState(0);
   const [activeSection, setActiveSection] = useState("");
@@ -450,6 +452,8 @@ export default function OwnerClarityGuide(): React.ReactElement {
 
   // PostHog: hero viewed
   useEffect(() => { posthog?.capture("owner_clarity_hero_viewed"); }, []);
+
+  if (authLoading) return null;
 
   const scrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
