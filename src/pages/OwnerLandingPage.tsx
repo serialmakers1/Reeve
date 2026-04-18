@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import posthog from "posthog-js";
 import Layout from "@/components/Layout";
 
@@ -231,6 +232,7 @@ function useSectionView(sectionName: string): React.RefObject<HTMLElement> {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function OwnerLandingPage(): React.ReactElement {
+  const navigate = useNavigate();
   const [currentRent, setCurrentRent] = useState<number>(DEFAULT_RENT);
   const hasTrackedCalcRef = useRef(false);
   const savings = calculateSavings(currentRent);
@@ -1219,40 +1221,34 @@ export default function OwnerLandingPage(): React.ReactElement {
                 We work with a focused set of Bangalore owners who want better tenants and a more structured rental
                 process.
               </p>
-              <div className="flex flex-wrap justify-center gap-3">
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <button
-                  onClick={() => scrollTo("fit")}
-                  className="rounded-xl px-8 py-4 text-base font-semibold transition-all duration-200 hover:-translate-y-0.5"
+                  onClick={() => navigate("/login?returnTo=/owner/add")}
+                  className="rounded-2xl px-8 py-4 text-base font-semibold transition-all duration-200 hover:-translate-y-0.5"
                   style={{
-                    background: C.textPrimary,
-                    color: "#1A2B3C",
+                    background: "#FFFFFF",
+                    color: C.accent,
                     minHeight: 52,
                     fontFamily: FONT_SANS,
                   }}
                 >
-                  Check Property Fit →
+                  List Your Property — It&apos;s Free →
                 </button>
-                <button
-                  onClick={() => scrollTo("savings")}
-                  className="rounded-xl px-8 py-4 text-sm font-semibold transition-all duration-200"
+                <Link
+                  to="/contact"
+                  className="rounded-2xl border-2 px-8 py-4 text-base font-semibold transition-all duration-200 hover:bg-white/10"
                   style={{
-                    background: "transparent",
-                    color: "rgba(255,255,255,0.55)",
-                    border: "1.5px solid rgba(255,255,255,0.2)",
+                    borderColor: "rgba(255,255,255,0.5)",
+                    color: "#FFFFFF",
                     minHeight: 52,
                     fontFamily: FONT_SANS,
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.55)";
-                    (e.currentTarget as HTMLButtonElement).style.color = "#fff";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.2)";
-                    (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.55)";
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  See Owner Savings
-                </button>
+                  Talk to Us First →
+                </Link>
               </div>
             </div>
           </div>
