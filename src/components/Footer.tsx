@@ -48,7 +48,7 @@ const Footer = () => {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/savings/owner" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  <Link to="/savings/owners" className="text-gray-400 text-sm hover:text-white transition-colors">
                     Owner Savings Calculator
                   </Link>
                 </li>
