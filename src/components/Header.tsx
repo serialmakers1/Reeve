@@ -45,7 +45,7 @@ const Header = () => {
               For Tenants
             </Link>
             <Link
-              to="/savings/owners"
+              to="/owners"
               className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors font-medium"
             >
               For Owners
@@ -180,7 +180,7 @@ const Header = () => {
                   Tenant Savings
                 </Link>
                 <Link
-                  to="/savings/owners"
+                  to="/owners"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
