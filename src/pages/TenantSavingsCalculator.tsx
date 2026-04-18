@@ -381,7 +381,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
             {/* Cross-navigation link — Point 6 */}
             <p className="mt-3" style={{ fontFamily: FONT_SANS }}>
               <Link
-                to="/savings/owners"
+                to="/owners"
                 className="text-[13px] text-slate-400 hover:text-white transition-colors duration-200"
               >
                 Property owner? See owner savings →
