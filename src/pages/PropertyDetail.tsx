@@ -704,7 +704,7 @@ const PropertyDetail: React.FC = () => {
       ? photoImages
       : images.filter(img => img.section === galleryTab && !img.is_floor_plan);
 
-  const depositAmount = property.listed_rent * property.security_deposit_months;
+  const depositAmount = 2 * property.listed_rent * property.security_deposit_months;
 
   // ─── Application history derived state ────────────────────────────────────
   // Derive each flag by scanning the full array rather than relying on ordering.
@@ -1003,6 +1003,12 @@ const PropertyDetail: React.FC = () => {
                 <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
                   🟢 Zero Brokerage
                 </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                  🟢 6 Months Lock-in
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                  🟢 2 Month Notice
+               </span>
               </div>
             </section>
 
@@ -1027,9 +1033,9 @@ const PropertyDetail: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex justify-between items-center px-4 py-2.5 border-t border-gray-100">
-                      <span className="text-sm text-gray-600">Service Fee (7% + 18% GST)</span>
+                      <span className="text-sm text-gray-600">Reeve Fee (7%)</span>
                       <span className="text-sm font-medium text-gray-900">
-                        ₹{Math.round(property.listed_rent * 0.07 * 1.18).toLocaleString('en-IN')}
+                        ₹{Math.round(property.listed_rent * 0.07).toLocaleString('en-IN')}
                       </span>
                     </div>
                     <div className="flex justify-between items-center px-4 py-2.5 border-t border-gray-200 bg-blue-50">
@@ -1045,7 +1051,7 @@ const PropertyDetail: React.FC = () => {
                     <div className="flex justify-between items-start text-sm">
                       <span className="text-gray-500">Security Deposit</span>
                       <span className="text-gray-700 text-right font-medium">
-                        ₹{(property.listed_rent * (property.security_deposit_months ?? 2)).toLocaleString('en-IN')}
+                        ₹{(2 * property.listed_rent * (property.security_deposit_months ?? 2)).toLocaleString('en-IN')}
                       </span>
                     </div>
                     {property.society_maintenance_approx && (
@@ -1053,7 +1059,7 @@ const PropertyDetail: React.FC = () => {
                         <span className="text-gray-500">Society Maintenance</span>
                         <span className="text-gray-700 text-right">
                           ~₹{Number(property.society_maintenance_approx).toLocaleString('en-IN')}
-                          <span className="text-gray-400"> · paid by tenant</span>
+                          <span className="text-gray-400"> · Included in Base rent</span>
                         </span>
                       </div>
                     )}
@@ -1249,7 +1255,7 @@ const PropertyDetail: React.FC = () => {
                     <span className="text-sm text-muted-foreground">/month</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Security Deposit: {formatIndianRupee(depositAmount)} · 7% service fee
+                    Security Deposit: {formatIndianRupee(depositAmount)} · 7% Reeve fee
                   </p>
                   {isOwnProperty ? (
                     <p className="text-sm text-muted-foreground text-center py-2">This is your listed property.</p>
