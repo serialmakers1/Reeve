@@ -64,7 +64,7 @@ const LC_STEPS = [
     title: "Listing",
     hint: "Prepare & present",
     detail:
-      "We inspect the property, photograph every room against our PBR baseline, write the listing, and show it to every screened applicant. You are never asked to attend a showing or take a broker call.",
+      "We inspect the property, photograph every room, list the property, and show it to every screened applicant. You are never asked to attend a showing or take a broker call.",
   },
   {
     icon: "🔍",
@@ -85,14 +85,14 @@ const LC_STEPS = [
     title: "Rent Flow",
     hint: "Clean monthly payout",
     detail:
-      "Tenant pays Reeve directly as a single indivisible amount. Your base rent is transferred to your account within 5 days of collection. Automated escalation handles any late payment — you are notified, never asked to chase.",
+      "Tenant pays Reeve directly as a single indivisible amount. Your base rent is transferred to your account within 2 business days of collection. Automated escalation handles any late payment — you are notified, never asked to chase.",
   },
   {
     icon: "🔧",
     title: "Maintenance",
     hint: "Coordinated intake",
     detail:
-      "Tenant raises issues via WhatsApp with video. Reeve acknowledges within 4 hours and categorises by urgency. Minor items are handled without your approval. Larger items need your sign-off within a defined window. Vendor dispatched from our vetted panel.",
+      "Tenant raises issues via maintenance portal. Reeve acknowledges within 4 hours and categorises by urgency. Minor items are handled without your approval. Larger items need your sign-off within a defined window. Vendor dispatched from our vetted panel.",
   },
   {
     icon: "💬",
@@ -106,14 +106,14 @@ const LC_STEPS = [
     title: "Inspections",
     hint: "Preventive oversight",
     detail:
-      "Condition inspections at months 5–6 and 10–11 of the tenancy. Every room photographed against the MICR baseline. Findings classified and shared with you in a condition update report.",
+      "Inspections at months 5–6 and 10–11 of the tenancy. Every room photographed against the Move In Condition Report. Findings classified and shared with you in a condition update report.",
   },
   {
     icon: "🏁",
     title: "Exit",
     hint: "Documented closure",
     detail:
-      "Move-out inspection comparing exit photos against the signed MICR. Every finding assessed by evidence. RA-001 issued to both parties. Reeve coordinates all repairs from the deposit assessment. Standard repainting and deep cleaning funded by Reeve at exit.",
+      "Move-out inspection comparing exit photos against the signed Move In Condition Report. Every finding assessed by evidence. Reeve coordinates all repairs. Standard repainting and deep cleaning funded by Reeve at exit.",
   },
 ];
 
@@ -404,7 +404,7 @@ export default function OwnerLandingPage(): React.ReactElement {
                   className="owner-fade-up mt-5 flex flex-wrap gap-2"
                   style={{ transitionDelay: "160ms" }}
                 >
-                  {["Verified tenants only", "Documented move-in & exit", "Structured rent flow"].map((chip) => (
+                  {["Free Property Management Service Forever", "Verified tenants only", "Documented move-in & exit", "Structured rent flow"].map((chip) => (
                     <span
                       key={chip}
                       className="rounded-full px-3 py-1.5 text-sm font-medium"
@@ -437,36 +437,6 @@ export default function OwnerLandingPage(): React.ReactElement {
                     See owner savings ↓
                   </button>
                 </div>
-
-                {/* Pricing strip */}
-                <div
-                  className="owner-fade-up mt-7 inline-flex flex-wrap items-center gap-4 rounded-xl px-5 py-4"
-                  style={{ border: `1.5px solid ${C.border}`, background: C.surface, transitionDelay: "240ms" }}
-                >
-                  <div>
-                    <div
-                      className="text-xs font-bold uppercase tracking-widest mb-1"
-                      style={{ color: C.textMuted }}
-                    >
-                      What owners pay Reeve
-                    </div>
-                    <div style={{ fontFamily: FONT_SERIF, fontSize: "1.55rem", color: C.textPrimary, lineHeight: 1 }}>
-                      ₹0{" "}
-                      <span style={{ fontSize: "0.75em", color: C.textMuted }}>— always</span>
-                    </div>
-                  </div>
-                  <div
-                    className="hidden sm:block"
-                    style={{ width: 1, height: 32, background: C.border, flexShrink: 0 }}
-                  />
-                  <div className="text-xs leading-relaxed" style={{ color: C.textMuted, maxWidth: 280 }}>
-                    <strong style={{ color: C.textBody, display: "block", marginBottom: 2 }}>
-                      No listing fee · No commission · No monthly owner-side charge
-                    </strong>
-                    Our fee is paid by tenants, so your agreed rent is never reduced.
-                  </div>
-                </div>
-              </div>
 
               {/* Right — property status card */}
               <div className="owner-fade-up" style={{ transitionDelay: "160ms" }}>
@@ -975,7 +945,7 @@ export default function OwnerLandingPage(): React.ReactElement {
                       className="text-xs font-bold uppercase tracking-wider mb-1"
                       style={{ color: C.textMuted }}
                     >
-                      Turnover costs avoided
+                      Other costs avoided
                     </div>
                     <div
                       style={{
@@ -988,7 +958,7 @@ export default function OwnerLandingPage(): React.ReactElement {
                       <AnimatedNumber value={savings.turnoverExpense} formatter={formatINR} />
                     </div>
                     <div className="text-xs mt-1" style={{ color: C.textMuted }}>
-                      Painting &amp; relisting friction
+                      Painting, Deep Cleaning &amp; Listing Cost
                     </div>
                   </div>
 
@@ -1053,7 +1023,7 @@ export default function OwnerLandingPage(): React.ReactElement {
                       className="text-sm font-semibold"
                       style={{ color: "rgba(255,255,255,0.65)" }}
                     >
-                      Estimated direct cost savings per cycle
+                      Estimated direct cost avoided per cycle
                     </h4>
                     <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.38)" }}>
                       Brokerage + turnover — with ₹0 in owner fees
@@ -1076,7 +1046,7 @@ export default function OwnerLandingPage(): React.ReactElement {
                 </div>
 
                 <p className="mt-4 text-xs italic leading-relaxed" style={{ color: C.textMuted }}>
-                  Assumptions: 11-month cycle · Brokerage = 1× monthly rent · Painting &amp; cleaning = 0.5× monthly
+                  Assumptions: 11-month cycle · Brokerage = 1× monthly rent · Painting, cleaning &amp; Listing Cost = 0.5× monthly
                   rent · Visits = 15 per cycle (~2 hrs each) · Coordination = ~90 hrs/year. These are illustrative
                   estimates based on common Bangalore rental friction. Not a financial guarantee.
                 </p>
