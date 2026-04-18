@@ -616,7 +616,7 @@ export default function NewApplicationPage() {
     }
 
     if (s === 8) {
-      if (!feeTermsAccepted) errs.fee_terms = "Please accept the service fee terms";
+      if (!feeTermsAccepted) errs.fee_terms = "Please accept the Reeve fee terms";
       if (!dpdpaAccepted) errs.dpdpa = "Please provide DPDPA consent";
     }
 
@@ -1451,7 +1451,7 @@ export default function NewApplicationPage() {
             <span className="text-sm font-semibold text-foreground">{formatRupee(listedRent)}/month</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-sm text-muted-foreground">Service fee (7% + GST)</span>
+            <span className="text-sm text-muted-foreground">Reeve fee (7% )</span>
             <span className="text-sm text-foreground">{formatRupee(serviceFee)}/month</span>
           </div>
           <div className="flex justify-between">
@@ -1624,8 +1624,8 @@ export default function NewApplicationPage() {
               <span className="text-sm font-medium text-foreground">{formatRupee(rent)}/month</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Service fee</span>
-              <span className="text-sm text-foreground">{formatRupee(serviceFee)}/month + GST</span>
+              <span className="text-sm text-muted-foreground">Reeve fee</span>
+              <span className="text-sm text-foreground">{formatRupee(serviceFee)}/month</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Security deposit</span>
@@ -1648,7 +1648,7 @@ export default function NewApplicationPage() {
               <p className="flex items-start gap-2 text-sm text-amber-800">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 As per Section 194IB, you are required to deduct 2% TDS on rent above ₹50,000/month.
-                Service fee is calculated on flat rent before TDS.
+                Reeve fee is calculated on flat rent before TDS.
               </p>
             </CardContent>
           </Card>
@@ -1663,9 +1663,8 @@ export default function NewApplicationPage() {
             />
             <div>
               <p className="text-sm text-foreground leading-relaxed">
-                I understand and agree to the service fee of 7% of monthly rent for the first 11-month term,
-                reducing to 4% on renewal. The service fee is calculated on the flat rent amount.
-                KYC failure will result in forfeiture of the service charge + GST. *
+                I understand and agree to the Reeve fee of 7% of monthly rent for the first 11-month term,
+                reducing to 4% on renewal. The Reeve fee is calculated on the flat rent amount. *
               </p>
               <FieldError field="fee_terms" />
             </div>
