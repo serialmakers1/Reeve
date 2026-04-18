@@ -1041,7 +1041,7 @@ const PropertyDetail: React.FC = () => {
                     <div className="flex justify-between items-center px-4 py-2.5 border-t border-gray-200 bg-blue-50">
                       <span className="text-sm font-semibold text-gray-800">Monthly Total</span>
                       <span className="text-sm font-bold text-blue-700">
-                        ₹{Math.round(property.listed_rent * 1.0826).toLocaleString('en-IN')}
+                        ₹{Math.round(property.listed_rent * 1.07).toLocaleString('en-IN')}
                       </span>
                     </div>
                   </div>
