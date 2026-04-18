@@ -14,6 +14,7 @@ import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 import TenantSavingsCalculator from "./pages/TenantSavingsCalculator";
 import OwnerSavingsCalculator from "./pages/OwnerSavingsCalculator";
+import OwnerClarityGuide from "./pages/OwnerClarityGuide";
 import Search from "./pages/Search";
 import ReferProperty from "./pages/ReferProperty";
 import Eligibility from "./pages/Eligibility";
@@ -83,6 +84,7 @@ function AppInner() {
       <Route path="/contact" element={<Contact />} />
       <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
       <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
+      <Route path="/owner/how-it-works" element={<OwnerClarityGuide />} />
       <Route path="/eligibility" element={<Eligibility />} />
       <Route path="/my-properties" element={<MyProperties />} />
       <Route path="/my-properties/new" element={<MyPropertyNew />} />
