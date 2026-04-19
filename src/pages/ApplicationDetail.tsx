@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -24,6 +24,12 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RequestCallbackButton from "@/components/RequestCallbackButton";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   submitted: { label: "Submitted", color: "bg-blue-100 text-blue-800" },
@@ -154,6 +160,8 @@ export default function ApplicationDetail() {
   const [otherText, setOtherText] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const paymentReceivedToastFiredRef = useRef(false);
 
   useEffect(() => {
     if (!user || !id) return;
@@ -264,6 +272,90 @@ export default function ApplicationDetail() {
     }
     toast({ title: "Application withdrawn." });
     navigate("/dashboard/applications");
+  };
+
+  // Show success toast once when status first renders as payment_received.
+  // Ref prevents re-firing on re-renders or realtime updates.
+  useEffect(() => {
+    if (app?.status === "payment_received" && !paymentReceivedToastFiredRef.current) {
+      paymentReceivedToastFiredRef.current = true;
+      toast({ title: "Payment confirmed! Our team will reach out within 24–48 hours." });
+    }
+  }, [app?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Poll Supabase every 3s (max 5 attempts) after Razorpay handler fires.
+  // Webhook is source of truth — this bridges the UX gap while the webhook processes.
+  const pollApplicationStatus = async (applicationId: string, targetStatus: string) => {
+    const MAX_ATTEMPTS = 5;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 3000));
+      const { data } = await supabase
+        .from("applications")
+        .select("status")
+        .eq("id", applicationId)
+        .maybeSingle();
+      if ((data as any)?.status === targetStatus) {
+        setApp((prev) => (prev ? { ...prev, status: targetStatus } : prev));
+        return;
+      }
+    }
+  };
+
+  const handlePaymentSuccess = async (_response: any) => {
+    toast({ title: "Payment received! We'll be in touch shortly." });
+    if (app) {
+      await pollApplicationStatus(app.id, "payment_received");
+    }
+  };
+
+  const handleInitiatePayment = async () => {
+    if (!app || !user) return;
+
+    if (!window.Razorpay) {
+      toast({ title: "Payment service unavailable. Please refresh and try again.", variant: "destructive" });
+      return;
+    }
+
+    setPaymentLoading(true);
+
+    const { data, error } = await supabase.functions.invoke("create-razorpay-order", {
+      body: { application_id: app.id },
+    });
+
+    if (error || !data?.order_id) {
+      const errMsg = (data as any)?.error || error?.message || "Could not initiate payment. Please try again.";
+      toast({ title: errMsg, variant: "destructive" });
+      setPaymentLoading(false);
+      return;
+    }
+
+    const rzp = new window.Razorpay({
+      key: data.key_id,
+      amount: data.amount,
+      currency: "INR",
+      order_id: data.order_id,
+      name: "Reeve",
+      description: "Token Payment",
+      image: "https://www.reeve.in/favicon.ico",
+      prefill: {
+        name: "",
+        email: (user as any).email ?? "",
+        contact: (user as any).phone ?? "",
+      },
+      theme: { color: "#7C3AED" },
+      handler: (response: any) => {
+        handlePaymentSuccess(response);
+      },
+      modal: {
+        ondismiss: () => {
+          setPaymentLoading(false);
+          toast({ title: "Payment cancelled. You can try again anytime." });
+        },
+      },
+    });
+
+    rzp.open();
+    setPaymentLoading(false);
   };
 
   if (authLoading || loading) {
@@ -433,6 +525,44 @@ export default function ApplicationDetail() {
               </div>
             )}
 
+            {/* Owner Accepted — Payment CTA */}
+            {app.status === "owner_accepted" && (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-green-200 bg-green-50 p-5 space-y-2">
+                  <h3 className="font-semibold text-green-900">Your application has been approved 🎉</h3>
+                  <p className="text-sm text-green-800">
+                    Pay a refundable ₹5,000 token to confirm your interest. This holds the property for you while we
+                    complete the process.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border bg-card p-5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Token Amount (Refundable)</span>
+                    <span className="text-2xl font-bold text-foreground">₹5,000</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Token is fully refundable if Reeve is unable to execute the agreement.
+                  </p>
+                </div>
+
+                <Button
+                  className="w-full min-h-[44px] bg-violet-600 hover:bg-violet-700 text-white"
+                  disabled={paymentLoading}
+                  onClick={handleInitiatePayment}
+                >
+                  {paymentLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Initiating payment...
+                    </>
+                  ) : (
+                    "Pay ₹5,000 Token"
+                  )}
+                </Button>
+              </div>
+            )}
+
             {/* Payment Pending Section */}
             {app.status === "payment_pending" && (
               <div className="space-y-4">
@@ -475,11 +605,71 @@ export default function ApplicationDetail() {
                   </div>
                 </div>
 
+                <Button
+                  className="w-full min-h-[44px] bg-violet-600 hover:bg-violet-700 text-white"
+                  disabled={paymentLoading}
+                  onClick={handleInitiatePayment}
+                >
+                  {paymentLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Initiating payment...
+                    </>
+                  ) : (
+                    "Complete Payment →"
+                  )}
+                </Button>
+
                 <div className="rounded-xl border bg-card p-4 space-y-3">
                   <h4 className="text-sm font-semibold text-foreground">Need Help?</h4>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <a
                       href={`https://wa.me/917899874281?text=${encodeURIComponent(`Hi, I need help with my application ${app.id} for ${propertyName}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 min-h-[44px]"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      WhatsApp Us
+                    </a>
+                    <RequestCallbackButton
+                      defaultIntent="tenant"
+                      propertyId={app.property_id}
+                      className="border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Received Section */}
+            {app.status === "payment_received" && (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-green-200 bg-green-50 p-5 space-y-2">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <Check className="h-5 w-5" />
+                    <h3 className="font-semibold">Token payment confirmed ✓</h3>
+                  </div>
+                  <p className="text-sm text-green-700">Your ₹5,000 token has been received.</p>
+                </div>
+
+                <div className="rounded-xl border bg-card p-5 space-y-3">
+                  <h4 className="text-sm font-semibold text-foreground">What happens next</h4>
+                  <ol className="space-y-2 text-sm text-foreground list-decimal list-inside">
+                    <li>Reeve will contact you within 24–48 hours to schedule KYC verification.</li>
+                    <li>Once KYC is complete, your rental agreement will be prepared.</li>
+                    <li>You'll receive all details via WhatsApp and email.</li>
+                  </ol>
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Your token is refundable if the agreement cannot be executed.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border bg-card p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-foreground">Contact Reeve</h4>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <a
+                      href={`https://wa.me/917899874281?text=${encodeURIComponent(`Hi, my token payment is confirmed for application ${app.id} for ${propertyName}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 min-h-[44px]"

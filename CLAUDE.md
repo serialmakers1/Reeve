@@ -199,10 +199,20 @@ non-deterministic.
   - Service role bypasses RLS automatically — Edge Functions use service_role for INSERT/UPDATE
 - `payment_pending` removed from `WITHDRAWABLE_STATUSES` in ApplicationDetail.tsx — payment-in-flight lock
 - Edge Function `create-razorpay-order` (`supabase/functions/create-razorpay-order/index.ts`):
-  - `verify_jwt = false` in config.toml; JWT validated manually via GET /auth/v1/user (mirrors verify-phone-otp pattern)
-  - Validates application ownership and `status = 'owner_accepted'` using service_role before creating order
-  - Idempotency: returns existing pending order if `payments` row with matching `application_id + token_deposit + pending` exists
-  - Razorpay order created via native `fetch()` (not npm SDK) — avoids Node-style http module issues in Deno 2.x
-  - Token amount: fixed 500000 paise (₹5,000) — NEVER derived from rent
-  - Secrets required: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` (+ standard `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
-  - npm specifier `npm:razorpay@2.9.6` declared in `deno.json` (import map, not used in index.ts directly)
+  - `verify_jwt = false`; JWT validated manually via GET /auth/v1/user (mirrors verify-phone-otp)
+  - Validates ownership + `status = 'owner_accepted'`; idempotency returns existing pending order
+  - Razorpay order via native `fetch()` (not npm SDK); `checkout_config_id: "config_SfHzUgldMePgt1"`
+  - Token: fixed 500000 paise (₹5,000) — NEVER derived from rent. Advances app to `payment_pending`
+  - Secrets: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`
+- Edge Function `verify-razorpay-payment` (`supabase/functions/verify-razorpay-payment/index.ts`):
+  - `verify_jwt = false`; HMAC-SHA256 via Web Crypto API; responds 200 immediately, DB in `EdgeRuntime.waitUntil()`
+  - `payment.captured` → payments→success, app→payment_received, competing apps→on_hold
+  - `payment.failed` → payments→failed, app→owner_accepted (NOT withdrawn — allows retry)
+  - Idempotency: UNIQUE(gateway_reference) + `x-razorpay-event-id` in `gateway_response.razorpay_event_id`
+  - Secret: `RAZORPAY_WEBHOOK_SECRET`
+- Frontend (Phase 4 complete):
+  - `index.html`: Razorpay `checkout.js` loaded before `</body>`
+  - `ApplicationDetail.tsx`: `owner_accepted` → "Pay ₹5,000 Token"; `payment_pending` → "Complete Payment →"; `payment_received` → confirmation + next-steps
+  - Flow: `supabase.functions.invoke('create-razorpay-order')` → `window.Razorpay` modal → handler polls 3s×5 for `payment_received`
+  - Webhook is source of truth. `payment_received` toast fires once per load via `useRef`
+  - `ApplicationsList.tsx`: "Pay Token →" chip on `owner_accepted` rows → navigates to detail page

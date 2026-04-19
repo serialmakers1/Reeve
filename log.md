@@ -64,3 +64,7 @@
 ## [2026-04-19] migrate | Razorpay Phase 1 — payments UNIQUE constraint, RLS policies, remove payment_pending from WITHDRAWABLE_STATUSES [15:15 IST]
 
 ## [2026-04-19] feat | Razorpay Phase 2 — create-razorpay-order Edge Function [15:30 IST]
+
+## [2026-04-19] feat | Razorpay Phase 3 — verify-razorpay-payment webhook handler [15:50 IST]
+
+## [2026-04-19] feat | Razorpay Phase 4 — frontend checkout, owner_accepted CTA, payment_received screen [16:10 IST]

@@ -326,12 +326,25 @@ function AppCard({
             </p>
           )}
         </div>
-        <Badge
-          variant={isDraft ? "outline" : "default"}
-          className={`shrink-0 ${badge.color} ${isDraft ? "" : "border-0"}`}
-        >
-          {badge.label}
-        </Badge>
+        <div className="flex items-center gap-2 shrink-0">
+          {app.status === "owner_accepted" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/dashboard/applications/${app.id}`);
+              }}
+              className="text-xs font-medium px-2.5 py-1 rounded-full border border-violet-400 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors"
+            >
+              Pay Token →
+            </button>
+          )}
+          <Badge
+            variant={isDraft ? "outline" : "default"}
+            className={`shrink-0 ${badge.color} ${isDraft ? "" : "border-0"}`}
+          >
+            {badge.label}
+          </Badge>
+        </div>
       </div>
 
       {/* Draft actions */}
