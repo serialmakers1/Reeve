@@ -1,3 +1,4 @@
+## [2026-04-19] feature | Restructured /login to split-screen layout, right trust panel added [14:30 IST]
 ## [2026-04-18] feat | Created OwnerLandingPage.tsx — new /owners route, 7 sections, dark theme, lifecycle flow, calculator, FAQ [18:30 IST]
 ## [2026-04-14] refactor | Remove pendingReturnTo localStorage — replaced with query param + sessionStorage returnTo [13:00 IST]
 ## [2026-04-14] feat | PropertyDetail + Eligibility: add verification gates (phone+Google) + proactive VerificationStrip UI [12:00 IST]
