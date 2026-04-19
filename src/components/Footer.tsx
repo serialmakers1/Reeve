@@ -7,9 +7,9 @@ const Footer = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Zone 1: Navigation */}
-        <div className="grid md:grid-cols-3 gap-8 text-center md:text-left">
+        <div className="grid md:grid-cols-4 gap-8 text-center md:text-left">
 
-          {/* Column A — Brand + For Tenants */}
+          {/* Column 1 — Brand */}
           <div>
             <span className="font-bold text-xl text-white tracking-wide">REEVE</span>
             <p className="text-gray-400 text-sm mt-2">
@@ -17,7 +17,11 @@ const Footer = () => {
               <br />
               Fully managed for free.
             </p>
-            <h4 className="text-white font-semibold text-sm mt-6 mb-3">For Tenants</h4>
+          </div>
+
+          {/* Column 2 — For Tenants */}
+          <div>
+            <h4 className="text-white font-semibold text-sm mb-3">For Tenants</h4>
             <ul className="space-y-2">
               <li>
                 <Link to="/search" className="text-gray-400 text-sm hover:text-white transition-colors">

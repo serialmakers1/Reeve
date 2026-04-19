@@ -70,3 +70,5 @@
 ## [2026-04-19] feat | Razorpay Phase 4 — frontend checkout, owner_accepted CTA, payment_received screen [16:10 IST]
 
 ## [2026-04-19] feat | Footer rewrite — nav links, legal identity block for Meta Business Verification [18:31 IST]
+
+## [2026-04-19] fix | Footer desktop grid 3→4 cols, For Tenants into own column [18:45 IST]
