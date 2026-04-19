@@ -1,3 +1,4 @@
+## [2026-04-19] feature | Hid WhatsApp card in Contact.tsx, added Call Reeve card with tel link [15:00 IST]
 ## [2026-04-19] feature | Restructured /login to split-screen layout, right trust panel added [14:30 IST]
 ## [2026-04-18] feat | Created OwnerLandingPage.tsx — new /owners route, 7 sections, dark theme, lifecycle flow, calculator, FAQ [18:30 IST]
 ## [2026-04-14] refactor | Remove pendingReturnTo localStorage — replaced with query param + sessionStorage returnTo [13:00 IST]

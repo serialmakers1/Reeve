@@ -23,6 +23,21 @@ const Contact = () => {
 
           <div className="grid sm:grid-cols-3 gap-5 mt-4">
             <a
+              href="tel:+917899874281"
+              className="rounded-2xl border border-slate-200 bg-[#F8FAFF] p-7 flex flex-col items-start gap-4 hover:-translate-y-0.5 hover:shadow-md transition duration-200 cursor-pointer no-underline"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center shrink-0">
+                <Phone className="h-6 w-6 text-orange-600" />
+              </div>
+              <p className="text-base font-semibold text-slate-900">Call Reeve</p>
+              <p className="text-sm text-slate-500 leading-6">Call us directly during business hours. Best for urgent queries or when you need a quick answer.</p>
+              <span className="inline-flex rounded-full bg-orange-50 border border-orange-200 px-3 py-1 text-xs font-semibold text-orange-700">Mon – Sat, 9 AM – 7 PM IST</span>
+              <span className="flex items-center gap-2 text-sm font-semibold text-orange-700 mt-auto pt-2">+91 78998 74281 →</span>
+            </a>
+
+            {/* WHATSAPP_CARD_HIDDEN — uncomment when Meta Business verification is complete */}
+            {/*
+            <a
               href="https://wa.me/917899874281?text=Hi%20Reeve%2C%20I%27d%20like%20to%20get%20in%20touch"
               target="_blank"
               rel="noopener noreferrer"
@@ -42,6 +57,7 @@ const Contact = () => {
                 Open WhatsApp →
               </span>
             </a>
+            */}
 
             <a
               href="mailto:support@reeve.in?subject=Enquiry%20%E2%80%94%20Reeve"
