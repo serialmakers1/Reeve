@@ -182,24 +182,27 @@ alone, as attempt_number ties (e.g. withdrawn + draft both at attempt 1) make or
 non-deterministic.
 
 ## Callback Request Components
-- RequestCallbackButton: `src/components/RequestCallbackButton.tsx`
-  Usage: `<RequestCallbackButton context="property" propertyId={id} defaultIntent="tenant" />`
-  Checks session → redirects to /login?returnTo=<path> if unauthenticated.
-  Checks for active callback (status pending/called) before opening modal — shows toast if one exists.
-  `className` prop forwarded to inner Button — use it to override button appearance (e.g., outline, link-style).
-  Placed in: Contact.tsx (general, no props), AdminLayout.tsx (sidebar nav — via Phone icon, no component),
-    ApplicationDetail.tsx (defaultIntent="tenant" + propertyId), MyPropertyDetail.tsx (defaultIntent="owner" context="owner_landing" + propertyId).
-- RequestCallbackModal: `src/components/RequestCallbackModal.tsx`
-  4-step: Intent → Contact → Schedule (3A India / 3B International) → Confirm+Submit
-  Exports: CALLBACK_SLOT_KEYS, CALLBACK_SLOT_LABELS, getISTHour(), formatInIST(), localTimeToIST(), normaliseIndianPhone(), convertISTSlotToLocal(), formatSlotRange()
-  iOS keyboard: `repositionInputs={false}` on Drawer root; visualViewport listener sets maxHeight on scrollRef; all inputs use onFocus={scrollToInput}
-  Step 3B: slot grid + 8-option timezone select + intlCountryCode/intlPhone fields; night window hidden until date picked
-  Slot greying: currentISTHour >= slotStartHour for today, both 3A and 3B; night window exempt
-  Auth: uses `await supabase.auth.getSession()` inside async handlers; `(supabase as any).from('callback_requests')` (not in generated types)
+- RequestCallbackButton (`src/components/RequestCallbackButton.tsx`): checks session (→ /login if unauthed), checks for active callback before opening modal. `className` forwarded to inner Button. Used in Contact.tsx, AdminLayout.tsx, ApplicationDetail.tsx, MyPropertyDetail.tsx.
+- RequestCallbackModal (`src/components/RequestCallbackModal.tsx`): 4-step flow (Intent → Contact → Schedule India/International → Confirm). iOS keyboard: `repositionInputs={false}`, visualViewport maxHeight, onFocus={scrollToInput}. Slot greying: currentISTHour >= slotStartHour for today. Auth: `await supabase.auth.getSession()` inside handlers; `(supabase as any).from('callback_requests')` (not in generated types).
 
 ## Admin Pages
-- /admin/visits: Visit Logs page (src/pages/admin/VisitLogs.tsx). Reads from visit_events with tenant+property joins. Client-side filtering by type/date/tenant/property/initiatedBy. Row click opens Sheet with full detail + tenant stats.
-- /admin/callbacks: Callback queue page (src/pages/admin/Callbacks.tsx). Reads from callback_requests with user+property joins. Status tabs (pending/called/completed/missed/cancelled/all) with counts. Client-side filtering by intent/type/channel/date. Row actions: mark called, mark completed, mark missed, cancel. Sheet drawer with admin_notes (saves on blur/⌘Enter).
-- TenantPipeline (/admin/applications): shows no_show badges. Drawer has unblock button and admin_notes editor.
-- AdminApplicationDetail: shows visit property_feedback notes and admin_notes from profiles before review actions.
-- PropertyDetail: checks visit_scheduling_blocked before allowing visit scheduling. Uses VisitSchedulerModal.
+- /admin/visits: VisitLogs.tsx — visit_events with joins, client-side filters, Sheet detail.
+- /admin/callbacks: Callbacks.tsx — callback_requests with status tabs, row actions, admin_notes drawer.
+- TenantPipeline (/admin/applications): no_show badges, unblock button, admin_notes editor.
+- AdminApplicationDetail: surfaces visit notes + admin_notes before review actions.
+- PropertyDetail: visit_scheduling_blocked gate, uses VisitSchedulerModal.
+
+## Payments / Razorpay
+- Migration: `supabase/migrations/20260419150000_payments_rls_and_gateway_unique.sql`
+  - RLS enabled on `payments` table; tenant SELECT policy `payments_select_own` (payer_id = auth.uid()); admin SELECT policy `payments_select_admin`
+  - UNIQUE constraint `payments_gateway_reference_unique` on `payments.gateway_reference` — idempotency anchor for Razorpay order IDs
+  - Service role bypasses RLS automatically — Edge Functions use service_role for INSERT/UPDATE
+- `payment_pending` removed from `WITHDRAWABLE_STATUSES` in ApplicationDetail.tsx — payment-in-flight lock
+- Edge Function `create-razorpay-order` (`supabase/functions/create-razorpay-order/index.ts`):
+  - `verify_jwt = false` in config.toml; JWT validated manually via GET /auth/v1/user (mirrors verify-phone-otp pattern)
+  - Validates application ownership and `status = 'owner_accepted'` using service_role before creating order
+  - Idempotency: returns existing pending order if `payments` row with matching `application_id + token_deposit + pending` exists
+  - Razorpay order created via native `fetch()` (not npm SDK) — avoids Node-style http module issues in Deno 2.x
+  - Token amount: fixed 500000 paise (₹5,000) — NEVER derived from rent
+  - Secrets required: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` (+ standard `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
+  - npm specifier `npm:razorpay@2.9.6` declared in `deno.json` (import map, not used in index.ts directly)

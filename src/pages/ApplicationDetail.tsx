@@ -86,7 +86,6 @@ const WITHDRAWABLE_STATUSES = [
   "sent_to_owner",
   "owner_countered",
   "tenant_countered",
-  "payment_pending",
 ];
 
 function formatRent(val: number) {

@@ -56,3 +56,11 @@
 ## [2026-04-06] feat | Added scheduling block gate and VisitSchedulerModal to PropertyDetail [12:52 IST]
 
 ## [2026-04-18] feat | Created OwnerClarityGuide.tsx — owner clarity guide page with 13 sections, TOC, progress bar [18:30 IST]
+
+## [2026-04-19] diagnose | Token payment flow — pre-implementation diagnosis complete [14:30 IST]
+
+## [2026-04-19] diagnose | Razorpay UPI token payment — pre-implementation diagnosis [15:00 IST]
+
+## [2026-04-19] migrate | Razorpay Phase 1 — payments UNIQUE constraint, RLS policies, remove payment_pending from WITHDRAWABLE_STATUSES [15:15 IST]
+
+## [2026-04-19] feat | Razorpay Phase 2 — create-razorpay-order Edge Function [15:30 IST]

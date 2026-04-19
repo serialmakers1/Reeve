@@ -2,3 +2,6 @@ project_id = "tfutuqqcxqqbirnsdpvz"
 
 [functions.verify-phone-otp]
 verify_jwt = false
+
+[functions.create-razorpay-order]
+verify_jwt = false
