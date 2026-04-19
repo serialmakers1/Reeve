@@ -486,7 +486,7 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
 
   // ── Date pills ───────────────────────────────────────────────────────────────
   const datePills = useMemo(
-    () => Array.from({ length: 10 }, (_, i) => addDays(startOfDay(new Date()), i)),
+    () => Array.from({ length: 3 }, (_, i) => addDays(startOfDay(new Date()), i)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [] // stable per mount — date changes handled by timezone
   );
