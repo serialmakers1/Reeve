@@ -48,10 +48,6 @@ export default function TokenRefundPolicy({ variant }: TokenRefundPolicyProps) {
             <li>You decide not to proceed after KYC or agreement stage</li>
             <li>You provide incorrect information that causes the application to fail</li>
           </ul>
-          <p className="text-xs text-muted-foreground pt-1">
-            In these cases, the ₹5,000 covers the verification and paperwork already
-            completed on your behalf.
-          </p>
         </div>
 
         {/* Links — stacked, not inline */}
