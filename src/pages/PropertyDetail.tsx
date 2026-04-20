@@ -1004,7 +1004,7 @@ const PropertyDetail: React.FC = () => {
                   🟢 Zero Brokerage
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                  🟢 6 Months Lock-in
+                  🟢 8 Months Lock-in
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
                   🟢 2 Month Notice
