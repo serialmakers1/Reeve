@@ -542,9 +542,6 @@ export default function ApplicationDetail() {
                     <span className="text-sm text-muted-foreground">Token Amount (Refundable)</span>
                     <span className="text-2xl font-bold text-foreground">₹5,000</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Token is fully refundable if Reeve is unable to execute the agreement.
-                  </p>
                 </div>
 
                 <TokenRefundPolicy variant="pre_payment" />
