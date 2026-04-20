@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RequestCallbackButton from "@/components/RequestCallbackButton";
+import TokenRefundPolicy from "@/components/TokenRefundPolicy";
 
 declare global {
   interface Window {
@@ -546,6 +547,8 @@ export default function ApplicationDetail() {
                   </p>
                 </div>
 
+                <TokenRefundPolicy variant="pre_payment" />
+
                 <Button
                   className="w-full min-h-[44px] bg-violet-600 hover:bg-violet-700 text-white"
                   disabled={paymentLoading}
@@ -664,6 +667,8 @@ export default function ApplicationDetail() {
                     Your token is refundable if the agreement cannot be executed.
                   </p>
                 </div>
+
+                <TokenRefundPolicy variant="post_payment" />
 
                 <div className="rounded-xl border bg-card p-4 space-y-3">
                   <h4 className="text-sm font-semibold text-foreground">Contact Reeve</h4>
