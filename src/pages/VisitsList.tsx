@@ -1,10 +1,17 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarDays, Search, AlertTriangle, Clock, Loader2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  useTenantVisitsQuery,
+  useTenantVisitEventsQuery,
+  useRescheduleVisit,
+  useCancelVisit,
+} from "@/hooks/useVisits";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -91,6 +98,7 @@ function getEventLabel(eventType: string, initiatedBy: string): string {
     rescheduled: "Rescheduled",
     completed: "Visit Done",
     no_show: "Missed",
+    property_feedback_note: "Note added",
   };
   return map[eventType] ?? eventType;
 }
@@ -129,6 +137,8 @@ function getBadgeClass(type: string): string {
     case "cancelled":
     case "no_show":
       return "bg-red-100 text-red-800 border-red-200";
+    case "property_feedback_note":
+      return "bg-muted text-muted-foreground border-border";
     default:
       return "bg-muted text-muted-foreground";
   }
@@ -140,11 +150,6 @@ export default function VisitsList() {
   const { user, loading: authLoading } = useRequireAuth();
   const navigate = useNavigate();
 
-  const [visits, setVisits] = useState<VisitRow[]>([]);
-  const [visitEvents, setVisitEvents] = useState<VisitEventRow[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-
   // Reschedule state
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [reschedulingVisit, setReschedulingVisit] = useState<VisitRow | null>(null);
@@ -153,53 +158,34 @@ export default function VisitsList() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellingVisit, setCancellingVisit] = useState<VisitRow | null>(null);
 
-  const [actionLoading, setActionLoading] = useState(false);
+  // ─── React Query data ──────────────────────────────────────────────────────
 
-  // ─── Data fetching ─────────────────────────────────────────────────────────
+  const visitsQuery = useTenantVisitsQuery(user?.id);
+  const eventsQuery = useTenantVisitEventsQuery(user?.id);
 
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-
-    const [visitsResult, eventsResult, profileResult] = await Promise.all([
-      supabase
-        .from("visits")
-        .select(
-          `id, property_id, scheduled_at, previous_scheduled_at, status,
-           cancelled_at, no_show_at, completed_at, created_at,
-           rescheduled_by, cancelled_by,
-           property:properties!visits_property_id_fkey(
-             building_name, locality, city, listed_rent, bhk
-           )`
-        )
-        .eq("tenant_id", user.id)
-        .order("created_at", { ascending: false }),
-
-      supabase
-        .from("visit_events")
-        .select(
-          `id, visit_id, event_type, initiated_by, scheduled_at,
-           notes, note_type, created_at`
-        )
-        .eq("tenant_id", user.id)
-        .order("created_at", { ascending: true }),
-
-      supabase
+  const profileQuery = useQuery({
+    queryKey: ["profile", "visit-block", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
         .from("profiles")
         .select("visit_scheduling_blocked, no_show_count")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-    ]);
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      return data as Profile | null;
+    },
+    staleTime: 30_000,
+  });
 
-    setVisits((visitsResult.data as unknown as VisitRow[]) ?? []);
-    setVisitEvents((eventsResult.data as VisitEventRow[]) ?? []);
-    setProfile(profileResult.data as Profile | null);
-    setLoading(false);
-  }, [user]);
+  const visits = (visitsQuery.data as unknown as VisitRow[]) ?? [];
+  const visitEvents = (eventsQuery.data as VisitEventRow[]) ?? [];
+  const profile = profileQuery.data ?? null;
+  const loading = visitsQuery.isLoading || eventsQuery.isLoading || profileQuery.isLoading;
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // ─── Mutation hooks ────────────────────────────────────────────────────────
+
+  const reschedule = useRescheduleVisit();
+  const cancelMutation = useCancelVisit();
 
   // ─── Derived: property groups with timelines ───────────────────────────────
 
@@ -250,102 +236,44 @@ export default function VisitsList() {
 
   // ─── Actions ───────────────────────────────────────────────────────────────
 
-  const handleRescheduleConfirm = useCallback(
-    async (scheduledAt: Date) => {
-      if (!reschedulingVisit || !user) return;
-      setActionLoading(true);
-      try {
-        // a) Cancel old visit
-        const { error: cancelErr } = await supabase
-          .from("visits")
-          .update({
-            status: "cancelled" as any,
-            cancelled_at: new Date().toISOString(),
-            cancelled_by: "tenant",
-          })
-          .eq("id", reschedulingVisit.id);
-        if (cancelErr) throw cancelErr;
-
-        // b) Insert new rescheduled visit
-        const { data: newVisit, error: insertErr } = await supabase
-          .from("visits")
-          .insert({
-            property_id: reschedulingVisit.property_id,
-            tenant_id: user.id,
-            scheduled_at: scheduledAt.toISOString(),
-            status: "rescheduled" as any,
-            rescheduled_by: "tenant",
-          })
-          .select("id")
-          .maybeSingle();
-        if (insertErr) throw insertErr;
-        if (!newVisit) throw new Error("Visit insert returned no data");
-
-        // c) Log event
-        await supabase.from("visit_events").insert({
-          visit_id: newVisit.id,
-          tenant_id: user.id,
-          property_id: reschedulingVisit.property_id,
-          event_type: "rescheduled",
-          initiated_by: "tenant",
-          scheduled_at: scheduledAt.toISOString(),
-        });
-
-        setSchedulerOpen(false);
-        setReschedulingVisit(null);
-        toast({ title: "Visit rescheduled" });
-        await fetchData();
-      } catch {
-        toast({
-          title: "Something went wrong",
-          description: "Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setActionLoading(false);
-      }
-    },
-    [reschedulingVisit, user, fetchData]
-  );
-
-  const handleCancelConfirm = useCallback(async () => {
-    if (!cancellingVisit || !user) return;
-    setActionLoading(true);
+  const handleRescheduleConfirm = async (scheduledAt: Date) => {
+    if (!reschedulingVisit) return;
     try {
-      // a) Update visit
-      const { error } = await supabase
-        .from("visits")
-        .update({
-          status: "cancelled" as any,
-          cancelled_at: new Date().toISOString(),
-          cancelled_by: "tenant",
-        })
-        .eq("id", cancellingVisit.id);
-      if (error) throw error;
-
-      // b) Log event
-      await supabase.from("visit_events").insert({
-        visit_id: cancellingVisit.id,
-        tenant_id: user.id,
-        property_id: cancellingVisit.property_id,
-        event_type: "cancelled",
-        initiated_by: "tenant",
-      });
-
-      setCancelDialogOpen(false);
-      setCancellingVisit(null);
-      toast({ title: "Visit cancelled" });
-      await fetchData();
+      await reschedule.mutateAsync({ visitId: reschedulingVisit.id, scheduledAt });
+      setSchedulerOpen(false);
+      setReschedulingVisit(null);
+      toast({ title: "Visit rescheduled" });
     } catch {
       toast({
         title: "Something went wrong",
         description: "Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setActionLoading(false);
     }
-  }, [cancellingVisit, user, fetchData]);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!cancellingVisit || !user) return;
+    try {
+      await cancelMutation.mutateAsync({
+        visitId: cancellingVisit.id,
+        tenantId: user.id,
+        propertyId: cancellingVisit.property_id,
+        cancelledBy: "tenant",
+      });
+      setCancelDialogOpen(false);
+      setCancellingVisit(null);
+      toast({ title: "Visit cancelled" });
+    } catch {
+      toast({
+        title: "Something went wrong",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const actionLoading = reschedule.isPending || cancelMutation.isPending;
 
   // ─── Render: loading ───────────────────────────────────────────────────────
 
@@ -438,7 +366,7 @@ export default function VisitsList() {
               {/* Timeline */}
               <div className="border-t border-border px-4 py-2">
                 {hasEvents
-                  ? events.map((evt, idx) => {
+                  ? events.filter((e) => e.event_type !== "admin_note").map((evt, idx) => {
                       const isLast = idx === events.length - 1;
                       const label = getEventLabel(
                         evt.event_type,

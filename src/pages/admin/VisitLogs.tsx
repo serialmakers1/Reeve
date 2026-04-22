@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import {
   ScrollText,
@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useVisitLogsQuery } from "@/hooks/useVisits";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,7 +36,7 @@ interface VisitLogRow {
   notes: string | null;
   note_type: string | null;
   created_at: string;
-  tenant: { full_name: string | null; phone: string | null } | null;
+  tenant: { id: string | null; full_name: string | null; phone: string | null } | null;
   property: {
     building_name: string | null;
     locality: string | null;
@@ -150,8 +150,10 @@ function TenantStats({
 
 export default function VisitLogs() {
   const { loading: authLoading } = useRequireAuth({ requireAdmin: true });
-  const [rows, setRows] = useState<VisitLogRow[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const { data: rawRows, isLoading: dataLoading } = useVisitLogsQuery();
+  const rows = (rawRows as unknown as VisitLogRow[]) ?? [];
+  const loading = dataLoading;
 
   // Filters
   const [selectedTypes, setSelectedTypes] = useState<Set<EventType>>(
@@ -165,29 +167,6 @@ export default function VisitLogs() {
 
   // Detail sheet
   const [selectedRow, setSelectedRow] = useState<VisitLogRow | null>(null);
-
-  useEffect(() => {
-    if (authLoading) return;
-    fetchData();
-  }, [authLoading]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("visit_events")
-      .select(
-        `id, visit_id, event_type, initiated_by, scheduled_at, notes,
-         note_type, created_at,
-         tenant:users!visit_events_tenant_id_fkey(full_name, phone),
-         property:properties!visit_events_property_id_fkey(
-           building_name, locality, city
-         )`
-      )
-      .order("created_at", { ascending: false });
-
-    setRows((data as unknown as VisitLogRow[]) ?? []);
-    setLoading(false);
-  };
 
   // ─── Client-side filtering ────────────────────────────────────────────────
 
@@ -240,10 +219,10 @@ export default function VisitLogs() {
   // ─── Tenant all-time stats from full rows ─────────────────────────────────
 
   function getTenantStats(row: VisitLogRow) {
-    const tenantName = row.tenant?.full_name;
-    if (!tenantName) return null;
+    const tenantId = row.tenant?.id;
+    if (!tenantId) return null;
     const tenantRows = rows.filter(
-      (r) => r.tenant?.full_name === tenantName
+      (r) => r.tenant?.id === tenantId
     );
     const uniqueVisitIds = new Set(tenantRows.map((r) => r.visit_id));
     const countByType = (type: string) =>
