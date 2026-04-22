@@ -46,8 +46,14 @@ import Callbacks from "./pages/admin/Callbacks";
 import { Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
+import { useVisitsRealtime } from "@/hooks/useVisitsRealtime";
 
 const queryClient = new QueryClient();
+
+function VisitsRealtimeMount() {
+  useVisitsRealtime();
+  return null;
+}
 
 function AppInner() {
   useEffect(() => {
@@ -125,6 +131,7 @@ function AppInner() {
 const App = () => (
   <Sentry.ErrorBoundary fallback={<p>Something went wrong. Please refresh the page.</p>}>
     <QueryClientProvider client={queryClient}>
+      <VisitsRealtimeMount />
       <TooltipProvider>
         <Toaster />
         <Sonner />

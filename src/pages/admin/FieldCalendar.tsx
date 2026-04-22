@@ -1,7 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  useAdminVisitsQuery,
+  useRescheduleVisit,
+  useCompleteVisit,
+  useCancelVisit,
+  useMarkNoShow,
+} from "@/hooks/useVisits";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -82,55 +90,69 @@ export default function FieldCalendar() {
   const { toast } = useToast();
   const [view, setView] = useState<"week" | "day">(isMobile ? "day" : "week");
   const [currentDate, setCurrentDate] = useState(toIST(new Date()));
-  const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [activeLocality, setActiveLocality] = useState<string | null>(null);
 
   // Reschedule state
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [reschedulingEvent, setReschedulingEvent] = useState<CalendarEvent | null>(null);
-  const [rescheduleLoading, setRescheduleLoading] = useState(false);
 
   // Notes modal state (after Mark Complete)
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [completingEvent, setCompletingEvent] = useState<CalendarEvent | null>(null);
   const [propertyFeedback, setPropertyFeedback] = useState("");
   const [adminNoteText, setAdminNoteText] = useState("");
-  const [notesLoading, setNotesLoading] = useState(false);
 
   // Sync mobile default
   useEffect(() => {
     if (isMobile) setView("day");
   }, [isMobile]);
 
-  useEffect(() => {
-    if (authLoading || !user) return;
-    fetchData();
-  }, [authLoading, user]);
+  // ─── Date range for visits query ─────────────────────────────────────────────
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const queryStart = addDays(weekStart, -1); // ±1 day buffer
+  const queryEnd = addDays(weekStart, view === "week" ? 7 : 1);
 
-  const fetchData = async () => {
-    setLoading(true);
+  // ─── React Query: visits ─────────────────────────────────────────────────────
+  const visitsQuery = useAdminVisitsQuery(queryStart, queryEnd);
 
-    const [inspRes, visitRes] = await Promise.all([
-      supabase
+  // ─── React Query: inspections ────────────────────────────────────────────────
+  const inspectionsQuery = useQuery({
+    queryKey: ["inspections", "calendar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("properties")
         .select(
           "id, building_name, locality, city, inspection_date, inspection_start_time, inspection_end_time, status, inspection_notes"
         )
         .not("inspection_date", "is", null)
-        .in("status", ["inspection_proposed", "inspection_scheduled"]),
-      supabase
-        .from("visits")
-        .select(
-          "id, property_id, scheduled_at, status, tenant_id, property:properties!inner(building_name, locality, city), tenant:users!visits_tenant_id_fkey(full_name)"
-        )
-        .in("status", ["scheduled", "confirmed", "rescheduled"]),
-    ]);
+        .in("status", ["inspection_proposed", "inspection_scheduled"]);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
 
+  // ─── Mutation hooks ──────────────────────────────────────────────────────────
+  const reschedule = useRescheduleVisit();
+  const complete = useCompleteVisit();
+  const cancel = useCancelVisit();
+  const noShow = useMarkNoShow();
+
+  const anyPending =
+    reschedule.isPending ||
+    complete.isPending ||
+    cancel.isPending ||
+    noShow.isPending;
+
+  const loading =
+    visitsQuery.isLoading || inspectionsQuery.isLoading || authLoading;
+
+  // ─── Derive CalendarEvent[] from query data ──────────────────────────────────
+  const events = useMemo<CalendarEvent[]>(() => {
     const mapped: CalendarEvent[] = [];
 
-    if (inspRes.data) {
-      for (const p of inspRes.data) {
+    if (inspectionsQuery.data) {
+      for (const p of inspectionsQuery.data) {
         if (!p.inspection_date) continue;
         const dateObj = new Date(p.inspection_date + "T00:00:00Z");
         const istDate = toIST(dateObj);
@@ -171,8 +193,8 @@ export default function FieldCalendar() {
       }
     }
 
-    if (visitRes.data) {
-      for (const v of visitRes.data as any[]) {
+    if (visitsQuery.data) {
+      for (const v of visitsQuery.data as any[]) {
         if (!v.scheduled_at) continue;
         const istDate = toIST(new Date(v.scheduled_at));
         const startH = istDate.getHours() + istDate.getMinutes() / 60;
@@ -211,64 +233,27 @@ export default function FieldCalendar() {
       }
     }
 
-    setEvents(mapped);
-    setLoading(false);
-  };
+    return mapped;
+  }, [inspectionsQuery.data, visitsQuery.data]);
 
   // ─── Action: Reschedule ───────────────────────────────────────────────────
 
   const handleRescheduleConfirm = async (scheduledAt: Date) => {
     if (!reschedulingEvent) return;
-    setRescheduleLoading(true);
     try {
-      // a) Cancel old visit
-      const { error: cancelErr } = await supabase
-        .from("visits")
-        .update({
-          status: "cancelled" as any,
-          cancelled_at: new Date().toISOString(),
-          cancelled_by: "admin",
-        })
-        .eq("id", reschedulingEvent.id);
-      if (cancelErr) throw cancelErr;
-
-      // b) Insert new rescheduled visit
-      const { data: newVisit, error: insertErr } = await supabase
-        .from("visits")
-        .insert({
-          property_id: reschedulingEvent.propertyId,
-          tenant_id: reschedulingEvent.tenantId,
-          scheduled_at: scheduledAt.toISOString(),
-          status: "rescheduled" as any,
-          rescheduled_by: "admin",
-        })
-        .select("id")
-        .maybeSingle();
-      if (insertErr) throw insertErr;
-      if (!newVisit) throw new Error("Visit insert returned no data");
-
-      // c) Log event
-      await supabase.from("visit_events").insert({
-        visit_id: newVisit.id,
-        tenant_id: reschedulingEvent.tenantId,
-        property_id: reschedulingEvent.propertyId,
-        event_type: "rescheduled",
-        initiated_by: "admin",
-        scheduled_at: scheduledAt.toISOString(),
+      await reschedule.mutateAsync({
+        visitId: reschedulingEvent.id,
+        scheduledAt,
       });
-
       setSchedulerOpen(false);
       setReschedulingEvent(null);
       toast({ title: "Visit rescheduled" });
-      fetchData();
     } catch {
       toast({
         title: "Something went wrong",
         description: "Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setRescheduleLoading(false);
     }
   };
 
@@ -279,26 +264,13 @@ export default function FieldCalendar() {
     if (!ok) return;
 
     try {
-      const { error } = await supabase
-        .from("visits")
-        .update({
-          status: "cancelled" as any,
-          cancelled_at: new Date().toISOString(),
-          cancelled_by: "admin",
-        })
-        .eq("id", ev.id);
-      if (error) throw error;
-
-      await supabase.from("visit_events").insert({
-        visit_id: ev.id,
-        tenant_id: ev.tenantId,
-        property_id: ev.propertyId,
-        event_type: "cancelled",
-        initiated_by: "admin",
+      await cancel.mutateAsync({
+        visitId: ev.id,
+        tenantId: ev.tenantId!,
+        propertyId: ev.propertyId!,
+        cancelledBy: "admin",
       });
-
       toast({ title: "Visit cancelled" });
-      fetchData();
     } catch {
       toast({
         title: "Something went wrong",
@@ -308,84 +280,51 @@ export default function FieldCalendar() {
     }
   };
 
-  // ─── Action: Mark Complete (step 1 — update visit, open notes modal) ──────
+  // ─── Action: Mark Complete (step 1 — just open notes modal) ──────────────
 
-  const handleMarkComplete = async (ev: CalendarEvent) => {
-    const { error } = await supabase
-      .from("visits")
-      .update({
-        status: "completed" as any,
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", ev.id);
-
-    if (error) {
-      toast({ title: "Failed to update visit", variant: "destructive" });
-      return;
-    }
-
-    // Open notes modal
+  const handleMarkComplete = (ev: CalendarEvent) => {
     setCompletingEvent(ev);
     setPropertyFeedback("");
     setAdminNoteText("");
     setNotesModalOpen(true);
   };
 
-  // ─── Action: Mark Complete (step 2 — save notes) ─────────────────────────
+  // ─── Action: Mark Complete (step 2 — save notes via RPC) ─────────────────
 
   const handleSaveNotes = async () => {
     if (!completingEvent) return;
-    setNotesLoading(true);
     try {
-      if (propertyFeedback.trim()) {
-        await supabase.from("visit_events").insert({
-          visit_id: completingEvent.id,
-          tenant_id: completingEvent.tenantId,
-          property_id: completingEvent.propertyId,
-          event_type: "completed",
-          initiated_by: "admin",
-          notes: propertyFeedback.trim(),
-          note_type: "property_feedback",
-        });
-      }
-
-      if (adminNoteText.trim()) {
-        await supabase.from("visit_events").insert({
-          visit_id: completingEvent.id,
-          tenant_id: completingEvent.tenantId,
-          property_id: completingEvent.propertyId,
-          event_type: "completed",
-          initiated_by: "admin",
-          notes: adminNoteText.trim(),
-          note_type: "admin_user_note",
-        });
-
-        await supabase
-          .from("profiles")
-          .update({ admin_notes: adminNoteText.trim() })
-          .eq("user_id", completingEvent.tenantId);
-      }
-
+      await complete.mutateAsync({
+        visitId: completingEvent.id,
+        propertyFeedback: propertyFeedback || undefined,
+        adminNote: adminNoteText || undefined,
+      });
       setNotesModalOpen(false);
       setCompletingEvent(null);
       toast({ title: "Visit marked complete" });
-      fetchData();
     } catch {
       toast({
         title: "Something went wrong",
         description: "Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setNotesLoading(false);
     }
   };
 
-  const handleSkipNotes = () => {
-    setNotesModalOpen(false);
-    setCompletingEvent(null);
-    toast({ title: "Visit marked complete" });
-    fetchData();
+  const handleSkipNotes = async () => {
+    if (!completingEvent) return;
+    try {
+      await complete.mutateAsync({ visitId: completingEvent.id });
+      setNotesModalOpen(false);
+      setCompletingEvent(null);
+      toast({ title: "Visit marked complete" });
+    } catch {
+      toast({
+        title: "Something went wrong",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // ─── Action: No-Show ─────────────────────────────────────────────────────
@@ -396,59 +335,29 @@ export default function FieldCalendar() {
     );
     if (!ok) return;
 
-    // a) Update visit
-    const { error: visitError } = await supabase
-      .from("visits")
-      .update({
-        status: "no_show" as any,
-        no_show_at: new Date().toISOString(),
-      })
-      .eq("id", ev.id);
-
-    if (visitError) {
-      toast({ title: "Failed to update visit", variant: "destructive" });
-      return;
-    }
-
-    // b) Log event
-    await supabase.from("visit_events").insert({
-      visit_id: ev.id,
-      tenant_id: ev.tenantId,
-      property_id: ev.propertyId,
-      event_type: "no_show",
-      initiated_by: "admin",
-    });
-
-    // c) Get profile
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, no_show_count")
-      .eq("user_id", ev.tenantId!)
-      .maybeSingle();
-
-    // d) Increment no_show_count (trigger auto-sets visit_scheduling_blocked at 3)
-    if (profile) {
-      const newCount = (profile.no_show_count ?? 0) + 1;
-      await supabase
-        .from("profiles")
-        .update({ no_show_count: newCount })
-        .eq("id", profile.id);
-
-      // f) Extra toast if now blocked
+    try {
+      const newCount = await noShow.mutateAsync({
+        visitId: ev.id,
+        tenantId: ev.tenantId!,
+        propertyId: ev.propertyId!,
+      });
       if (newCount >= 3) {
         toast({
           title: "This tenant has been blocked from scheduling further visits.",
         });
       }
+      toast({ title: "Marked as no-show" });
+    } catch {
+      toast({
+        title: "Something went wrong",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     }
-
-    toast({ title: "Marked as no-show" });
-    fetchData();
   };
 
   // ─── Calendar layout helpers ──────────────────────────────────────────────
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const days =
     view === "week"
       ? Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -620,13 +529,13 @@ export default function FieldCalendar() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+            <Button variant="outline" size="sm" onClick={() => navigate(-1)} disabled={anyPending}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={goToday}>
+            <Button variant="outline" size="sm" onClick={goToday} disabled={anyPending}>
               Today
             </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate(1)}>
+            <Button variant="outline" size="sm" onClick={() => navigate(1)} disabled={anyPending}>
               <ChevronRight className="h-4 w-4" />
             </Button>
             {!isMobile && (
@@ -884,6 +793,7 @@ export default function FieldCalendar() {
                                         <Button
                                           size="sm"
                                           variant="outline"
+                                          disabled={anyPending}
                                           onClick={() => {
                                             setReschedulingEvent(ev);
                                             setSchedulerOpen(true);
@@ -894,6 +804,7 @@ export default function FieldCalendar() {
                                         <Button
                                           size="sm"
                                           variant="outline"
+                                          disabled={anyPending}
                                           onClick={() => handleCancel(ev)}
                                         >
                                           Cancel
@@ -901,6 +812,7 @@ export default function FieldCalendar() {
                                         <Button
                                           size="sm"
                                           variant="outline"
+                                          disabled={anyPending}
                                           className="text-green-700 hover:text-green-800 hover:bg-green-50 border-green-200"
                                           onClick={() =>
                                             handleMarkComplete(ev)
@@ -911,6 +823,7 @@ export default function FieldCalendar() {
                                         <Button
                                           size="sm"
                                           variant="destructive"
+                                          disabled={anyPending}
                                           onClick={() => handleMarkNoShow(ev)}
                                         >
                                           No-Show
@@ -952,7 +865,8 @@ export default function FieldCalendar() {
         onConfirm={handleRescheduleConfirm}
         title="Reschedule Visit"
         confirmLabel="Confirm Reschedule"
-        loading={rescheduleLoading}
+        loading={reschedule.isPending}
+        mode="admin"
       />
 
       {/* Post-complete notes modal */}
@@ -989,12 +903,12 @@ export default function FieldCalendar() {
             <Button
               variant="ghost"
               onClick={handleSkipNotes}
-              disabled={notesLoading}
+              disabled={complete.isPending}
             >
               Skip
             </Button>
-            <Button onClick={handleSaveNotes} disabled={notesLoading}>
-              {notesLoading ? (
+            <Button onClick={handleSaveNotes} disabled={complete.isPending}>
+              {complete.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
               Save Notes
