@@ -1,3 +1,4 @@
+## [2026-04-22] feat | Visit scheduler — admin exact-time reschedule mode [19:00 IST]
 ## [2026-04-19] feature | Hid WhatsApp card in Contact.tsx, added Call Reeve card with tel link [15:00 IST]
 ## [2026-04-19] feature | Restructured /login to split-screen layout, right trust panel added [14:30 IST]
 ## [2026-04-18] feat | Created OwnerLandingPage.tsx — new /owners route, 7 sections, dark theme, lifecycle flow, calculator, FAQ [18:30 IST]
@@ -78,3 +79,7 @@
 ## [2026-04-22] diagnose | Visit time slot filtering — diagnosis complete [09:22 IST]
 
 ## [2026-04-22] feat | Visit scheduler — Early Morning slot, past-slot filtering, 4PM cutoff, 7-day window, full slot label in My Visits [09:40 IST]
+
+## [2026-04-22] diagnose | Visit module — 3 bugs + systemic issues diagnosed [10:36 IST]
+
+## [2026-04-22] backend | Visit module — schema reconciled, RPCs + RLS + status trigger added [11:05 IST]

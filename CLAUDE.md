@@ -91,15 +91,36 @@ maintenance_requests, owner_action_log, owner_bank_details, payments, profiles,
 properties, property_condition_reports, property_images, users, visit_events, visits
 View: properties_with_flat_number
 
+## Visit Mutation Pattern — RPC-Only (enforced as of 2026-04-22)
+All visit state mutations MUST go through Supabase RPCs, never direct table writes for reschedule/complete:
+- `reschedule_visit(p_visit_id, p_new_scheduled_at, p_actor)` → returns new visit UUID. Atomic: cancels old visit + logs cancelled event + inserts new rescheduled visit + logs rescheduled event. Callable by tenant (own visits) or admin. Actor derived server-side from is_admin().
+- `complete_visit(p_visit_id, p_property_feedback?, p_admin_note?)` → void. Admin-only. Atomic: marks complete + logs exactly one 'completed' event + logs note events separately. Notes never use event_type='completed'.
+- Cancel and no_show mutations: still direct `.update()` — add visit_events insert manually after update.
+- Frontend call pattern: `await supabase.rpc('reschedule_visit', { p_visit_id, p_new_scheduled_at, p_actor: '' })`
+
+## Visit event_type Taxonomy
+- **Status events** (one per transition): `scheduled` | `rescheduled` | `cancelled` | `completed` | `no_show`
+- **Note events** (separate from status): `property_feedback_note` | `admin_note`
+- Rule: never use a status event_type to carry note data. Notes get their own event row.
+- CHECK constraint enforces the full allowed list on visit_events.event_type.
+
+## Visit Status Machine
+Valid transitions (enforced by BEFORE UPDATE trigger `enforce_visit_status_transitions`):
+- `scheduled` | `confirmed` | `rescheduled` → `rescheduled` | `cancelled` | `completed` | `no_show`
+- `completed` | `cancelled` | `no_show` → TERMINAL, no further transitions allowed
+- Non-status field updates on terminal visits ARE allowed (trigger only fires on status change).
+
 ## Visit Events
-- visit_events: append-only log table for all visit state changes (scheduled, rescheduled, cancelled, completed, no_show). Never update or delete rows.
+- visit_events: append-only log. Admin may UPDATE/DELETE (RLS), tenants may only INSERT own rows.
 - profiles.visit_scheduling_blocked: set true automatically by trigger when no_show_count >= 3. Blocks tenant from scheduling new visits.
-- visits.rescheduled_by / visits.cancelled_by: 'tenant' or 'admin' — tracks who initiated the action.
+- visits.rescheduled_by / visits.cancelled_by: 'tenant' or 'admin' — tracks who initiated the action. Both columns exist in DB and types.ts (types were stale pre-2026-04-22).
 
 ## Shared Visit Scheduler
-- VisitSchedulerModal: shared 2-step date+slot picker (src/components/VisitSchedulerModal.tsx). min=today, max=+30days. Slots: Morning(9AM)/Afternoon(12PM)/Evening(4PM). No Supabase logic — pure picker. onConfirm receives UTC Date (IST slots converted: Morning=03:30Z, Afternoon=06:30Z, Evening=10:30Z). Auto-advances to Step 2 on date pick. Used by PropertyDetail, VisitsList, FieldCalendar.
-- FieldCalendar: visits query includes rescheduled status. 4 admin actions (Reschedule/Cancel/Mark Complete/No-Show) write to both visits and visit_events. Mark Complete opens inline notes modal for property_feedback + admin_user_note. No-Show increments no_show_count and shows block toast at 3.
-- VisitsList.tsx: shows full visit_events timeline per property. Reschedule=cancel old+insert new visit+log event. Cancel=update status+log event. Both write to visit_events. Falls back to visit rows if no events exist. Blocks actions if profile.visit_scheduling_blocked=true.
+- VisitSchedulerModal: shared 2-step picker (src/components/VisitSchedulerModal.tsx). Accepts `mode?: 'tenant' | 'admin'` (default 'tenant'). Auto-advances to Step 2 on date pick. onConfirm receives UTC Date. No Supabase logic — pure picker. Used by PropertyDetail, VisitsList (tenant), FieldCalendar (admin).
+  - Tenant mode: Step 2 = slot cards (Early Morning/Morning/Afternoon/Evening). max=+7days. Today disabled after 4PM IST. Past slots hidden when today selected.
+  - Admin mode: Step 2 = `<input type="time">` (5-min step, HH:MM IST). max=+30days. No 4PM cutoff. Human-readable preview shown. Past datetime blocked with inline error and disabled Confirm. FieldCalendar passes mode="admin".
+- FieldCalendar: visits query includes rescheduled status. 4 admin actions (Reschedule/Cancel/Mark Complete/No-Show). Reschedule → supabase.rpc('reschedule_visit'). Mark Complete → supabase.rpc('complete_visit'). No-Show increments no_show_count and shows block toast at 3.
+- VisitsList.tsx: shows full visit_events timeline per property. Reschedule → supabase.rpc('reschedule_visit'). Cancel=direct update+log event. Falls back to visit rows if no events exist. Blocks actions if profile.visit_scheduling_blocked=true.
 
 ## TypeScript Config
 strictNullChecks: false, noImplicitAny: false — intentional, do not tighten.

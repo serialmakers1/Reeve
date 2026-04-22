@@ -15,7 +15,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Loader2, ArrowLeft, Moon, Sunrise, Sun, Sunset } from "lucide-react";
+import { Loader2, ArrowLeft, Moon, Sunrise, Sun, Sunset, Clock, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -27,12 +27,14 @@ export interface VisitSchedulerModalProps {
   title?: string;
   confirmLabel?: string;
   loading?: boolean;
+  /** 'tenant' uses slot cards (default). 'admin' uses exact date + time inputs. */
+  mode?: "tenant" | "admin";
 }
 
 type Step = "date" | "slot";
 type TimeSlot = "early_morning" | "morning" | "afternoon" | "evening";
 
-// ─── Constants (hoisted to module level to avoid re-creating each render) ─────
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
 // IST = UTC+5:30. Each slot's UTC equivalent:
 // Early Morning  06:00 IST → 00:30 UTC
@@ -46,7 +48,7 @@ const TIME_SLOTS: {
   icon: React.ReactNode;
   utcH: number;
   utcM: number;
-  istStartH: number; // IST wall-clock hour for past-slot filtering
+  istStartH: number;
 }[] = [
   {
     key: "early_morning",
@@ -86,37 +88,63 @@ const TIME_SLOTS: {
   },
 ];
 
-// ─── Inner content — extracted so Dialog and Drawer share identical markup ────
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/** Build a UTC Date from a calendar date + "HH:MM" IST string. */
+function buildUTCFromIST(date: Date, timeStr: string): Date {
+  const [hh, mm] = timeStr.split(":").map(Number);
+  // Date.UTC with hh/mm treats them as UTC; subtracting IST offset converts to real UTC.
+  return new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), hh, mm) -
+      IST_OFFSET_MS
+  );
+}
+
+// ─── Inner content ─────────────────────────────────────────────────────────────
 
 interface SchedulerContentProps {
+  mode: "tenant" | "admin";
   step: Step;
   selectedDate: Date | undefined;
   selectedSlot: TimeSlot | undefined;
+  selectedTime: string; // "HH:MM" for admin mode
   minDate: Date;
   maxDate: Date;
   loading: boolean;
   confirmLabel: string;
   onDateSelect: (date: Date | undefined) => void;
   onSlotSelect: (slot: TimeSlot) => void;
+  onTimeChange: (time: string) => void;
   onBack: () => void;
   onConfirm: () => void;
 }
 
 function SchedulerContent({
+  mode,
   step,
   selectedDate,
   selectedSlot,
+  selectedTime,
   minDate,
   maxDate,
   loading,
   confirmLabel,
   onDateSelect,
   onSlotSelect,
+  onTimeChange,
   onBack,
   onConfirm,
 }: SchedulerContentProps) {
   const isDisabled = (date: Date) =>
     isBefore(date, minDate) || isBefore(maxDate, date);
+
+  // Admin: derive chosen UTC datetime + validation
+  const adminChosenUTC =
+    mode === "admin" && selectedDate && selectedTime
+      ? buildUTCFromIST(selectedDate, selectedTime)
+      : null;
+  const adminIsPast = adminChosenUTC ? adminChosenUTC <= new Date() : false;
+  const adminCanConfirm = !!adminChosenUTC && !adminIsPast && !loading;
 
   return (
     <div className="space-y-4 p-4">
@@ -145,7 +173,7 @@ function SchedulerContent({
         </span>
       </div>
 
-      {/* Step 1 — Date selection */}
+      {/* Step 1 — Date selection (shared between modes) */}
       {step === "date" && (
         <>
           <div>
@@ -153,7 +181,9 @@ function SchedulerContent({
               Choose a date
             </h3>
             <p className="text-sm text-muted-foreground">
-              Select a date to visit this property
+              {mode === "admin"
+                ? "Select the visit date"
+                : "Select a date to visit this property"}
             </p>
           </div>
           <div className="flex justify-center">
@@ -173,8 +203,8 @@ function SchedulerContent({
         </>
       )}
 
-      {/* Step 2 — Slot selection */}
-      {step === "slot" && (
+      {/* Step 2 — TENANT: slot cards */}
+      {step === "slot" && mode === "tenant" && (
         <>
           <div>
             <h3 className="text-base font-semibold text-foreground">
@@ -191,39 +221,41 @@ function SchedulerContent({
             {(() => {
               const now = new Date();
               const currentISTHour = now.getHours();
-              const isToday = selectedDate ? isSameDay(selectedDate, now) : false;
+              const isToday = selectedDate
+                ? isSameDay(selectedDate, now)
+                : false;
               return TIME_SLOTS.filter(
                 (slot) => !isToday || slot.istStartH > currentISTHour
               ).map((slot) => (
-              <button
-                key={slot.key}
-                type="button"
-                onClick={() => onSlotSelect(slot.key)}
-                className={cn(
-                  "flex w-full items-center gap-4 rounded-lg border p-4 text-left transition-all",
-                  selectedSlot === slot.key
-                    ? "border-primary bg-accent shadow-sm"
-                    : "border-border bg-card hover:border-primary/40 hover:shadow-sm"
-                )}
-              >
-                <span
+                <button
+                  key={slot.key}
+                  type="button"
+                  onClick={() => onSlotSelect(slot.key)}
                   className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                    "flex w-full items-center gap-4 rounded-lg border p-4 text-left transition-all",
                     selectedSlot === slot.key
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
+                      ? "border-primary bg-accent shadow-sm"
+                      : "border-border bg-card hover:border-primary/40 hover:shadow-sm"
                   )}
                 >
-                  {slot.icon}
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {slot.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{slot.range}</p>
-                </div>
-              </button>
-            ));
+                  <span
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                      selectedSlot === slot.key
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {slot.icon}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {slot.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{slot.range}</p>
+                  </div>
+                </button>
+              ));
             })()}
           </div>
 
@@ -253,6 +285,102 @@ function SchedulerContent({
           </div>
         </>
       )}
+
+      {/* Step 2 — ADMIN: exact date + time picker */}
+      {step === "slot" && mode === "admin" && (
+        <>
+          <div>
+            <h3 className="text-base font-semibold text-foreground">
+              Set exact time
+            </h3>
+            {selectedDate && (
+              <p className="text-sm text-muted-foreground">
+                {format(selectedDate, "EEEE, d MMMM yyyy")}
+              </p>
+            )}
+          </div>
+
+          {/* Time input */}
+          <div className="space-y-2">
+            <label
+              htmlFor="admin-time-input"
+              className="flex items-center gap-1.5 text-sm font-medium text-foreground"
+            >
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Time (IST)
+            </label>
+            <input
+              id="admin-time-input"
+              type="time"
+              step="300"
+              value={selectedTime}
+              onChange={(e) => onTimeChange(e.target.value)}
+              className={cn(
+                "h-11 w-full rounded-lg border bg-card px-3 text-sm text-foreground",
+                "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
+                "transition-colors",
+                adminIsPast
+                  ? "border-destructive focus:ring-destructive"
+                  : "border-border hover:border-primary/50"
+              )}
+            />
+          </div>
+
+          {/* Human-readable preview */}
+          {adminChosenUTC && !adminIsPast && (
+            <div className="rounded-lg border border-border bg-muted/40 px-4 py-3">
+              <p className="text-xs text-muted-foreground">Scheduled for</p>
+              <p className="mt-0.5 text-sm font-semibold text-foreground">
+                {format(selectedDate!, "EEEE, d MMMM yyyy")}
+                {" · "}
+                {selectedTime
+                  ? (() => {
+                      const [hh, mm] = selectedTime.split(":").map(Number);
+                      const period = hh >= 12 ? "PM" : "AM";
+                      const h12 = hh % 12 || 12;
+                      return `${h12}:${mm.toString().padStart(2, "0")} ${period} IST`;
+                    })()
+                  : ""}
+              </p>
+            </div>
+          )}
+
+          {/* Past-datetime error */}
+          {adminIsPast && (
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5">
+              <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+              <p className="text-xs text-destructive">
+                This date and time is in the past. Please choose a future time.
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="min-h-[44px] flex-1"
+              onClick={onBack}
+              disabled={loading}
+            >
+              <ArrowLeft className="mr-1 h-4 w-4" /> Back
+            </Button>
+            <Button
+              className="min-h-[44px] flex-1"
+              disabled={!adminCanConfirm}
+              onClick={onConfirm}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Booking...
+                </>
+              ) : (
+                confirmLabel
+              )}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -266,11 +394,13 @@ const VisitSchedulerModal: React.FC<VisitSchedulerModalProps> = ({
   title = "Schedule a Visit",
   confirmLabel = "Confirm Visit",
   loading = false,
+  mode = "tenant",
 }) => {
   const isMobile = useIsMobile();
   const [step, setStep] = useState<Step>("date");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | undefined>();
+  const [selectedTime, setSelectedTime] = useState<string>("");
 
   // Reset state each time the modal opens
   useEffect(() => {
@@ -278,20 +408,30 @@ const VisitSchedulerModal: React.FC<VisitSchedulerModalProps> = ({
       setStep("date");
       setSelectedDate(undefined);
       setSelectedSlot(undefined);
+      setSelectedTime("");
     }
   }, [open]);
 
-  // Compute min/max once per render (stable unless day changes)
   const today = new Date();
+
+  // Tenant: 4PM cutoff — push minDate to tomorrow if too late to book today
+  // Admin: no cutoff, always allow today
   const isPast4PM = today.getHours() >= 16;
-  const minDate = isPast4PM
-    ? addDays(startOfDay(today), 1)
-    : startOfDay(today);
-  const maxDate = addDays(startOfDay(today), 7);
+  const minDate =
+    mode === "tenant" && isPast4PM
+      ? addDays(startOfDay(today), 1)
+      : startOfDay(today);
+
+  // Admin window: 30 days. Tenant window: 7 days.
+  const maxDate = addDays(
+    startOfDay(today),
+    mode === "admin" ? 30 : 7
+  );
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     setSelectedSlot(undefined);
+    setSelectedTime("");
     if (date) setStep("slot"); // auto-advance
   };
 
@@ -300,38 +440,50 @@ const VisitSchedulerModal: React.FC<VisitSchedulerModalProps> = ({
   };
 
   const handleConfirm = () => {
-    if (!selectedDate || !selectedSlot) return;
-    const slotDef = TIME_SLOTS.find((s) => s.key === selectedSlot)!;
-    // Build UTC Date from the IST slot time
-    const utcDate = new Date(
-      Date.UTC(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        slotDef.utcH,
-        slotDef.utcM,
-        0,
-        0
-      )
-    );
-    onConfirm(utcDate);
+    if (!selectedDate) return;
+
+    if (mode === "admin") {
+      if (!selectedTime) return;
+      const utcDate = buildUTCFromIST(selectedDate, selectedTime);
+      if (utcDate <= new Date()) return; // safety guard
+      onConfirm(utcDate);
+    } else {
+      if (!selectedSlot) return;
+      const slotDef = TIME_SLOTS.find((s) => s.key === selectedSlot)!;
+      const utcDate = new Date(
+        Date.UTC(
+          selectedDate.getFullYear(),
+          selectedDate.getMonth(),
+          selectedDate.getDate(),
+          slotDef.utcH,
+          slotDef.utcM,
+          0,
+          0
+        )
+      );
+      onConfirm(utcDate);
+    }
   };
 
   const handleBack = () => {
     setStep("date");
     setSelectedSlot(undefined);
+    setSelectedTime("");
   };
 
   const contentProps: SchedulerContentProps = {
+    mode,
     step,
     selectedDate,
     selectedSlot,
+    selectedTime,
     minDate,
     maxDate,
     loading,
     confirmLabel,
     onDateSelect: handleDateSelect,
     onSlotSelect: handleSlotSelect,
+    onTimeChange: setSelectedTime,
     onBack: handleBack,
     onConfirm: handleConfirm,
   };

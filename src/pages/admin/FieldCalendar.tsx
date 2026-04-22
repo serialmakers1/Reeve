@@ -866,6 +866,7 @@ export default function FieldCalendar() {
         title="Reschedule Visit"
         confirmLabel="Confirm Reschedule"
         loading={reschedule.isPending}
+        mode="admin"
       />
 
       {/* Post-complete notes modal */}
