@@ -407,6 +407,94 @@ export type Database = {
           },
         ]
       }
+      callback_requests: {
+        Row: {
+          admin_notes: string | null
+          called_at: string | null
+          completed_at: string | null
+          contact_channel: string
+          contact_handle: string | null
+          created_at: string
+          id: string
+          intent: string
+          is_international: boolean
+          name: string
+          phone: string | null
+          preferred_date: string
+          preferred_datetime_ist: string | null
+          preferred_slot: string
+          property_id: string | null
+          status: string
+          timezone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          called_at?: string | null
+          completed_at?: string | null
+          contact_channel?: string
+          contact_handle?: string | null
+          created_at?: string
+          id?: string
+          intent: string
+          is_international?: boolean
+          name: string
+          phone?: string | null
+          preferred_date: string
+          preferred_datetime_ist?: string | null
+          preferred_slot: string
+          property_id?: string | null
+          status?: string
+          timezone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          called_at?: string | null
+          completed_at?: string | null
+          contact_channel?: string
+          contact_handle?: string | null
+          created_at?: string
+          id?: string
+          intent?: string
+          is_international?: boolean
+          name?: string
+          phone?: string | null
+          preferred_date?: string
+          preferred_datetime_ist?: string | null
+          preferred_slot?: string
+          property_id?: string | null
+          status?: string
+          timezone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "callback_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "callback_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "callback_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           application_id: string | null
@@ -1686,6 +1774,7 @@ export type Database = {
         Row: {
           aadhaar_last4: string | null
           aadhaar_number: string | null
+          admin_notes: string | null
           bank_account_name: string | null
           bank_account_number: string | null
           bank_ifsc: string | null
@@ -1711,10 +1800,13 @@ export type Database = {
           screening_opt_out: boolean
           updated_at: string
           user_id: string
+          visit_priority_low: boolean
+          visit_scheduling_blocked: boolean
         }
         Insert: {
           aadhaar_last4?: string | null
           aadhaar_number?: string | null
+          admin_notes?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_ifsc?: string | null
@@ -1740,10 +1832,13 @@ export type Database = {
           screening_opt_out?: boolean
           updated_at?: string
           user_id: string
+          visit_priority_low?: boolean
+          visit_scheduling_blocked?: boolean
         }
         Update: {
           aadhaar_last4?: string | null
           aadhaar_number?: string | null
+          admin_notes?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_ifsc?: string | null
@@ -1769,6 +1864,8 @@ export type Database = {
           screening_opt_out?: boolean
           updated_at?: string
           user_id?: string
+          visit_priority_low?: boolean
+          visit_scheduling_blocked?: boolean
         }
         Relationships: [
           {
@@ -2271,7 +2368,6 @@ export type Database = {
           id: string
           is_active: boolean
           last_login_at: string | null
-          onboarding_completed: boolean
           phone: string | null
           phone_verified: boolean
           role: Database["public"]["Enums"]["user_role"]
@@ -2286,7 +2382,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
-          onboarding_completed?: boolean
           phone?: string | null
           phone_verified?: boolean
           role?: Database["public"]["Enums"]["user_role"]
@@ -2301,7 +2396,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
-          onboarding_completed?: boolean
           phone?: string | null
           phone_verified?: boolean
           role?: Database["public"]["Enums"]["user_role"]
@@ -2309,10 +2403,79 @@ export type Database = {
         }
         Relationships: []
       }
+      visit_events: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          initiated_by: string
+          note_type: string | null
+          notes: string | null
+          property_id: string
+          scheduled_at: string | null
+          tenant_id: string
+          visit_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          initiated_by?: string
+          note_type?: string | null
+          notes?: string | null
+          property_id: string
+          scheduled_at?: string | null
+          tenant_id: string
+          visit_id: string
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          initiated_by?: string
+          note_type?: string | null
+          notes?: string | null
+          property_id?: string
+          scheduled_at?: string | null
+          tenant_id?: string
+          visit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_events_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_events_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_events_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visits: {
         Row: {
           cancellation_reason: string | null
           cancelled_at: string | null
+          cancelled_by: string | null
           completed_at: string | null
           confirmed_at: string | null
           created_at: string
@@ -2326,6 +2489,7 @@ export type Database = {
           property_id: string
           reminder_sent_24h: boolean
           reminder_sent_2h: boolean
+          rescheduled_by: string | null
           scheduled_at: string
           status: Database["public"]["Enums"]["visit_status"]
           tenant_id: string
@@ -2334,6 +2498,7 @@ export type Database = {
         Insert: {
           cancellation_reason?: string | null
           cancelled_at?: string | null
+          cancelled_by?: string | null
           completed_at?: string | null
           confirmed_at?: string | null
           created_at?: string
@@ -2347,6 +2512,7 @@ export type Database = {
           property_id: string
           reminder_sent_24h?: boolean
           reminder_sent_2h?: boolean
+          rescheduled_by?: string | null
           scheduled_at: string
           status?: Database["public"]["Enums"]["visit_status"]
           tenant_id: string
@@ -2355,6 +2521,7 @@ export type Database = {
         Update: {
           cancellation_reason?: string | null
           cancelled_at?: string | null
+          cancelled_by?: string | null
           completed_at?: string | null
           confirmed_at?: string | null
           created_at?: string
@@ -2368,6 +2535,7 @@ export type Database = {
           property_id?: string
           reminder_sent_24h?: boolean
           reminder_sent_2h?: boolean
+          rescheduled_by?: string | null
           scheduled_at?: string
           status?: Database["public"]["Enums"]["visit_status"]
           tenant_id?: string
@@ -2425,11 +2593,27 @@ export type Database = {
       }
     }
     Functions: {
+      complete_visit: {
+        Args: {
+          p_admin_note?: string
+          p_property_feedback?: string
+          p_visit_id: string
+        }
+        Returns: undefined
+      }
       earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
       get_user_role: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_property_owner: { Args: { prop_id: string }; Returns: boolean }
+      reschedule_visit: {
+        Args: {
+          p_actor: string
+          p_new_scheduled_at: string
+          p_visit_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       agreement_status:
