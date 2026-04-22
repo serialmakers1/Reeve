@@ -80,7 +80,7 @@ interface CalendarEvent {
   propertyId?: string;
 }
 
-const HOUR_START = 8;
+const HOUR_START = 6;
 const HOUR_END = 20;
 const HOUR_HEIGHT = 60; // px per hour
 
