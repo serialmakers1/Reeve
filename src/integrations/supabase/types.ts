@@ -2412,6 +2412,7 @@ export type Database = {
           note_type: string | null
           notes: string | null
           property_id: string
+          rescheduled_to_visit_id: string | null
           scheduled_at: string | null
           tenant_id: string
           visit_id: string
@@ -2424,6 +2425,7 @@ export type Database = {
           note_type?: string | null
           notes?: string | null
           property_id: string
+          rescheduled_to_visit_id?: string | null
           scheduled_at?: string | null
           tenant_id: string
           visit_id: string
@@ -2436,6 +2438,7 @@ export type Database = {
           note_type?: string | null
           notes?: string | null
           property_id?: string
+          rescheduled_to_visit_id?: string | null
           scheduled_at?: string | null
           tenant_id?: string
           visit_id?: string
@@ -2453,6 +2456,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_events_rescheduled_to_visit_id_fkey"
+            columns: ["rescheduled_to_visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
             referencedColumns: ["id"]
           },
           {

@@ -61,6 +61,7 @@ interface VisitEventRow {
   scheduled_at: string | null;
   notes: string | null;
   note_type: string | null;
+  rescheduled_to_visit_id: string | null;
   created_at: string;
 }
 
@@ -194,9 +195,13 @@ export default function VisitsList() {
     const visitMap = new Map<string, VisitRow>();
     for (const v of visits) visitMap.set(v.id, v);
 
-    // Group events by property_id (resolved via visitMap)
+    // Group events by property_id (resolved via visitMap).
+    // Skip cancelled events produced by the reschedule RPC — they have
+    // rescheduled_to_visit_id set and are superseded by the rescheduled event.
+    // Standalone cancels (rescheduled_to_visit_id = null) still render.
     const eventsByProp = new Map<string, VisitEventRow[]>();
     for (const evt of visitEvents) {
+      if (evt.event_type === "cancelled" && evt.rescheduled_to_visit_id != null) continue;
       const visit = visitMap.get(evt.visit_id);
       if (!visit) continue;
       const arr = eventsByProp.get(visit.property_id) ?? [];
@@ -366,8 +371,10 @@ export default function VisitsList() {
               {/* Timeline */}
               <div className="border-t border-border px-4 py-2">
                 {hasEvents
-                  ? events.filter((e) => e.event_type !== "admin_note").map((evt, idx) => {
-                      const isLast = idx === events.length - 1;
+                  ? (() => {
+                      const visibleEvents = events.filter((e) => e.event_type !== "admin_note");
+                      return visibleEvents.map((evt, idx) => {
+                      const isLast = idx === visibleEvents.length - 1;
                       const label = getEventLabel(
                         evt.event_type,
                         evt.initiated_by
@@ -409,7 +416,8 @@ export default function VisitsList() {
                           </div>
                         </div>
                       );
-                    })
+                    });
+                    })()
                   : // Fallback: no visit_events yet — render visits directly
                     propVisits.map((v, idx) => {
                       const isLast = idx === propVisits.length - 1;
