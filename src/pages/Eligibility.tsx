@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { format } from "date-fns";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -20,9 +21,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, AlertTriangle, CheckCircle2, XCircle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, AlertTriangle, CheckCircle2, XCircle, ShieldAlert, CalendarDays, Clock } from "lucide-react";
 import Layout from "@/components/Layout";
-import VisitSchedulingModal from "@/components/VisitSchedulingModal";
+import VisitSchedulerModal from "@/components/VisitSchedulerModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  useTenantVisitsQuery,
+  useScheduleVisit,
+  useRescheduleVisit,
+  useCancelVisit,
+} from "@/hooks/useVisits";
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type GenderType = 'male' | 'female' | 'other' | 'prefer_not_to_say';
@@ -117,7 +134,8 @@ export default function EligibilityPage() {
   // Property context for visit scheduling
   const [propertyContext, setPropertyContext] = useState<PropertyContext | null>(null);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
-  const [existingVisit, setExistingVisit] = useState<{ id: string; scheduled_at: string; status: string } | null>(null);
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   // Load property context when property_id is present
   useEffect(() => {
@@ -195,6 +213,75 @@ export default function EligibilityPage() {
     if (!user?.id) return;
     loadExisting(user.id);
   }, [user?.id, authLoading, loadExisting]);
+
+  // ─── Visit scheduling hooks ────────────────────────────────────────────────
+
+  const visitsQuery = useTenantVisitsQuery(user?.id);
+  const scheduleMutation = useScheduleVisit();
+  const rescheduleMutation = useRescheduleVisit();
+  const cancelMutation = useCancelVisit();
+
+  // Active visit for the current property (scheduled or rescheduled only)
+  const activeVisit = useMemo(() => {
+    if (!propertyContext || !visitsQuery.data) return null;
+    return (visitsQuery.data as any[]).find(
+      (v) =>
+        v.property_id === propertyContext.id &&
+        ["scheduled", "rescheduled"].includes(v.status)
+    ) ?? null;
+  }, [visitsQuery.data, propertyContext]);
+
+  // Slot label from UTC scheduled_at
+  const SLOT_BY_UTC_HOUR: Record<number, { label: string; range: string }> = {
+    0: { label: "Early Morning", range: "6:00 AM – 9:00 AM" },
+    3: { label: "Morning", range: "9:00 AM – 12:00 PM" },
+    6: { label: "Afternoon", range: "12:00 PM – 4:00 PM" },
+    10: { label: "Evening", range: "4:00 PM – 7:00 PM" },
+  };
+
+  function getSlotLabel(scheduledAt: string): string {
+    const utcHour = new Date(scheduledAt).getUTCHours();
+    const slot = SLOT_BY_UTC_HOUR[utcHour];
+    if (slot) return `${slot.label} · ${slot.range}`;
+    return format(new Date(scheduledAt), "h:mm a");
+  }
+
+  const handleConfirmVisit = async (scheduledAt: Date) => {
+    if (!propertyContext || !user?.id) return;
+    try {
+      if (isRescheduling && activeVisit) {
+        await rescheduleMutation.mutateAsync({ visitId: activeVisit.id, scheduledAt });
+        toast({ title: "Visit rescheduled" });
+      } else {
+        await scheduleMutation.mutateAsync({
+          tenantId: user.id,
+          propertyId: propertyContext.id,
+          scheduledAt,
+        });
+        toast({ title: "Visit scheduled" });
+      }
+      setVisitModalOpen(false);
+      setIsRescheduling(false);
+    } catch {
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    }
+  };
+
+  const handleCancelVisit = async () => {
+    if (!activeVisit || !user?.id || !propertyContext) return;
+    try {
+      await cancelMutation.mutateAsync({
+        visitId: activeVisit.id,
+        tenantId: user.id,
+        propertyId: propertyContext.id,
+        cancelledBy: "tenant",
+      });
+      setCancelDialogOpen(false);
+      toast({ title: "Visit cancelled" });
+    } catch {
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    }
+  };
 
   // ─── Validation ────────────────────────────────────────────────────────────
 
@@ -554,16 +641,67 @@ export default function EligibilityPage() {
             </Card>
           )}
 
+          {/* Inline manage-visit card — shown when an active visit exists for this property */}
+          {propertyContext && activeVisit && (
+            <Card className="mt-8 border-green-200 bg-green-50/50">
+              <CardContent className="p-4 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
+                  Visit Scheduled
+                </p>
+                <p className="text-sm font-semibold text-card-foreground">
+                  {bhkLabel(propertyContext.bhk)} in {propertyContext.building_name}
+                </p>
+                <div className="flex items-center gap-2 text-sm text-foreground">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+                  {format(new Date(activeVisit.scheduled_at), "EEEE, d MMMM yyyy")}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-foreground">
+                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                  {getSlotLabel(activeVisit.scheduled_at)}
+                </div>
+                <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                  {activeVisit.status === "rescheduled" ? "Rescheduled" : "Scheduled"}
+                </Badge>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 min-h-[44px]"
+                    onClick={() => {
+                      setIsRescheduling(true);
+                      setVisitModalOpen(true);
+                    }}
+                  >
+                    Reschedule
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 min-h-[44px] border-destructive text-destructive hover:bg-destructive/10"
+                    onClick={() => setCancelDialogOpen(true)}
+                  >
+                    Cancel Visit
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* CTAs */}
           <div className="mt-8 space-y-3">
             {propertyContext ? (
               <>
-                <Button
-                  className="min-h-[44px] w-full"
-                  onClick={() => setVisitModalOpen(true)}
-                >
-                  Schedule a Visit
-                </Button>
+                {!activeVisit && (
+                  <Button
+                    className="min-h-[44px] w-full"
+                    onClick={() => {
+                      setIsRescheduling(false);
+                      setVisitModalOpen(true);
+                    }}
+                  >
+                    Schedule a Visit
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   className="min-h-[44px] w-full"
@@ -619,35 +757,45 @@ export default function EligibilityPage() {
           </button>
         </div>
 
-        {/* Visit scheduling modal */}
-        {propertyContext && session?.user?.id && (
-          <VisitSchedulingModal
-            open={visitModalOpen}
-            onOpenChange={setVisitModalOpen}
-            propertyId={propertyContext.id}
-            userId={session.user.id}
-            buildingName={propertyContext.building_name}
-            bhk={propertyContext.bhk}
-            existingVisit={existingVisit}
-            onVisitChanged={() => {
-              // Refresh existing visit state
-              if (session?.user?.id && propertyContext) {
-                supabase
-                  .from('visits')
-                  .select('id, scheduled_at, status')
-                  .eq('property_id', propertyContext.id)
-                  .eq('tenant_id', session.user.id)
-                  .in('status', ['scheduled', 'confirmed'])
-                  .order('created_at', { ascending: false })
-                  .limit(1)
-                  .maybeSingle()
-                  .then(({ data }) => {
-                    setExistingVisit(data ?? null);
-                  });
-              }
-            }}
-          />
-        )}
+        {/* Visit scheduler modal */}
+        <VisitSchedulerModal
+          open={visitModalOpen}
+          onClose={() => {
+            setVisitModalOpen(false);
+            setIsRescheduling(false);
+          }}
+          onConfirm={handleConfirmVisit}
+          title={isRescheduling ? "Reschedule Visit" : "Schedule a Visit"}
+          confirmLabel={isRescheduling ? "Confirm Reschedule" : "Confirm Visit"}
+          loading={scheduleMutation.isPending || rescheduleMutation.isPending}
+        />
+
+        {/* Cancel visit confirmation */}
+        <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel your visit?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to cancel this visit? You can always schedule a new one later.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="min-h-[44px]" disabled={cancelMutation.isPending}>
+                Keep Visit
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="min-h-[44px] bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={handleCancelVisit}
+                disabled={cancelMutation.isPending}
+              >
+                {cancelMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Yes, Cancel
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </Layout>
     );
   }

@@ -111,6 +111,35 @@ export function useVisitLogsQuery() {
   });
 }
 
+// ─── Mutation: Schedule new visit (direct insert) ────────────────────────────
+
+export function useScheduleVisit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      tenantId,
+      propertyId,
+      scheduledAt,
+    }: {
+      tenantId: string;
+      propertyId: string;
+      scheduledAt: Date;
+    }) => {
+      const { error } = await supabase.from("visits").insert({
+        tenant_id: tenantId,
+        property_id: propertyId,
+        scheduled_at: scheduledAt.toISOString(),
+        status: "scheduled",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: visitKeys.all });
+      queryClient.invalidateQueries({ queryKey: visitKeys.events });
+    },
+  });
+}
+
 // ─── Mutation: Reschedule (via RPC) ──────────────────────────────────────────
 
 export function useRescheduleVisit() {

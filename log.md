@@ -87,3 +87,7 @@
 ## [2026-04-22] diagnose | Visit module post-migration — 3 issues diagnosed [12:30 IST]
 
 ## [2026-04-22] fix | Visit module — reschedule linkage column + tenant timeline filter + Visit Logs notes display [13:30 IST]
+
+## [2026-04-22] diagnose | Eligibility scheduler — unification feasibility diagnosed [14:30 IST]
+
+## [2026-04-22] refactor | Eligibility scheduler unified with VisitSchedulerModal; legacy component deleted [15:30 IST]
