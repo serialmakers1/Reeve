@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { format, addDays, isBefore, startOfDay } from "date-fns";
+import { format, addDays, isBefore, startOfDay, isSameDay } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Loader2, ArrowLeft, Sunrise, Sun, Sunset } from "lucide-react";
+import { Loader2, ArrowLeft, Moon, Sunrise, Sun, Sunset } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -30,14 +30,15 @@ export interface VisitSchedulerModalProps {
 }
 
 type Step = "date" | "slot";
-type TimeSlot = "morning" | "afternoon" | "evening";
+type TimeSlot = "early_morning" | "morning" | "afternoon" | "evening";
 
 // ─── Constants (hoisted to module level to avoid re-creating each render) ─────
 
 // IST = UTC+5:30. Each slot's UTC equivalent:
-// Morning   09:00 IST → 03:30 UTC
-// Afternoon 12:00 IST → 06:30 UTC
-// Evening   16:00 IST → 10:30 UTC
+// Early Morning  06:00 IST → 00:30 UTC
+// Morning        09:00 IST → 03:30 UTC
+// Afternoon      12:00 IST → 06:30 UTC
+// Evening        16:00 IST → 10:30 UTC
 const TIME_SLOTS: {
   key: TimeSlot;
   label: string;
@@ -45,7 +46,17 @@ const TIME_SLOTS: {
   icon: React.ReactNode;
   utcH: number;
   utcM: number;
+  istStartH: number; // IST wall-clock hour for past-slot filtering
 }[] = [
+  {
+    key: "early_morning",
+    label: "Early Morning",
+    range: "6:00 AM – 9:00 AM",
+    icon: <Moon className="h-5 w-5" />,
+    utcH: 0,
+    utcM: 30,
+    istStartH: 6,
+  },
   {
     key: "morning",
     label: "Morning",
@@ -53,6 +64,7 @@ const TIME_SLOTS: {
     icon: <Sunrise className="h-5 w-5" />,
     utcH: 3,
     utcM: 30,
+    istStartH: 9,
   },
   {
     key: "afternoon",
@@ -61,6 +73,7 @@ const TIME_SLOTS: {
     icon: <Sun className="h-5 w-5" />,
     utcH: 6,
     utcM: 30,
+    istStartH: 12,
   },
   {
     key: "evening",
@@ -69,6 +82,7 @@ const TIME_SLOTS: {
     icon: <Sunset className="h-5 w-5" />,
     utcH: 10,
     utcM: 30,
+    istStartH: 16,
   },
 ];
 
@@ -174,7 +188,13 @@ function SchedulerContent({
           </div>
 
           <div className="space-y-3">
-            {TIME_SLOTS.map((slot) => (
+            {(() => {
+              const now = new Date();
+              const currentISTHour = now.getHours();
+              const isToday = selectedDate ? isSameDay(selectedDate, now) : false;
+              return TIME_SLOTS.filter(
+                (slot) => !isToday || slot.istStartH > currentISTHour
+              ).map((slot) => (
               <button
                 key={slot.key}
                 type="button"
@@ -203,7 +223,8 @@ function SchedulerContent({
                   <p className="text-xs text-muted-foreground">{slot.range}</p>
                 </div>
               </button>
-            ))}
+            ));
+            })()}
           </div>
 
           <div className="flex gap-3">
@@ -262,11 +283,11 @@ const VisitSchedulerModal: React.FC<VisitSchedulerModalProps> = ({
 
   // Compute min/max once per render (stable unless day changes)
   const today = new Date();
-  const isPast6PM = today.getHours() >= 18;
-  const minDate = isPast6PM
+  const isPast4PM = today.getHours() >= 16;
+  const minDate = isPast4PM
     ? addDays(startOfDay(today), 1)
     : startOfDay(today);
-  const maxDate = addDays(startOfDay(today), 30);
+  const maxDate = addDays(startOfDay(today), 7);
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);

@@ -95,6 +95,21 @@ function getEventLabel(eventType: string, initiatedBy: string): string {
   return map[eventType] ?? eventType;
 }
 
+// Maps stored UTC hour → full slot label + range
+const SLOT_BY_UTC_HOUR: Record<number, { label: string; range: string }> = {
+  0: { label: "Early Morning", range: "6:00 AM – 9:00 AM" },
+  3: { label: "Morning", range: "9:00 AM – 12:00 PM" },
+  6: { label: "Afternoon", range: "12:00 PM – 4:00 PM" },
+  10: { label: "Evening", range: "4:00 PM – 7:00 PM" },
+};
+
+function getSlotLabel(scheduledAt: string): string {
+  const utcHour = new Date(scheduledAt).getUTCHours();
+  const slot = SLOT_BY_UTC_HOUR[utcHour];
+  if (slot) return `${slot.label} · ${slot.range}`;
+  return format(new Date(scheduledAt), "h:mm a");
+}
+
 function getVisitLabel(visit: VisitRow): string {
   if (visit.status === "cancelled") {
     return visit.cancelled_by === "tenant" ? "Cancelled by you" : "Cancelled";
@@ -491,10 +506,7 @@ export default function VisitsList() {
                             </div>
                             <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3 shrink-0" />
-                              {format(
-                                new Date(v.scheduled_at),
-                                "dd MMM yyyy, h:mm a"
-                              )}
+                              {format(new Date(v.scheduled_at), "dd MMM yyyy")} · {getSlotLabel(v.scheduled_at)}
                             </p>
                           </div>
                         </div>

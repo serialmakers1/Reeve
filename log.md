@@ -74,3 +74,7 @@
 ## [2026-04-19] fix | Footer desktop grid 3→4 cols, For Tenants into own column [18:45 IST]
 
 ## [2026-04-20] diagnose | Token payment refund policy — pre-implementation diagnosis [14:00 IST]
+
+## [2026-04-22] diagnose | Visit time slot filtering — diagnosis complete [09:22 IST]
+
+## [2026-04-22] feat | Visit scheduler — Early Morning slot, past-slot filtering, 4PM cutoff, 7-day window, full slot label in My Visits [09:40 IST]
