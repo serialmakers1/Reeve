@@ -67,8 +67,12 @@ type EventType =
   | "rescheduled"
   | "cancelled"
   | "no_show"
-  | "completed";
+  | "completed"
+  | "property_feedback_note"
+  | "admin_note";
 
+// Status events shown as standalone table rows (user-facing filter checkboxes).
+// Note events are fetched but attached to their parent completed row — not shown standalone.
 const ALL_EVENT_TYPES: EventType[] = [
   "scheduled",
   "rescheduled",
@@ -77,12 +81,16 @@ const ALL_EVENT_TYPES: EventType[] = [
   "completed",
 ];
 
+const NOTE_EVENT_TYPES = new Set<string>(["property_feedback_note", "admin_note"]);
+
 const EVENT_LABELS: Record<EventType, string> = {
   scheduled: "Scheduled",
   rescheduled: "Rescheduled",
   cancelled: "Cancelled",
   no_show: "No-Show",
   completed: "Completed",
+  property_feedback_note: "Property Feedback",
+  admin_note: "Admin Note",
 };
 
 // ─── Event badge ──────────────────────────────────────────────────────────────
@@ -155,6 +163,23 @@ export default function VisitLogs() {
   const rows = (rawRows as unknown as VisitLogRow[]) ?? [];
   const loading = dataLoading;
 
+  // Derive completion notes map: visit_id → { propertyFeedback?, adminNote? }
+  const notesMap = useMemo(() => {
+    const map = new Map<string, { propertyFeedback?: string; adminNote?: string }>();
+    for (const r of rows) {
+      if (r.event_type === "property_feedback_note" && r.notes) {
+        const entry = map.get(r.visit_id) ?? {};
+        entry.propertyFeedback = r.notes;
+        map.set(r.visit_id, entry);
+      } else if (r.event_type === "admin_note" && r.notes) {
+        const entry = map.get(r.visit_id) ?? {};
+        entry.adminNote = r.notes;
+        map.set(r.visit_id, entry);
+      }
+    }
+    return map;
+  }, [rows]);
+
   // Filters
   const [selectedTypes, setSelectedTypes] = useState<Set<EventType>>(
     new Set(ALL_EVENT_TYPES)
@@ -172,6 +197,8 @@ export default function VisitLogs() {
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
+      // Note events are never standalone table rows — they attach to completed rows via notesMap.
+      if (NOTE_EVENT_TYPES.has(r.event_type)) return false;
       // Event type
       if (!selectedTypes.has(r.event_type as EventType)) return false;
 
@@ -448,7 +475,15 @@ export default function VisitLogs() {
 
                     {/* Notes */}
                     <td className="px-4 py-3 text-xs text-muted-foreground max-w-[180px]">
-                      {truncate(row.notes)}
+                      {row.event_type === "completed"
+                        ? (() => {
+                            const n = notesMap.get(row.visit_id);
+                            const parts: string[] = [];
+                            if (n?.propertyFeedback) parts.push(`Feedback: ${n.propertyFeedback}`);
+                            if (n?.adminNote) parts.push(`Admin: ${n.adminNote}`);
+                            return parts.length > 0 ? truncate(parts.join(" | ")) : "—";
+                          })()
+                        : truncate(row.notes)}
                     </td>
                   </tr>
                 ))
@@ -549,16 +584,45 @@ export default function VisitLogs() {
               )}
 
               {/* Full notes */}
-              {selectedRow.notes && (
-                <div className="mt-5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                    Notes
-                  </p>
-                  <p className="text-sm text-foreground whitespace-pre-wrap rounded-lg border border-border bg-muted/30 p-3">
-                    {selectedRow.notes}
-                  </p>
-                </div>
-              )}
+              {selectedRow.event_type === "completed"
+                ? (() => {
+                    const n = notesMap.get(selectedRow.visit_id);
+                    if (!n?.propertyFeedback && !n?.adminNote) return null;
+                    return (
+                      <div className="mt-5 space-y-3">
+                        {n.propertyFeedback && (
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                              Property Feedback
+                            </p>
+                            <p className="text-sm text-foreground whitespace-pre-wrap rounded-lg border border-border bg-muted/30 p-3">
+                              {n.propertyFeedback}
+                            </p>
+                          </div>
+                        )}
+                        {n.adminNote && (
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                              Admin Note
+                            </p>
+                            <p className="text-sm text-foreground whitespace-pre-wrap rounded-lg border border-border bg-muted/30 p-3">
+                              {n.adminNote}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                : selectedRow.notes && (
+                    <div className="mt-5">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                        Notes
+                      </p>
+                      <p className="text-sm text-foreground whitespace-pre-wrap rounded-lg border border-border bg-muted/30 p-3">
+                        {selectedRow.notes}
+                      </p>
+                    </div>
+                  )}
             </>
           )}
         </SheetContent>

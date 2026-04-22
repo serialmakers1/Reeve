@@ -83,3 +83,7 @@
 ## [2026-04-22] diagnose | Visit module — 3 bugs + systemic issues diagnosed [10:36 IST]
 
 ## [2026-04-22] backend | Visit module — schema reconciled, RPCs + RLS + status trigger added [11:05 IST]
+
+## [2026-04-22] diagnose | Visit module post-migration — 3 issues diagnosed [12:30 IST]
+
+## [2026-04-22] fix | Visit module — reschedule linkage column + tenant timeline filter + Visit Logs notes display [13:30 IST]
