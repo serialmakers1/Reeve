@@ -55,6 +55,9 @@ const STATUS_ACTIONS: Record<string, { label: string; newStatus: string; extra?:
     { label: "Approve & Send to Owner", newStatus: "sent_to_owner", extra: { platform_approved: true } },
   ],
   owner_accepted: [{ label: "Mark Payment Pending", newStatus: "payment_pending" }],
+  payment_pending: [
+    { label: "Reset to Owner Accepted", newStatus: "owner_accepted" },
+  ],
   payment_received: [{ label: "Mark KYC Pending", newStatus: "kyc_pending" }],
   kyc_pending: [
     { label: "Mark KYC Passed", newStatus: "kyc_passed" },

@@ -102,7 +102,7 @@ Deno.serve(async (req: Request) => {
       console.warn("STEP3_OWNERSHIP_FAIL", { appTenantId: app.tenant_id, userId });
       return json({ error: "Forbidden: not your application", code: "OWNERSHIP" }, 403);
     }
-    if (app.status !== "owner_accepted") {
+    if (!["owner_accepted", "payment_pending"].includes(app.status)) {
       console.warn("STEP3_STATUS_FAIL", { status: app.status });
       return json({ error: `Application status is '${app.status}', expected 'owner_accepted'`, code: "STATUS" }, 403);
     }
@@ -197,10 +197,10 @@ Deno.serve(async (req: Request) => {
     console.log("STEP6_PAYMENT_INSERTED");
 
     // ── 7. Advance application status to payment_pending ──────────────────────
-    // WHERE guard on status = 'owner_accepted' prevents overwriting a status
-    // that moved on between our check (step 3) and this update.
+    // WHERE guard covers both owner_accepted (first attempt) and payment_pending
+    // (retry path where Step 4 found no existing payment row and a new order was created).
     const updateRes = await fetch(
-      `${supabaseUrl}/rest/v1/applications?id=eq.${applicationId}&status=eq.owner_accepted`,
+      `${supabaseUrl}/rest/v1/applications?id=eq.${applicationId}&status=in.(owner_accepted,payment_pending)`,
       {
         method: "PATCH",
         headers: {
