@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { WhyReeveFeeLink } from "@/components/WhyReeveFeeModal";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import posthog from "posthog-js";
 import { format } from "date-fns";
@@ -1033,7 +1034,7 @@ const PropertyDetail: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex justify-between items-center px-4 py-2.5 border-t border-gray-100">
-                      <span className="text-sm text-gray-600">Reeve Fee (7%)</span>
+                      <span className="text-sm text-gray-600 flex items-center gap-1.5">Reeve Fee (7%) <WhyReeveFeeLink /></span>
                       <span className="text-sm font-medium text-gray-900">
                         ₹{Math.round(property.listed_rent * 0.07).toLocaleString('en-IN')}
                       </span>

@@ -93,3 +93,7 @@
 ## [2026-04-22] diagnose | Eligibility scheduler — unification feasibility diagnosed [14:30 IST]
 
 ## [2026-04-22] refactor | Eligibility scheduler unified with VisitSchedulerModal; legacy component deleted [15:30 IST]
+
+## [2026-04-24] diagnose | Codebase audit for WhyReeveFeeModal — modal, tokens, fonts, animations [12:24 IST]
+
+## [2026-04-24] feat | Built WhyReeveFeeModal — 5-screen pain-first story modal for 7% fee [12:45 IST]
