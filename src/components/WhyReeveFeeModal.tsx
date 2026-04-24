@@ -222,13 +222,19 @@ const Screen4 = () => (
       style={{ fontFamily: FONT_SERIF }}
     >
       "Please vacate by month-end."{" "}
-      <em style={{ color: "#c9a05a", fontStyle: "italic" }}>No reason.</em>
+      <em style={{ color: "#c9a05a", fontStyle: "italic" }}>Who do you call?</em>
     </h2>
-    <p className="text-sm leading-relaxed" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
-      A WhatsApp message is not a legal notice. Every Reeve tenancy has a documented 2-year lock-in
-      in a tripartite agreement.{" "}
-      <strong style={{ color: "#d4d4cc" }}>Your right to stay is not a favour.</strong>
-    </p>
+    <div className="space-y-3">
+      <p className="text-sm leading-relaxed" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
+        In a typical rental — nobody. It's your word against the owner's.
+      </p>
+      <p className="text-sm leading-relaxed" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
+        On Reeve, your lease is signed by three parties — you, the owner, and Reeve. Not two. Reeve doesn't disappear after move-in. Reeve is a co-signatory for the full term. Every lease includes a 2-year lock-in. The owner can't bypass Reeve to end it early — and Reeve has a long-term management agreement with the owner, so there's no incentive to side with a bad-faith exit.
+      </p>
+      <p className="text-sm leading-relaxed" style={{ color: "#d4d4cc", fontFamily: FONT_DM_SANS }}>
+        <strong>If there's a dispute, you don't face the owner alone. Reeve is already a legal party to your lease.</strong>
+      </p>
+    </div>
 
     {/* Gold stat block */}
     <div
@@ -243,17 +249,17 @@ const Screen4 = () => (
         2 yrs
       </p>
       <p className="text-sm font-medium" style={{ color: "#d4d4cc", fontFamily: FONT_DM_SANS }}>
-        Lock-in period — documented and enforceable
+        Lock-in period. Three-party lease. Reeve enforces.
       </p>
       <p className="text-xs" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
-        Signed tripartite agreement between tenant, owner, and Reeve
+        Lease signed by tenant, owner, and Reeve. Not a verbal understanding.
       </p>
     </div>
   </div>
 );
 
 // ─── Screen 5: The Resolution ─────────────────────────────────────────────────
-const Screen5 = ({ onClose }: { onClose: () => void }) => (
+const Screen5 = () => (
   <div className="space-y-5">
     <div
       className="inline-block rounded-full px-3 py-1 text-xs font-medium tracking-wide uppercase"
@@ -324,18 +330,6 @@ const Screen5 = ({ onClose }: { onClose: () => void }) => (
         ↓ 4% at renewal
       </div>
     </div>
-
-    {/* CTA */}
-    <button
-      onClick={onClose}
-      className="w-full rounded-xl py-3.5 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-80"
-      style={{ background: "#c9a05a", color: "#171714", fontFamily: FONT_DM_SANS }}
-    >
-      Got it — view this property
-    </button>
-    <p className="text-center text-xs" style={{ color: "#666660", fontFamily: FONT_DM_SANS }}>
-      Reduces to 4% at renewal.
-    </p>
   </div>
 );
 
@@ -434,11 +428,7 @@ const FeeModalContent: React.FC<FeeModalContentProps> = ({ onClose }) => {
               aria-hidden={i !== current}
               style={{ width: `calc(${100 / TOTAL_SCREENS}% - ${(TOTAL_SCREENS - 1) * 20 / TOTAL_SCREENS}px)`, flexShrink: 0, paddingBottom: "8px" }}
             >
-              {i === TOTAL_SCREENS - 1 ? (
-                <Screen5 onClose={onClose} />
-              ) : (
-                <Screen />
-              )}
+              <Screen />
             </div>
           ))}
         </div>
@@ -481,8 +471,8 @@ const FeeModalContent: React.FC<FeeModalContentProps> = ({ onClose }) => {
         ))}
       </div>
 
-      {/* Navigation — hidden on last screen (CTA is inside Screen5) */}
-      {!isLast && (
+      {/* Footer — nav for screens 1–4, pinned CTA for screen 5 */}
+      {!isLast ? (
         <div className="flex items-center justify-between gap-3 px-5 pb-5 shrink-0">
           <button
             onClick={() => (isFirst ? goTo(TOTAL_SCREENS - 1) : goTo(current - 1))}
@@ -499,9 +489,20 @@ const FeeModalContent: React.FC<FeeModalContentProps> = ({ onClose }) => {
             {nextLabel}
           </button>
         </div>
+      ) : (
+        <div className="px-5 pb-5 shrink-0">
+          <button
+            onClick={onClose}
+            className="w-full rounded-xl py-3.5 font-semibold transition-opacity hover:opacity-90 active:opacity-80"
+            style={{ background: "#c9a05a", color: "#171714", fontFamily: FONT_SERIF, fontSize: "17px" }}
+          >
+            Got it — view this property
+          </button>
+          <p className="text-center mt-1" style={{ fontSize: "11px", color: "rgba(255,255,255,0.25)", fontFamily: FONT_DM_SANS }}>
+            Reduces to 4% at renewal.
+          </p>
+        </div>
       )}
-      {/* Bottom padding when on last screen so CTA has breathing room */}
-      {isLast && <div className="pb-5 shrink-0" />}
     </div>
   );
 };
