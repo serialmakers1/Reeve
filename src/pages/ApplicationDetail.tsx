@@ -369,7 +369,10 @@ export default function ApplicationDetail() {
       modal: {
         ondismiss: () => {
           setPaymentLoading(false);
-          toast({ title: "Payment cancelled. You can try again anytime." });
+          toast({
+            title: "Payment not completed",
+            description: "You can complete your payment anytime using the button below.",
+          });
         },
       },
     });
@@ -611,18 +614,7 @@ export default function ApplicationDetail() {
                   </p>
                 </div>
 
-                <div className="rounded-xl border bg-card p-4 space-y-2">
-                  <h4 className="text-sm font-semibold text-foreground">Refund Conditions</h4>
-                  <div className="space-y-1 text-sm">
-                    <p className="text-green-700">
-                      ✅ Refundable: Owner backs out, property becomes unavailable, KYC fails due to platform error
-                    </p>
-                    <p className="text-red-600">
-                      ❌ Non-refundable: You withdraw after paying, KYC fails due to your documents, KYC not completed
-                      within 7 days
-                    </p>
-                  </div>
-                </div>
+                <TokenRefundPolicy variant="pre_payment" />
 
                 <Button
                   className="w-full min-h-[44px] bg-violet-600 hover:bg-violet-700 text-white"

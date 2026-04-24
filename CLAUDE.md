@@ -223,7 +223,9 @@ non-deterministic.
 - `payment_pending` removed from `WITHDRAWABLE_STATUSES` in ApplicationDetail.tsx — payment-in-flight lock
 - Edge Function `create-razorpay-order` (`supabase/functions/create-razorpay-order/index.ts`):
   - `verify_jwt = false`; JWT validated manually via GET /auth/v1/user (mirrors verify-phone-otp)
-  - Validates ownership + `status = 'owner_accepted'`; idempotency returns existing pending order
+  - Status guard accepts `['owner_accepted', 'payment_pending']` — allows retry from `payment_pending` state
+  - Idempotency (Step 4) runs AFTER the status guard: if a pending payment row exists, returns same Razorpay order_id so the checkout reopens without creating a new order
+  - Admin can reset `payment_pending` → `owner_accepted` via STATUS_ACTIONS in admin ApplicationDetail (manual override for expired/stuck orders — webhook idempotency guards handle stale webhooks after reset)
   - Razorpay order via native `fetch()` (not npm SDK); `checkout_config_id: "config_SfHzUgldMePgt1"`
   - Token: fixed 500000 paise (₹5,000) — NEVER derived from rent. Advances app to `payment_pending`
   - Secrets: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`
