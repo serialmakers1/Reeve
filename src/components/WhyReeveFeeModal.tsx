@@ -222,15 +222,11 @@ const Screen4 = () => (
       style={{ fontFamily: FONT_SERIF }}
     >
       "Please vacate by month-end."{" "}
-      <em style={{ color: "#c9a05a", fontStyle: "italic" }}>Who do you call?</em>
+      <em style={{ color: "#c9a05a", fontStyle: "italic" }}>Not here.</em>
     </h2>
     <div className="space-y-3">
       <p className="text-sm leading-relaxed" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
-        In a typical rental — nobody. It's your word against the owner's.
-      </p>
-      <p className="text-sm leading-relaxed" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
-        On Reeve, your lease is signed by three parties — you, the owner, and Reeve. Reeve doesn't disappear after move-in. Reeve has a long-term property management agreement with the owner, so there's no incentive to side with a bad-faith exit.
-      </p>
+        Your lease is a three-party agreement — you, the owner, and Reeve. The owner can't bypass Reeve to push you out. And the owner's contract with Reeve runs for two years — so they're not going anywhere either.
     </div>
 
     {/* Gold stat block */}
@@ -243,7 +239,7 @@ const Screen4 = () => (
         style={{ color: "#c9a05a", fontFamily: FONT_SERIF }}
         aria-label="2 year lock-in period"
       >
-        Stability
+        Locked in.
       </p>
     </div>
   </div>
@@ -483,9 +479,7 @@ const FeeModalContent: React.FC<FeeModalContentProps> = ({ onClose }) => {
           >
             Got it — view this property
           </button>
-          <p className="text-center mt-1" style={{ fontSize: "11px", color: "rgba(255,255,255,0.25)", fontFamily: FONT_DM_SANS }}>
-            Reduces to 4% at renewal.
-          </p>
+
         </div>
       )}
     </div>
