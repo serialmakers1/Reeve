@@ -184,11 +184,14 @@ export default function NewApplicationPage() {
 
   // Step 3 — Employment
   const [employerName, setEmployerName] = useState("");
+  const [workEmail, setWorkEmail] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [salarySlips, setSalarySlips] = useState<UploadedFile[]>([]);
-  const [itrFile, setItrFile] = useState<UploadedFile | null>(null);
-  const [bankStatement, setBankStatement] = useState<UploadedFile | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+  const dropZoneInputRef = useRef<HTMLInputElement>(null);
 
   // Step 4 — CIBIL
   const [cibilRange, setCibilRange] = useState("");
@@ -419,6 +422,8 @@ export default function NewApplicationPage() {
   const loadDraft = async (draft: Record<string, unknown>, prop: PropertyInfo) => {
     // Pre-fill from draft
     if (draft.employer_name) setEmployerName(draft.employer_name as string);
+    if (draft.work_email) setWorkEmail(draft.work_email as string);
+    if (draft.linkedin_url) setLinkedinUrl(draft.linkedin_url as string);
     if (draft.cibil_range) setCibilRange(draft.cibil_range as string);
     if (draft.crime_record_self_attest) setCrimeAttest(true);
     if (draft.proposed_rent) {
@@ -470,8 +475,6 @@ export default function NewApplicationPage() {
           document_type: d.document_type,
         };
         if (d.document_type === "salary_slip") slips.push(f);
-        else if (d.document_type === "itr") setItrFile(f);
-        else if (d.document_type === "bank_statement") setBankStatement(f);
 
       });
       if (slips.length) setSalarySlips(slips);
@@ -594,6 +597,10 @@ export default function NewApplicationPage() {
 
     if (s === 3) {
       if (!employerName.trim()) errs.employer_name = "Employer name is required";
+      if (workEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(workEmail.trim()))
+        errs.work_email = "Please enter a valid email address";
+      if (linkedinUrl.trim() && !linkedinUrl.trim().startsWith("https://"))
+        errs.linkedin_url = "Please enter a valid URL (must start with https://)";
       if (salarySlips.length === 0) errs.salary_slips = "Please upload at least one salary slip";
     }
 
@@ -679,6 +686,8 @@ export default function NewApplicationPage() {
     if (step === 3) {
       success = await saveApplicationField({
         employer_name: employerName.trim(),
+        work_email: workEmail.trim() || null,
+        linkedin_url: linkedinUrl.trim() || null,
       });
     }
 
@@ -838,6 +847,8 @@ export default function NewApplicationPage() {
     const rent = rentChoice === "accept" ? property!.listed_rent : (proposedRent !== "" ? Number(proposedRent) : property!.listed_rent);
     const success = await saveApplicationField({
       employer_name: employerName.trim() || null,
+      work_email: workEmail.trim() || null,
+      linkedin_url: linkedinUrl.trim() || null,
       cibil_range: cibilRange || null,
       crime_record_self_attest: crimeAttest ? true : null,
       proposed_rent: rent,
@@ -1188,10 +1199,6 @@ export default function NewApplicationPage() {
         if (result) {
           if (docType === "salary_slip") {
             setSalarySlips((prev) => [...prev, result]);
-          } else if (docType === "itr") {
-            setItrFile(result);
-          } else if (docType === "bank_statement") {
-            setBankStatement(result);
           }
         }
       }
@@ -1201,12 +1208,10 @@ export default function NewApplicationPage() {
     const handleRemoveFile = async (docType: string, file: UploadedFile, fileIndex?: number) => {
       setRemoving(`${docType}_${fileIndex ?? 0}`);
       try {
-        // Delete from storage
         const { error: storageErr } = await supabase.storage
           .from("tenant-documents")
           .remove([file.url]);
 
-        // Delete from documents table
         const { error: dbErr } = await supabase
           .from("documents")
           .delete()
@@ -1220,13 +1225,8 @@ export default function NewApplicationPage() {
           return;
         }
 
-        // Reset state
         if (docType === "salary_slip") {
           setSalarySlips((prev) => prev.filter((_, i) => i !== fileIndex));
-        } else if (docType === "itr") {
-          setItrFile(null);
-        } else if (docType === "bank_statement") {
-          setBankStatement(null);
         }
       } catch {
         toast({ title: "Could not remove file. Please try again.", variant: "destructive" });
@@ -1234,90 +1234,12 @@ export default function NewApplicationPage() {
       setRemoving(null);
     };
 
-    const FileUploadField = ({
-      label,
-      required,
-      docType,
-      files,
-      multiple,
-      maxFiles,
-      acceptPdfOnly,
-      helperText,
-      errorField,
-    }: {
-      label: string;
-      required?: boolean;
-      docType: string;
-      files: UploadedFile[];
-      multiple?: boolean;
-      maxFiles?: number;
-      acceptPdfOnly?: boolean;
-      helperText?: string;
-      errorField?: string;
-    }) => {
-      const inputRef = useRef<HTMLInputElement>(null);
-      const canUpload = !maxFiles || files.length < maxFiles;
-
-      return (
-        <div className="space-y-2">
-          <Label className="text-sm">
-            {label} {required ? "*" : <span className="text-muted-foreground">(optional)</span>}
-          </Label>
-          {files.map((f, i) => (
-            <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
-              <FileText className="h-4 w-4 text-green-600 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">{f.name}</p>
-                <p className="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
-              </div>
-              <Check className="h-4 w-4 text-green-600 shrink-0" />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                disabled={removing === `${docType}_${i}`}
-                onClick={() => handleRemoveFile(docType, f, i)}
-              >
-                {removing === `${docType}_${i}` ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <>
-                    <X className="mr-1 h-3 w-3" /> Remove
-                  </>
-                )}
-              </Button>
-            </div>
-          ))}
-          {canUpload && (
-            <>
-              <input
-                ref={inputRef}
-                type="file"
-                accept={acceptPdfOnly ? ".pdf" : ".pdf,.jpg,.jpeg,.png"}
-                multiple={multiple}
-                className="hidden"
-                onChange={(e) => handleFileUpload(e, docType)}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-[44px] w-full"
-                disabled={uploading === docType}
-                onClick={() => inputRef.current?.click()}
-              >
-                {uploading === docType ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
-                ) : (
-                  <><Upload className="mr-2 h-4 w-4" /> Upload</>
-                )}
-              </Button>
-            </>
-          )}
-          <p className="text-xs text-muted-foreground">{helperText || "PDF, JPG, PNG — max 10MB"}</p>
-          {errorField && <FieldError field={errorField} />}
-        </div>
-      );
+    const handleDropFiles = async (files: FileList) => {
+      for (let i = 0; i < files.length; i++) {
+        if (salarySlips.length >= 3) break;
+        const result = await uploadFile(files[i], "salary_slip");
+        if (result) setSalarySlips((prev) => [...prev, result]);
+      }
     };
 
     return (
@@ -1325,7 +1247,7 @@ export default function NewApplicationPage() {
         <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg mb-4">
           <span className="text-blue-500 text-base mt-0.5">🔒</span>
           <p className="text-sm text-blue-700">
-            Your documents are collected for identity and income verification only. 
+            Your documents are collected for identity and income verification only.
             They will never be shared with property owners or any third party.
           </p>
         </div>
@@ -1346,28 +1268,141 @@ export default function NewApplicationPage() {
           <FieldError field="employer_name" />
         </div>
 
-        <div className="space-y-4 pt-2">
-          <FileUploadField
-            label="Income Proof (Salary slips (last 3 months) / Latest ITR)"
-            required
-            docType="salary_slip"
-            files={salarySlips}
-            multiple
-            maxFiles={3}
-            errorField="salary_slips"
+        <div>
+          <Label className="text-sm">
+            Work Email <span className="text-muted-foreground">(optional)</span>
+          </Label>
+          <Input
+            type="email"
+            value={workEmail}
+            onChange={(e) => {
+              setWorkEmail(e.target.value);
+              setErrors((p) => { const n = {...p}; delete n.work_email; return n; });
+            }}
+            placeholder="you@company.com"
+            className="mt-1"
           />
-          <FileUploadField
-            label="ITR (Income Tax Return)"
-            docType="itr"
-            files={itrFile ? [itrFile] : []}
-            maxFiles={1}
+          <FieldError field="work_email" />
+        </div>
+
+        <div>
+          <Label className="text-sm">
+            LinkedIn Profile URL <span className="text-muted-foreground">(optional)</span>
+          </Label>
+          <Input
+            type="url"
+            value={linkedinUrl}
+            onChange={(e) => {
+              setLinkedinUrl(e.target.value);
+              setErrors((p) => { const n = {...p}; delete n.linkedin_url; return n; });
+            }}
+            placeholder="https://linkedin.com/in/yourname"
+            className="mt-1"
           />
-          <FileUploadField
-            label="Bank statement (last 3 months)"
-            docType="bank_statement"
-            files={bankStatement ? [bankStatement] : []}
-            maxFiles={1}
-          />
+          <FieldError field="linkedin_url" />
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <Label className="text-sm">
+            Salary Slips (last 3 months) *
+          </Label>
+
+          {/* Uploaded file chips */}
+          {salarySlips.map((f, i) => (
+            <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5">
+              <FileText className="h-4 w-4 text-green-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-foreground truncate">{f.name}</p>
+                <p className="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
+              </div>
+              <Check className="h-4 w-4 text-green-600 shrink-0" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                disabled={removing === `salary_slip_${i}`}
+                onClick={() => handleRemoveFile("salary_slip", f, i)}
+              >
+                {removing === `salary_slip_${i}` ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <><X className="mr-1 h-3 w-3" /> Remove</>
+                )}
+              </Button>
+            </div>
+          ))}
+
+          {/* Upload progress row */}
+          {uploading === "salary_slip" && (
+            <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+              <Loader2 className="h-4 w-4 text-muted-foreground animate-spin shrink-0" />
+              <div className="flex-1 space-y-1">
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div className="h-full w-1/2 rounded-full bg-primary animate-pulse" />
+                </div>
+              </div>
+              <span className="text-xs text-muted-foreground">Uploading…</span>
+            </div>
+          )}
+
+          {/* Drop zone — hidden when at capacity */}
+          {salarySlips.length < 3 ? (
+            <div
+              className={`
+                relative flex flex-col items-center justify-center gap-2
+                rounded-xl border-2 border-dashed px-6 py-8 cursor-pointer
+                transition-all duration-200 select-none
+                ${isDragging
+                  ? "border-primary bg-accent/60"
+                  : "border-border bg-card hover:border-primary/50 hover:bg-accent/20"
+                }
+              `}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                dragCounter.current += 1;
+                setIsDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                dragCounter.current -= 1;
+                if (dragCounter.current === 0) setIsDragging(false);
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                dragCounter.current = 0;
+                setIsDragging(false);
+                if (e.dataTransfer.files?.length) handleDropFiles(e.dataTransfer.files);
+              }}
+              onClick={() => dropZoneInputRef.current?.click()}
+            >
+              <Upload
+                className={`h-8 w-8 text-muted-foreground transition-transform duration-200
+                  ${isDragging ? "-translate-y-1 text-primary" : ""}`}
+              />
+              <p className="text-sm font-medium text-foreground">
+                {isDragging ? "Drop files to upload" : "Drag files here, or click to browse"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                PDF, JPG, PNG · max 10MB · up to 3 files
+              </p>
+              <input
+                ref={dropZoneInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFileUpload(e, "salary_slip")}
+              />
+            </div>
+          ) : (
+            <p className="text-xs text-center text-muted-foreground py-2">
+              Maximum 3 files uploaded
+            </p>
+          )}
+
+          <FieldError field="salary_slips" />
         </div>
       </div>
     );
@@ -1768,7 +1803,7 @@ export default function NewApplicationPage() {
             )}
             <Button
               className={`min-h-[44px] ${step === 1 ? "w-full" : "flex-1"}`}
-              disabled={saving || (step === 4 && !cibilRange) || (step === 3 && salarySlips.length === 0)}
+              disabled={saving || uploading !== null || (step === 4 && !cibilRange) || (step === 3 && salarySlips.length === 0)}
               onClick={goNext}
             >
               {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <>Continue <ArrowRight className="ml-1 h-4 w-4" /></>}

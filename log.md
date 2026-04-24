@@ -1,3 +1,4 @@
+## [2026-04-24] feat | Step 3 revamp: remove ITR/bank uploads, add work_email/linkedin_url, drag-and-drop salary slip zone [18:00 IST]
 ## [2026-04-22] feat | Visit scheduler — admin exact-time reschedule mode [19:00 IST]
 ## [2026-04-19] feature | Hid WhatsApp card in Contact.tsx, added Call Reeve card with tel link [15:00 IST]
 ## [2026-04-19] feature | Restructured /login to split-screen layout, right trust panel added [14:30 IST]

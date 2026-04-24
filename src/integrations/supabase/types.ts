@@ -1,3 +1,4 @@
+npm warn exec The following package was not found and will be installed: supabase@2.95.0
 export type Json =
   | string
   | number
@@ -249,6 +250,7 @@ export type Database = {
           id_verification_done: boolean
           income_check_passed: boolean | null
           kyc_completed_at: string | null
+          linkedin_url: string | null
           monthly_income: number | null
           move_in_asap: boolean | null
           owner_action_by_admin: boolean | null
@@ -277,6 +279,7 @@ export type Database = {
           visit_id: string | null
           withdrawal_reason: string | null
           withdrawn_at: string | null
+          work_email: string | null
         }
         Insert: {
           attempt_number?: number
@@ -291,6 +294,7 @@ export type Database = {
           id_verification_done?: boolean
           income_check_passed?: boolean | null
           kyc_completed_at?: string | null
+          linkedin_url?: string | null
           monthly_income?: number | null
           move_in_asap?: boolean | null
           owner_action_by_admin?: boolean | null
@@ -319,6 +323,7 @@ export type Database = {
           visit_id?: string | null
           withdrawal_reason?: string | null
           withdrawn_at?: string | null
+          work_email?: string | null
         }
         Update: {
           attempt_number?: number
@@ -333,6 +338,7 @@ export type Database = {
           id_verification_done?: boolean
           income_check_passed?: boolean | null
           kyc_completed_at?: string | null
+          linkedin_url?: string | null
           monthly_income?: number | null
           move_in_asap?: boolean | null
           owner_action_by_admin?: boolean | null
@@ -361,6 +367,7 @@ export type Database = {
           visit_id?: string | null
           withdrawal_reason?: string | null
           withdrawn_at?: string | null
+          work_email?: string | null
         }
         Relationships: [
           {
