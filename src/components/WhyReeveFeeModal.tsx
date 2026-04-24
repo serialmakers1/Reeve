@@ -229,10 +229,7 @@ const Screen4 = () => (
         In a typical rental — nobody. It's your word against the owner's.
       </p>
       <p className="text-sm leading-relaxed" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
-        On Reeve, your lease is signed by three parties — you, the owner, and Reeve. Not two. Reeve doesn't disappear after move-in. Reeve is a co-signatory for the full term. Every lease includes a 2-year lock-in. The owner can't bypass Reeve to end it early — and Reeve has a long-term management agreement with the owner, so there's no incentive to side with a bad-faith exit.
-      </p>
-      <p className="text-sm leading-relaxed" style={{ color: "#d4d4cc", fontFamily: FONT_DM_SANS }}>
-        <strong>If there's a dispute, you don't face the owner alone. Reeve is already a legal party to your lease.</strong>
+        On Reeve, your lease is signed by three parties — you, the owner, and Reeve. Reeve doesn't disappear after move-in. Reeve has a long-term property management agreement with the owner, so there's no incentive to side with a bad-faith exit.
       </p>
     </div>
 
@@ -246,10 +243,7 @@ const Screen4 = () => (
         style={{ color: "#c9a05a", fontFamily: FONT_SERIF }}
         aria-label="2 year lock-in period"
       >
-        2 yrs
-      </p>
-      <p className="text-sm font-medium" style={{ color: "#d4d4cc", fontFamily: FONT_DM_SANS }}>
-        Lock-in period. Three-party lease. Reeve enforces.
+        Stability
       </p>
       <p className="text-xs" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
         Lease signed by tenant, owner, and Reeve. Not a verbal understanding.
@@ -274,9 +268,6 @@ const Screen5 = () => (
       This is what the{" "}
       <em style={{ color: "#c9a05a", fontStyle: "italic" }}>7%</em> pays for.
     </h2>
-    <p className="text-sm leading-relaxed" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
-      One number. Included in your monthly payment. No brokerage on top. No hidden costs below.
-    </p>
 
     {/* Pill row */}
     <div className="flex flex-wrap gap-2" aria-label="What's included">
@@ -287,9 +278,6 @@ const Screen5 = () => (
         { label: "Deposit protection", lit: true },
         { label: "Maintenance intake", lit: true },
         { label: "Evidence-led exit", lit: true },
-        { label: "Zero brokerage", lit: false },
-        { label: "Rent receipts", lit: false },
-        { label: "2-yr lock-in", lit: false },
       ].map(({ label, lit }) => (
         <span
           key={label}
