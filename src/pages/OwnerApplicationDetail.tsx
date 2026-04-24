@@ -24,6 +24,8 @@ interface ApplicationData {
   attempt_number: number | null;
   previous_application_id: string | null;
   tenant_id: string;
+  move_in_asap: boolean | null;
+  preferred_move_in_date: string | null;
   tenant: { full_name: string } | null;
   property: {
     building_name: string;
@@ -147,6 +149,12 @@ export default function OwnerApplicationDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [appNotes, setAppNotes] = useState<Array<{
+    id: string;
+    note_type: string;
+    description: string;
+    photo_url: string | null;
+  }>>([]);
 
   // Action state
   const [showReject, setShowReject] = useState(false);
@@ -165,6 +173,7 @@ export default function OwnerApplicationDetail() {
         monthly_income, cibil_range, employer_name, crime_record_self_attest,
         platform_approved, submitted_at,
         rejection_reason, owner_actioned_at, attempt_number, previous_application_id, tenant_id,
+        move_in_asap, preferred_move_in_date,
         tenant:users!applications_tenant_id_fkey(full_name),
         property:properties!applications_property_id_fkey(
           building_name, locality, bhk, listed_rent
@@ -221,6 +230,18 @@ export default function OwnerApplicationDetail() {
     fetchApp();
   }, [authLoading, applicationId]);
 
+  useEffect(() => {
+    if (!applicationId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("application_notes")
+        .select("id, note_type, description, photo_url")
+        .eq("application_id", applicationId)
+        .order("created_at", { ascending: true });
+      if (data) setAppNotes(data as any);
+    })();
+  }, [applicationId]);
+
   const handleAction = async (
     updates: Record<string, unknown>
   ) => {
@@ -276,6 +297,23 @@ export default function OwnerApplicationDetail() {
   const elig = app.eligibility?.[0] ?? null;
   const badge = statusBadge(app.status);
   const buildingName = app.property?.building_name ?? "Property";
+
+  const moveInDisplay = app.move_in_asap
+    ? "As soon as possible"
+    : app.preferred_move_in_date
+      ? new Date(app.preferred_move_in_date).toLocaleDateString("en-IN", {
+          day: "numeric", month: "short", year: "numeric",
+        })
+      : "—";
+
+  const noteTypeLabel = (type: string) => {
+    const map: Record<string, string> = {
+      addition: "Additions requested",
+      removal: "Removals requested",
+      issue: "Issues noted",
+    };
+    return map[type] ?? (type.charAt(0).toUpperCase() + type.slice(1));
+  };
 
   return (
     <Layout>
@@ -444,6 +482,48 @@ export default function OwnerApplicationDetail() {
             </div>
           )}
         </section>
+
+        {/* SECTION — Move-in Preference */}
+        <section className="rounded-xl border border-border bg-card p-5 mb-4">
+          <h2 className="text-sm font-semibold text-foreground mb-4">
+            Move-in Preference
+          </h2>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Preferred Move-in</p>
+              <p className="text-sm font-medium text-foreground">{moveInDisplay}</p>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION — Tenant Notes */}
+        {appNotes.length > 0 && (
+          <section className="rounded-xl border border-border bg-card p-5 mb-4">
+            <h2 className="text-sm font-semibold text-foreground mb-4">
+              Tenant Notes
+            </h2>
+            <div className="space-y-4">
+              {appNotes.map((note) => (
+                <div key={note.id}>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">
+                    {noteTypeLabel(note.note_type)}
+                  </p>
+                  <p className="text-sm text-foreground">{note.description}</p>
+                  {note.photo_url && (
+                    <a
+                      href={note.photo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block mt-1 text-xs text-primary underline"
+                    >
+                      View photo
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* SECTION — Application History (reapplications) */}
         {history.length > 0 && (

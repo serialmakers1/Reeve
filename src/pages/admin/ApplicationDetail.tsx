@@ -120,6 +120,10 @@ interface AppData {
     has_pets: boolean; pet_type: string | null; resident_count: number;
     expected_stay: string; is_foreign_citizen: boolean; gender: string;
   }[] | null;
+  work_email: string | null;
+  linkedin_url: string | null;
+  move_in_asap: boolean | null;
+  preferred_move_in_date: string | null;
 }
 
 export default function AdminApplicationDetail() {
@@ -174,6 +178,13 @@ export default function AdminApplicationDetail() {
     summary: string;
     team_member: { full_name: string } | null;
   } | null>(null);
+
+  const [appNotes, setAppNotes] = useState<Array<{
+    id: string;
+    note_type: string;
+    description: string;
+    photo_url: string | null;
+  }>>([]);
 
   const fetchApp = useCallback(async () => {
     if (!id) return;
@@ -297,6 +308,18 @@ export default function AdminApplicationDetail() {
     };
     fetchVisitContext();
   }, [app?.tenant_id, app?.property_id]);
+
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("application_notes")
+        .select("id, note_type, description, photo_url")
+        .eq("application_id", id)
+        .order("created_at", { ascending: true });
+      if (data) setAppNotes(data as any);
+    })();
+  }, [id]);
 
   const handleSaveTenantNotes = async () => {
     if (!app?.tenant_id) return;
@@ -598,6 +621,25 @@ export default function AdminApplicationDetail() {
             <Row label="Proposed Rent" value={formatCurrency(app.proposed_rent)} />
             <Row label="Listed Rent" value={formatCurrency(app.property?.listed_rent ?? null)} />
             <Row label="Employer" value={app.employer_name} />
+            {app.work_email && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground w-36 shrink-0">Work Email</span>
+                <span className="text-sm">{app.work_email}</span>
+              </div>
+            )}
+            {app.linkedin_url && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground w-36 shrink-0">LinkedIn</span>
+                <a
+                  href={app.linkedin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline"
+                >
+                  {app.linkedin_url.replace(/^https?:\/\/(www\.)?/, "")}
+                </a>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground w-36 shrink-0">Income Check</span>
               {app.income_check_passed === true && <Check className="h-4 w-4 text-green-600" />}
@@ -624,6 +666,25 @@ export default function AdminApplicationDetail() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Section — Move-in Preference */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Move-in Preference</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Row
+              label="Preferred Move-in"
+              value={
+                app.move_in_asap
+                  ? "As soon as possible"
+                  : app.preferred_move_in_date
+                    ? new Date(app.preferred_move_in_date).toLocaleDateString("en-IN", {
+                        day: "numeric", month: "short", year: "numeric",
+                      })
+                    : "—"
+              }
+            />
           </CardContent>
         </Card>
 
@@ -754,6 +815,45 @@ export default function AdminApplicationDetail() {
             )}
           </CardContent>
         </Card>
+
+        {/* Section — Tenant Application Notes */}
+        {appNotes.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Tenant Application Notes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {appNotes.map((note) => {
+                const noteTypeLabel = (type: string) => {
+                  const map: Record<string, string> = {
+                    addition: "Additions requested",
+                    removal: "Removals requested",
+                    issue: "Issues noted",
+                  };
+                  return map[type] ?? (type.charAt(0).toUpperCase() + type.slice(1));
+                };
+                return (
+                  <div key={note.id}>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">
+                      {noteTypeLabel(note.note_type)}
+                    </p>
+                    <p className="text-sm text-foreground">{note.description}</p>
+                    {note.photo_url && (
+                      <a
+                        href={note.photo_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-1 text-xs text-primary underline"
+                      >
+                        View photo
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Section 5 — Admin Actions */}
         {(isTerminal || actions.length > 0 || showRejectBtn) && (
