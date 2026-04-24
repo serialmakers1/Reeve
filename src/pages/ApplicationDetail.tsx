@@ -12,6 +12,8 @@ import {
   XCircle,
   Pause,
   MessageCircle,
+  HelpCircle,
+  ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
@@ -121,6 +123,8 @@ interface AppDetail {
   platform_rejection_reason: string | null;
   reapplication_eligible_from: string | null;
   employer_name: string | null;
+  work_email: string | null;
+  linkedin_url: string | null;
   monthly_income: number | null;
   cibil_range: string | null;
   crime_record_self_attest: boolean;
@@ -154,6 +158,8 @@ export default function ApplicationDetail() {
   const { user, loading: authLoading } = useRequireAuth();
   const { toast } = useToast();
   const [app, setApp] = useState<AppDetail | null>(null);
+  const [profileData, setProfileData] = useState<{ phone: string | null; email: string | null } | null>(null);
+  const [salarySlipUploaded, setSalarySlipUploaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -173,8 +179,8 @@ export default function ApplicationDetail() {
         .select(
           `id, status, attempt_number, proposed_rent, owner_counter_rent, final_agreed_rent,
            submitted_at, updated_at, withdrawn_at, withdrawal_reason, rejection_reason,
-           platform_rejection_reason, reapplication_eligible_from, employer_name, monthly_income, cibil_range,
-           crime_record_self_attest, property_id,
+           platform_rejection_reason, reapplication_eligible_from, employer_name, work_email, linkedin_url,
+           monthly_income, cibil_range, crime_record_self_attest, property_id,
            application_residents(id, full_name, age, relationship)`,
         )
         .eq("id", id)
@@ -191,15 +197,28 @@ export default function ApplicationDetail() {
         return;
       }
 
-      // Fetch property separately — no is_active filter — so tenants always see
-      // property details even after the property is taken off market.
-      const { data: propertyData } = await supabase
-        .from("properties")
-        .select("building_name, locality, city, bhk, listed_rent")
-        .eq("id", (data as any).property_id)
-        .maybeSingle();
+      // Parallel: property, user contact info, salary slip count
+      const [propertyResult, profileResult, docsResult] = await Promise.all([
+        supabase
+          .from("properties")
+          .select("building_name, locality, city, bhk, listed_rent")
+          .eq("id", (data as any).property_id)
+          .maybeSingle(),
+        supabase
+          .from("users")
+          .select("phone, email")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("documents")
+          .select("id", { count: "exact", head: true })
+          .eq("application_id", id)
+          .eq("document_type", "salary_slip"),
+      ]);
 
-      setApp({ ...data, properties: propertyData } as unknown as AppDetail);
+      setApp({ ...data, properties: propertyResult.data } as unknown as AppDetail);
+      setProfileData(profileResult.data ?? null);
+      setSalarySlipUploaded((docsResult.count ?? 0) > 0);
       setLoading(false);
     };
     load();
@@ -666,65 +685,125 @@ export default function ApplicationDetail() {
                 </div>
 
                 <TokenRefundPolicy variant="post_payment" />
-
-                <div className="rounded-xl border bg-card p-4 space-y-3">
-                  <h4 className="text-sm font-semibold text-foreground">Contact Reeve</h4>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <a
-                      href={`https://wa.me/917899874281?text=${encodeURIComponent(`Hi, my token payment is confirmed for application ${app.id} for ${propertyName}`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 min-h-[44px]"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                      WhatsApp Us
-                    </a>
-                    <RequestCallbackButton
-                      defaultIntent="tenant"
-                      propertyId={app.property_id}
-                      className="border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
-                    />
-                  </div>
-                </div>
               </div>
             )}
           </>
         )}
 
         {/* Your Application Details — collapsible */}
-        <div className="rounded-xl border bg-card">
-          <button
-            onClick={() => setDetailsOpen(!detailsOpen)}
-            className="w-full flex items-center justify-between p-4 text-sm font-semibold text-foreground"
-          >
-            Your Application Details
-            {detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-          {detailsOpen && (
-            <div className="px-4 pb-4 space-y-3 text-sm border-t pt-3">
-              <DetailRow label="Proposed Rent" value={formatRent(app.proposed_rent) + "/month"} />
-              <DetailRow label="Employer" value={app.employer_name || "Not provided"} />
-              <DetailRow label="CIBIL Range" value={formatCibil(app.cibil_range)} />
-              <DetailRow
-                label="No Criminal Record"
-                value={app.crime_record_self_attest ? "Self-attested ✓" : "Not attested"}
-              />
-              {app.application_residents && app.application_residents.filter(r => r.relationship !== 'self').length > 0 ? (
-                <div>
-                  <p className="text-muted-foreground mb-1">Co-Residents</p>
-                  <ul className="space-y-1">
-                    {app.application_residents.filter(r => r.relationship !== 'self').map((r) => (
-                      <li key={r.id} className="text-foreground">
-                        {r.full_name} · {r.age} yrs · {r.relationship}
-                      </li>
-                    ))}
-                  </ul>
+        {(() => {
+          const selfResident = app.application_residents?.find(r => r.relationship === 'self');
+          const coResidents = app.application_residents?.filter(r => r.relationship !== 'self') ?? [];
+          const displayPhone = (() => {
+            const raw = profileData?.phone;
+            if (!raw) return null;
+            const digits = raw.replace(/^(\+91|91)/, "");
+            return `+91 ${digits}`;
+          })();
+          return (
+            <div className="rounded-xl border bg-card">
+              <button
+                onClick={() => setDetailsOpen(!detailsOpen)}
+                className="w-full flex items-center justify-between p-4 text-sm font-semibold text-foreground"
+              >
+                Your Application Details
+                {detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {detailsOpen && (
+                <div className="px-4 pb-4 border-t pt-4 space-y-5 text-sm">
+                  {/* Section 1 — Personal Details */}
+                  <div className="space-y-2.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Personal Details</p>
+                    <DetailRow label="Full Name" value={selfResident?.full_name || "—"} />
+                    <DetailRow label="Phone" value={displayPhone || "Not provided"} />
+                    <DetailRow label="Email" value={profileData?.email || "Not provided"} />
+                  </div>
+
+                  <div className="border-t" />
+
+                  {/* Section 2 — Employment & Income */}
+                  <div className="space-y-2.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Employment & Income</p>
+                    <DetailRow label="Employer" value={app.employer_name || "Not provided"} />
+                    {app.work_email && <DetailRow label="Work Email" value={app.work_email} />}
+                    {app.linkedin_url && (
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">LinkedIn</span>
+                        <a
+                          href={app.linkedin_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-right truncate max-w-[60%]"
+                        >
+                          View Profile ↗
+                        </a>
+                      </div>
+                    )}
+                    <DetailRow
+                      label="Income Proof"
+                      value={salarySlipUploaded ? "✓ Uploaded" : "Not uploaded"}
+                    />
+                  </div>
+
+                  <div className="border-t" />
+
+                  {/* Section 3 — Rental & Background */}
+                  <div className="space-y-2.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rental & Background</p>
+                    <DetailRow
+                      label="Proposed Rent"
+                      value={app.proposed_rent === 0 ? "—" : formatRent(app.proposed_rent) + "/month"}
+                    />
+                    <DetailRow label="CIBIL Range" value={formatCibil(app.cibil_range)} />
+                    {coResidents.length > 0 ? (
+                      <div>
+                        <p className="text-muted-foreground mb-1">Co-Residents</p>
+                        <ul className="space-y-1">
+                          {coResidents.map((r) => (
+                            <li key={r.id} className="text-foreground">
+                              {r.full_name} · {r.age} yrs · {r.relationship}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <DetailRow label="Co-Residents" value="No co-residents listed." />
+                    )}
+                  </div>
+
+                  {app.crime_record_self_attest && (
+                    <p className="text-xs text-muted-foreground mt-4 pt-3 border-t">
+                      ✓ Applicant has self-attested to having no criminal record.
+                    </p>
+                  )}
                 </div>
-              ) : (
-                <DetailRow label="Co-Residents" value="No co-residents listed." />
               )}
             </div>
-          )}
+          );
+        })()}
+
+        {/* Contact Reeve — universal */}
+        <div className="mt-6 rounded-xl border border-border bg-muted/30 px-5 py-4">
+          <div className="flex items-start gap-3">
+            <HelpCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-foreground">
+                Need help or spotted a mistake?
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                If any details above look wrong or you have questions about your application, reach out to us.
+              </p>
+              <a
+                href="/contact"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-3"
+              >
+                Contact Reeve
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
         </div>
 
         {/* Withdraw button */}
