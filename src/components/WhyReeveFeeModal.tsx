@@ -529,7 +529,7 @@ const WhyReeveFeeModal: React.FC<WhyReeveFeeModalProps> = ({ open, onClose }) =>
         className="overflow-hidden p-0 gap-0 [&>button]:hidden"
         style={{
           background: "#171714",
-          maxWidth: "520px",
+          maxWidth: "700px",
           maxHeight: "88vh",
           border: "1px solid rgba(201,160,90,0.2)",
           borderRadius: "16px",
