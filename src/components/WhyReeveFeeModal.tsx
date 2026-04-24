@@ -227,6 +227,7 @@ const Screen4 = () => (
     <div className="space-y-3">
       <p className="text-sm leading-relaxed" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
         Your lease is a three-party agreement — you, the owner, and Reeve. The owner can't bypass Reeve to push you out. And the owner's contract with Reeve runs for two years — so they're not going anywhere either.
+        </p>
     </div>
 
     {/* Gold stat block */}
