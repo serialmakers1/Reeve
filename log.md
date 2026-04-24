@@ -97,3 +97,5 @@
 ## [2026-04-24] diagnose | Codebase audit for WhyReeveFeeModal — modal, tokens, fonts, animations [12:24 IST]
 
 ## [2026-04-24] feat | Built WhyReeveFeeModal — 5-screen pain-first story modal for 7% fee [12:45 IST]
+
+## [2026-04-24] fix | WhyReeveFeeModal — fixed empty slides (CSS translateX formula), desktop overflow (overflow-hidden + [&>button]:hidden), added touch swipe nav [13:09 IST]
