@@ -420,7 +420,7 @@ const FeeModalContent: React.FC<FeeModalContentProps> = ({ onClose }) => {
           ref={trackRef}
           className="flex"
           style={{
-            transform: `translateX(calc(-${current * 100 / TOTAL_SCREENS}% - ${current * 20}px))`,
+            transform: `translateX(calc(-${current * 100 / TOTAL_SCREENS}% - ${current * 20 / TOTAL_SCREENS}px))`,
             transition: reducedMotion ? "none" : "transform 380ms cubic-bezier(0.4, 0, 0.2, 1)",
             width: `${TOTAL_SCREENS * 100}%`,
             gap: "20px",
@@ -529,7 +529,7 @@ const WhyReeveFeeModal: React.FC<WhyReeveFeeModalProps> = ({ open, onClose }) =>
         className="overflow-hidden p-0 gap-0 [&>button]:hidden"
         style={{
           background: "#171714",
-          maxWidth: "420px",
+          maxWidth: "480px",
           maxHeight: "88vh",
           border: "1px solid rgba(201,160,90,0.2)",
           borderRadius: "16px",
