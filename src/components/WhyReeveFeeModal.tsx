@@ -245,9 +245,6 @@ const Screen4 = () => (
       >
         Stability
       </p>
-      <p className="text-xs" style={{ color: "#a8a89e", fontFamily: FONT_DM_SANS }}>
-        Lease signed by tenant, owner, and Reeve. Not a verbal understanding.
-      </p>
     </div>
   </div>
 );
