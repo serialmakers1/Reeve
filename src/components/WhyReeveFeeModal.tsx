@@ -350,12 +350,27 @@ interface FeeModalContentProps {
 const FeeModalContent: React.FC<FeeModalContentProps> = ({ onClose }) => {
   const [current, setCurrent] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
   const reducedMotion = useReducedMotion();
 
   // Reset to screen 0 on mount (modal re-open)
   useEffect(() => {
     setCurrent(0);
   }, []);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+      goTo(deltaX < 0 ? current + 1 : current - 1);
+    }
+  };
 
   const goTo = (idx: number) => {
     const clamped = Math.max(0, Math.min(TOTAL_SCREENS - 1, idx));
@@ -395,12 +410,17 @@ const FeeModalContent: React.FC<FeeModalContentProps> = ({ onClose }) => {
       </div>
 
       {/* Slide track */}
-      <div className="overflow-hidden flex-1 px-5" style={{ minHeight: 0 }}>
+      <div
+        className="overflow-hidden flex-1 px-5"
+        style={{ minHeight: 0 }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div
           ref={trackRef}
           className="flex"
           style={{
-            transform: `translateX(calc(-${current * 100}% - ${current * 20}px))`,
+            transform: `translateX(calc(-${current * 100 / TOTAL_SCREENS}% - ${current * 20}px))`,
             transition: reducedMotion ? "none" : "transform 380ms cubic-bezier(0.4, 0, 0.2, 1)",
             width: `${TOTAL_SCREENS * 100}%`,
             gap: "20px",
@@ -506,7 +526,7 @@ const WhyReeveFeeModal: React.FC<WhyReeveFeeModalProps> = ({ open, onClose }) =>
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
-        className="overflow-y-auto p-0 gap-0"
+        className="overflow-hidden p-0 gap-0 [&>button]:hidden"
         style={{
           background: "#171714",
           maxWidth: "420px",
