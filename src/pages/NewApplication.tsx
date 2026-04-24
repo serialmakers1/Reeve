@@ -1304,7 +1304,7 @@ export default function NewApplicationPage() {
 
         <div className="space-y-3 pt-2">
           <Label className="text-sm">
-            Salary Slips (last 3 months) *
+            Income Proof - Salary Slips (last 3 months) or ITR (Last 2 years) *
           </Label>
 
           {/* Uploaded file chips */}
