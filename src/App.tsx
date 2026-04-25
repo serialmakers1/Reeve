@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { Suspense, useEffect } from "react";
 import * as Sentry from '@sentry/react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,55 +6,83 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { SuspenseFallback } from "@/components/SuspenseFallback";
+import { useVisitsRealtime } from "@/hooks/useVisitsRealtime";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import ScrollToTop from "@/components/ScrollToTop";
+import { Navigate } from "react-router-dom";
+
+// ── Eager imports (public cold-path — must load on first paint) ────────────────
 import Index from "./pages/Index";
+import Login from "./pages/Login";
+import Search from "./pages/Search";
+import OwnerLandingPage from "./pages/OwnerLandingPage";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Refund from "./pages/Refund";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
-import TenantSavingsCalculator from "./pages/TenantSavingsCalculator";
-import OwnerSavingsCalculator from "./pages/OwnerSavingsCalculator";
-import OwnerClarityGuide from "./pages/OwnerClarityGuide";
-import OwnerLandingPage from "./pages/OwnerLandingPage";
-import Search from "./pages/Search";
-import ReferProperty from "./pages/ReferProperty";
-import Eligibility from "./pages/Eligibility";
-import PropertyDetail from "./pages/PropertyDetail";
-import DashboardFavourites from "./pages/DashboardFavourites";
-import Login from "./pages/Login";
-import NewApplication from "./pages/NewApplication";
-import Dashboard from "./pages/Dashboard";
-import ApplicationsList from "./pages/ApplicationsList";
-import ApplicationDetail from "./pages/ApplicationDetail";
-import VisitsList from "./pages/VisitsList";
-import OwnerPipeline from "./pages/admin/OwnerPipeline";
-import PropertyEdit from "./pages/admin/PropertyEdit";
-import AdminProperties from "./pages/admin/Properties";
-import TenantPipeline from "./pages/admin/TenantPipeline";
-import AdminApplicationDetail from "./pages/admin/ApplicationDetail";
-import MyProperties from "./pages/MyProperties";
-import MyPropertyNew from "./pages/MyPropertyNew";
-import MyPropertyDetail from "./pages/MyPropertyDetail";
-import Profile from "./pages/Profile";
-import OwnerApplicationDetail from "./pages/OwnerApplicationDetail";
-import InspectionsList from "./pages/admin/Inspections";
-import InspectionForm from "./pages/admin/InspectionForm";
-import Leads from "./pages/admin/Leads";
-import FieldCalendar from "./pages/admin/FieldCalendar";
-import VisitLogs from "./pages/admin/VisitLogs";
-import Callbacks from "./pages/admin/Callbacks";
-import { Navigate } from "react-router-dom";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import ScrollToTop from "@/components/ScrollToTop";
-import { useVisitsRealtime } from "@/hooks/useVisitsRealtime";
 
-const queryClient = new QueryClient();
+// ── Lazy imports ───────────────────────────────────────────────────────────────
+const PropertyDetail         = React.lazy(() => import("./pages/PropertyDetail"));
+const ReferProperty          = React.lazy(() => import("./pages/ReferProperty"));
+const Eligibility            = React.lazy(() => import("./pages/Eligibility"));
+const TenantSavingsCalculator = React.lazy(() => import("./pages/TenantSavingsCalculator"));
+const OwnerSavingsCalculator = React.lazy(() => import("./pages/OwnerSavingsCalculator"));
+const OwnerClarityGuide      = React.lazy(() => import("./pages/OwnerClarityGuide"));
 
+// Owner
+const MyProperties           = React.lazy(() => import("./pages/MyProperties"));
+const MyPropertyNew          = React.lazy(() => import("./pages/MyPropertyNew"));
+const MyPropertyDetail       = React.lazy(() => import("./pages/MyPropertyDetail"));
+const OwnerApplicationDetail = React.lazy(() => import("./pages/OwnerApplicationDetail"));
+const Profile                = React.lazy(() => import("./pages/Profile"));
+
+// Tenant authenticated
+const Dashboard              = React.lazy(() => import("./pages/Dashboard"));
+const DashboardFavourites    = React.lazy(() => import("./pages/DashboardFavourites"));
+const ApplicationsList       = React.lazy(() => import("./pages/ApplicationsList"));
+const NewApplication         = React.lazy(() => import("./pages/NewApplication"));
+const ApplicationDetail      = React.lazy(() => import("./pages/ApplicationDetail"));
+const VisitsList             = React.lazy(() => import("./pages/VisitsList"));
+
+// Admin
+const OwnerPipeline          = React.lazy(() => import("./pages/admin/OwnerPipeline"));
+const PropertyEdit           = React.lazy(() => import("./pages/admin/PropertyEdit"));
+const AdminProperties        = React.lazy(() => import("./pages/admin/Properties"));
+const TenantPipeline         = React.lazy(() => import("./pages/admin/TenantPipeline"));
+const AdminApplicationDetail = React.lazy(() => import("./pages/admin/ApplicationDetail"));
+const InspectionsList        = React.lazy(() => import("./pages/admin/Inspections"));
+const InspectionForm         = React.lazy(() => import("./pages/admin/InspectionForm"));
+const Leads                  = React.lazy(() => import("./pages/admin/Leads"));
+const FieldCalendar          = React.lazy(() => import("./pages/admin/FieldCalendar"));
+const VisitLogs              = React.lazy(() => import("./pages/admin/VisitLogs"));
+const Callbacks              = React.lazy(() => import("./pages/admin/Callbacks"));
+
+// ── QueryClient ───────────────────────────────────────────────────────────────
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      retry: 1,
+    },
+  },
+});
+
+// ── Realtime subscription — only mounted when authenticated ───────────────────
 function VisitsRealtimeMount() {
   useVisitsRealtime();
   return null;
 }
 
+function AuthGatedRealtimeMount() {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return null;
+  return <VisitsRealtimeMount />;
+}
+
+// ── Main app shell ─────────────────────────────────────────────────────────────
 function AppInner() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -79,59 +107,61 @@ function AppInner() {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/search" element={<Search />} />
-      <Route path="/property/:id" element={<PropertyDetail />} />
-      <Route path="/refer-property" element={<ReferProperty />} />
-      <Route path="/privacy" element={<Privacy />} />
-      <Route path="/terms" element={<Terms />} />
-      <Route path="/refund" element={<Refund />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
-      <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
-      <Route path="/owner/how-it-works" element={<OwnerClarityGuide />} />
-      <Route path="/owners" element={<OwnerLandingPage />} />
-      <Route path="/eligibility" element={<Eligibility />} />
-      <Route path="/my-properties" element={<MyProperties />} />
-      <Route path="/my-properties/new" element={<MyPropertyNew />} />
-      <Route path="/my-properties/:id" element={<MyPropertyDetail />} />
-      <Route path="/my-properties/:propertyId/applications/:applicationId" element={<OwnerApplicationDetail />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/owner" element={<Navigate to="/my-properties" replace />} />
-      <Route path="/owner/dashboard" element={<Navigate to="/my-properties" replace />} />
-      <Route path="/owner/properties/new" element={<Navigate to="/my-properties/new" replace />} />
-      <Route path="/owner/properties/:id" element={<Navigate to="/my-properties" replace />} />
-      <Route path="/owner/applications/:id" element={<Navigate to="/dashboard/applications" replace />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
-      <Route path="/dashboard/applications" element={<ApplicationsList />} />
-      <Route path="/dashboard/applications/new" element={<NewApplication />} />
-      <Route path="/dashboard/visits" element={<VisitsList />} />
-      <Route path="/dashboard/applications/:id" element={<ApplicationDetail />} />
-      <Route path="/admin" element={<Navigate to="/admin/owners" replace />} />
-      <Route path="/admin/tenants" element={<Navigate to="/admin/applications" replace />} />
-      <Route path="/admin/owners" element={<OwnerPipeline />} />
-      <Route path="/admin/leads" element={<Leads />} />
-      <Route path="/admin/properties" element={<AdminProperties />} />
-      <Route path="/admin/properties/:id" element={<PropertyEdit />} />
-      <Route path="/admin/inspections" element={<InspectionsList />} />
-      <Route path="/admin/inspections/:propertyId" element={<InspectionForm />} />
-      <Route path="/admin/calendar" element={<FieldCalendar />} />
-      <Route path="/admin/visits" element={<VisitLogs />} />
-      <Route path="/admin/callbacks" element={<Callbacks />} />
-      <Route path="/admin/applications" element={<TenantPipeline />} />
-      <Route path="/admin/applications/:id" element={<AdminApplicationDetail />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <Suspense fallback={<SuspenseFallback />}>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/search" element={<Search />} />
+        <Route path="/property/:id" element={<PropertyDetail />} />
+        <Route path="/refer-property" element={<ReferProperty />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/refund" element={<Refund />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/savings/tenant" element={<TenantSavingsCalculator />} />
+        <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
+        <Route path="/owner/how-it-works" element={<OwnerClarityGuide />} />
+        <Route path="/owners" element={<OwnerLandingPage />} />
+        <Route path="/eligibility" element={<Eligibility />} />
+        <Route path="/my-properties" element={<MyProperties />} />
+        <Route path="/my-properties/new" element={<MyPropertyNew />} />
+        <Route path="/my-properties/:id" element={<MyPropertyDetail />} />
+        <Route path="/my-properties/:propertyId/applications/:applicationId" element={<OwnerApplicationDetail />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/owner" element={<Navigate to="/my-properties" replace />} />
+        <Route path="/owner/dashboard" element={<Navigate to="/my-properties" replace />} />
+        <Route path="/owner/properties/new" element={<Navigate to="/my-properties/new" replace />} />
+        <Route path="/owner/properties/:id" element={<Navigate to="/my-properties" replace />} />
+        <Route path="/owner/applications/:id" element={<Navigate to="/dashboard/applications" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
+        <Route path="/dashboard/applications" element={<ApplicationsList />} />
+        <Route path="/dashboard/applications/new" element={<NewApplication />} />
+        <Route path="/dashboard/visits" element={<VisitsList />} />
+        <Route path="/dashboard/applications/:id" element={<ApplicationDetail />} />
+        <Route path="/admin" element={<Navigate to="/admin/owners" replace />} />
+        <Route path="/admin/tenants" element={<Navigate to="/admin/applications" replace />} />
+        <Route path="/admin/owners" element={<OwnerPipeline />} />
+        <Route path="/admin/leads" element={<Leads />} />
+        <Route path="/admin/properties" element={<AdminProperties />} />
+        <Route path="/admin/properties/:id" element={<PropertyEdit />} />
+        <Route path="/admin/inspections" element={<InspectionsList />} />
+        <Route path="/admin/inspections/:propertyId" element={<InspectionForm />} />
+        <Route path="/admin/calendar" element={<FieldCalendar />} />
+        <Route path="/admin/visits" element={<VisitLogs />} />
+        <Route path="/admin/callbacks" element={<Callbacks />} />
+        <Route path="/admin/applications" element={<TenantPipeline />} />
+        <Route path="/admin/applications/:id" element={<AdminApplicationDetail />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 }
 
 const App = () => (
   <Sentry.ErrorBoundary fallback={<p>Something went wrong. Please refresh the page.</p>}>
     <QueryClientProvider client={queryClient}>
-      <VisitsRealtimeMount />
+      <AuthGatedRealtimeMount />
       <TooltipProvider>
         <Toaster />
         <Sonner />
