@@ -24,6 +24,7 @@ interface PropertyRow {
   listed_rent: number;
   pet_policy: string | null;
   building_rules: string | null;
+  legal_owner_name: string | null;
   status: string;
   is_active: boolean;
   listed_at: string | null;
@@ -410,6 +411,7 @@ export default function MyPropertyDetail() {
           `id, owner_id, building_name, floor_number, flat_number,
            street_address, locality, city, bhk, furnishing,
            parking_4w, parking_2w, listed_rent, pet_policy, building_rules,
+           legal_owner_name,
            status, is_active, listed_at, occupied_at, last_leased_at,
            inspection_date, inspection_start_time, inspection_end_time,
            inspection_notes, draft_at, inspection_proposed_at,
@@ -863,61 +865,74 @@ export default function MyPropertyDetail() {
             TAB 3 — Property Details
         ════════════════════════════════════ */}
         {activeTab === "details" && (
-          <div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {[
-                { label: "Building Name", value: property.building_name },
-                { label: "Address", value: property.street_address },
-                { label: "Locality", value: property.locality ?? "—" },
-                { label: "City", value: property.city },
-                {
-                  label: "BHK",
-                  value: property.bhk.replace("BHK", " BHK"),
-                },
-                {
-                  label: "Furnishing",
-                  value: property.furnishing
-                    .replace(/_/g, " ")
-                    .replace(/^\w/, (c) => c.toUpperCase()),
-                },
-                {
-                  label: "Floor",
-                  value:
-                    property.floor_number != null
-                      ? String(property.floor_number)
-                      : "—",
-                },
-                {
-                  label: "Listed Rent",
-                  value:
-                    property.listed_rent > 0
-                      ? "₹" + property.listed_rent.toLocaleString("en-IN")
-                      : "To be confirmed",
-                },
-                {
-                  label: "4-Wheeler Parking",
-                  value: property.parking_4w.replace(/_/g, " "),
-                },
-                {
-                  label: "2-Wheeler Parking",
-                  value: property.parking_2w.replace(/_/g, " "),
-                },
-                { label: "Pet Policy", value: property.pet_policy ?? "—" },
-                {
-                  label: "Building Rules",
-                  value: property.building_rules ?? "—",
-                },
-              ].map(({ label, value }) => (
-                <div key={label}>
-                  <p className="text-xs text-muted-foreground mb-0.5">
-                    {label}
-                  </p>
-                  <p className="text-sm font-medium text-foreground">{value}</p>
-                </div>
-              ))}
+          <div className="space-y-6">
+            {/* Basic Details */}
+            <div>
+              <h2 className="text-sm font-semibold text-foreground mb-4">
+                Basic Details
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {[
+                  { label: "City", value: property.city },
+                  { label: "Locality", value: property.locality },
+                  { label: "Building Name", value: property.building_name },
+                  {
+                    label: "Legal Owner Name",
+                    value: property.legal_owner_name,
+                  },
+                  { label: "Property Address", value: property.street_address },
+                  {
+                    label: "BHK",
+                    value: property.bhk
+                      ? property.bhk.replace("BHK", " BHK")
+                      : null,
+                  },
+                  {
+                    label: "Furnishing",
+                    value: property.furnishing
+                      ? property.furnishing
+                          .replace(/_/g, " ")
+                          .replace(/^\w/, (c) => c.toUpperCase())
+                      : null,
+                  },
+                ]
+                  .filter(({ value }) => value && String(value).trim() !== "")
+                  .map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-xs text-muted-foreground mb-0.5">
+                        {label}
+                      </p>
+                      <p className="text-sm font-medium text-foreground">
+                        {value}
+                      </p>
+                    </div>
+                  ))}
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-6">
-              To update any property details, WhatsApp Reeve with your property ID.
+
+            {/* View Live Listing — only when listed */}
+            {property.status === "listed" && (
+              <a
+                href={`/property/${property.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm font-medium text-blue-700 hover:text-blue-800 transition-colors"
+              >
+                View Live Listing →
+              </a>
+            )}
+
+            {/* Help footer */}
+            <p className="text-xs text-muted-foreground">
+              Have questions or need help?{" "}
+              <a
+                href="/contact"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-foreground transition-colors"
+              >
+                Contact our team →
+              </a>
             </p>
           </div>
         )}
