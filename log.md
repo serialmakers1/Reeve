@@ -1,3 +1,5 @@
+## [2026-04-25] fix | Search path hardening: 9 SECURITY DEFINER functions + drop ensure_user_exists + config.toml send-sms-otp verify_jwt=false [15:30 IST]
+## [2026-04-25] diagnose | Pre-launch P0 audit — 8 items checked, 9 issues found [14:30 IST]
 ## [2026-04-25] refactor | Property Details tab: show only owner-submitted Basic Details, add View Listing link, replace WhatsApp footer with /contact link [13:00 IST]
 ## [2026-04-25] feat | Enabled WhatsApp card on /contact, updated grid to 2×2 [12:00 IST]
 ## [2026-04-24] fix | Co-resident dedup + RLS delete policy + ApplicationDetail restructure + Contact CTA [20:00 IST]

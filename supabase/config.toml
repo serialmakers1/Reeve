@@ -1,5 +1,8 @@
 project_id = "tfutuqqcxqqbirnsdpvz"
 
+[functions.send-sms-otp]
+verify_jwt = false
+
 [functions.verify-phone-otp]
 verify_jwt = false
 
