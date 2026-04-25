@@ -335,19 +335,15 @@ function SkeletonLoader() {
 const FAQS = [
   {
     q: "When will my property go live?",
-    a: "Once the inspection is done and you confirm the Property Management Agreement, our team will list your property within 24 hours.",
+    a: "Once the inspection is done and you sign the Property Management Service Agreement, our team will list your property within 24 hours.",
   },
   {
     q: "How does the inspection work?",
     a: "Our team visits your property to document its condition, take photos, and verify details. You don't need to be present but please ensure access to the flat.",
   },
   {
-    q: "What is Reeve's fee?",
-    a: "Reeve charges 7% of the monthly rent for the first 11-month term, reducing to 4% on renewal. There is zero brokerage for the tenant.",
-  },
-  {
     q: "How does rent collection work?",
-    a: "Reeve collects rent from the tenant and transfers it to your account after deducting the Reeve fee, typically within 3 working days.",
+    a: "Reeve collects rent from the tenant and transfers it to your account after deducting the Reeve fee, typically within 2 business days after receipt of rent.",
   },
 ];
 
