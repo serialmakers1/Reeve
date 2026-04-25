@@ -241,3 +241,9 @@ non-deterministic.
   - Flow: `supabase.functions.invoke('create-razorpay-order')` → `window.Razorpay` modal → handler polls 3s×5 for `payment_received`
   - Webhook is source of truth. `payment_received` toast fires once per load via `useRef`
   - `ApplicationsList.tsx`: "Pay Token →" chip on `owner_accepted` rows → navigates to detail page
+
+## Index Naming Convention
+All DB indexes follow `idx_<table>_<column>` (confirmed from existing indexes: `idx_visits_status`, `idx_leads_status`, `idx_applications_status`, etc.). Multi-column: `idx_<table>_<col1>_<col2>`. Storage bucket naming: kebab-case (`tenant-documents`, `owner-documents`). Property images go to Cloudflare R2 (not Supabase Storage) — no `property-images` bucket in `storage.buckets`.
+
+## Undocumented Tables (beyond the 23 in Database Tables section)
+`external_queries`, `property_inspections`, `inspection_appliances`, `inspection_rooms` — exist in DB, not yet in active frontend use. FKs confirmed in pg_constraint.
