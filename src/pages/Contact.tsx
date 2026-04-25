@@ -21,7 +21,7 @@ const Contact = () => {
           </p>
           <hr className="border-t border-slate-200 mt-10 mb-12" />
 
-          <div className="grid sm:grid-cols-3 gap-5 mt-4">
+          <div className="grid sm:grid-cols-2 gap-5 mt-4">
             <a
               href="tel:+917899874281"
               className="rounded-2xl border border-slate-200 bg-[#F8FAFF] p-7 flex flex-col items-start gap-4 hover:-translate-y-0.5 hover:shadow-md transition duration-200 cursor-pointer no-underline"
@@ -35,8 +35,6 @@ const Contact = () => {
               <span className="flex items-center gap-2 text-sm font-semibold text-orange-700 mt-auto pt-2">+91 78998 74281 →</span>
             </a>
 
-            {/* WHATSAPP_CARD_HIDDEN — uncomment when Meta Business verification is complete */}
-            {/*
             <a
               href="https://wa.me/917899874281?text=Hi%20Reeve%2C%20I%27d%20like%20to%20get%20in%20touch"
               target="_blank"
@@ -57,7 +55,6 @@ const Contact = () => {
                 Open WhatsApp →
               </span>
             </a>
-            */}
 
             <a
               href="mailto:support@reeve.in?subject=Enquiry%20%E2%80%94%20Reeve"
