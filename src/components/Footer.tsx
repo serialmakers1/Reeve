@@ -108,7 +108,7 @@ const Footer = () => {
             Reeve is a commercial brand owned and operated by Serial Makers Private Limited.
           </p>
           <p className="text-gray-500 text-xs leading-relaxed mt-2">
-            Registered Office: 206, 2nd Floor, Serene, 2nd Main Road, Shubh Encl,
+            Registered Office: Shubh Encl,
             HSR Layout, Bangalore South, Bangalore - 560102, Karnataka
           </p>
           <p className="text-gray-500 text-xs leading-relaxed mt-1">
