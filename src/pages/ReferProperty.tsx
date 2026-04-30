@@ -183,7 +183,7 @@ export default function ReferProperty() {
           <div className="rounded-xl border bg-card p-6 shadow-sm sm:p-8">
             <h1 className="text-2xl font-bold text-foreground">Refer a Property</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Give us the owner's details and we'll reach out to bring their property onto the 1-month deposit system. We'll notify you if it gets listed.
+              Give us the owner's details and we'll reach out to bring their property onto the 2-month deposit system. We'll notify you if it gets listed.
             </p>
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-5">
