@@ -19,28 +19,24 @@ import type { Database } from "@/integrations/supabase/types";
 type BhkType = Database["public"]["Enums"]["bhk_type"];
 
 interface LeadFormData {
+  referrer_name: string;
+  referrer_phone: string;
   owner_name: string;
   owner_phone: string;
-  owner_email: string;
-  property_address: string;
   building_name: string;
-  flat_number: string;
   locality: string;
   city: string;
-  expected_rent: string;
   bhk: BhkType | "";
+  expected_rent: string;
 }
 
 interface FormErrors {
+  referrer_name?: string;
+  referrer_phone?: string;
   owner_name?: string;
   owner_phone?: string;
-  owner_email?: string;
-  property_address?: string;
   building_name?: string;
-  flat_number?: string;
   locality?: string;
-  expected_rent?: string;
-  bhk?: string;
 }
 
 const BHK_OPTIONS: { value: BhkType; label: string }[] = [
@@ -53,21 +49,20 @@ const BHK_OPTIONS: { value: BhkType; label: string }[] = [
 ];
 
 const initialFormData: LeadFormData = {
+  referrer_name: "",
+  referrer_phone: "",
   owner_name: "",
   owner_phone: "",
-  owner_email: "",
-  property_address: "",
   building_name: "",
-  flat_number: "",
   locality: "",
   city: "Bangalore",
-  expected_rent: "",
   bhk: "",
+  expected_rent: "",
 };
 
 export default function ReferProperty() {
   const navigate = useNavigate();
-  const { session, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [formData, setFormData] = useState<LeadFormData>(initialFormData);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -76,23 +71,16 @@ export default function ReferProperty() {
 
   const validate = (): FormErrors => {
     const e: FormErrors = {};
-    if (!formData.owner_name || formData.owner_name.trim().length < 3)
-      e.owner_name = "Owner name must be at least 3 characters";
+    if (!formData.referrer_name || formData.referrer_name.trim().length < 3)
+      e.referrer_name = "Your name must be at least 3 characters";
+    if (!/^\d{10}$/.test(formData.referrer_phone))
+      e.referrer_phone = "Your phone number must be 10 digits";
     if (!/^\d{10}$/.test(formData.owner_phone))
-      e.owner_phone = "Enter a valid 10-digit phone number";
-    if (formData.owner_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.owner_email))
-      e.owner_email = "Enter a valid email address";
+      e.owner_phone = "Enter the owner's 10-digit phone number";
     if (!formData.building_name.trim())
       e.building_name = "Building name is required";
-    if (!formData.flat_number.trim())
-      e.flat_number = "Flat number is required";
-    if (!formData.property_address || formData.property_address.trim().length < 5)
-      e.property_address = "Address must be at least 5 characters";
     if (!formData.locality.trim())
       e.locality = "Locality is required";
-    if (!formData.expected_rent || Number(formData.expected_rent) <= 0)
-      e.expected_rent = "Enter a valid rent amount";
-    if (!formData.bhk) e.bhk = "Select a BHK type";
     return e;
   };
 
@@ -111,21 +99,19 @@ export default function ReferProperty() {
       setErrors(validationErrors);
       return;
     }
-    if (!session?.user?.id) return;
 
     setSubmitting(true);
     const { error } = await supabase.from("leads").insert({
-      referred_by_tenant_id: session.user.id,
-      owner_name: formData.owner_name.trim(),
+      referrer_name: formData.referrer_name.trim(),
+      referrer_phone: formData.referrer_phone.trim(),
+      referred_by_tenant_id: user?.id ?? null,
+      owner_name: formData.owner_name.trim() || null,
       owner_phone: formData.owner_phone.trim(),
-      owner_email: formData.owner_email.trim() || null,
-      property_address: formData.property_address.trim(),
-      building_name: formData.building_name.trim() || null,
-      flat_number: formData.flat_number.trim() || null,
-      locality: formData.locality.trim() || null,
+      building_name: formData.building_name.trim(),
+      locality: formData.locality.trim(),
       city: formData.city.trim() || "Bangalore",
-      expected_rent: formData.expected_rent ? Number(formData.expected_rent) : null,
       bhk: (formData.bhk || null) as BhkType | null,
+      expected_rent: formData.expected_rent ? Number(formData.expected_rent) : null,
       status: "new" as Database["public"]["Enums"]["lead_status"],
     });
 
@@ -148,191 +134,232 @@ export default function ReferProperty() {
 
   return (
     <Layout>
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-2xl px-4 py-6 sm:py-10">
-        {/* Back button */}
-        <Link
-          to="/search"
-          className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Search
-        </Link>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto max-w-2xl px-4 py-6 sm:py-10">
+          <Link
+            to="/search"
+            className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Search
+          </Link>
 
-      {!session ? (
-          <div className="rounded-xl border bg-card p-8 text-center shadow-sm">
-            <h1 className="text-xl font-bold text-foreground">Log in to Refer a Property</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              You need to be logged in to refer a property.
-            </p>
-            <Link to={`/login?returnTo=${encodeURIComponent('/refer-property')}`}>
-              <Button className="mt-6 min-h-[44px]">Log In</Button>
-            </Link>
-          </div>
-        ) : submitted ? (
-          /* Success */
-          <div className="rounded-xl border bg-card p-8 text-center shadow-sm">
-            <CheckCircle2 className="mx-auto h-12 w-12 text-green-600" />
-            <h2 className="mt-4 text-xl font-bold text-foreground">Thanks!</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              We'll reach out to the owner and notify you if the property gets listed.
-            </p>
-            <p className="mt-4 text-xs text-muted-foreground">Redirecting to search…</p>
-          </div>
-        ) : (
-          /* Form */
-          <div className="rounded-xl border bg-card p-6 shadow-sm sm:p-8">
-            <h1 className="text-2xl font-bold text-foreground">Refer a Property</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Give us the owner's details and we'll reach out to bring their property onto the 2-month deposit system. We'll notify you if it gets listed.
-            </p>
+          {submitted ? (
+            <div className="rounded-xl border bg-card p-8 text-center shadow-sm">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-green-600" />
+              <h2 className="mt-4 text-xl font-bold text-foreground">Thanks for the referral!</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                We'll reach out to the owner. We'll let you know if they list with Reeve.
+              </p>
+              <p className="mt-4 text-xs text-muted-foreground">Redirecting to search…</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border bg-card p-6 shadow-sm sm:p-8">
+              <h1 className="text-2xl font-bold text-foreground">
+                Found a flat you like? Refer the owner to Reeve.
+              </h1>
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-              {/* Owner Name */}
-              <Field label="Owner Name" required error={errors.owner_name}>
-                <Input
-                  value={formData.owner_name}
-                  onChange={(e) => handleChange("owner_name", e.target.value)}
-                  placeholder="Full name of the owner"
-                />
-              </Field>
-
-              {/* Owner Phone */}
-              <Field label="Owner Phone Number" required error={errors.owner_phone}>
-                <Input
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={10}
-                  value={formData.owner_phone}
-                  onChange={(e) => handleChange("owner_phone", e.target.value.replace(/\D/g, ""))}
-                  placeholder="10-digit phone number"
-                />
-              </Field>
-
-              {/* Owner Email */}
-              <Field label="Owner Email" error={errors.owner_email} optional>
-                <Input
-                  type="email"
-                  value={formData.owner_email}
-                  onChange={(e) => handleChange("owner_email", e.target.value)}
-                  placeholder="owner@example.com"
-                />
-              </Field>
-
-              {/* Building Name */}
-              <Field label="Building Name" required error={errors.building_name}>
-                <Input
-                  value={formData.building_name}
-                  onChange={(e) => handleChange("building_name", e.target.value)}
-                  placeholder="e.g. Prestige Lakeside Habitat"
-                />
-              </Field>
-
-              {/* Flat Number */}
-              <Field label="Flat Number" required error={errors.flat_number}>
-                <Input
-                  value={formData.flat_number}
-                  onChange={(e) => handleChange("flat_number", e.target.value)}
-                  placeholder="e.g. A-402"
-                />
-              </Field>
-
-              {/* Property Address */}
-              <Field label="Property Address" required error={errors.property_address}>
-                <Input
-                  value={formData.property_address}
-                  onChange={(e) => handleChange("property_address", e.target.value)}
-                  placeholder="Full street address"
-                />
-              </Field>
-
-              {/* Locality */}
-              <Field label="Locality / Area" required error={errors.locality}>
-                <Input
-                  value={formData.locality}
-                  onChange={(e) => handleChange("locality", e.target.value)}
-                  placeholder="e.g. Koramangala"
-                />
-              </Field>
-
-              {/* City */}
-              <Field label="City" optional>
-                <Input
-                  value={formData.city}
-                  onChange={(e) => handleChange("city", e.target.value)}
-                  placeholder="Bangalore"
-                />
-              </Field>
-
-              {/* Expected Rent */}
-              <Field label="Expected Monthly Rent" required error={errors.expected_rent}>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    className="pl-7"
-                    value={formData.expected_rent}
-                    onChange={(e) => handleChange("expected_rent", e.target.value)}
-                    placeholder="25000"
-                  />
-                </div>
-              </Field>
-
-              {/* BHK */}
-              <Field label="BHK Type" required error={errors.bhk}>
-                <Select
-                  value={formData.bhk}
-                  onValueChange={(val) => handleChange("bhk", val)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select BHK" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BHK_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              {submitError && (
-                <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
-                  {submitError}
+              {/* Incentive callout — must appear before first form field in DOM */}
+              <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                <p className="text-sm text-foreground">
+                  If the owner lists with Reeve, your Reeve fee drops from{" "}
+                  <span className="font-semibold">7% to 6%</span> — for the full tenancy.
+                  No brokerage. Lower fee. Structured renting.
                 </p>
-              )}
+              </div>
 
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded-lg"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting…
-                  </>
-                ) : (
-                  "Submit Referral"
+              <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+                {/* 1. Your Name */}
+                <Field
+                  id="referrer_name"
+                  label="Your Name"
+                  required
+                  error={errors.referrer_name}
+                >
+                  <Input
+                    id="referrer_name"
+                    value={formData.referrer_name}
+                    onChange={(e) => handleChange("referrer_name", e.target.value)}
+                    placeholder="Your full name"
+                    autoComplete="name"
+                  />
+                </Field>
+
+                {/* 2. Your Phone Number */}
+                <Field
+                  id="referrer_phone"
+                  label="Your Phone Number"
+                  required
+                  error={errors.referrer_phone}
+                >
+                  <Input
+                    id="referrer_phone"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={formData.referrer_phone}
+                    onChange={(e) =>
+                      handleChange("referrer_phone", e.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="10-digit phone number"
+                    autoComplete="tel"
+                  />
+                </Field>
+
+                {/* 3. Owner's Phone */}
+                <Field
+                  id="owner_phone"
+                  label="Property Owner's Phone Number"
+                  required
+                  error={errors.owner_phone}
+                >
+                  <Input
+                    id="owner_phone"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={formData.owner_phone}
+                    onChange={(e) =>
+                      handleChange("owner_phone", e.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="Owner's 10-digit phone number"
+                  />
+                </Field>
+
+                {/* 4. Building Name */}
+                <Field
+                  id="building_name"
+                  label="Building Name"
+                  required
+                  error={errors.building_name}
+                >
+                  <Input
+                    id="building_name"
+                    value={formData.building_name}
+                    onChange={(e) => handleChange("building_name", e.target.value)}
+                    placeholder="e.g. Prestige Lakeside Habitat"
+                  />
+                </Field>
+
+                {/* 5. Locality */}
+                <Field
+                  id="locality"
+                  label="Locality / Area"
+                  required
+                  error={errors.locality}
+                >
+                  <Input
+                    id="locality"
+                    value={formData.locality}
+                    onChange={(e) => handleChange("locality", e.target.value)}
+                    placeholder="e.g. Koramangala"
+                  />
+                </Field>
+
+                {/* 6. City — pre-filled, disabled */}
+                <Field id="city" label="City" optional>
+                  <Input
+                    id="city"
+                    value={formData.city}
+                    disabled
+                    readOnly
+                    className="cursor-not-allowed opacity-60"
+                  />
+                </Field>
+
+                {/* 7. Owner's Name (optional) */}
+                <Field
+                  id="owner_name"
+                  label="Property Owner's Name"
+                  optional
+                  error={errors.owner_name}
+                >
+                  <Input
+                    id="owner_name"
+                    value={formData.owner_name}
+                    onChange={(e) => handleChange("owner_name", e.target.value)}
+                    placeholder="Owner's full name (if known)"
+                  />
+                </Field>
+
+                {/* 8. BHK (optional) */}
+                <Field id="bhk" label="BHK Type" optional>
+                  <Select
+                    value={formData.bhk}
+                    onValueChange={(val) => handleChange("bhk", val)}
+                  >
+                    <SelectTrigger id="bhk">
+                      <SelectValue placeholder="Select BHK" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BHK_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                {/* 9. Expected Rent (optional) */}
+                <Field id="expected_rent" label="Expected Monthly Rent" optional>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      ₹
+                    </span>
+                    <Input
+                      id="expected_rent"
+                      type="number"
+                      min={0}
+                      className="pl-7"
+                      value={formData.expected_rent}
+                      onChange={(e) => handleChange("expected_rent", e.target.value)}
+                      placeholder="25000"
+                    />
+                  </div>
+                </Field>
+
+                {submitError && (
+                  <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+                    {submitError}
+                  </p>
                 )}
-              </Button>
-            </form>
-          </div>
-        )}
+
+                <p className="text-xs text-muted-foreground">
+                  We'll reach out to the owner directly. We won't share your name without
+                  your permission.
+                </p>
+
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full rounded-lg min-h-[44px]"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting…
+                    </>
+                  ) : (
+                    "Submit Referral"
+                  )}
+                </Button>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     </Layout>
   );
 }
 
-/* Reusable field wrapper */
 function Field({
+  id,
   label,
   required,
   optional,
   error,
   children,
 }: {
+  id: string;
   label: string;
   required?: boolean;
   optional?: boolean;
@@ -341,13 +368,19 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-sm font-medium">
+      <Label htmlFor={id} className="text-sm font-medium">
         {label}
         {required && <span className="text-destructive"> *</span>}
-        {optional && <span className="ml-1 text-xs text-muted-foreground">(optional)</span>}
+        {optional && (
+          <span className="ml-1 text-xs text-muted-foreground">(optional)</span>
+        )}
       </Label>
       {children}
-      {error && <p className="text-xs font-medium text-destructive">{error}</p>}
+      {error && (
+        <p className="text-xs font-medium text-destructive" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

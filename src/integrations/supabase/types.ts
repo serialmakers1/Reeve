@@ -1,3 +1,4 @@
+npm warn exec The following package was not found and will be installed: supabase@2.95.6
 export type Json =
   | string
   | number
@@ -1209,10 +1210,12 @@ export type Database = {
           locality: string | null
           notes: string | null
           owner_email: string | null
-          owner_name: string
+          owner_name: string | null
           owner_phone: string
-          property_address: string
-          referred_by_tenant_id: string
+          property_address: string | null
+          referred_by_tenant_id: string | null
+          referrer_name: string | null
+          referrer_phone: string | null
           source: string | null
           status: Database["public"]["Enums"]["lead_status"]
           tenant_notified_on_listing: boolean
@@ -1237,10 +1240,12 @@ export type Database = {
           locality?: string | null
           notes?: string | null
           owner_email?: string | null
-          owner_name: string
+          owner_name?: string | null
           owner_phone: string
-          property_address: string
-          referred_by_tenant_id: string
+          property_address?: string | null
+          referred_by_tenant_id?: string | null
+          referrer_name?: string | null
+          referrer_phone?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           tenant_notified_on_listing?: boolean
@@ -1265,10 +1270,12 @@ export type Database = {
           locality?: string | null
           notes?: string | null
           owner_email?: string | null
-          owner_name?: string
+          owner_name?: string | null
           owner_phone?: string
-          property_address?: string
-          referred_by_tenant_id?: string
+          property_address?: string | null
+          referred_by_tenant_id?: string | null
+          referrer_name?: string | null
+          referrer_phone?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           tenant_notified_on_listing?: boolean
