@@ -1,3 +1,6 @@
+## [2026-04-30] feat | ReferProperty refactor — types regenerated, admin Leads.tsx referrer fields added [14:22 IST]
+## [2026-04-30] feat | ReferProperty refactor — schema migration + frontend rewrite [14:15 IST]
+## [2026-04-30] diagnose | ReferProperty refactor — diagnosis complete, findings documented [IST]
 ## [2026-04-25] perf | Frontend: gated realtime behind auth, QueryClient defaults, lazy admin routes [17:30 IST]
 ## [2026-04-25] diagnose | P1 gap audit — FK indexes, storage policies, bucket config [16:30 IST]
 ## [2026-04-25] fix | Search path hardening: 9 SECURITY DEFINER functions + drop ensure_user_exists + config.toml send-sms-otp verify_jwt=false [15:30 IST]

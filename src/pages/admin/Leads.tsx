@@ -54,7 +54,7 @@ const STATUS_STYLE: Record<string, { label: string; className: string }> = {
 
 interface LeadRow {
   id: string;
-  owner_name: string;
+  owner_name: string | null;
   owner_phone: string | null;
   owner_email: string | null;
   building_name: string | null;
@@ -74,6 +74,9 @@ interface LeadRow {
   assigned_to: string | null;
   created_at: string;
   updated_at: string;
+  referrer_name: string | null;
+  referrer_phone: string | null;
+  referred_by_tenant_id: string | null;
   referred_by_tenant: { full_name: string | null; phone: string | null } | null;
 }
 
@@ -114,6 +117,9 @@ export default function Leads() {
         assigned_to,
         created_at,
         updated_at,
+        referrer_name,
+        referrer_phone,
+        referred_by_tenant_id,
         referred_by_tenant:users!leads_referred_by_tenant_id_fkey (
           full_name,
           phone
@@ -274,7 +280,7 @@ export default function Leads() {
                         {lead.id.slice(0, 8)}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {lead.owner_name}
+                        {lead.owner_name ?? "—"}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         {lead.owner_phone || "—"}
@@ -284,7 +290,9 @@ export default function Leads() {
                         {bhkRent || "—"}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        {lead.referred_by_tenant?.full_name || "—"}
+                        {lead.referrer_name || lead.referred_by_tenant?.full_name || (
+                          <span className="text-muted-foreground">Guest</span>
+                        )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {lead.contact_attempts}
@@ -321,7 +329,7 @@ export default function Leads() {
                 <SheetHeader>
                   <div className="flex items-center justify-between">
                     <SheetTitle className="text-lg">
-                      {drawerLead.owner_name}
+                      {drawerLead.owner_name ?? "—"}
                     </SheetTitle>
                     {saveState !== "idle" && (
                       <span className="text-xs text-muted-foreground">
@@ -380,19 +388,36 @@ export default function Leads() {
                     <h3 className="text-sm font-semibold text-foreground mb-2">
                       Referral Info
                     </h3>
-                    <div className="text-sm space-y-1">
-                      <p>
-                        <span className="text-muted-foreground">
-                          Referred by:{" "}
-                        </span>
-                        {drawerLead.referred_by_tenant?.full_name
-                          ? `${drawerLead.referred_by_tenant.full_name}${drawerLead.referred_by_tenant.phone ? ` · ${drawerLead.referred_by_tenant.phone}` : ""}`
-                          : "Direct / Unknown"}
-                      </p>
-                      <p>
-                        <span className="text-muted-foreground">Source: </span>
-                        {drawerLead.source || "—"}
-                      </p>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Referrer Name</span>
+                        <p>
+                          {drawerLead.referrer_name ||
+                            drawerLead.referred_by_tenant?.full_name ||
+                            "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Referrer Phone</span>
+                        <p>
+                          {drawerLead.referrer_phone ||
+                            drawerLead.referred_by_tenant?.phone ||
+                            "—"}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Tenant Account</span>
+                        <p>
+                          {drawerLead.referred_by_tenant_id
+                            ? drawerLead.referred_by_tenant?.full_name ||
+                              drawerLead.referred_by_tenant_id.slice(0, 8) + "…"
+                            : <span className="text-muted-foreground">Anonymous / no account</span>}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Source</span>
+                        <p>{drawerLead.source || "—"}</p>
+                      </div>
                     </div>
                   </div>
 
