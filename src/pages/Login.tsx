@@ -285,7 +285,7 @@ export default function LoginPage() {
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-400 text-xs font-bold text-white ring-2 ring-white">SP</span>
             </div>
             <p className="text-sm text-gray-700 leading-snug">
-              <span className="font-semibold text-gray-900">47 families</span> moved in this month without paying a rupee of brokerage
+              <span className="font-semibold text-gray-900">12 families</span> moved in this month without paying a rupee of brokerage
             </p>
           </div>
         </div>
