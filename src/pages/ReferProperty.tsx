@@ -162,7 +162,7 @@ export default function ReferProperty() {
               <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
                 <p className="text-sm text-foreground">
                   If the owner lists with Reeve, your Reeve fee drops from{" "}
-                  <span className="font-semibold">7% to 6%</span> — for the full tenancy.
+                  <span className="font-semibold">7% to 5%</span> — for the full tenancy.
                   No brokerage. Lower fee. Structured renting.
                 </p>
               </div>
