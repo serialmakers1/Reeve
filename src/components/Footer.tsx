@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Linkedin, Instagram, Twitter } from "lucide-react";
+import { Linkedin, Twitter } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -129,18 +129,14 @@ const Footer = () => {
         <div className="border-t border-white/10 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 gap-4">
           <div>© 2026 Reeve. All rights reserved.</div>
           <div className="flex gap-4">
-            <Link to="#" className="text-gray-500 hover:text-white transition-colors">
+            <a href="https://www.linkedin.com/company/reeve-pm/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors">
               <Linkedin className="h-5 w-5" />
               <span className="sr-only">LinkedIn</span>
-            </Link>
-            <Link to="#" className="text-gray-500 hover:text-white transition-colors">
-              <Instagram className="h-5 w-5" />
-              <span className="sr-only">Instagram</span>
-            </Link>
-            <Link to="#" className="text-gray-500 hover:text-white transition-colors">
+            </a>
+            <a href="https://x.com/reeve_pm" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors">
               <Twitter className="h-5 w-5" />
               <span className="sr-only">Twitter</span>
-            </Link>
+            </a>
           </div>
         </div>
 
