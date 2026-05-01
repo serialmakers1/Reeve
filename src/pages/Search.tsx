@@ -963,10 +963,11 @@ export default function SearchPage() {
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <span className="text-5xl">🏠</span>
               <h2 className="mt-4 text-lg font-bold text-gray-900">
-                No properties found
+                Nothing live at the moment
               </h2>
               <p className="mt-1 text-sm text-gray-500">
-                Try adjusting your filters or search for a different locality
+                Limited inventory. High demand. Most listings here are gone before they’re even searched.
+                If you’ve found something you like, share it and we’ll structure it properly through Reeve.
               </p>
               <Button
                 className="mt-4"
@@ -1032,7 +1033,7 @@ export default function SearchPage() {
                 Can't find your property listed here?
               </h3>
               <p className="mx-auto mt-2 max-w-md text-sm text-gray-600">
-                Tell us the owner's details — we'll bring them onboard with our 1-month deposit system.
+                Tell us the owner's details — we'll bring them onboard with our 2-month deposit system.
               </p>
               <Link to="/refer-property">
                 <Button className="mt-4 rounded-lg bg-primary px-6 text-sm font-semibold text-white hover:bg-primary/90">
