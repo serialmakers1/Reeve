@@ -1032,7 +1032,7 @@ export default function SearchPage() {
                 Can't find your property listed here?
               </h3>
               <p className="mx-auto mt-2 max-w-md text-sm text-gray-600">
-                Tell us the owner's details — we'll bring them onboard structure it properly through Reeve.
+                Tell us the owner's details — we'll bring them onboard and structure it properly through Reeve.
               </p>
               <Link to="/refer-property">
                 <Button className="mt-4 rounded-lg bg-primary px-6 text-sm font-semibold text-white hover:bg-primary/90">
