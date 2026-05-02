@@ -52,16 +52,6 @@ const ACTIVE_ROUTES = [
     priority:    '0.75',
   },
   {
-    path:        '/savings/owner',
-    changefreq:  'monthly',
-    priority:    '0.80',
-  },
-  {
-    path:        '/owner/how-it-works',
-    changefreq:  'monthly',
-    priority:    '0.80',
-  },
-  {
     path:        '/savings/tenant',
     changefreq:  'monthly',
     priority:    '0.70',
