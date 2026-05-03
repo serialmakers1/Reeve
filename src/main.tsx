@@ -31,6 +31,7 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
 });
 
 createRoot(document.getElementById("root")!).render(<App />);
+document.getElementById('root')?.classList.add('mounted');
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
