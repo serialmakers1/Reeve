@@ -116,3 +116,5 @@
 ## [2026-04-24] fix | WhyReeveFeeModal — fixed progressive slide drift and desktop width [13:19 IST]
 
 ## [2026-04-24] fix | WhyReeveFeeModal — moved Screen 5 CTA to footer, rewrote Screen 4 narrative [13:42 IST]
+
+## [2026-05-03] perf | Logo dims, hero LCP fade removed, contrast fix [12:30 IST]

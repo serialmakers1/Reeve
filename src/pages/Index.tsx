@@ -73,8 +73,7 @@ export default function Index() {
 
               {/* Right Column - Image */}
               <div
-                className="animate-fade-up w-full lg:w-[45%] flex items-center justify-center"
-                style={{ animationDelay: "200ms" }}
+                className="w-full lg:w-[45%] flex items-center justify-center"
               >
                 <img
                   src="/images/hero-home.webp"
@@ -213,7 +212,7 @@ export default function Index() {
               </Link>
             </div>
 
-            <p className="text-blue-100 text-sm mt-6">₹0 Brokerage · 2 Month Deposit · Fully Managed for Free</p>
+            <p className="text-white/95 text-sm mt-6">₹0 Brokerage · 2 Month Deposit · Fully Managed for Free</p>
           </div>
         </section>
       </div>

@@ -33,7 +33,7 @@ const Header = () => {
 
           {/* Logo */}
           <Link to="/" className="flex items-center flex-shrink-0">
-            <img src={logo} alt="Reeve" className="h-7 w-auto" />
+            <img src={logo} alt="Reeve" className="h-7 w-auto" width={28} height={28} />
           </Link>
 
           {/* Desktop nav links — centre */}
