@@ -1,4 +1,15 @@
 import { useEffect, useRef, useState } from "react";
+
+function loadRazorpay(): Promise<void> {
+  if (window.Razorpay) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Failed to load Razorpay"));
+    document.body.appendChild(s);
+  });
+}
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -330,6 +341,13 @@ export default function ApplicationDetail() {
 
   const handleInitiatePayment = async () => {
     if (!app || !user) return;
+
+    try {
+      await loadRazorpay();
+    } catch {
+      toast({ title: "Payment service unavailable. Please try again.", variant: "destructive" });
+      return;
+    }
 
     if (!window.Razorpay) {
       toast({ title: "Payment service unavailable. Please refresh and try again.", variant: "destructive" });
