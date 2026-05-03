@@ -1,0 +1,25 @@
+# Reeve
+
+Reeve is a Bengaluru-based zero-brokerage rental property
+management platform. Free for owners. Tenants pay a 7% Reeve
+Service Fee (4% on renewal). 2-month deposit cap. Operated
+by Serial Makers Private Limited, HSR Layout, Bengaluru.
+
+## Core pages
+
+- [Homepage](https://www.reeve.in/): Property management overview
+- [For Owners](https://www.reeve.in/owners): Owner-side service
+- [Tenant Savings Calculator](https://www.reeve.in/savings/tenant): Compare Reeve vs broker costs
+- [Search Properties](https://www.reeve.in/search): Browse Reeve-managed rentals
+- [Contact](https://www.reeve.in/contact): Phone, WhatsApp, email
+
+## Founders
+
+- Lohit Agarwal — Co-founder
+- Daksh Jain — Co-founder
+
+## Service areas
+
+HSR Layout, Koramangala, BTM Layout, Indiranagar, Whitefield,
+Marathahalli, Bellandur, Sarjapur Road, Electronic City —
+Bengaluru, Karnataka, India.
