@@ -21,7 +21,7 @@ const Footer = () => {
 
           {/* Column 2 — For Tenants */}
           <div>
-            <h4 className="text-white font-semibold text-sm mb-3">For Tenants</h4>
+            <h3 className="text-white font-semibold text-sm mb-3">For Tenants</h3>
             <ul className="space-y-2">
               <li>
                 <Link to="/search" className="text-gray-400 text-sm hover:text-white transition-colors">
@@ -48,7 +48,7 @@ const Footer = () => {
 
           {/* Column B — For Owners */}
           <div>
-            <h4 className="text-white font-semibold text-sm mb-3">For Owners</h4>
+            <h3 className="text-white font-semibold text-sm mb-3">For Owners</h3>
             <ul className="space-y-2">
               <li>
                 <Link to="/my-properties/new" className="text-gray-400 text-sm hover:text-white transition-colors">
@@ -75,7 +75,7 @@ const Footer = () => {
 
           {/* Column C — Company & Support */}
           <div>
-            <h4 className="text-white font-semibold text-sm mb-3">Company &amp; Support</h4>
+            <h3 className="text-white font-semibold text-sm mb-3">Company &amp; Support</h3>
             <ul className="space-y-2">
               <li>
                 <Link to="/contact" className="text-gray-400 text-sm hover:text-white transition-colors">
@@ -107,11 +107,11 @@ const Footer = () => {
           <p className="text-gray-400 text-xs">
             Reeve is a commercial brand owned and operated by Serial Makers Private Limited.
           </p>
-          <p className="text-gray-500 text-xs leading-relaxed mt-2">
+          <p className="text-gray-400 text-xs leading-relaxed mt-2">
             Registered Office: Shubh Encl,
             HSR Layout, Bangalore South, Bangalore - 560102, Karnataka
           </p>
-          <p className="text-gray-500 text-xs leading-relaxed mt-1">
+          <p className="text-gray-400 text-xs leading-relaxed mt-1">
             CIN: U62099KA2026PTC216343 &nbsp;·&nbsp;{" "}
             Email:{" "}
             <a href="mailto:support@reeve.in" className="hover:text-white transition-colors">
@@ -126,14 +126,14 @@ const Footer = () => {
         </div>
 
         {/* Zone 3: Bottom bar */}
-        <div className="border-t border-white/10 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 gap-4">
+        <div className="border-t border-white/10 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-400 gap-4">
           <div>© 2026 Reeve. All rights reserved.</div>
           <div className="flex gap-4">
-            <a href="https://www.linkedin.com/company/reeve-pm/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors">
+            <a href="https://www.linkedin.com/company/reeve-pm/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
               <Linkedin className="h-5 w-5" />
               <span className="sr-only">LinkedIn</span>
             </a>
-            <a href="https://x.com/reeve_pm" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors">
+            <a href="https://x.com/reeve_pm" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
               <Twitter className="h-5 w-5" />
               <span className="sr-only">Twitter</span>
             </a>

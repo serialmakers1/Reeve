@@ -77,10 +77,14 @@ export default function Index() {
                 style={{ animationDelay: "200ms" }}
               >
                 <img
-                  src="/images/hero-home.png"
+                  src="/images/hero-home.webp"
                   alt="Reeve — modern rental management platform"
                   className="w-full h-auto object-contain rounded-2xl lg:max-h-[80vh]"
+                  width={900}
+                  height={700}
                   loading="eager"
+                  fetchpriority="high"
+                  decoding="async"
                 />
               </div>
             </div>
@@ -190,7 +194,7 @@ export default function Index() {
         <section className="bg-[#2563EB] py-20">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl lg:text-5xl font-bold text-white text-balance">Ready to rent smarter?</h2>
-            <p className="text-white/80 text-lg mt-3">
+            <p className="text-white text-lg mt-3">
               Join Bangalore&apos;s only zero-brokerage, fully managed rental platform.
             </p>
 
@@ -209,7 +213,7 @@ export default function Index() {
               </Link>
             </div>
 
-            <p className="text-white/60 text-sm mt-6">₹0 Brokerage · 2 Month Deposit · Fully Managed for Free</p>
+            <p className="text-blue-100 text-sm mt-6">₹0 Brokerage · 2 Month Deposit · Fully Managed for Free</p>
           </div>
         </section>
       </div>
