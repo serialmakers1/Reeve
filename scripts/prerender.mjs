@@ -174,6 +174,7 @@ const routes = [
           },
           areaServed: AREA_SERVED,
           priceRange: '₹0 for owners',
+          image: WWW + '/icon-192.png',
           sameAs: [
             'https://www.linkedin.com/company/reeve-pm/',
             'https://x.com/reeve_pm',
@@ -549,6 +550,7 @@ const routes = [
       name: 'Reeve',
       legalName: 'Serial Makers Private Limited',
       url: WWW,
+      image: WWW + '/icon-192.png',
       telephone: '+917899874281',
       email: 'support@reeve.in',
       address: {
