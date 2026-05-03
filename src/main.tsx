@@ -30,8 +30,14 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   },
 });
 
-createRoot(document.getElementById("root")!).render(<App />);
-document.getElementById('root')?.classList.add('mounted');
+const rootEl = document.getElementById("root")!;
+createRoot(rootEl).render(<App />);
+
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    rootEl.classList.add('mounted');
+  });
+});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
