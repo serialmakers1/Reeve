@@ -166,6 +166,7 @@ strictNullChecks: false, noImplicitAny: false — intentional, do not tighten.
 - Mobile CTA bars in PropertyDetail use bottom-16 (logged in) or bottom-0 (logged out)
 - OnboardingGuard runs on every render — no expensive calls inside it
 - PostHog initialized in main.tsx — use posthog?.capture() with optional chaining everywhere
+- LCP images must NOT have `animate-fade-up` or any entry animation — delays opacity and tanks PageSpeed LCP score
 
 ## Skills — Always Check Before Acting
 
