@@ -1,0 +1,61 @@
+# Reeve
+
+Reeve is a Bengaluru-based zero-brokerage rental property
+management platform. Free for owners. Tenants pay a 7% Reeve
+Service Fee (4% on renewal). 2-month deposit cap. Operated
+by Serial Makers Private Limited, HSR Layout, Bengaluru.
+
+## Core pages
+
+- [Homepage](https://www.reeve.in/): Property management overview
+- [For Owners](https://www.reeve.in/owners): Owner-side service
+- [Tenant Savings Calculator](https://www.reeve.in/savings/tenant): Compare Reeve vs broker costs
+- [Search Properties](https://www.reeve.in/search): Browse Reeve-managed rentals
+- [Contact](https://www.reeve.in/contact): Phone, WhatsApp, email
+
+## Founders
+
+- Lohit Agarwal — Co-founder
+- Daksh Jain — Co-founder
+
+## Service areas
+
+HSR Layout, Koramangala, BTM Layout, Indiranagar, Whitefield,
+Marathahalli, Bellandur, Sarjapur Road, Electronic City —
+Bengaluru, Karnataka, India.
+
+## Business model
+
+- Owner pays nothing. Zero owner-side fees.
+- Reeve Service Fee: 7% of base rent per month (first term),
+  4% from renewal onwards. Charged to tenant only.
+- Security deposit: 2-month cap enforced on all properties.
+- Confirmation Token: ₹5,000 fixed amount paid by tenant to
+  Reeve on booking. Adjustable against month-1 payment on
+  possession. Non-refundable on tenant cancellation.
+  Refundable on owner cancellation.
+- Disputes: mandatory arbitration under Arbitration &
+  Conciliation Act 1996. Bengaluru seat. Sole arbitrator.
+
+## What Reeve manages
+
+Tenant sourcing, property inspection (MIR/MOCR reports),
+rental agreement execution, rent collection, owner dashboard
+updates, move-in/move-out documentation, deposit management,
+KYC verification, WhatsApp and email communication.
+
+## Tech stack
+
+Vite React on Vercel. Supabase (database + auth). n8n
+(automations). Resend (email). AiSensy (WhatsApp). MSG91
+(SMS). Razorpay (payments). Sentry + PostHog (monitoring).
+
+## Contact
+
+- Email: [support@reeve.in](mailto:support@reeve.in)
+- Phone: +91 78998 74281
+- Address: Shubh Encl, HSR Layout, Bengaluru - 560102,
+  Karnataka, India
+- CIN: U62099KA2026PTC216343
+- LinkedIn: https://www.linkedin.com/company/reeve-pm/
+- X: https://x.com/reeve_pm

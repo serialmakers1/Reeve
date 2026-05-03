@@ -118,3 +118,5 @@
 ## [2026-04-24] fix | WhyReeveFeeModal — moved Screen 5 CTA to footer, rewrote Screen 4 narrative [13:42 IST]
 
 ## [2026-05-03] perf | Logo dims, hero LCP fade removed, contrast fix [12:30 IST]
+
+## [2026-05-03] feat | Created public/llms.txt and public/llms-full.txt for AI agent discoverability [14:04 IST]
