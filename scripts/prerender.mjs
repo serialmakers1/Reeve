@@ -6,7 +6,8 @@
  *
  * Strategy:
  *   1. Read the built dist/index.html (contains real hashed JS/CSS asset paths).
- *   2. For each public route, swap <title>, <meta> tags, and inject static body HTML.
+ *   2. For each public route, swap <title>, <meta> tags, inject JSON-LD schema,
+ *      and inject static body HTML.
  *   3. Write the result to dist/{route}/index.html.
  *
  * Vercel serves static files before applying rewrites, so:
@@ -16,6 +17,11 @@
  *
  * React uses createRoot (not hydrateRoot), so it replaces static HTML on mount.
  * No hydration mismatch issues.
+ *
+ * JSON-LD notes:
+ *   - Schema is injected here at build time, NOT in React components.
+ *   - aggregateRating must not be added until 5+ Google reviews exist.
+ *   - safeJsonLd() Unicode-escapes <, >, & so the JSON is safe inside <script> tags.
  */
 
 import fs from 'fs';
@@ -33,7 +39,7 @@ if (!fs.existsSync(DIST)) {
 
 const shell = fs.readFileSync(path.join(DIST, 'index.html'), 'utf-8');
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function esc(str) {
   return str
@@ -44,16 +50,30 @@ function esc(str) {
 }
 
 /**
+ * Serialize a JSON-LD object to a string safe for embedding inside a
+ * <script> tag in HTML. JSON.stringify does not escape <, >, or & by
+ * default; those characters are legal in JSON but can break HTML parsers
+ * when the script tag appears in an HTML document.
+ */
+function safeJsonLd(obj) {
+  return JSON.stringify(obj, null, 2)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+}
+
+/**
  * Build a complete HTML page by patching the Vite-built shell.
  * @param {object} opts
- * @param {string} opts.title        <title> content
- * @param {string} opts.description  <meta name="description">
- * @param {string} opts.ogTitle      og:title
+ * @param {string} opts.title         <title> content
+ * @param {string} opts.description   <meta name="description">
+ * @param {string} opts.ogTitle       og:title
  * @param {string} opts.ogDescription og:description
- * @param {string} opts.canonical    canonical URL
- * @param {string} opts.bodyHtml     HTML to inject inside <div id="root">
+ * @param {string} opts.canonical     canonical URL
+ * @param {string} opts.bodyHtml      HTML to inject inside <div id="root">
+ * @param {object} [opts.jsonLd]      JSON-LD schema object (injected before </head>)
  */
-function buildPage({ title, description, ogTitle, ogDescription, canonical, bodyHtml }) {
+function buildPage({ title, description, ogTitle, ogDescription, canonical, bodyHtml, jsonLd }) {
   let html = shell;
 
   // <title>
@@ -85,6 +105,13 @@ function buildPage({ title, description, ogTitle, ogDescription, canonical, body
     );
   }
 
+  // JSON-LD schema — injected just before </head> so it never conflicts
+  // with existing <meta> or <title> tags already written above.
+  if (jsonLd) {
+    const scriptBlock = `\n  <script type="application/ld+json">\n${safeJsonLd(jsonLd)}\n  </script>`;
+    html = html.replace('</head>', `${scriptBlock}\n</head>`);
+  }
+
   // inject pre-rendered body into #root
   html = html.replace(
     '<div id="root"></div>',
@@ -99,19 +126,112 @@ function writeRoute(outPath, html) {
   fs.writeFileSync(outPath, html, 'utf-8');
 }
 
-// ── Route definitions ─────────────────────────────────────────────────────────
+// ── Shared data ───────────────────────────────────────────────────────────────
 
 const BASE = 'https://reeve.in';
+const WWW  = 'https://www.reeve.in';
+
+const AREA_SERVED = [
+  'HSR Layout', 'Koramangala', 'BTM Layout', 'Indiranagar',
+  'Whitefield', 'Marathahalli', 'Bellandur', 'Sarjapur Road', 'Electronic City',
+];
+
+const ORG_REF = {
+  '@type': 'Organization',
+  name: 'Reeve',
+  url: WWW,
+};
+
+// ── Route definitions ─────────────────────────────────────────────────────────
 
 const routes = [
   // ── / (homepage) — patched in-place ────────────────────────────────────────
   {
     outFile: path.join(DIST, 'index.html'),
     title: 'Reeve | Zero Brokerage Rentals in Bangalore',
-    description: 'Zero brokerage. 2-month deposit. Reeve is Bangalore\'s fully managed rental platform — free for owners, fair for tenants.',
+    description: "Zero brokerage. 2-month deposit. Reeve is Bangalore's fully managed rental platform — free for owners, fair for tenants.",
     ogTitle: 'Reeve | Zero Brokerage Rentals in Bangalore',
     ogDescription: 'Zero brokerage. 2-month deposit. Free property management for owners. No brokers. No hidden fees.',
     canonical: BASE + '/',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': ['Organization', 'LocalBusiness', 'RealEstateAgent'],
+          '@id': WWW + '/#organization',
+          name: 'Reeve',
+          legalName: 'Serial Makers Private Limited',
+          url: WWW,
+          telephone: '+917899874281',
+          email: 'support@reeve.in',
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: 'Shubh Encl, HSR Layout',
+            addressLocality: 'Bengaluru',
+            addressRegion: 'Karnataka',
+            postalCode: '560102',
+            addressCountry: 'IN',
+          },
+          areaServed: AREA_SERVED,
+          priceRange: '₹0 for owners',
+          sameAs: [
+            'https://www.linkedin.com/company/reeve-pm/',
+            'https://x.com/reeve_pm',
+          ],
+          founder: [
+            {
+              '@type': 'Person',
+              name: 'Lohit Agarwal',
+              jobTitle: 'Co-founder',
+              sameAs: 'https://www.linkedin.com/in/lohit24a/',
+              worksFor: { '@id': WWW + '/#organization' },
+            },
+            {
+              '@type': 'Person',
+              name: 'Daksh Jain',
+              jobTitle: 'Co-founder',
+              sameAs: 'https://www.linkedin.com/in/dakshjain127/',
+              worksFor: { '@id': WWW + '/#organization' },
+            },
+          ],
+        },
+        {
+          '@type': 'WebSite',
+          '@id': WWW + '/#website',
+          name: 'Reeve',
+          url: WWW,
+        },
+        {
+          '@type': 'FAQPage',
+          mainEntity: [
+            {
+              '@type': 'Question',
+              name: 'Does the owner pay any fee to Reeve?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'No. Owners pay nothing to Reeve. The Reeve Service Fee of 7% (first term) or 4% (renewal) is charged to the tenant only.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'What is the security deposit cap on Reeve?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Reeve enforces a 2-month security deposit cap on all properties. No property on the platform can demand more.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Which areas in Bengaluru does Reeve serve?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Reeve currently operates in HSR Layout, Koramangala, BTM Layout, Indiranagar, Whitefield, Marathahalli, Bellandur, Sarjapur Road, and Electronic City.',
+              },
+            },
+          ],
+        },
+      ],
+    },
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -164,7 +284,7 @@ const routes = [
 </div>`,
   },
 
-  // ── /owners ─────────────────────────────────────────────────────────────────
+  // ── /owners ──────────────────────────────────────────────────────────────────
   {
     outFile: path.join(DIST, 'owners', 'index.html'),
     title: 'For Property Owners in Bangalore | Reeve — Zero Fees, Full Management',
@@ -172,6 +292,41 @@ const routes = [
     ogTitle: 'For Property Owners in Bangalore | Reeve',
     ogDescription: 'Zero listing fee. Zero commission. Reeve handles everything — tenant screening, rent collection, maintenance, and exit — at no cost to you.',
     canonical: BASE + '/owners',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Service',
+          '@id': WWW + '/owners#service',
+          name: 'Rental Property Management',
+          serviceType: 'Rental Property Management',
+          provider: ORG_REF,
+          areaServed: AREA_SERVED,
+          description: 'Reeve manages your Bangalore rental property end-to-end at ₹0 cost to you. Tenant screening, rent collection, maintenance, inspections, and exit all handled by Reeve.',
+        },
+        {
+          '@type': 'FAQPage',
+          mainEntity: [
+            {
+              '@type': 'Question',
+              name: 'What does Reeve charge property owners?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Nothing. Reeve charges property owners ₹0 — zero listing fee, zero commission, and zero monthly owner-side charge. The tenant pays a 7% Reeve Fee on top of the agreed base rent, so your rent is not reduced.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Who pays for repainting and deep cleaning at exit?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Reeve bears the cost of standard deep cleaning and standard interior repainting at exit, subject to the service agreement terms. This is at no cost to the owner.',
+              },
+            },
+          ],
+        },
+      ],
+    },
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -257,7 +412,7 @@ const routes = [
 </div>`,
   },
 
-  // ── /search ──────────────────────────────────────────────────────────────────
+  // ── /search ───────────────────────────────────────────────────────────────────
   {
     outFile: path.join(DIST, 'search', 'index.html'),
     title: 'Search Rental Properties in Bangalore | Reeve — Zero Brokerage',
@@ -291,7 +446,7 @@ const routes = [
 </div>`,
   },
 
-  // ── /savings/tenant ──────────────────────────────────────────────────────────
+  // ── /savings/tenant ───────────────────────────────────────────────────────────
   {
     outFile: path.join(DIST, 'savings', 'tenant', 'index.html'),
     title: 'Tenant Savings Calculator | Reeve — See How Much You Save vs a Broker',
@@ -299,6 +454,47 @@ const routes = [
     ogTitle: 'Tenant Savings Calculator | Reeve',
     ogDescription: 'See exactly how much you save renting through Reeve vs a traditional broker. Zero brokerage, 2-month deposit, no hidden fees.',
     canonical: BASE + '/savings/tenant',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'WebApplication',
+          '@id': WWW + '/savings/tenant#app',
+          name: 'Reeve Tenant Savings Calculator',
+          applicationCategory: 'FinanceApplication',
+          operatingSystem: 'All',
+          url: WWW + '/savings/tenant',
+          description: 'Calculate how much you save renting through Reeve vs a traditional broker in Bangalore. Compare brokerage, deposit, and monthly costs.',
+          provider: ORG_REF,
+          offers: {
+            '@type': 'Offer',
+            price: '0',
+            priceCurrency: 'INR',
+          },
+        },
+        {
+          '@type': 'FAQPage',
+          mainEntity: [
+            {
+              '@type': 'Question',
+              name: 'How much does Reeve charge tenants?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Reeve charges a 7% Reeve Fee per month on the base rent during the first lease term, dropping to 4% from the second term onwards. There is no brokerage fee and the security deposit is capped at 2 months.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'How much do tenants save compared to a traditional broker?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'At ₹50,000/month rent, tenants save ₹50,000–₹1,00,000 in brokerage and ₹50,000 in deposit (2 months vs 3), for a total upfront saving of ₹1 lakh or more on day one.',
+              },
+            },
+          ],
+        },
+      ],
+    },
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -338,14 +534,47 @@ const routes = [
 </div>`,
   },
 
-  // ── /contact ─────────────────────────────────────────────────────────────────
+  // ── /contact ──────────────────────────────────────────────────────────────────
   {
     outFile: path.join(DIST, 'contact', 'index.html'),
     title: 'Contact Reeve | Bangalore Rental Platform',
-    description: 'Get in touch with Reeve — Bangalore\'s zero-brokerage rental platform. Call, WhatsApp, or email us. We\'re a small team and we read every message.',
+    description: "Get in touch with Reeve — Bangalore's zero-brokerage rental platform. Call, WhatsApp, or email us. We're a small team and we read every message.",
     ogTitle: 'Contact Reeve | Bangalore Rental Platform',
-    ogDescription: 'Get in touch with Reeve. Call, WhatsApp, or email — we\'re a small team and we read every message.',
+    ogDescription: "Get in touch with Reeve. Call, WhatsApp, or email — we're a small team and we read every message.",
     canonical: BASE + '/contact',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      '@id': WWW + '/#organization',
+      name: 'Reeve',
+      legalName: 'Serial Makers Private Limited',
+      url: WWW,
+      telephone: '+917899874281',
+      email: 'support@reeve.in',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: 'Shubh Encl, HSR Layout',
+        addressLocality: 'Bengaluru',
+        addressRegion: 'Karnataka',
+        postalCode: '560102',
+        addressCountry: 'IN',
+      },
+      areaServed: AREA_SERVED,
+      contactPoint: [
+        {
+          '@type': 'ContactPoint',
+          telephone: '+917899874281',
+          contactType: 'customer service',
+          availableLanguage: ['English', 'Hindi', 'Kannada'],
+          hoursAvailable: {
+            '@type': 'OpeningHoursSpecification',
+            dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+            opens: '09:00',
+            closes: '19:00',
+          },
+        },
+      ],
+    },
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -388,7 +617,7 @@ const routes = [
   },
 ];
 
-// ── Write all routes ──────────────────────────────────────────────────────────
+// ── Write all routes ───────────────────────────────────────────────────────────
 
 let written = 0;
 
@@ -396,7 +625,8 @@ for (const route of routes) {
   const html = buildPage(route);
   writeRoute(route.outFile, html);
   const label = route.outFile.replace(DIST, '').replace(/\\/g, '/') || '/index.html';
-  console.log(`✓ pre-rendered ${label}`);
+  const hasSchema = html.includes('application/ld+json');
+  console.log(`✓ pre-rendered ${label}${hasSchema ? ' [+schema]' : ''}`);
   written++;
 }
 

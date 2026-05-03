@@ -30,7 +30,13 @@ Script: `scripts/prerender.mjs` — runs automatically after `vite build` via `p
 4. `main.tsx` uses `createRoot` (not `hydrateRoot`) → React replaces static HTML on mount. No hydration mismatch.
 
 ### Adding a new public route to SSG
-Add an entry to the `routes` array in `scripts/prerender.mjs` with `outFile`, `title`, `description`, `ogTitle`, `ogDescription`, `canonical`, and `bodyHtml`. Also add it to `ACTIVE_ROUTES` in `scripts/generate-sitemap.mjs`.
+Add an entry to the `routes` array in `scripts/prerender.mjs` with `outFile`, `title`, `description`, `ogTitle`, `ogDescription`, `canonical`, `bodyHtml`, and optionally `jsonLd`. Also add it to `ACTIVE_ROUTES` in `scripts/generate-sitemap.mjs`.
+
+### JSON-LD schema
+- Schema is injected by `prerender.mjs` at build time, not in React components. Do not add schema markup to JSX.
+- `safeJsonLd()` Unicode-escapes `<`, `>`, `&` before embedding in `<script>` tags — do not use raw `JSON.stringify`.
+- `aggregateRating` must not be added to any schema until 5+ Google reviews exist.
+- Current schema per route: `/` → Organization+LocalBusiness+RealEstateAgent, WebSite, FAQPage; `/owners` → Service, FAQPage; `/savings/tenant` → WebApplication, FAQPage; `/contact` → LocalBusiness. `/search` has no schema.
 
 ### Do NOT
 - Do not use `vite-ssg`, `vite-plugin-ssr`, or any SSG framework — they render the full app tree in Node.js and conflict with Supabase client, PostHog, and Sentry (all browser-only at module scope).

@@ -1,3 +1,4 @@
+## [2026-05-03] feat | JSON-LD schema injected for 5 pre-rendered routes via prerender.mjs [09:55 IST]
 ## [2026-05-03] feat | SSG implemented for 5 public marketing routes; og:description fixed [09:35 IST]
 ## [2026-04-30] feat | ReferProperty refactor — types regenerated, admin Leads.tsx referrer fields added [14:22 IST]
 ## [2026-04-30] feat | ReferProperty refactor — schema migration + frontend rewrite [14:15 IST]
