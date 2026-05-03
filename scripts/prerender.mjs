@@ -131,10 +131,16 @@ function writeRoute(outPath, html) {
 const BASE = 'https://reeve.in';
 const WWW  = 'https://www.reeve.in';
 
+const BENGALURU_PARENT = {
+  '@type': 'City',
+  name: 'Bengaluru',
+  containedInPlace: { '@type': 'AdministrativeArea', name: 'Karnataka' },
+};
+
 const AREA_SERVED = [
   'HSR Layout', 'Koramangala', 'BTM Layout', 'Indiranagar',
   'Whitefield', 'Marathahalli', 'Bellandur', 'Sarjapur Road', 'Electronic City',
-];
+].map(name => ({ '@type': 'City', name, containedInPlace: BENGALURU_PARENT }));
 
 const ORG_REF = {
   '@type': 'Organization',
@@ -193,6 +199,14 @@ const routes = [
               jobTitle: 'Co-founder',
               sameAs: 'https://www.linkedin.com/in/dakshjain127/',
               worksFor: { '@id': WWW + '/#organization' },
+            },
+          ],
+          openingHoursSpecification: [
+            {
+              '@type': 'OpeningHoursSpecification',
+              dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+              opens: '09:00',
+              closes: '19:00',
             },
           ],
         },
@@ -304,6 +318,13 @@ const routes = [
           provider: ORG_REF,
           areaServed: AREA_SERVED,
           description: 'Reeve manages your Bangalore rental property end-to-end at ₹0 cost to you. Tenant screening, rent collection, maintenance, inspections, and exit all handled by Reeve.',
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'For Owners', item: WWW + '/owners' },
+          ],
         },
         {
           '@type': 'FAQPage',
@@ -421,6 +442,18 @@ const routes = [
     ogTitle: 'Search Rental Properties in Bangalore | Reeve',
     ogDescription: 'Zero brokerage rental properties in Bangalore. Fully managed, professionally screened. No broker fees, 2-month deposit.',
     canonical: BASE + '/search',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Search Properties', item: WWW + '/search' },
+          ],
+        },
+      ],
+    },
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -472,6 +505,13 @@ const routes = [
             price: '0',
             priceCurrency: 'INR',
           },
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Tenant Savings Calculator', item: WWW + '/savings/tenant' },
+          ],
         },
         {
           '@type': 'FAQPage',
@@ -545,35 +585,46 @@ const routes = [
     canonical: BASE + '/contact',
     jsonLd: {
       '@context': 'https://schema.org',
-      '@type': 'LocalBusiness',
-      '@id': WWW + '/#organization',
-      name: 'Reeve',
-      legalName: 'Serial Makers Private Limited',
-      url: WWW,
-      image: WWW + '/icon-192.png',
-      telephone: '+917899874281',
-      email: 'support@reeve.in',
-      address: {
-        '@type': 'PostalAddress',
-        streetAddress: 'Shubh Encl, HSR Layout',
-        addressLocality: 'Bengaluru',
-        addressRegion: 'Karnataka',
-        postalCode: '560102',
-        addressCountry: 'IN',
-      },
-      areaServed: AREA_SERVED,
-      contactPoint: [
+      '@graph': [
         {
-          '@type': 'ContactPoint',
+          '@type': 'LocalBusiness',
+          '@id': WWW + '/#organization',
+          name: 'Reeve',
+          legalName: 'Serial Makers Private Limited',
+          url: WWW,
+          image: WWW + '/icon-192.png',
           telephone: '+917899874281',
-          contactType: 'customer service',
-          availableLanguage: ['English', 'Hindi', 'Kannada'],
-          hoursAvailable: {
-            '@type': 'OpeningHoursSpecification',
-            dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-            opens: '09:00',
-            closes: '19:00',
+          email: 'support@reeve.in',
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: 'Shubh Encl, HSR Layout',
+            addressLocality: 'Bengaluru',
+            addressRegion: 'Karnataka',
+            postalCode: '560102',
+            addressCountry: 'IN',
           },
+          areaServed: AREA_SERVED,
+          contactPoint: [
+            {
+              '@type': 'ContactPoint',
+              telephone: '+917899874281',
+              contactType: 'customer service',
+              availableLanguage: ['English', 'Hindi', 'Kannada'],
+              hoursAvailable: {
+                '@type': 'OpeningHoursSpecification',
+                dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+                opens: '09:00',
+                closes: '19:00',
+              },
+            },
+          ],
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Contact', item: WWW + '/contact' },
+          ],
         },
       ],
     },

@@ -1,3 +1,4 @@
+## [2026-05-03] feat | BreadcrumbList added to 4 routes; openingHours on homepage; areaServed as City objects [15:27 IST]
 ## [2026-05-03] sec | Added 6 baseline security headers in vercel.json (CSP deferred) [11:15 IST]
 ## [2026-05-03] perf | Batch A: hero WebP, contrast, headings, Razorpay lazy load, Google Fonts non-blocking [11:10 IST]
 ## [2026-05-03] feat | JSON-LD schema injected for 5 pre-rendered routes via prerender.mjs [09:55 IST]
