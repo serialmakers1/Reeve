@@ -10,9 +10,32 @@ Property management platform connecting owners and tenants in India. Owners list
 - Sentry for error tracking, PostHog for analytics
 
 ## Key Commands
-npm run build      # production build
+npm run build      # production build (runs postbuild: sitemap + SSG prerender)
 npm run lint       # eslint
 npm run test       # vitest
+
+## SSG (Static Site Generation)
+Approach: custom post-build prerender script — no SSR framework, no new dependencies.
+Script: `scripts/prerender.mjs` — runs automatically after `vite build` via `postbuild`.
+
+### Route classification
+- **Public / pre-rendered** (crawlers get real HTML): `/`, `/owners`, `/search`, `/savings/tenant`, `/contact`
+- **Also public, not pre-rendered** (low SEO value): `/privacy`, `/terms`, `/refund`, `/login`
+- **Protected / CSR-only** (never pre-render): everything under `/dashboard`, `/admin`, `/owner`, `/my-properties`, `/eligibility`, `/profile`, `/refer-property`
+
+### How it works
+1. Vite builds the SPA → `dist/index.html` (app shell with hashed asset URLs).
+2. `prerender.mjs` reads the shell and writes per-route HTML files with route-specific `<title>`, `<meta>`, and static body HTML injected into `<div id="root">`.
+3. Vercel serves static files before applying rewrites → pre-rendered routes get real HTML; auth routes fall through to the catch-all rewrite → CSR.
+4. `main.tsx` uses `createRoot` (not `hydrateRoot`) → React replaces static HTML on mount. No hydration mismatch.
+
+### Adding a new public route to SSG
+Add an entry to the `routes` array in `scripts/prerender.mjs` with `outFile`, `title`, `description`, `ogTitle`, `ogDescription`, `canonical`, and `bodyHtml`. Also add it to `ACTIVE_ROUTES` in `scripts/generate-sitemap.mjs`.
+
+### Do NOT
+- Do not use `vite-ssg`, `vite-plugin-ssr`, or any SSG framework — they render the full app tree in Node.js and conflict with Supabase client, PostHog, and Sentry (all browser-only at module scope).
+- Do not add pre-rendering for any auth/protected route.
+- Do not modify `src/integrations/supabase/client.ts` — the `noOpLock` must remain unchanged.
 
 ## Path Aliases
 @/ maps to ./src/ — always use this, never relative imports.
