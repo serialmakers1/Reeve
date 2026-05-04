@@ -378,7 +378,10 @@ export default function OwnerSavingsPage(): React.ReactElement {
                   style={{ animationDelay: "320ms" }}
                 >
                   <button
-                    onClick={() => navigate("/login?returnTo=/owner/add")}
+                    onClick={() => {
+                      posthog?.capture("list_property_cta_clicked", { source_page: "savings_calculator" });
+                      navigate("/login?returnTo=/owner/add");
+                    }}
                     className="w-full sm:w-auto rounded-xl px-6 py-4 text-base font-semibold text-white transition"
                     style={{ background: C.accent, minHeight: 44 }}
                   >
@@ -1402,7 +1405,10 @@ export default function OwnerSavingsPage(): React.ReactElement {
 
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
               <button
-                onClick={() => navigate("/login?returnTo=/owner/add")}
+                onClick={() => {
+                  posthog?.capture("list_property_cta_clicked", { source_page: "savings_calculator" });
+                  navigate("/login?returnTo=/owner/add");
+                }}
                 className="rounded-2xl px-8 py-4 text-base font-semibold transition-all duration-200 hover:-translate-y-0.5"
                 style={{
                   background: "#FFFFFF",

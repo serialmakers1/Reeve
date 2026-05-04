@@ -423,12 +423,18 @@ export default function OwnerClarityGuide(): React.ReactElement {
   const [scrollPct, setScrollPct] = useState(0);
   const [activeSection, setActiveSection] = useState("");
   const ctaRef = useClaritySection("cta");
+  const clarityReadFired = useRef<boolean>(false);
 
   // Scroll progress
   useEffect(() => {
     const onScroll = () => {
       const max = document.documentElement.scrollHeight - window.innerHeight;
-      setScrollPct(max > 0 ? (window.scrollY / max) * 100 : 0);
+      const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
+      setScrollPct(pct);
+      if (pct >= 80 && !clarityReadFired.current) {
+        clarityReadFired.current = true;
+        posthog?.capture("owner_clarity_guide_read", { scroll_pct: 80 });
+      }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);

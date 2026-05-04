@@ -15,6 +15,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
+  const isOwnerIntent = returnTo === "/owner/add";
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [step, setStep] = useState<LoginStep>("phone");
@@ -146,6 +147,7 @@ export default function LoginPage() {
         const isNewUser = !data.user?.user_metadata?.full_name;
         posthog?.capture(isNewUser ? "signup_completed" : "login_completed", {
           method: "phone_otp",
+          ...(isOwnerIntent && { intent: "owner", return_to: returnTo }),
         });
         navigate(returnTo || "/", { replace: true });
       }

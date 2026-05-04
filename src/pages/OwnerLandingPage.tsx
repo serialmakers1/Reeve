@@ -1223,7 +1223,10 @@ export default function OwnerLandingPage(): React.ReactElement {
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <button
-                  onClick={() => navigate("/login?returnTo=/owner/add")}
+                  onClick={() => {
+                    posthog?.capture("list_property_cta_clicked", { source_page: "owners" });
+                    navigate("/login?returnTo=/owner/add");
+                  }}
                   className="rounded-2xl px-8 py-4 text-base font-semibold transition-all duration-200 hover:-translate-y-0.5"
                   style={{
                     background: "#FFFFFF",

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import posthog from "posthog-js";
 import Layout from "@/components/Layout";
 
 const FONT_SERIF = "'Instrument Serif', Georgia, serif";
@@ -65,6 +66,7 @@ export default function Index() {
                     to="/my-properties/new"
                     className="border border-slate-600 text-slate-300 px-6 py-3 rounded-lg font-medium hover:border-slate-400 hover:text-white transition-all duration-200 text-center min-h-[48px] flex items-center justify-center"
                     style={{ fontFamily: FONT_SANS }}
+                    onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "home" })}
                   >
                     List Your Property
                   </Link>
@@ -207,6 +209,7 @@ export default function Index() {
               <Link
                 to="/my-properties/new"
                 className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-all duration-200 min-h-[48px] flex items-center justify-center"
+                onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "home" })}
               >
                 List Your Property
               </Link>

@@ -121,3 +121,7 @@
 ## [2026-05-03] perf | Logo dims, hero LCP fade removed, contrast fix [12:30 IST]
 
 ## [2026-05-03] feat | Created public/llms.txt and public/llms-full.txt for AI agent discoverability [14:04 IST]
+
+## [2026-05-05] diagnose | PostHog owner funnel tracking audit — listed gaps for 5 funnel steps [11:30 IST]
+
+## [2026-05-05] feat | Instrumented PostHog owner funnel — 5 events across 6 files [12:15 IST]

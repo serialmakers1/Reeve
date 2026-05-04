@@ -279,3 +279,10 @@ All DB indexes follow `idx_<table>_<column>` (confirmed from existing indexes: `
 
 ## Undocumented Tables (beyond the 23 in Database Tables section)
 `external_queries`, `property_inspections`, `inspection_appliances`, `inspection_rooms` — exist in DB, not yet in active frontend use. FKs confirmed in pg_constraint.
+
+## PostHog Patterns
+- Always use `posthog?.capture(...)` — optional chaining is mandatory. Never bare `posthog.capture(...)`.
+- Owner acquisition funnel events: `list_property_cta_clicked` (source_page) → `signup_completed` (intent:'owner') → `property_form_started` → `property_submitted` → `owner_clarity_guide_read`.
+- Owner intent is threaded through login via `returnTo=/owner/add` query param. `isOwnerIntent = returnTo === '/owner/add'` in Login.tsx; spread `{ intent: 'owner', return_to: returnTo }` onto `signup_completed` when true.
+- `list_property_cta_clicked` fires on all 8 "List Your Property" CTAs across Header (×2), Footer, Index (×2), OwnerLandingPage, OwnerSavingsCalculator (×2). source_page values: 'header'|'footer'|'home'|'owners'|'savings_calculator'.
+- Scroll-depth events: use `useRef<boolean>` to fire-once. Pattern used in OwnerClarityGuide for `owner_clarity_guide_read` at 80% scroll.
