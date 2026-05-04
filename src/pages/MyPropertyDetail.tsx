@@ -343,7 +343,7 @@ const FAQS = [
   },
   {
     q: "How does rent collection work?",
-    a: "Reeve collects rent from the tenant and transfers it to your account after deducting the Reeve fee, typically within 2 business days after receipt of rent.",
+    a: "Reeve collects rent from the tenant and transfers it to your account, typically within 2 business days after receipt of rent.",
   },
 ];
 
