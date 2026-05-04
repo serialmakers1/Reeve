@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -29,6 +30,10 @@ export default function MyPropertyNew() {
   const [furnishing, setFurnishing] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    posthog?.capture("property_form_started");
+  }, []);
 
   if (loading) {
     return (
@@ -93,6 +98,10 @@ export default function MyPropertyNew() {
       return;
     }
 
+    posthog?.capture("property_submitted", {
+      city: payload.city ?? undefined,
+      bhk: payload.bhk ?? undefined,
+    });
     console.log("[AddProperty] success — redirecting");
     toast.success("Property added");
     navigate("/my-properties", { replace: true });

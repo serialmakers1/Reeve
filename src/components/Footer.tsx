@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Linkedin, Twitter } from "lucide-react";
+import posthog from "posthog-js";
 
 const Footer = () => {
   return (
@@ -51,7 +52,7 @@ const Footer = () => {
             <h3 className="text-white font-semibold text-sm mb-3">For Owners</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/my-properties/new" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/my-properties/new" className="text-gray-400 text-sm hover:text-white transition-colors" onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "footer" })}>
                   List Your Property
                 </Link>
               </li>

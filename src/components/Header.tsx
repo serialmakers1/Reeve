@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import posthog from "posthog-js";
 import logo from "@/assets/Logo.svg";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -112,6 +113,7 @@ const Header = () => {
                 <Link
                   to="/my-properties/new"
                   className="bg-[#2563EB] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200 hover:-translate-y-0.5"
+                  onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "header" })}
                 >
                   List Your Property
                 </Link>
@@ -206,7 +208,10 @@ const Header = () => {
                     <Link
                       to="/my-properties/new"
                       className="block w-full text-center bg-[#2563EB] text-white text-sm font-medium rounded-lg py-3"
-                      onClick={() => setIsMobileMenuOpen(false)}
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        posthog?.capture("list_property_cta_clicked", { source_page: "header" });
+                      }}
                     >
                       List Your Property
                     </Link>
