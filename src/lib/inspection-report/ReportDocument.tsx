@@ -1,0 +1,51 @@
+import React from 'react';
+import { Document, Page } from '@react-pdf/renderer';
+import { styles } from './styles';
+import { PageHeader } from './sections/PageHeader';
+import { PageFooter } from './sections/PageFooter';
+import { CoverBlock } from './sections/CoverBlock';
+import { UtilitiesSection } from './sections/UtilitiesSection';
+import { RoomsSection } from './sections/RoomsSection';
+import { AppliancesSection } from './sections/AppliancesSection';
+import { DamagesSection } from './sections/DamagesSection';
+import { NotesSection } from './sections/NotesSection';
+import { SignatureBlock } from './sections/SignatureBlock';
+import type { ReportPayload } from './types';
+
+// Extra top/bottom margin inside the page to clear the fixed header (52pt) and footer (28pt).
+const BODY_PADDING = { paddingTop: 58, paddingBottom: 38 };
+
+interface Props {
+  payload: ReportPayload;
+}
+
+export function ReportDocument({ payload }: Props) {
+  const { property, generatedAt, reportType } = payload;
+
+  return (
+    <Document
+      title={`${reportType} — ${property.building_name}`}
+      author="Reeve Property Management"
+      subject={`Inspection Report: ${property.building_name}`}
+      creator="Reeve"
+      producer="Reeve / @react-pdf/renderer"
+    >
+      <Page size="A4" style={[styles.page, BODY_PADDING]}>
+        <PageHeader reportType={reportType} />
+        <PageFooter
+          propertyId={property.id}
+          buildingName={property.building_name}
+          generatedAt={generatedAt}
+        />
+
+        <CoverBlock payload={payload} />
+        <UtilitiesSection utilitiesOverview={payload.utilitiesOverview} />
+        <RoomsSection rooms={payload.rooms} />
+        <AppliancesSection appliances={payload.appliances} />
+        <DamagesSection damages={payload.damages} />
+        <NotesSection inspection={payload.inspection} />
+        <SignatureBlock reportType={reportType} />
+      </Page>
+    </Document>
+  );
+}

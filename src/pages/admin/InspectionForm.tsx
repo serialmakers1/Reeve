@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { UtilityKey } from "@/lib/inspection-report/types";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Check, ChevronDown, Download, Loader2, Plus, Trash2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { ExportReportDialog } from "@/components/admin/ExportReportDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +37,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 type OwnerRelation = { full_name: string | null } | { full_name: string | null }[] | null;
 
-type PropertyRecord = {
+export type PropertyRecord = {
   id: string;
   building_name: string;
   flat_number: string | null;
@@ -46,7 +48,7 @@ type PropertyRecord = {
   users: OwnerRelation;
 };
 
-type InspectionRecord = {
+export type InspectionRecord = {
   id: string;
   property_id: string;
   inspector_user_id: string;
@@ -83,13 +85,13 @@ type RoomRecord = {
   overall_room_notes: string | null;
 };
 
-type LocalRoom = RoomRecord & {
+export type LocalRoom = RoomRecord & {
   is_auto_generated: boolean;
   room_features: unknown;
   furniture_items: unknown;
 };
 
-type LocalAppliance = {
+export type LocalAppliance = {
   id: string;
   inspection_id: string;
   appliance_type: string;
@@ -106,7 +108,7 @@ type LocalAppliance = {
   is_local_only?: boolean;
 };
 
-type DamageItem = {
+export type DamageItem = {
   localId: string;
   location: string;
   damage_type: string;
@@ -348,6 +350,11 @@ function buildDefaultRooms(bhk: string, inspectionId: string, balconyCount: numb
   return [...baseRooms, ...balconyRooms];
 }
 
+// Allows ExportReportDialog (prompt C) to imperatively flush pending debounced
+// saves before generating a PDF. Assigned fresh on every render so it always
+// captures the latest closure over refs and state.
+export const inspectionFlushRef: { current: (() => Promise<void>) | null } = { current: null };
+
 export default function InspectionForm() {
   const { propertyId } = useParams();
   const navigate = useNavigate();
@@ -365,6 +372,7 @@ export default function InspectionForm() {
   const [newRoomType, setNewRoomType] = useState<RoomTypeOption | "">("");
   const [newRoomLabel, setNewRoomLabel] = useState("");
   const [submittingCompletion, setSubmittingCompletion] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [utilitiesOverview, setUtilitiesOverview] = useState<Record<string, any>>({});
 
   const debounceRef = useRef<number | null>(null);
@@ -515,6 +523,12 @@ export default function InspectionForm() {
   };
 
   const flushPendingSaves = async () => {
+    // Cancel any queued debounce so the timer doesn't fire a second time after
+    // an explicit flush (e.g. triggered by ExportReportDialog).
+    if (debounceRef.current) {
+      window.clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
     const currentInspection = inspectionRef.current;
     if (!currentInspection) {
       setSaveState("saved");
@@ -650,7 +664,7 @@ export default function InspectionForm() {
     queueRoomPatch(roomId, { [field]: value || null });
   };
 
-  const updateUtility = (key: string, value: any) => {
+  const updateUtility = (key: UtilityKey, value: any) => {
     markInspectionStarted();
     setUtilitiesOverview(prev => {
       const next = { ...prev, [key]: value };
@@ -881,63 +895,13 @@ export default function InspectionForm() {
 
   const statusConfig = STATUS_CONFIG[inspection.status] ?? STATUS_CONFIG.scheduled;
 
+  // Keep module-level ref pointing to the latest closure so ExportReportDialog
+  // can call it without stale-closure issues.
+  inspectionFlushRef.current = flushPendingSaves;
+
   return (
     <AdminLayout>
-      <style>{`
-        .inspection-print-title { display: none; }
-        @media print {
-          aside,
-          header,
-          .inspection-print-hide,
-          .inspection-action-bar {
-            display: none !important;
-          }
-
-          .inspection-print-root {
-            padding: 0 !important;
-          }
-
-          main {
-            padding: 0 !important;
-            overflow: visible !important;
-          }
-
-          .inspection-print-title {
-            display: block !important;
-            margin-bottom: 24px;
-          }
-
-          .inspection-room-content {
-            height: auto !important;
-            overflow: visible !important;
-            display: block !important;
-          }
-
-          .inspection-room-trigger {
-            pointer-events: none !important;
-          }
-
-          .inspection-card {
-            box-shadow: none !important;
-            break-inside: avoid;
-            page-break-inside: avoid;
-          }
-
-          .inspection-print-section {
-            break-before: page;
-            page-break-before: always;
-          }
-
-          body {
-            background: white !important;
-          }
-        }
-      `}</style>
-
-      <div className="inspection-print-root space-y-6 pb-28">
-        <div className="inspection-print-title">
-          <h1 className="text-3xl font-bold">Property Baseline Report</h1>
-        </div>
+      <div className="space-y-6 pb-28">
 
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -1483,7 +1447,7 @@ export default function InspectionForm() {
           </CardContent>
         </Card>
 
-        <Card className="inspection-card inspection-print-section">
+        <Card className="inspection-card">
           <CardHeader>
             <CardTitle>Room-by-Room Assessment</CardTitle>
           </CardHeader>
@@ -1505,7 +1469,7 @@ export default function InspectionForm() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="inspection-print-hide h-8 w-8"
+                          className="h-8 w-8"
                           onClick={() => void handleRemoveRoom(room.id)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -2390,7 +2354,7 @@ export default function InspectionForm() {
               })}
             </Accordion>
 
-            <div className="inspection-print-hide space-y-4 border-t pt-4">
+            <div className="space-y-4 border-t pt-4">
               <Button type="button" variant="outline" onClick={() => setShowAddRoom((current) => !current)}>
                 <Plus className="h-4 w-4" />
                 Add Room
@@ -2435,7 +2399,7 @@ export default function InspectionForm() {
           </CardContent>
         </Card>
 
-        <Card className="inspection-card inspection-print-section">
+        <Card className="inspection-card">
           <CardHeader>
             <CardTitle>Appliance Inventory</CardTitle>
           </CardHeader>
@@ -2455,7 +2419,7 @@ export default function InspectionForm() {
                     <TableHead>Notes</TableHead>
                     <TableHead>Serial No.</TableHead>
                     <TableHead>Last Service</TableHead>
-                    <TableHead className="inspection-print-hide w-10" />
+                    <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -2573,7 +2537,7 @@ export default function InspectionForm() {
                           onBlur={(event) => updateApplianceField(appliance.id, "last_service_date", event.target.value)}
                         />
                       </TableCell>
-                      <TableCell className="inspection-print-hide">
+                      <TableCell>
                         <Button type="button" variant="ghost" size="icon" onClick={() => void handleDeleteAppliance(appliance)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -2584,14 +2548,14 @@ export default function InspectionForm() {
               </Table>
             </div>
 
-            <Button type="button" variant="outline" className="inspection-print-hide" onClick={handleAddAppliance}>
+            <Button type="button" variant="outline" onClick={handleAddAppliance}>
               <Plus className="h-4 w-4" />
               Add Appliance
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="inspection-card inspection-print-section">
+        <Card className="inspection-card">
           <CardHeader>
             <CardTitle>Pre-Existing Damage Log</CardTitle>
             <p className="text-sm text-accent-foreground">Items documented here are NOT tenant or platform liability</p>
@@ -2603,7 +2567,7 @@ export default function InspectionForm() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="inspection-print-hide absolute right-3 top-3 h-8 w-8"
+                  className="absolute right-3 top-3 h-8 w-8"
                   onClick={() => handleDeleteDamageItem(item.localId)}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -2665,14 +2629,14 @@ export default function InspectionForm() {
               </div>
             ))}
 
-            <Button type="button" variant="outline" className="inspection-print-hide" onClick={handleAddDamageItem}>
+            <Button type="button" variant="outline" onClick={handleAddDamageItem}>
               <Plus className="h-4 w-4" />
               Add Damage Item
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="inspection-card inspection-print-section">
+        <Card className="inspection-card">
           <CardHeader>
             <CardTitle>General Observations & Inspector Notes</CardTitle>
           </CardHeader>
@@ -2714,15 +2678,32 @@ export default function InspectionForm() {
               </Button>
             ) : null}
 
-            {inspection.status === "completed" ? (
-              <Button type="button" variant="outline" onClick={() => window.print()}>
-                <Download className="h-4 w-4" />
-                Download PBR
-              </Button>
-            ) : null}
+            <Button
+              type="button"
+              onClick={() => setExportDialogOpen(true)}
+              disabled={!inspection || !property}
+            >
+              <Download className="h-4 w-4" />
+              Export Report
+            </Button>
           </div>
         </div>
       </div>
+
+      <ExportReportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        payloadBase={{
+          property,
+          inspection,
+          rooms,
+          appliances,
+          damages,
+          utilitiesOverview,
+          ownerName,
+        }}
+        flushPendingSaves={flushPendingSaves}
+      />
     </AdminLayout>
   );
 }

@@ -125,3 +125,8 @@
 ## [2026-05-05] diagnose | PostHog owner funnel tracking audit — listed gaps for 5 funnel steps [11:30 IST]
 
 ## [2026-05-05] feat | Instrumented PostHog owner funnel — 5 events across 6 files [12:15 IST]
+
+## [2026-05-17] diagnose | Inspection report PDF export — surveyed codebase, produced diagnosis [IST]
+## [2026-05-17] feat | Export dialog + form integration; removed window.print flow [23:55 IST]
+## [2026-05-17] feat | PDF document & generator for inspection reports — 9 sections, ReportDocument, generate.ts, dev test button [23:40 IST]
+## [2026-05-17] feat | Foundations for inspection report PDF export (migration, deps, types, formatters) [23:18 IST]
