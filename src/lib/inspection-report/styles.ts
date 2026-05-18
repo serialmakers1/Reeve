@@ -11,26 +11,22 @@ export const BRAND = {
 let fontsRegistered = false;
 
 // Call once before rendering any PDF. Safe to call multiple times.
+// @react-pdf/renderer ships Helvetica built-in (no fetch required).
+// We previously tried Inter via CDN — both woff2 and CDN-path issues kept
+// breaking generation. Helvetica is universally accepted for legal documents
+// and removes all network dependency from PDF rendering.
 export function registerFonts(): void {
-  if (fontsRegistered) return;
-  const base = 'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.1.1/files';
-  Font.register({
-    family: 'Inter',
-    fonts: [
-      { src: `${base}/inter-latin-400-normal.ttf`, fontWeight: 400 },
-      { src: `${base}/inter-latin-500-normal.ttf`, fontWeight: 500 },
-      { src: `${base}/inter-latin-700-normal.ttf`, fontWeight: 700 },
-    ],
-  });
-  fontsRegistered = true;
+  // Intentional no-op. Helvetica is the @react-pdf/renderer default and
+  // requires no registration. This function is kept as a stable entry point
+  // in case we re-introduce custom fonts later.
+  return;
 }
-
 // Base style sheet shared across all report sections.
 // Individual section components in prompt B will create their own StyleSheet
 // entries and can spread/extend these.
 export const styles = StyleSheet.create({
   page: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 10,
     color: BRAND.foreground,
     paddingTop: 36,
