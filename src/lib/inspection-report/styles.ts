@@ -17,9 +17,9 @@ export function registerFonts(): void {
   Font.register({
     family: 'Inter',
     fonts: [
-      { src: `${base}/inter-latin-400-normal.woff2`, fontWeight: 400 },
-      { src: `${base}/inter-latin-500-normal.woff2`, fontWeight: 500 },
-      { src: `${base}/inter-latin-700-normal.woff2`, fontWeight: 700 },
+      { src: `${base}/inter-latin-400-normal.ttf`, fontWeight: 400 },
+      { src: `${base}/inter-latin-500-normal.ttf`, fontWeight: 500 },
+      { src: `${base}/inter-latin-700-normal.ttf`, fontWeight: 700 },
     ],
   });
   fontsRegistered = true;
