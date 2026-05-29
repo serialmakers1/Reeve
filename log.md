@@ -130,3 +130,4 @@
 ## [2026-05-17] feat | Export dialog + form integration; removed window.print flow [23:55 IST]
 ## [2026-05-17] feat | PDF document & generator for inspection reports — 9 sections, ReportDocument, generate.ts, dev test button [23:40 IST]
 ## [2026-05-17] feat | Foundations for inspection report PDF export (migration, deps, types, formatters) [23:18 IST]
+## [2026-05-29] feat | Added legal disclaimer section to inspection report PDFs [18:20 IST]

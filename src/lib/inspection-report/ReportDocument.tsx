@@ -10,6 +10,7 @@ import { AppliancesSection } from './sections/AppliancesSection';
 import { DamagesSection } from './sections/DamagesSection';
 import { NotesSection } from './sections/NotesSection';
 import { SignatureBlock } from './sections/SignatureBlock';
+import { DisclaimerSection } from './sections/DisclaimerSection';
 import type { ReportPayload } from './types';
 
 // Extra top/bottom margin inside the page to clear the fixed header (52pt) and footer (28pt).
@@ -45,6 +46,7 @@ export function ReportDocument({ payload }: Props) {
         <DamagesSection damages={payload.damages} />
         <NotesSection inspection={payload.inspection} />
         <SignatureBlock reportType={reportType} />
+        <DisclaimerSection />
       </Page>
     </Document>
   );
