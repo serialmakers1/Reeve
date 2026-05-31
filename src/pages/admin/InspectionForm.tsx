@@ -116,7 +116,7 @@ export type DamageItem = {
   notes: string;
 };
 
-type SaveState = "saving" | "saved";
+type SaveState = "saving" | "saved" | "failed";
 
 type RoomTypeOption =
   | "living_room"
@@ -604,8 +604,39 @@ export default function InspectionForm() {
       )));
       setSaveState("saved");
     } catch (error: any) {
+      // Failed save — restore patches into pending refs so the next edit or a
+      // manual retry via the save indicator picks them up automatically.
+      //
+      // Merge order matters: any edits the user made WHILE this flush was in
+      // flight have already accumulated in pendingXxxRef.current (the refs were
+      // cleared synchronously at lines 542–544, so in-flight edits wrote into
+      // the freshly-emptied objects). Those newer values MUST win over the
+      // older failed values captured in the local variables.
+      //
+      // Correct: { ...failedValue, ...newerCurrentValue }
+      //   → newerCurrentValue's keys overwrite failedValue's keys.
+      // Wrong:  { ...newerCurrentValue, ...failedValue }
+      //   → would overwrite the user's in-flight edits with stale data.
+      pendingInspectionPatchRef.current = {
+        ...inspectionPatch,
+        ...pendingInspectionPatchRef.current,
+      };
+      for (const [roomId, patch] of Object.entries(roomPatches)) {
+        pendingRoomPatchRef.current[roomId] = {
+          ...patch,
+          ...(pendingRoomPatchRef.current[roomId] ?? {}),
+        };
+      }
+      for (const [applianceId, appliance] of Object.entries(appliancePatches)) {
+        // Appliances are full objects, not partial patches. If the user already
+        // queued a newer version while this flush was in flight, keep theirs.
+        // Otherwise restore the one that failed to save.
+        if (!pendingApplianceRef.current[applianceId]) {
+          pendingApplianceRef.current[applianceId] = appliance;
+        }
+      }
       toast({ title: "Autosave failed", description: error.message, variant: "destructive" });
-      setSaveState("saved");
+      setSaveState("failed");
     }
   };
 
@@ -830,6 +861,12 @@ export default function InspectionForm() {
   };
 
   const handleMarkCompleted = async () => {
+    // Commit any pending debounced edits before the completion update fires.
+    // Without this, the 500ms debounce can fire after the completion update
+    // commits and overwrite status: "completed" back to "in_progress" (because
+    // markInspectionStarted may have written that into the pending patch).
+    // flushPendingSaves has its own internal try/catch and never throws.
+    await flushPendingSaves();
     if (!inspection || !propertyId) return;
     setSubmittingCompletion(true);
     try {
@@ -908,11 +945,21 @@ export default function InspectionForm() {
             <h1 className="text-2xl font-bold">Inspection Form</h1>
             <p className="text-sm text-muted-foreground">Complete the baseline property inspection and save as you go.</p>
           </div>
-          <div className={cn(
-            "shrink-0 text-sm font-medium",
-            saveState === "saving" ? "text-muted-foreground" : "text-primary",
-          )}>
-            {saveState === "saving" ? "Saving..." : "Saved ✓"}
+          <div
+            className={cn(
+              "shrink-0 text-sm font-medium",
+              saveState === "saving" && "text-muted-foreground",
+              saveState === "saved" && "text-primary",
+              saveState === "failed" && "cursor-pointer text-destructive",
+            )}
+            role={saveState === "failed" ? "button" : undefined}
+            tabIndex={saveState === "failed" ? 0 : undefined}
+            onClick={saveState === "failed" ? () => {
+              setSaveState("saving");
+              void flushPendingSaves();
+            } : undefined}
+          >
+            {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved ✓" : "Save failed — tap to retry"}
           </div>
         </div>
 
