@@ -131,3 +131,5 @@
 ## [2026-05-17] feat | PDF document & generator for inspection reports — 9 sections, ReportDocument, generate.ts, dev test button [23:40 IST]
 ## [2026-05-17] feat | Foundations for inspection report PDF export (migration, deps, types, formatters) [23:18 IST]
 ## [2026-05-29] feat | Added legal disclaimer section to inspection report PDFs [18:20 IST]
+## [2026-05-29] diagnose | Inspection form resilience audit — surveyed save flow, identified loss paths [18:50 IST]
+## [2026-05-29] fix | InspectionForm save resilience: re-populate refs on failure, surface failed state with retry, flush before completion [19:15 IST]
