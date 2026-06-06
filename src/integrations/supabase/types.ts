@@ -2300,6 +2300,7 @@ export type Database = {
           id: string
           inspector_notes: string | null
           inspector_user_id: string
+          media_drive_link: string | null
           mode: Database["public"]["Enums"]["inspection_mode"] | null
           owner_signed_off: boolean
           pbr_generated_at: string | null
@@ -2318,6 +2319,7 @@ export type Database = {
           id?: string
           inspector_notes?: string | null
           inspector_user_id: string
+          media_drive_link?: string | null
           mode?: Database["public"]["Enums"]["inspection_mode"] | null
           owner_signed_off?: boolean
           pbr_generated_at?: string | null
@@ -2336,6 +2338,7 @@ export type Database = {
           id?: string
           inspector_notes?: string | null
           inspector_user_id?: string
+          media_drive_link?: string | null
           mode?: Database["public"]["Enums"]["inspection_mode"] | null
           owner_signed_off?: boolean
           pbr_generated_at?: string | null

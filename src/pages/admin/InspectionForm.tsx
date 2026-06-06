@@ -59,6 +59,7 @@ export type InspectionRecord = {
   general_observations: string | null;
   pre_existing_damages: unknown;
   inspector_notes: string | null;
+  media_drive_link: string | null;
   pbr_generated_at: string | null;
   utilities_overview: unknown;
   structural_observations: unknown;
@@ -2706,6 +2707,20 @@ export default function InspectionForm() {
                 onBlur={(event) => updateInspectionField("inspector_notes", event.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="media-drive-link">Photo & Video Walkthrough (Google Drive link)</Label>
+              <Input
+                id="media-drive-link"
+                type="url"
+                placeholder="https://drive.google.com/..."
+                value={inspection.media_drive_link ?? ""}
+                onChange={(event) => updateInspectionField("media_drive_link", event.target.value || null)}
+                onBlur={(event) => updateInspectionField("media_drive_link", event.target.value || null)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Paste the Google Drive folder link containing photos and video walkthrough. Shown in the exported PDF.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -2748,6 +2763,7 @@ export default function InspectionForm() {
           damages,
           utilitiesOverview,
           ownerName,
+          mediaDriveLink: inspection.media_drive_link,
         }}
         flushPendingSaves={flushPendingSaves}
       />
