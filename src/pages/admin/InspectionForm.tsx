@@ -73,6 +73,7 @@ type RoomRecord = {
   sort_order: number;
   walls_condition: string | null;
   walls_notes: string | null;
+  paint_condition: string | null;
   flooring_condition: string | null;
   flooring_notes: string | null;
   ceiling_condition: string | null;
@@ -163,6 +164,14 @@ const ROOM_CONDITION_OPTIONS = [
   { value: "minor_wear", label: "Minor Wear" },
   { value: "moderate_damage", label: "Moderate Damage" },
   { value: "severe_damage", label: "Severe Damage" },
+] as const;
+
+const PAINT_CONDITION_OPTIONS = [
+  { value: "fresh",                 label: "Fresh" },
+  { value: "faded",                 label: "Faded" },
+  { value: "marked",                label: "Marked" },
+  { value: "touch_up_required",     label: "Requires Touch-up" },
+  { value: "full_repaint_required", label: "Requires Full Repaint" },
 ] as const;
 
 const APPLIANCE_TYPE_OPTIONS = [
@@ -1547,6 +1556,24 @@ export default function InspectionForm() {
                                   ))}
                                 </SelectContent>
                               </Select>
+                              {section.key === "walls" && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground font-normal">Paint condition</Label>
+                                  <Select
+                                    value={room.paint_condition ?? undefined}
+                                    onValueChange={(value) => updateRoomField(room.id, "paint_condition", value)}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select paint condition" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {PAINT_CONDITION_OPTIONS.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
                               <Textarea
                                 rows={2}
                                 placeholder="Add notes..."

@@ -27,6 +27,16 @@ const ROOM_CONDITION_LABELS: Record<string, string> = {
   severe_damage:    'Severe Damage',
 };
 
+// Maps paint_condition DB values → human-readable labels.
+// Mirrors PAINT_CONDITION_OPTIONS in InspectionForm.tsx.
+const PAINT_CONDITION_LABELS: Record<string, string> = {
+  fresh:                'Fresh',
+  faded:                'Faded',
+  marked:               'Marked',
+  touch_up_required:    'Requires Touch-up',
+  full_repaint_required:'Requires Full Repaint',
+};
+
 const SURFACE_FIELDS: Array<{ label: string; condKey: keyof LocalRoom; notesKey: keyof LocalRoom }> = [
   { label: 'Walls',           condKey: 'walls_condition',          notesKey: 'walls_notes' },
   { label: 'Flooring',        condKey: 'flooring_condition',       notesKey: 'flooring_notes' },
@@ -81,6 +91,8 @@ const s = StyleSheet.create({
   },
   value: { fontSize: 9, color: BRAND.foreground },
   notes: { fontSize: 9, color: BRAND.mutedForeground, marginTop: 4 },
+  paintLine: { fontSize: 9, color: BRAND.foreground, marginTop: 3 },
+  paintLabelPart: { fontSize: 9, color: BRAND.mutedForeground },
 
   // ── In-card group header (features + furniture subsection headers) ──────────
   inCardGroupHeader: {
@@ -191,13 +203,24 @@ function RoomCard({ room }: { room: LocalRoom }) {
           {SURFACE_FIELDS.map((f) => {
             const cond = room[f.condKey] as string | null;
             const notes = room[f.notesKey] as string | null;
-            if (!cond && !notes) return null;
+            const isWalls = f.condKey === 'walls_condition';
+            const paintCond = isWalls ? room.paint_condition : null;
+            // Skip the field entirely if there is nothing to show.
+            // For walls: also render if only paint_condition is set.
+            if (!cond && !notes && !paintCond) return null;
             return (
               <View key={f.label} style={s.field}>
                 <Text style={s.label}>{f.label}</Text>
                 {/* Apply ROOM_CONDITION_LABELS to fix pre-existing raw-value display */}
                 <Text style={s.value}>{cond ? (ROOM_CONDITION_LABELS[cond] ?? cond) : '—'}</Text>
                 {notes ? <Text style={s.notes}>{notes}</Text> : null}
+                {/* Paint condition — walls only, omit when null */}
+                {isWalls && paintCond ? (
+                  <Text style={s.paintLine}>
+                    <Text style={s.paintLabelPart}>Paint: </Text>
+                    {PAINT_CONDITION_LABELS[paintCond] ?? paintCond}
+                  </Text>
+                ) : null}
               </View>
             );
           })}

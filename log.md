@@ -136,3 +136,4 @@
 ## [2026-06-05] diagnose | Audit 4 PDF/form issues: BHK duplication, paint condition, drive link, features+furniture missing [14:30 IST]
 ## [2026-06-05] fix | PDF render fixes: BHK formatting, furniture and room features now visible [17:45 IST]
 ## [2026-06-06] feat | Add Google Drive walkthrough link to inspection form and PDF [11:20 IST]
+## [2026-06-06] feat | Add paint_condition field to inspection rooms (form + PDF) [11:40 IST]

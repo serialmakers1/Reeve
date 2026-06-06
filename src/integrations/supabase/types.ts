@@ -978,6 +978,7 @@ export type Database = {
           id: string
           inspection_id: string
           overall_room_notes: string | null
+          paint_condition: string | null
           plumbing_condition:
             | Database["public"]["Enums"]["room_condition"]
             | null
@@ -1012,6 +1013,7 @@ export type Database = {
           id?: string
           inspection_id: string
           overall_room_notes?: string | null
+          paint_condition?: string | null
           plumbing_condition?:
             | Database["public"]["Enums"]["room_condition"]
             | null
@@ -1046,6 +1048,7 @@ export type Database = {
           id?: string
           inspection_id?: string
           overall_room_notes?: string | null
+          paint_condition?: string | null
           plumbing_condition?:
             | Database["public"]["Enums"]["room_condition"]
             | null
