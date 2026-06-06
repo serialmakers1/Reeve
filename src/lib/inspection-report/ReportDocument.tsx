@@ -10,6 +10,7 @@ import { AppliancesSection } from './sections/AppliancesSection';
 import { DamagesSection } from './sections/DamagesSection';
 import { NotesSection } from './sections/NotesSection';
 import { SignatureBlock } from './sections/SignatureBlock';
+import { MediaLinkSection } from './sections/MediaLinkSection';
 import { DisclaimerSection } from './sections/DisclaimerSection';
 import type { ReportPayload } from './types';
 
@@ -46,6 +47,7 @@ export function ReportDocument({ payload }: Props) {
         <DamagesSection damages={payload.damages} />
         <NotesSection inspection={payload.inspection} />
         <SignatureBlock reportType={reportType} />
+        <MediaLinkSection link={payload.mediaDriveLink} />
         <DisclaimerSection />
       </Page>
     </Document>

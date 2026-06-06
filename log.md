@@ -133,3 +133,6 @@
 ## [2026-05-29] feat | Added legal disclaimer section to inspection report PDFs [18:20 IST]
 ## [2026-05-29] diagnose | Inspection form resilience audit — surveyed save flow, identified loss paths [18:50 IST]
 ## [2026-05-29] fix | InspectionForm save resilience: re-populate refs on failure, surface failed state with retry, flush before completion [19:15 IST]
+## [2026-06-05] diagnose | Audit 4 PDF/form issues: BHK duplication, paint condition, drive link, features+furniture missing [14:30 IST]
+## [2026-06-05] fix | PDF render fixes: BHK formatting, furniture and room features now visible [17:45 IST]
+## [2026-06-06] feat | Add Google Drive walkthrough link to inspection form and PDF [11:20 IST]

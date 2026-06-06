@@ -137,4 +137,6 @@ export interface ReportPayload {
   utilitiesOverview: Partial<Record<UtilityKey, unknown>>;
   ownerName: string;
   generatedAt: Date;
+  /** Optional Google Drive folder URL with inspection photos/video. Rendered in PDF if present. */
+  mediaDriveLink?: string | null;
 }

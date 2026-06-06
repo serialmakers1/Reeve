@@ -40,6 +40,7 @@ export interface ExportReportDialogProps {
     damages: DamageItem[];
     utilitiesOverview: Partial<Record<UtilityKey, unknown>>;
     ownerName: string;
+    mediaDriveLink?: string | null;
   };
   flushPendingSaves: () => Promise<void>;
 }
