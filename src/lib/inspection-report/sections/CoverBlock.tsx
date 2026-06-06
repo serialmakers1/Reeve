@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { BRAND } from '../styles';
+import { formatBhk } from '@/lib/propertyStatus';
 import { REPORT_TYPE_META } from '../types';
 import { formatINDate, formatINDateTimeIST } from '../formatters';
 import type { ReportPayload } from '../types';
@@ -88,7 +89,7 @@ export function CoverBlock({ payload }: Props) {
         <Field label="Owner" value={ownerName} />
         <Field label="Inspection Date" value={formatINDate(inspection.actual_date ?? inspection.scheduled_date)} />
         <Field label="Inspector" value={inspectorName} />
-        <Field label="BHK" value={property.bhk ? `${property.bhk} BHK` : '—'} />
+        <Field label="BHK" value={formatBhk(property.bhk)} />
         <Field label="Status" value={inspection.status} />
         <Field label="Generated" value={formatINDateTimeIST(generatedAt)} />
         <Field label="Inspection Ref" value={inspection.id.slice(0, 8).toUpperCase()} />
