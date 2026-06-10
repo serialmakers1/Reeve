@@ -14,6 +14,10 @@ npm run build      # production build (runs postbuild: sitemap + SSG prerender)
 npm run lint       # eslint
 npm run test       # vitest
 
+## Typecheck (IMPORTANT)
+- Correct command: `npx tsc -p tsconfig.app.json --noEmit` — NOT `npx tsc --noEmit`, which checks ZERO files (root tsconfig has `"files": []` + project references).
+- ~420 pre-existing errors are baseline noise from Supabase generated types (query generic inference); they do NOT block the vite build. Verify by diffing against this baseline, not expecting zero. New TS2304/TS2552 (unresolved identifier) errors in touched files = runtime crashes vite won't catch.
+
 ## SSG (Static Site Generation)
 Approach: custom post-build prerender script — no SSR framework, no new dependencies.
 Script: `scripts/prerender.mjs` — runs automatically after `vite build` via `postbuild`.

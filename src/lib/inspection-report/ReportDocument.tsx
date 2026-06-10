@@ -4,11 +4,13 @@ import { styles } from './styles';
 import { PageHeader } from './sections/PageHeader';
 import { PageFooter } from './sections/PageFooter';
 import { CoverBlock } from './sections/CoverBlock';
+import { InspectionSummarySection } from './sections/InspectionSummarySection';
+import { DamagesSection } from './sections/DamagesSection';
 import { UtilitiesSection } from './sections/UtilitiesSection';
 import { RoomsSection } from './sections/RoomsSection';
 import { AppliancesSection } from './sections/AppliancesSection';
-import { DamagesSection } from './sections/DamagesSection';
 import { NotesSection } from './sections/NotesSection';
+import { KeyReturnSection } from './sections/KeyReturnSection';
 import { SignatureBlock } from './sections/SignatureBlock';
 import { MediaLinkSection } from './sections/MediaLinkSection';
 import { DisclaimerSection } from './sections/DisclaimerSection';
@@ -41,11 +43,13 @@ export function ReportDocument({ payload }: Props) {
         />
 
         <CoverBlock payload={payload} />
+        <InspectionSummarySection summary={payload.inspectionSummary} />
+        <DamagesSection damages={payload.damages} />
         <UtilitiesSection utilitiesOverview={payload.utilitiesOverview} />
         <RoomsSection rooms={payload.rooms} />
         <AppliancesSection appliances={payload.appliances} />
-        <DamagesSection damages={payload.damages} />
         <NotesSection inspection={payload.inspection} />
+        <KeyReturnSection keyReturn={payload.keyReturnSummary} />
         <SignatureBlock reportType={reportType} />
         <MediaLinkSection link={payload.mediaDriveLink} />
         <DisclaimerSection />

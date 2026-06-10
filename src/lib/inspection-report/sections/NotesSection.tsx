@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { BRAND, styles } from '../styles';
-import type { InspectionRecord } from '@/pages/admin/InspectionForm';
+import type { InspectionRecord } from '@/types/inspection';
 
 const s = StyleSheet.create({
   section: { marginBottom: 20 },

@@ -21,7 +21,7 @@ import type {
   LocalRoom,
   LocalAppliance,
   DamageItem,
-} from '@/pages/admin/InspectionForm';
+} from '@/types/inspection';
 
 type Stage = 'idle' | 'flushing' | 'recording' | 'preparing' | 'rendering' | 'done' | 'error';
 
@@ -43,6 +43,7 @@ export interface ExportReportDialogProps {
     mediaDriveLink?: string | null;
   };
   flushPendingSaves: () => Promise<void>;
+  onBeforeExport?: () => Promise<void>;
 }
 
 function buttonLabel(stage: Stage): string {
@@ -65,6 +66,7 @@ export function ExportReportDialog({
   onOpenChange,
   payloadBase,
   flushPendingSaves,
+  onBeforeExport,
 }: ExportReportDialogProps) {
   const { toast } = useToast();
   const [reportType, setReportType] = useState<ReportType>('PBR');
@@ -96,6 +98,8 @@ export function ExportReportDialog({
     try {
       setStage('flushing');
       await flushPendingSaves();
+      // Write derived condition snapshot + flush those patches before PDF generation
+      if (onBeforeExport) await onBeforeExport();
 
       setStage('recording');
       setStage(hasGeneratedBefore.current ? 'rendering' : 'preparing');
@@ -107,6 +111,8 @@ export function ExportReportDialog({
           reportType,
           inspectorName: inspectorName.trim(),
           generatedAt: new Date(),
+          inspectionSummary: payloadBase.inspection.inspection_summary,
+          keyReturnSummary: payloadBase.inspection.key_return_summary,
         },
         supabase,
         flushPendingSaves,

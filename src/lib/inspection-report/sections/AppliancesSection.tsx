@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { BRAND, styles } from '../styles';
 import { APPLIANCE_TYPE_LABELS, APPLIANCE_CONDITION_LABELS, APPLIANCE_OWNERSHIP_LABELS, labelOf } from '../applianceOptions';
-import type { LocalAppliance } from '@/pages/admin/InspectionForm';
+import type { LocalAppliance } from '@/types/inspection';
 
 const s = StyleSheet.create({
   section: { marginBottom: 20 },
