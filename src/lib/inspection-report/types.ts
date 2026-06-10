@@ -4,7 +4,7 @@ import type {
   LocalRoom,
   LocalAppliance,
   DamageItem,
-} from '@/pages/admin/InspectionForm';
+} from '@/types/inspection';
 
 // ── Report types ─────────────────────────────────────────────────────────────
 
@@ -139,4 +139,8 @@ export interface ReportPayload {
   generatedAt: Date;
   /** Optional Google Drive folder URL with inspection photos/video. Rendered in PDF if present. */
   mediaDriveLink?: string | null;
+  /** Inspection summary data from InspectionSummaryCard (overall_condition, cleaning, repainting, urgent_items, recommended_items). */
+  inspectionSummary?: unknown;
+  /** Key return tracking entries array from KeyReturnCard ({ id, label, requires_input, keys_expected, keys_found }[]). */
+  keyReturnSummary?: unknown;
 }

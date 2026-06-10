@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { BRAND, styles } from '../styles';
 import { ROOM_FEATURE_LABELS, FEATURE_GROUP_ORDER } from '../roomFeatureLabels';
-import type { LocalRoom } from '@/pages/admin/InspectionForm';
+import type { LocalRoom } from '@/types/inspection';
 
-// ── Local types ──────────────────────────────────────────────────────────────
+// ── Local types ───────────────────────────────────────────────────────────────
 
 type FurnitureItem = {
   id?: string;
@@ -17,18 +17,13 @@ type FurnitureItem = {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-// Maps raw room_condition enum values → human-readable labels.
-// Pre-existing issue fixed here: the old code rendered raw values like
-// "minor_wear" directly; now all condition strings go through this map.
 const ROOM_CONDITION_LABELS: Record<string, string> = {
-  good:             'Good',
-  minor_wear:       'Minor Wear',
-  moderate_damage:  'Moderate Damage',
-  severe_damage:    'Severe Damage',
+  good:             'Good Condition',
+  minor_wear:       'Fair — Normal Wear',
+  moderate_damage:  'Poor — Needs Repair',
+  severe_damage:    'Critical — Needs Replacement',
 };
 
-// Maps paint_condition DB values → human-readable labels.
-// Mirrors PAINT_CONDITION_OPTIONS in InspectionForm.tsx.
 const PAINT_CONDITION_LABELS: Record<string, string> = {
   fresh:                'Fresh',
   faded:                'Faded',
@@ -36,6 +31,41 @@ const PAINT_CONDITION_LABELS: Record<string, string> = {
   touch_up_required:    'Requires Touch-up',
   full_repaint_required:'Requires Full Repaint',
 };
+
+// ── Entry label maps (used by entry-array rendering) ─────────────────────────
+
+const WHICH_WALL: Record<string, string>   = { road_facing:'Road-facing', building_facing:'Building-facing', left_wall:'Left wall', right_wall:'Right wall', all_walls:'All walls', partition_wall:'Partition wall' };
+const FLR_ZONE: Record<string, string>     = { entire_room:'Entire room', near_entrance:'Near entrance', near_window:'Near window', near_bathroom:'Near bathroom', corner_area:'Corner area' };
+const FLR_TYPE: Record<string, string>     = { vitrified_tile:'Vitrified tile', ceramic_tile:'Ceramic tile', marble:'Marble', granite:'Granite', hardwood:'Hardwood', laminate:'Laminate', vinyl:'Vinyl', cement:'Cement', mosaic:'Mosaic', other:'Other' };
+const CEIL_AREA: Record<string, string>    = { entire_ceiling:'Entire ceiling', above_bed_area:'Above bed area', above_kitchen_slab:'Above kitchen slab', above_bathroom_area:'Above bathroom area', corner_area:'Corner area' };
+const FC_TYPE: Record<string, string>      = { none:'None', partial:'Partial', full:'Full' };
+const FC_MAT: Record<string, string>       = { gypsum:'Gypsum', pop:'POP', wood:'Wood', grid_tiles:'Grid + Tiles', other:'Other' };
+const DW_ITEM: Record<string, string>      = { main_door:'Main door', room_door:'Room door', bathroom_door:'Bathroom door', window:'Window', sliding_door:'Sliding door', french_door:'French door', balcony_door:'Balcony door' };
+const LOCK_LATCH: Record<string, string>   = { working:'Working', stiff:'Stiff', broken:'Broken', missing:'Missing' };
+const GLASS_COND: Record<string, string>   = { clear:'Clear', scratched:'Scratched', cracked:'Cracked', broken:'Broken' };
+const MESH: Record<string, string>         = { none:'None', present_intact:'Intact', present_torn:'Torn', missing:'Missing' };
+const SEEPAGE: Record<string, string>      = { none:'None', staining_dry:'Staining (dry)', active_dampness:'Active dampness', seepage_suspected:'Seepage suspected' };
+const ELEC_ITEM: Record<string, string>    = { fan:'Ceiling fan', light:'Light fixture', switchboard:'Switchboard', mcb_db:'MCB/DB box', ac_point:'AC point', exhaust_fan:'Exhaust fan', geyser_point:'Geyser point', socket:'Socket', other:'Other' };
+const ELEC_STATUS: Record<string, string>  = { working:'Working', not_working:'Not working', flickering:'Flickering', damaged:'Damaged', loose:'Loose/unsafe', missing:'Missing' };
+const PLUMB_ITEM: Record<string, string>   = { tap:'Tap/faucet', pipe_joint:'Pipe/joint', drain:'Drain', flush:'Flush mechanism', geyser:'Geyser', sink:'Sink/basin', shower:'Shower', water_supply:'Water supply', other:'Other' };
+const PLUMB_STATUS: Record<string, string> = { ok:'OK', leaking:'Leaking', slow_drain:'Slow drain', blocked:'Blocked', not_working:'Not working', damaged:'Damaged', missing:'Missing' };
+const SHOWER_PRESENT: Record<string, string> = { none:'None', overhead:'Overhead', handheld:'Handheld', both:'Both' };
+const HOT_COLD: Record<string, string>     = { yes:'Yes', no:'No' };
+
+// ── SKIP_KEYS — must not pass through ROOM_FEATURE_LABELS flat iteration ──────
+// Entry arrays are rendered separately; electrical/plumbing inventory scalars
+// are rendered as compact inventory lines; false_ceiling is now an object.
+
+const SKIP_KEYS = new Set([
+  'wall_entries', 'flooring_entries', 'ceiling_entries',
+  'door_window_entries', 'electrical_issues', 'plumbing_issues',
+  'false_ceiling',
+  'electrical_fan_count', 'electrical_fan_brand',
+  'electrical_light_count', 'electrical_light_brand', 'electrical_light_type',
+  'electrical_switchboard_count', 'electrical_switchboard_brand',
+  'electrical_ac_provision_count', 'electrical_wifi_point', 'electrical_wifi_brand',
+  'plumbing_tap_count', 'plumbing_shower_present', 'plumbing_hot_cold_mixer',
+]);
 
 const SURFACE_FIELDS: Array<{ label: string; condKey: keyof LocalRoom; notesKey: keyof LocalRoom }> = [
   { label: 'Walls',           condKey: 'walls_condition',          notesKey: 'walls_notes' },
@@ -48,10 +78,6 @@ const SURFACE_FIELDS: Array<{ label: string; condKey: keyof LocalRoom; notesKey:
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/**
- * Converts a raw room_features value to a display string.
- * Handles Y/N radios, room_condition enums, numbers, and plain strings.
- */
 function formatFeatureValue(raw: unknown): string {
   if (raw === null || raw === undefined || raw === '') return '—';
   if (raw === 'Y') return 'Yes';
@@ -60,16 +86,27 @@ function formatFeatureValue(raw: unknown): string {
   return ROOM_CONDITION_LABELS[str] ?? str;
 }
 
+function lbl(map: Record<string, string>, key: unknown): string {
+  return (key && map[key as string]) ? map[key as string] : (key ? String(key) : '');
+}
+
+function asArr(v: unknown): Record<string, unknown>[] {
+  return Array.isArray(v) ? (v as Record<string, unknown>[]) : [];
+}
+
+function asNum(v: unknown): number {
+  return typeof v === 'number' ? v : (Number(v) || 0);
+}
+
+function asStr(v: unknown): string {
+  return v ? String(v) : '';
+}
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  section: { marginBottom: 20 },
-  roomCard: {
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: BRAND.border,
-    borderRadius: 3,
-  },
+  section:      { marginBottom: 20 },
+  roomCard:     { marginBottom: 12, borderWidth: 1, borderColor: BRAND.border, borderRadius: 3 },
   roomTitle: {
     fontSize: 10,
     fontWeight: 700,
@@ -78,9 +115,9 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
-  roomBody: { padding: 8 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  field: { width: '50%', marginBottom: 6, paddingRight: 8 },
+  roomBody:     { padding: 8 },
+  grid:         { flexDirection: 'row', flexWrap: 'wrap' },
+  field:        { width: '50%', marginBottom: 6, paddingRight: 8 },
   label: {
     fontSize: 7,
     fontWeight: 700,
@@ -89,12 +126,11 @@ const s = StyleSheet.create({
     letterSpacing: 0.4,
     marginBottom: 1,
   },
-  value: { fontSize: 9, color: BRAND.foreground },
-  notes: { fontSize: 9, color: BRAND.mutedForeground, marginTop: 4 },
-  paintLine: { fontSize: 9, color: BRAND.foreground, marginTop: 3 },
+  value:        { fontSize: 9, color: BRAND.foreground },
+  notes:        { fontSize: 9, color: BRAND.mutedForeground, marginTop: 4 },
+  paintLine:    { fontSize: 9, color: BRAND.foreground, marginTop: 3 },
   paintLabelPart: { fontSize: 9, color: BRAND.mutedForeground },
 
-  // ── In-card group header (features + furniture subsection headers) ──────────
   inCardGroupHeader: {
     fontSize: 8,
     fontFamily: 'Helvetica-Bold',
@@ -106,67 +142,246 @@ const s = StyleSheet.create({
     borderBottomColor: BRAND.border,
   },
 
-  // ── Feature rows (key-value pairs) ─────────────────────────────────────────
-  featureRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 0.5,
-    borderBottomColor: BRAND.border,
-  },
-  featureRowZebra: { backgroundColor: BRAND.zebra },
-  featureLabelCell: {
-    flex: 2,
-    paddingVertical: 3,
-    paddingHorizontal: 4,
-    fontSize: 8,
-    color: BRAND.mutedForeground,
-  },
-  featureValueCell: {
-    flex: 3,
-    paddingVertical: 3,
-    paddingHorizontal: 4,
-    fontSize: 8,
-    color: BRAND.foreground,
-  },
+  featureRow:       { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: BRAND.border },
+  featureRowZebra:  { backgroundColor: BRAND.zebra },
+  featureLabelCell: { flex: 2, paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, color: BRAND.mutedForeground },
+  featureValueCell: { flex: 3, paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, color: BRAND.foreground },
 
-  // ── Furniture table ────────────────────────────────────────────────────────
-  furnitureTHRow: {
-    flexDirection: 'row',
-    backgroundColor: BRAND.zebra,
-    borderBottomWidth: 0.5,
-    borderBottomColor: BRAND.border,
-  },
-  furnitureTDRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 0.5,
-    borderBottomColor: BRAND.border,
-  },
+  furnitureTHRow:      { flexDirection: 'row', backgroundColor: BRAND.zebra, borderBottomWidth: 0.5, borderBottomColor: BRAND.border },
+  furnitureTDRow:      { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: BRAND.border },
   furnitureTDRowZebra: { backgroundColor: BRAND.zebra },
-  furnitureTHCell: {
-    paddingVertical: 3,
-    paddingHorizontal: 4,
+  furnitureTHCell:     { paddingVertical: 3, paddingHorizontal: 4, fontSize: 7, fontFamily: 'Helvetica-Bold', color: BRAND.mutedForeground },
+  furnitureTDCell:     { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, color: BRAND.foreground },
+
+  // ── Entry-array sub-section ───────────────────────────────────────────────
+  entrySubHeader: {
     fontSize: 7,
     fontFamily: 'Helvetica-Bold',
     color: BRAND.mutedForeground,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginTop: 8,
+    marginBottom: 2,
   },
-  furnitureTDCell: {
-    paddingVertical: 3,
-    paddingHorizontal: 4,
-    fontSize: 8,
-    color: BRAND.foreground,
-  },
+  entryItem:       { marginBottom: 3 },
+  entryMainLine:   { fontSize: 8, color: BRAND.foreground },
+  entrySubLine:    { fontSize: 7.5, color: BRAND.mutedForeground, marginLeft: 8, marginTop: 1 },
+  inventoryLine:   { fontSize: 8, color: BRAND.foreground, marginTop: 2, marginBottom: 2 },
 });
+
+// ── Entry-array renderer helpers ──────────────────────────────────────────────
+
+function WallEntries({ entries }: { entries: Record<string, unknown>[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <View>
+      <Text style={s.entrySubHeader}>Wall Detail</Text>
+      {entries.map((e, i) => {
+        const wall  = lbl(WHICH_WALL, e.which_wall);
+        const cond  = lbl(ROOM_CONDITION_LABELS, e.condition);
+        const paint = e.paint_condition ? lbl(PAINT_CONDITION_LABELS, e.paint_condition) : '';
+        const notes = asStr(e.notes);
+        return (
+          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+            <Text style={s.entryMainLine}>{wall || 'Wall'}{cond ? ` — ${cond}` : ''}</Text>
+            {paint ? <Text style={s.entrySubLine}>Paint: {paint}</Text> : null}
+            {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function FlooringEntries({ entries }: { entries: Record<string, unknown>[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <View>
+      <Text style={s.entrySubHeader}>Flooring Detail</Text>
+      {entries.map((e, i) => {
+        const zone  = lbl(FLR_ZONE, e.flooring_zone);
+        const type  = lbl(FLR_TYPE, e.flooring_type);
+        const cond  = lbl(ROOM_CONDITION_LABELS, e.condition);
+        const cracked = asNum(e.cracked_tiles_count);
+        const notes = asStr(e.notes);
+        const title = [zone, type, cond].filter(Boolean).join(' — ');
+        return (
+          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+            <Text style={s.entryMainLine}>{title || 'Flooring entry'}</Text>
+            {cracked > 0 ? <Text style={s.entrySubLine}>Cracked tiles: {cracked}</Text> : null}
+            {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function CeilingEntries({ entries }: { entries: Record<string, unknown>[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <View>
+      <Text style={s.entrySubHeader}>Ceiling Detail</Text>
+      {entries.map((e, i) => {
+        const area    = lbl(CEIL_AREA, e.ceiling_area);
+        const cond    = lbl(ROOM_CONDITION_LABELS, e.condition);
+        const seepage = asStr(e.seepage_dampness);
+        const notes   = asStr(e.notes);
+        return (
+          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+            <Text style={s.entryMainLine}>{area || 'Ceiling'}{cond ? ` — ${cond}` : ''}</Text>
+            {seepage && seepage !== 'none' ? <Text style={s.entrySubLine}>Seepage: {lbl(SEEPAGE, seepage)}</Text> : null}
+            {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function FalseCeilingEntry({ fc }: { fc: Record<string, unknown> | null | undefined }) {
+  if (!fc) return null;
+  const fcType = asStr(fc.false_ceiling_type);
+  if (!fcType || fcType === 'none' || fcType === '') return null;
+  const typeLabel = lbl(FC_TYPE, fcType);
+  const mat       = fc.material ? lbl(FC_MAT, fc.material) : '';
+  const cond      = fc.condition ? lbl(ROOM_CONDITION_LABELS, fc.condition) : '';
+  const notes     = asStr(fc.notes);
+  return (
+    <View>
+      <Text style={s.entrySubHeader}>False Ceiling</Text>
+      <View style={s.entryItem} wrap={false}>
+        <Text style={s.entryMainLine}>{typeLabel}{mat ? ` (${mat})` : ''}{cond ? ` — ${cond}` : ''}</Text>
+        {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+function DoorWindowEntries({ entries }: { entries: Record<string, unknown>[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <View>
+      <Text style={s.entrySubHeader}>Doors & Windows Detail</Text>
+      {entries.map((e, i) => {
+        const itemType = e.is_custom ? asStr(e.custom_label) : lbl(DW_ITEM, e.item_type);
+        const frame    = e.frame_condition    ? lbl(ROOM_CONDITION_LABELS, e.frame_condition)    : '';
+        const shutter  = e.shutter_condition  ? lbl(ROOM_CONDITION_LABELS, e.shutter_condition)  : '';
+        const lock     = e.lock_latch         ? lbl(LOCK_LATCH, e.lock_latch)                    : '';
+        const glass    = e.glass_condition    ? lbl(GLASS_COND, e.glass_condition)               : '';
+        const mesh     = e.mosquito_mesh      ? lbl(MESH, e.mosquito_mesh)                       : '';
+        const notes    = asStr(e.notes);
+        const details  = [
+          frame   ? `Frame: ${frame}`   : '',
+          shutter ? `Shutter: ${shutter}` : '',
+          lock    ? `Lock: ${lock}`     : '',
+          glass   ? `Glass: ${glass}`   : '',
+          mesh    ? `Mesh: ${mesh}`     : '',
+        ].filter(Boolean).join('   ');
+        return (
+          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+            <Text style={s.entryMainLine}>{itemType || `Item ${i + 1}`}</Text>
+            {details ? <Text style={s.entrySubLine}>{details}</Text> : null}
+            {notes   ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function ElectricalBlock({ rf }: { rf: Record<string, unknown> }) {
+  const fanCount   = asNum(rf.electrical_fan_count);
+  const fanBrand   = asStr(rf.electrical_fan_brand);
+  const lightCount = asNum(rf.electrical_light_count);
+  const lightBrand = asStr(rf.electrical_light_brand);
+  const lightType  = asStr(rf.electrical_light_type);
+  const sbCount    = asNum(rf.electrical_switchboard_count);
+  const sbBrand    = asStr(rf.electrical_switchboard_brand);
+  const acCount    = asNum(rf.electrical_ac_provision_count);
+  const wifiPoint  = asStr(rf.electrical_wifi_point);
+  const wifiBrand  = asStr(rf.electrical_wifi_brand);
+  const issues     = asArr(rf.electrical_issues);
+
+  const haInventory = fanCount > 0 || lightCount > 0 || sbCount > 0 || acCount > 0 || !!wifiPoint;
+
+  if (!haInventory && issues.length === 0) return null;
+
+  const inventoryParts: string[] = [];
+  if (fanCount > 0)   inventoryParts.push(`Fans: ${fanCount}${fanBrand ? ` (${fanBrand})` : ''}`);
+  if (lightCount > 0) inventoryParts.push(`Lights: ${lightCount}${[lightType, lightBrand].filter(Boolean).length ? ` (${[lightType, lightBrand].filter(Boolean).join(', ')})` : ''}`);
+  if (sbCount > 0)    inventoryParts.push(`Switchboards: ${sbCount}${sbBrand ? ` (${sbBrand})` : ''}`);
+  if (acCount > 0)    inventoryParts.push(`AC points: ${acCount}`);
+  if (wifiPoint && wifiPoint !== 'N' && wifiPoint !== 'no') {
+    inventoryParts.push(`WiFi: ${wifiPoint}${wifiBrand ? ` (${wifiBrand})` : ''}`);
+  }
+
+  return (
+    <View>
+      <Text style={s.entrySubHeader}>Electrical</Text>
+      {haInventory && inventoryParts.length > 0 ? (
+        <Text style={s.inventoryLine}>{inventoryParts.join('   |   ')}</Text>
+      ) : null}
+      {issues.map((e, i) => {
+        const item   = lbl(ELEC_ITEM, e.item);
+        const status = lbl(ELEC_STATUS, e.status);
+        const notes  = asStr(e.notes);
+        return (
+          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+            <Text style={s.entryMainLine}>{item || 'Item'}{status ? ` — ${status}` : ''}</Text>
+            {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function PlumbingBlock({ rf }: { rf: Record<string, unknown> }) {
+  const tapCount  = asNum(rf.plumbing_tap_count);
+  const shower    = asStr(rf.plumbing_shower_present);
+  const hotCold   = asStr(rf.plumbing_hot_cold_mixer);
+  const issues    = asArr(rf.plumbing_issues);
+
+  const hasInventory = tapCount > 0 || !!shower || !!hotCold;
+
+  if (!hasInventory && issues.length === 0) return null;
+
+  const inventoryParts: string[] = [];
+  if (tapCount > 0)  inventoryParts.push(`Taps: ${tapCount}`);
+  if (shower && shower !== 'none') inventoryParts.push(`Shower: ${lbl(SHOWER_PRESENT, shower)}`);
+  if (hotCold)       inventoryParts.push(`Hot & Cold Mixer: ${lbl(HOT_COLD, hotCold)}`);
+
+  return (
+    <View>
+      <Text style={s.entrySubHeader}>Plumbing</Text>
+      {hasInventory && inventoryParts.length > 0 ? (
+        <Text style={s.inventoryLine}>{inventoryParts.join('   |   ')}</Text>
+      ) : null}
+      {issues.map((e, i) => {
+        const item   = lbl(PLUMB_ITEM, e.item);
+        const status = lbl(PLUMB_STATUS, e.status);
+        const notes  = asStr(e.notes);
+        return (
+          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+            <Text style={s.entryMainLine}>{item || 'Item'}{status ? ` — ${status}` : ''}</Text>
+            {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
 
 // ── RoomCard ──────────────────────────────────────────────────────────────────
 
 function RoomCard({ room }: { room: LocalRoom }) {
   const title = room.room_label || room.room_type;
 
-  // ── Furniture ─────────────────────────────────────────────────────────────
   const furniture: FurnitureItem[] = Array.isArray(room.furniture_items)
     ? (room.furniture_items as FurnitureItem[]).filter((fi) => !!fi.item)
     : [];
 
-  // ── Features ──────────────────────────────────────────────────────────────
   const rawFeatures: Record<string, unknown> =
     room.room_features &&
     typeof room.room_features === 'object' &&
@@ -174,8 +389,28 @@ function RoomCard({ room }: { room: LocalRoom }) {
       ? (room.room_features as Record<string, unknown>)
       : {};
 
+  // ── Entry-array data extraction ───────────────────────────────────────────
+  const wallEntries   = asArr(rawFeatures.wall_entries);
+  const flrEntries    = asArr(rawFeatures.flooring_entries);
+  const ceilEntries   = asArr(rawFeatures.ceiling_entries);
+  const falseCeiling  = rawFeatures.false_ceiling && typeof rawFeatures.false_ceiling === 'object' && !Array.isArray(rawFeatures.false_ceiling)
+    ? (rawFeatures.false_ceiling as Record<string, unknown>)
+    : null;
+  const dwEntries     = asArr(rawFeatures.door_window_entries);
+
+  const hasEntryData = !!(wallEntries.length > 0 || flrEntries.length > 0 || ceilEntries.length > 0 ||
+    (falseCeiling && asStr(falseCeiling.false_ceiling_type) !== '' && asStr(falseCeiling.false_ceiling_type) !== 'none') ||
+    dwEntries.length > 0 ||
+    asNum(rawFeatures.electrical_fan_count) > 0 || asNum(rawFeatures.electrical_light_count) > 0 ||
+    asNum(rawFeatures.electrical_switchboard_count) > 0 || asNum(rawFeatures.electrical_ac_provision_count) > 0 ||
+    asArr(rawFeatures.electrical_issues).length > 0 ||
+    asNum(rawFeatures.plumbing_tap_count) > 0 || asStr(rawFeatures.plumbing_shower_present) ||
+    asArr(rawFeatures.plumbing_issues).length > 0);
+
+  // ── Flat features (skip entry arrays + inventory keys) ────────────────────
   const groupedFeatures = new Map<string, Array<{ label: string; value: string }>>();
   for (const [key, rawValue] of Object.entries(rawFeatures)) {
+    if (SKIP_KEYS.has(key)) continue;
     if (rawValue === null || rawValue === undefined || rawValue === '') continue;
     const meta = ROOM_FEATURE_LABELS[key];
     if (!meta) {
@@ -189,9 +424,7 @@ function RoomCard({ room }: { room: LocalRoom }) {
     });
   }
 
-  // When the room has features or furniture, allow the card to span page
-  // boundaries. For simple rooms (surface fields only) keep it together.
-  const hasExtendedData = furniture.length > 0 || groupedFeatures.size > 0;
+  const hasExtendedData = furniture.length > 0 || groupedFeatures.size > 0 || hasEntryData;
 
   return (
     <View style={s.roomCard} wrap={hasExtendedData}>
@@ -201,20 +434,16 @@ function RoomCard({ room }: { room: LocalRoom }) {
         {/* ── Surface condition grid ── */}
         <View style={s.grid} wrap={false}>
           {SURFACE_FIELDS.map((f) => {
-            const cond = room[f.condKey] as string | null;
-            const notes = room[f.notesKey] as string | null;
-            const isWalls = f.condKey === 'walls_condition';
+            const cond      = room[f.condKey] as string | null;
+            const notes     = room[f.notesKey] as string | null;
+            const isWalls   = f.condKey === 'walls_condition';
             const paintCond = isWalls ? room.paint_condition : null;
-            // Skip the field entirely if there is nothing to show.
-            // For walls: also render if only paint_condition is set.
             if (!cond && !notes && !paintCond) return null;
             return (
               <View key={f.label} style={s.field}>
                 <Text style={s.label}>{f.label}</Text>
-                {/* Apply ROOM_CONDITION_LABELS to fix pre-existing raw-value display */}
                 <Text style={s.value}>{cond ? (ROOM_CONDITION_LABELS[cond] ?? cond) : '—'}</Text>
                 {notes ? <Text style={s.notes}>{notes}</Text> : null}
-                {/* Paint condition — walls only, omit when null */}
                 {isWalls && paintCond ? (
                   <Text style={s.paintLine}>
                     <Text style={s.paintLabelPart}>Paint: </Text>
@@ -226,11 +455,23 @@ function RoomCard({ room }: { room: LocalRoom }) {
           })}
         </View>
 
+        {/* ── Entry-array detail blocks ── */}
+        {hasEntryData && (
+          <View>
+            <WallEntries    entries={wallEntries} />
+            <FlooringEntries entries={flrEntries} />
+            <CeilingEntries  entries={ceilEntries} />
+            <FalseCeilingEntry fc={falseCeiling} />
+            <DoorWindowEntries entries={dwEntries} />
+            <ElectricalBlock rf={rawFeatures} />
+            <PlumbingBlock   rf={rawFeatures} />
+          </View>
+        )}
+
         {/* ── Furniture & Fittings ── */}
         {furniture.length > 0 && (
           <View>
             <Text style={s.inCardGroupHeader}>Furniture & Fittings</Text>
-            {/* Table header */}
             <View style={s.furnitureTHRow} wrap={false}>
               <Text style={[s.furnitureTHCell, { width: '30%' }]}>Item</Text>
               <Text style={[s.furnitureTHCell, { width: '10%' }]}>Qty</Text>

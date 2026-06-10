@@ -32,6 +32,7 @@ export const FEATURE_GROUP_ORDER: string[] = [
   'Flush',
   'Mixer & Tap',
   'Sink',
+  'Wash Basin',
   'Shower',
   'Tiles',
   'Balcony',
@@ -67,6 +68,9 @@ export const ROOM_FEATURE_LABELS: Record<string, FeatureMeta> = {
   // ── Air Conditioning (bedroom) ─────────────────────────────────────────────
   ac_point_present:         { label: 'AC point present', group: 'Air Conditioning' },
   ac_mounted:               { label: 'AC unit mounted',  group: 'Air Conditioning' },
+  ac_brand:                 { label: 'AC brand',         group: 'Air Conditioning' },
+  ac_condition:             { label: 'AC condition',     group: 'Air Conditioning' },
+  ac_notes:                 { label: 'AC notes',         group: 'Air Conditioning' },
 
   // ── TV & Décor (living room) ───────────────────────────────────────────────
   tv_wall_mount:            { label: 'TV wall mount',        group: 'TV & Décor' },
@@ -78,6 +82,7 @@ export const ROOM_FEATURE_LABELS: Record<string, FeatureMeta> = {
   wardrobe_type:            { label: 'Wardrobe type',        group: 'Wardrobes' },
   wardrobe_shutters:        { label: 'No. of shutters',      group: 'Wardrobes' },
   wardrobe_condition:       { label: 'Wardrobe condition',   group: 'Wardrobes' },
+  wardrobe_notes:           { label: 'Wardrobe notes',       group: 'Wardrobes' },
   cupboard_lock_brand:      { label: 'Cupboard lock brand',  group: 'Wardrobes' },
   cupboard_lock_keys:       { label: 'Cupboard lock — keys', group: 'Wardrobes' },
 
@@ -92,11 +97,14 @@ export const ROOM_FEATURE_LABELS: Record<string, FeatureMeta> = {
   modular_material:         { label: 'Material',          group: 'Modular Kitchen' },
   modular_shutters:         { label: 'Shutter condition', group: 'Modular Kitchen' },
   modular_hinges:           { label: 'Hinge condition',   group: 'Modular Kitchen' },
+  modular_channel_condition:{ label: 'Channel/slide condition', group: 'Modular Kitchen' },
   modular_handles:          { label: 'Handle condition',  group: 'Modular Kitchen' },
+  modular_notes:            { label: 'Modular notes',     group: 'Modular Kitchen' },
 
   // ── Counter (kitchen) ──────────────────────────────────────────────────────
   counter_material:         { label: 'Counter / slab material', group: 'Counter' },
   counter_condition:        { label: 'Counter condition',       group: 'Counter' },
+  counter_notes:            { label: 'Counter notes',           group: 'Counter' },
 
   // ── Kitchen Storage ────────────────────────────────────────────────────────
   loft_storage:             { label: 'Loft storage',  group: 'Kitchen Storage' },
@@ -104,11 +112,14 @@ export const ROOM_FEATURE_LABELS: Record<string, FeatureMeta> = {
 
   // ── Kitchen Appliances ─────────────────────────────────────────────────────
   chimney_provision:        { label: 'Chimney provision',    group: 'Kitchen Appliances' },
+  chimney_brand:            { label: 'Chimney brand',        group: 'Kitchen Appliances' },
+  chimney_condition:        { label: 'Chimney condition',    group: 'Kitchen Appliances' },
   water_purifier_point:     { label: 'Water purifier point', group: 'Kitchen Appliances' },
 
   // ── Geyser (bathroom) ──────────────────────────────────────────────────────
-  geyser_status:            { label: 'Geyser',       group: 'Geyser' },
-  geyser_brand:             { label: 'Geyser brand', group: 'Geyser' },
+  geyser_status:            { label: 'Geyser',           group: 'Geyser' },
+  geyser_brand:             { label: 'Geyser brand',     group: 'Geyser' },
+  geyser_condition:         { label: 'Geyser condition', group: 'Geyser' },
 
   // ── Sanitary (bathroom + kitchen exhaust) ──────────────────────────────────
   exhaust_fan_present:      { label: 'Exhaust fan',         group: 'Sanitary' },
@@ -122,11 +133,17 @@ export const ROOM_FEATURE_LABELS: Record<string, FeatureMeta> = {
   flush_mechanism:          { label: 'Flush mechanism', group: 'Flush' },
   flush_working:            { label: 'Flush working',   group: 'Flush' },
   flush_brand:              { label: 'Flush brand',     group: 'Flush' },
+  flush_notes:              { label: 'Flush notes',     group: 'Flush' },
 
   // ── Mixer & Tap ────────────────────────────────────────────────────────────
   mixer_present:            { label: 'Hot + cold mixer',  group: 'Mixer & Tap' },
   mixer_working:            { label: 'Mixer working',     group: 'Mixer & Tap' },
   tap_brand:                { label: 'Mixer / tap brand', group: 'Mixer & Tap' },
+
+  // ── Wash Basin (dining room) ───────────────────────────────────────────────
+  wash_basin_present:       { label: 'Wash basin present',   group: 'Wash Basin' },
+  wash_basin_condition:     { label: 'Wash basin condition', group: 'Wash Basin' },
+  wash_basin_brand:         { label: 'Wash basin brand',     group: 'Wash Basin' },
 
   // ── Sink (bathroom, kitchen, balcony utility) ──────────────────────────────
   sink_present:             { label: 'Sink present',   group: 'Sink' },
@@ -163,9 +180,12 @@ export const ROOM_FEATURE_LABELS: Record<string, FeatureMeta> = {
   drying_provision:         { label: 'Clothes drying provision',group: 'Laundry & Drying' },
   floor_waterproofed:       { label: 'Floor waterproofed',      group: 'Laundry & Drying' },
 
-  // ── Gas (balcony) ──────────────────────────────────────────────────────────
+  // ── Gas (balcony + kitchen) ────────────────────────────────────────────────
   gas_cylinder_storage:     { label: 'Gas cylinder storage', group: 'Gas' },
   gas_cylinder_capacity:    { label: 'Cylinder capacity',    group: 'Gas' },
+  gas_type:                 { label: 'Gas connection type',  group: 'Gas' },
+  gas_cylinder_count:       { label: 'Cylinder count',       group: 'Gas' },
+  gas_regulator_location:   { label: 'Regulator location',   group: 'Gas' },
 
   // ── Utility Sink (balcony) ─────────────────────────────────────────────────
   utility_sink_present:     { label: 'Utility sink present', group: 'Utility Sink' },
@@ -207,5 +227,6 @@ export const ROOM_FEATURE_LABELS: Record<string, FeatureMeta> = {
   // ── General (default types: study, store, utility, parking, etc.) ──────────
   ventilation:              { label: 'Ventilation',                 group: 'General' },
   electrical_point:         { label: 'Dedicated electrical point',  group: 'General' },
+  electrical_point_count:   { label: 'Electrical point count',      group: 'General' },
   general_notes:            { label: 'General notes',               group: 'General' },
 };
