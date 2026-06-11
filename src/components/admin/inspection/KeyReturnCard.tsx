@@ -87,7 +87,7 @@ export function KeyReturnCard({ inspection, updateInspectionField }: KeyReturnCa
 
   return (
     <>
-      <CollapsibleCard title="Key Return" badge={badge}>
+      <CollapsibleCard title="Key Record" badge={badge}>
         <div className="space-y-3">
           {entries.map((entry) => {
             const missing = entry.requires_input

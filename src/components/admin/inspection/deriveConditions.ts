@@ -67,15 +67,15 @@ export type ChipState = {
   key:          string;        // "walls", "flooring", etc.
   label:        string;        // "Walls", "Flooring", etc.
   condition:    string | null; // null when not assessed
-  displayLabel: string;        // "Not Assessed", "Good Condition", etc.
+  displayLabel: string;        // "Not Assessed", "Good", "Minor Wear", etc.
   isAssessed:   boolean;
 };
 
 export const CONDITION_DISPLAY: Record<string, string> = {
-  good:              "Good Condition",
-  minor_wear:        "Fair — Normal Wear",
-  moderate_damage:   "Poor — Needs Repair",
-  severe_damage:     "Critical — Needs Replacement",
+  good:              "Good",
+  minor_wear:        "Minor Wear",
+  moderate_damage:   "Poor — Visible Damage",
+  severe_damage:     "Critical — Severe Damage",
 };
 
 export type DerivedConditions = {

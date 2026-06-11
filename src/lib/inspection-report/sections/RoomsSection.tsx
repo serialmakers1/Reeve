@@ -18,10 +18,10 @@ type FurnitureItem = {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const ROOM_CONDITION_LABELS: Record<string, string> = {
-  good:             'Good Condition',
-  minor_wear:       'Fair — Normal Wear',
-  moderate_damage:  'Poor — Needs Repair',
-  severe_damage:    'Critical — Needs Replacement',
+  good:             'Good',
+  minor_wear:       'Minor Wear',
+  moderate_damage:  'Poor — Visible Damage',
+  severe_damage:    'Critical — Severe Damage',
 };
 
 const PAINT_CONDITION_LABELS: Record<string, string> = {
@@ -34,10 +34,12 @@ const PAINT_CONDITION_LABELS: Record<string, string> = {
 
 // ── Entry label maps (used by entry-array rendering) ─────────────────────────
 
-const WHICH_WALL: Record<string, string>   = { road_facing:'Road-facing', building_facing:'Building-facing', left_wall:'Left wall', right_wall:'Right wall', all_walls:'All walls', partition_wall:'Partition wall' };
+// New value sets first; legacy values from old inspections kept as fallbacks.
+const WHICH_WALL: Record<string, string>   = { all_walls:'All Walls', left:'Left', right:'Right', entry:'Entry', opposite:'Opposite', road_facing:'Road-facing', building_facing:'Building-facing', left_wall:'Left wall', right_wall:'Right wall', partition_wall:'Partition wall' };
+const WALL_OPENING: Record<string, string> = { none:'None', door:'Door' };
 const FLR_ZONE: Record<string, string>     = { entire_room:'Entire room', near_entrance:'Near entrance', near_window:'Near window', near_bathroom:'Near bathroom', corner_area:'Corner area' };
 const FLR_TYPE: Record<string, string>     = { vitrified_tile:'Vitrified tile', ceramic_tile:'Ceramic tile', marble:'Marble', granite:'Granite', hardwood:'Hardwood', laminate:'Laminate', vinyl:'Vinyl', cement:'Cement', mosaic:'Mosaic', other:'Other' };
-const CEIL_AREA: Record<string, string>    = { entire_ceiling:'Entire ceiling', above_bed_area:'Above bed area', above_kitchen_slab:'Above kitchen slab', above_bathroom_area:'Above bathroom area', corner_area:'Corner area' };
+const CEIL_AREA: Record<string, string>    = { entire:'Entire ceiling', corner:'Corner area', above_window:'Above window', centre:'Centre', entire_ceiling:'Entire ceiling', above_bed_area:'Above bed area', above_kitchen_slab:'Above kitchen slab', above_bathroom_area:'Above bathroom area', corner_area:'Corner area' };
 const FC_TYPE: Record<string, string>      = { none:'None', partial:'Partial', full:'Full' };
 const FC_MAT: Record<string, string>       = { gypsum:'Gypsum', pop:'POP', wood:'Wood', grid_tiles:'Grid + Tiles', other:'Other' };
 const DW_ITEM: Record<string, string>      = { main_door:'Main door', room_door:'Room door', bathroom_door:'Bathroom door', window:'Window', sliding_door:'Sliding door', french_door:'French door', balcony_door:'Balcony door' };
@@ -48,7 +50,7 @@ const SEEPAGE: Record<string, string>      = { none:'None', staining_dry:'Staini
 const ELEC_ITEM: Record<string, string>    = { fan:'Ceiling fan', light:'Light fixture', switchboard:'Switchboard', mcb_db:'MCB/DB box', ac_point:'AC point', exhaust_fan:'Exhaust fan', geyser_point:'Geyser point', socket:'Socket', other:'Other' };
 const ELEC_STATUS: Record<string, string>  = { working:'Working', not_working:'Not working', flickering:'Flickering', damaged:'Damaged', loose:'Loose/unsafe', missing:'Missing' };
 const PLUMB_ITEM: Record<string, string>   = { tap:'Tap/faucet', pipe_joint:'Pipe/joint', drain:'Drain', flush:'Flush mechanism', geyser:'Geyser', sink:'Sink/basin', shower:'Shower', water_supply:'Water supply', other:'Other' };
-const PLUMB_STATUS: Record<string, string> = { ok:'OK', leaking:'Leaking', slow_drain:'Slow drain', blocked:'Blocked', not_working:'Not working', damaged:'Damaged', missing:'Missing' };
+const PLUMB_STATUS: Record<string, string> = { ok:'OK', leaking:'Leaking', slow_drain:'Slow drain', low_pressure:'Low Pressure', blocked:'Blocked', not_working:'Not working', damaged:'Damaged', missing:'Missing', other:'Other' };
 const SHOWER_PRESENT: Record<string, string> = { none:'None', overhead:'Overhead', handheld:'Handheld', both:'Both' };
 const HOT_COLD: Record<string, string>     = { yes:'Yes', no:'No' };
 
@@ -88,6 +90,24 @@ function formatFeatureValue(raw: unknown): string {
 
 function lbl(map: Record<string, string>, key: unknown): string {
   return (key && map[key as string]) ? map[key as string] : (key ? String(key) : '');
+}
+
+/**
+ * Resolve a select value to its display label, substituting the entry's
+ * `<key>_custom` free text when the value is the custom/other sentinel.
+ */
+function lblWithCustom(
+  map: Record<string, string>,
+  entry: Record<string, unknown>,
+  key: string,
+  customSentinel = 'custom',
+): string {
+  const value = entry[key];
+  if (value === customSentinel) {
+    const customText = entry[`${key}_custom`];
+    return customText ? String(customText) : lbl(map, value);
+  }
+  return lbl(map, value);
 }
 
 function asArr(v: unknown): Record<string, unknown>[] {
@@ -177,13 +197,15 @@ function WallEntries({ entries }: { entries: Record<string, unknown>[] }) {
     <View>
       <Text style={s.entrySubHeader}>Wall Detail</Text>
       {entries.map((e, i) => {
-        const wall  = lbl(WHICH_WALL, e.which_wall);
-        const cond  = lbl(ROOM_CONDITION_LABELS, e.condition);
-        const paint = e.paint_condition ? lbl(PAINT_CONDITION_LABELS, e.paint_condition) : '';
-        const notes = asStr(e.notes);
+        const wall    = lblWithCustom(WHICH_WALL, e, 'which_wall');
+        const opening = e.opening && e.opening !== 'none' ? lblWithCustom(WALL_OPENING, e, 'opening') : '';
+        const cond    = lbl(ROOM_CONDITION_LABELS, e.condition);
+        const paint   = e.paint_condition ? lbl(PAINT_CONDITION_LABELS, e.paint_condition) : '';
+        const notes   = asStr(e.notes);
         return (
           <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
             <Text style={s.entryMainLine}>{wall || 'Wall'}{cond ? ` — ${cond}` : ''}</Text>
+            {opening ? <Text style={s.entrySubLine}>Opening: {opening}</Text> : null}
             {paint ? <Text style={s.entrySubLine}>Paint: {paint}</Text> : null}
             {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
           </View>
@@ -199,7 +221,7 @@ function FlooringEntries({ entries }: { entries: Record<string, unknown>[] }) {
     <View>
       <Text style={s.entrySubHeader}>Flooring Detail</Text>
       {entries.map((e, i) => {
-        const zone  = lbl(FLR_ZONE, e.flooring_zone);
+        const zone  = lblWithCustom(FLR_ZONE, e, 'flooring_zone');
         const type  = lbl(FLR_TYPE, e.flooring_type);
         const cond  = lbl(ROOM_CONDITION_LABELS, e.condition);
         const cracked = asNum(e.cracked_tiles_count);
@@ -223,7 +245,7 @@ function CeilingEntries({ entries }: { entries: Record<string, unknown>[] }) {
     <View>
       <Text style={s.entrySubHeader}>Ceiling Detail</Text>
       {entries.map((e, i) => {
-        const area    = lbl(CEIL_AREA, e.ceiling_area);
+        const area    = lblWithCustom(CEIL_AREA, e, 'ceiling_area');
         const cond    = lbl(ROOM_CONDITION_LABELS, e.condition);
         const seepage = asStr(e.seepage_dampness);
         const notes   = asStr(e.notes);
@@ -264,7 +286,7 @@ function DoorWindowEntries({ entries }: { entries: Record<string, unknown>[] }) 
     <View>
       <Text style={s.entrySubHeader}>Doors & Windows Detail</Text>
       {entries.map((e, i) => {
-        const itemType = e.is_custom ? asStr(e.custom_label) : lbl(DW_ITEM, e.item_type);
+        const itemType = e.is_custom ? asStr(e.custom_label) : lblWithCustom(DW_ITEM, e, 'item_type');
         const frame    = e.frame_condition    ? lbl(ROOM_CONDITION_LABELS, e.frame_condition)    : '';
         const shutter  = e.shutter_condition  ? lbl(ROOM_CONDITION_LABELS, e.shutter_condition)  : '';
         const lock     = e.lock_latch         ? lbl(LOCK_LATCH, e.lock_latch)                    : '';
@@ -323,7 +345,7 @@ function ElectricalBlock({ rf }: { rf: Record<string, unknown> }) {
         <Text style={s.inventoryLine}>{inventoryParts.join('   |   ')}</Text>
       ) : null}
       {issues.map((e, i) => {
-        const item   = lbl(ELEC_ITEM, e.item);
+        const item   = lblWithCustom(ELEC_ITEM, e, 'item', 'other');
         const status = lbl(ELEC_STATUS, e.status);
         const notes  = asStr(e.notes);
         return (
@@ -360,7 +382,7 @@ function PlumbingBlock({ rf }: { rf: Record<string, unknown> }) {
       ) : null}
       {issues.map((e, i) => {
         const item   = lbl(PLUMB_ITEM, e.item);
-        const status = lbl(PLUMB_STATUS, e.status);
+        const status = lblWithCustom(PLUMB_STATUS, e, 'status', 'other');
         const notes  = asStr(e.notes);
         return (
           <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>

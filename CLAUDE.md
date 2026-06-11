@@ -281,6 +281,12 @@ non-deterministic.
 ## Index Naming Convention
 All DB indexes follow `idx_<table>_<column>` (confirmed from existing indexes: `idx_visits_status`, `idx_leads_status`, `idx_applications_status`, etc.). Multi-column: `idx_<table>_<col1>_<col2>`. Storage bucket naming: kebab-case (`tenant-documents`, `owner-documents`). Property images go to Cloudflare R2 (not Supabase Storage) — no `property-images` bucket in `storage.buckets`.
 
+## Inspection Form Conventions (post user-testing refinements, 2026-06)
+- Condition display labels (DB values unchanged): good="Good", minor_wear="Minor Wear", moderate_damage="Poor — Visible Damage", severe_damage="Critical — Severe Damage".
+- Auto-population: `minor_wear` + cosmetic statuses (flickering, slow_drain, leaking, low_pressure, stiff lock, torn mesh) trigger `cosmetic` damage entries. Appliance conditions auto-populate too (minor_issues→cosmetic, non_functional→repair_before_relet) via `useAutoPopulateApplianceDamages`; `source_ref` is `{room_id}|{appliance_id} + field_key` union. Auto entries pre-fill `notes` from source entry and carry `source_condition` (human-readable trigger label, shown as PDF Condition column).
+- `EntryList` FieldConfig supports `customTextOnValue: "custom"|"other"` — inline free-text input appears when that option is selected, stored at `<key>_custom`. Used for wall/ceiling/flooring zones, DW item_type, electrical item, plumbing status. The old `allowCustom` add-button pattern is removed from surfaces/DW.
+- Section names: "Damage Logs" (form card + PDF) and "Key Record" (form card + PDF).
+
 ## Undocumented Tables (beyond the 23 in Database Tables section)
 `external_queries`, `property_inspections`, `inspection_appliances`, `inspection_rooms` — exist in DB, not yet in active frontend use. FKs confirmed in pg_constraint.
 

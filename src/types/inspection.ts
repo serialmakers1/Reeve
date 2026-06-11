@@ -126,10 +126,15 @@ export type DamageItem = {
   notes: string;
   /** Suggested remediation step, populated by auto-generation. Null for manually entered items. */
   recommended_action: string | null;
-  /** Reference to the room field that triggered auto-generation. Null for manually entered items. */
-  source_ref: { room_id: string; field_key: string } | null;
+  /** Reference to the room field or appliance that triggered auto-generation. Null for manual items. */
+  source_ref:
+    | { room_id: string; field_key: string }
+    | { appliance_id: string; field_key: string }
+    | null;
   /** True if this item was auto-generated from a room condition field, false if entered manually. */
   is_auto_generated: boolean;
+  /** Human-readable label of the triggering condition/status (e.g. "Poor — Visible Damage"). Auto-generated entries only. */
+  source_condition?: string | null;
 };
 
 export type SaveState = "saving" | "saved" | "failed";
@@ -191,10 +196,10 @@ export const ROOM_TYPE_LABELS: Record<RoomTypeOption, string> = {
  * Display labels updated 2026-06-09.
  */
 export const ROOM_CONDITION_OPTIONS = [
-  { value: "good",            label: "Good Condition" },
-  { value: "minor_wear",      label: "Fair — Normal Wear" },
-  { value: "moderate_damage", label: "Poor — Needs Repair" },
-  { value: "severe_damage",   label: "Critical — Needs Replacement" },
+  { value: "good",            label: "Good" },
+  { value: "minor_wear",      label: "Minor Wear" },
+  { value: "moderate_damage", label: "Poor — Visible Damage" },
+  { value: "severe_damage",   label: "Critical — Severe Damage" },
 ] as const;
 
 export const PAINT_CONDITION_OPTIONS = [

@@ -43,6 +43,13 @@ export type FieldConfig = {
   min?: number;
   /** When defined, the field only renders when this predicate returns true. */
   showWhen?: (entry: Record<string, unknown>) => boolean;
+  /**
+   * When set and the field's current value equals this string, a free-text
+   * input renders below the select, writing to `<key>_custom` in the entry.
+   */
+  customTextOnValue?: string;
+  /** Placeholder for the custom text input shown via customTextOnValue. */
+  customTextPlaceholder?: string;
 };
 
 export type EntryListProps = {
@@ -84,21 +91,33 @@ function FieldRenderer({
       <Label className="text-xs text-muted-foreground">{field.label}</Label>
 
       {field.type === "select" && (
-        <Select
-          value={strVal || undefined}
-          onValueChange={(v) => onUpdate(index, field.key, v)}
-        >
-          <SelectTrigger className="h-9">
-            <SelectValue placeholder={field.placeholder ?? "Select…"} />
-          </SelectTrigger>
-          <SelectContent>
-            {(field.options ?? []).map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <>
+          <Select
+            value={strVal || undefined}
+            onValueChange={(v) => onUpdate(index, field.key, v)}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={field.placeholder ?? "Select…"} />
+            </SelectTrigger>
+            <SelectContent>
+              {(field.options ?? []).map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Inline free-text input when the "custom"-style option is selected */}
+          {field.customTextOnValue !== undefined && strVal === field.customTextOnValue && (
+            <Input
+              className="h-9"
+              placeholder={field.customTextPlaceholder ?? "Describe…"}
+              value={String(entry[`${field.key}_custom`] ?? "")}
+              onChange={(e) => onUpdate(index, `${field.key}_custom`, e.target.value)}
+              onBlur={(e) => onUpdate(index, `${field.key}_custom`, e.target.value)}
+            />
+          )}
+        </>
       )}
 
       {field.type === "text" && (

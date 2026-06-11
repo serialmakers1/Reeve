@@ -65,10 +65,10 @@ export function InspectionSummaryCard({ inspection, updateInspectionField }: Ins
                 <SelectValue placeholder="Select condition" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="good">Good Condition</SelectItem>
-                <SelectItem value="fair">Fair — Normal Wear</SelectItem>
-                <SelectItem value="poor">Poor — Needs Repair</SelectItem>
-                <SelectItem value="critical">Critical — Needs Replacement</SelectItem>
+                <SelectItem value="good">Good</SelectItem>
+                <SelectItem value="fair">Fair</SelectItem>
+                <SelectItem value="poor">Poor — Visible Damage</SelectItem>
+                <SelectItem value="critical">Critical — Severe Damage</SelectItem>
               </SelectContent>
             </Select>
           </div>

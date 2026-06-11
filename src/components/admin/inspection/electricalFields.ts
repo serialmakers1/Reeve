@@ -62,6 +62,8 @@ export const ELECTRICAL_ISSUE_FIELDS: FieldConfig[] = [
       { value: "socket",       label: "Socket / power point" },
       { value: "other",        label: "Other" },
     ],
+    customTextOnValue: "other",
+    customTextPlaceholder: "Describe the item…",
   },
   {
     key: "status",
@@ -117,5 +119,6 @@ export const electricalIssueTitle = (
   index: number,
 ): string => {
   if (entry.is_custom) return String(entry.custom_label || `Issue ${index + 1}`);
+  if (entry.item === "other" && entry.item_custom) return String(entry.item_custom);
   return ITEM_LABELS[entry.item as string] ?? `Issue ${index + 1}`;
 };

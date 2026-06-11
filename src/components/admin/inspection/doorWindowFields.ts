@@ -21,10 +21,10 @@ const GLASS_ITEM_TYPES = new Set([
 // ── Shared condition options ───────────────────────────────────────────────────
 
 const CONDITION_OPTIONS = [
-  { value: "good",            label: "Good Condition" },
-  { value: "minor_wear",      label: "Fair — Normal Wear" },
-  { value: "moderate_damage", label: "Poor — Needs Repair" },
-  { value: "severe_damage",   label: "Critical — Needs Replacement" },
+  { value: "good",            label: "Good" },
+  { value: "minor_wear",      label: "Minor Wear" },
+  { value: "moderate_damage", label: "Poor — Visible Damage" },
+  { value: "severe_damage",   label: "Critical — Severe Damage" },
 ];
 
 // ── showWhen helpers ──────────────────────────────────────────────────────────
@@ -61,7 +61,10 @@ export const DOOR_WINDOW_FIELDS: FieldConfig[] = [
       { value: "sliding_door",  label: "Sliding door" },
       { value: "french_door",   label: "French door" },
       { value: "balcony_door",  label: "Balcony door" },
+      { value: "custom",        label: "Custom" },
     ],
+    customTextOnValue: "custom",
+    customTextPlaceholder: "Describe the item…",
   },
   {
     key: "frame_condition",
@@ -129,19 +132,13 @@ export const DOOR_WINDOW_FIELDS: FieldConfig[] = [
 export const newDoorWindowEntry = (): Record<string, unknown> => ({
   id: crypto.randomUUID(),
   item_type: "",
+  item_type_custom: "",
   frame_condition: "",
   shutter_condition: "",
   lock_latch: "",
   glass_condition: "",
   mosquito_mesh: "",
   notes: "",
-  is_custom: false,
-  custom_label: "",
-});
-
-export const newCustomDoorWindowEntry = (): Record<string, unknown> => ({
-  ...newDoorWindowEntry(),
-  is_custom: true,
 });
 
 // ── Entry title helper ────────────────────────────────────────────────────────
@@ -160,6 +157,7 @@ export const doorWindowEntryTitle = (
   entry: Record<string, unknown>,
   index: number,
 ): string => {
-  if (entry.is_custom) return String(entry.custom_label || `Item ${index + 1}`);
+  if (entry.is_custom) return String(entry.custom_label || `Item ${index + 1}`); // legacy entries
+  if (entry.item_type === "custom") return String(entry.item_type_custom || `Item ${index + 1}`);
   return ITEM_TYPE_LABELS[entry.item_type as string] ?? `Item ${index + 1}`;
 };

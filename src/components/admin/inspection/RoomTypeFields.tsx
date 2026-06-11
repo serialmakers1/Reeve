@@ -302,16 +302,13 @@ function CurtainFieldsHelper({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
       />
       <YNField label="Curtains Present" featureKey="curtains_present" rfv={rfv} rfSet={rfSet} />
       {rfv("curtains_present") === "Y" && (
-        <>
-          <SField
-            label="Curtain Type"
-            featureKey="curtain_type"
-            options={["Sheer", "Blackout", "Regular", "Blind"]}
-            rfv={rfv}
-            rfSet={rfSet}
-          />
-          <CondField label="Curtain Condition" featureKey="curtain_condition" rfv={rfv} rfSet={rfSet} />
-        </>
+        <SField
+          label="Curtain Type"
+          featureKey="curtain_type"
+          options={["Sheer", "Blackout", "Regular", "Blind"]}
+          rfv={rfv}
+          rfSet={rfSet}
+        />
       )}
     </>
   );
@@ -324,9 +321,6 @@ function LivingRoomContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
     <>
       <CurtainFieldsHelper rfv={rfv} rfSet={rfSet} />
       <YNField label="TV Wall Mount" featureKey="tv_wall_mount" rfv={rfv} rfSet={rfSet} />
-      {rfv("tv_wall_mount") === "Y" && (
-        <CondField label="TV Mount Condition" featureKey="tv_wall_mount_condition" rfv={rfv} rfSet={rfSet} />
-      )}
       <SField
         label="Pooja Unit / Mandir"
         featureKey="pooja_unit"
@@ -334,9 +328,6 @@ function LivingRoomContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
         rfv={rfv}
         rfSet={rfSet}
       />
-      {rfv("pooja_unit") && rfv("pooja_unit") !== "None" && (
-        <CondField label="Pooja Unit Condition" featureKey="pooja_unit_condition" rfv={rfv} rfSet={rfSet} />
-      )}
       <LockFields prefix="room_lock" label="Room Lock" rfv={rfv} rfSet={rfSet} />
     </>
   );
@@ -359,7 +350,6 @@ function BedroomContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
                 rfv={rfv}
                 rfSet={rfSet}
               />
-              <CondField label="AC Condition" featureKey="ac_condition" rfv={rfv} rfSet={rfSet} />
               <TAField label="AC Notes" featureKey="ac_notes" rfv={rfv} rfSet={rfSet} />
             </>
           )}
@@ -381,19 +371,12 @@ function BedroomContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
             rfv={rfv}
             rfSet={rfSet}
           />
-          <CondField label="Wardrobe Condition" featureKey="wardrobe_condition" rfv={rfv} rfSet={rfSet} />
           <TAField label="Wardrobe Notes" featureKey="wardrobe_notes" rfv={rfv} rfSet={rfSet} />
           <LockFields prefix="cupboard_lock" label="Cupboard / Wardrobe Lock" rfv={rfv} rfSet={rfSet} />
         </>
       )}
       <YNField label="Study Table" featureKey="study_table" rfv={rfv} rfSet={rfSet} />
-      {rfv("study_table") === "Y" && (
-        <CondField label="Study Table Condition" featureKey="study_table_condition" rfv={rfv} rfSet={rfSet} />
-      )}
       <YNField label="Dressing Table / Mirror" featureKey="dressing_table" rfv={rfv} rfSet={rfSet} />
-      {rfv("dressing_table") === "Y" && (
-        <CondField label="Dressing Table Condition" featureKey="dressing_table_condition" rfv={rfv} rfSet={rfSet} />
-      )}
       <LockFields prefix="room_lock" label="Room Lock" rfv={rfv} rfSet={rfSet} />
     </>
   );
@@ -442,13 +425,9 @@ function KitchenContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
         rfv={rfv}
         rfSet={rfSet}
       />
-      <CondField label="Sink Condition" featureKey="sink_condition" rfv={rfv} rfSet={rfSet} />
       <YNField label="Tap Working" featureKey="sink_tap_working" rfv={rfv} rfSet={rfSet} />
       <YNField label="Drainage OK" featureKey="sink_drainage" rfv={rfv} rfSet={rfSet} />
       <YNField label="Loft Storage" featureKey="loft_storage" rfv={rfv} rfSet={rfSet} />
-      {rfv("loft_storage") === "Y" && (
-        <CondField label="Loft Condition" featureKey="loft_condition" rfv={rfv} rfSet={rfSet} />
-      )}
       <SField
         label="Chimney Provision"
         featureKey="chimney_provision"
@@ -456,18 +435,6 @@ function KitchenContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
         rfv={rfv}
         rfSet={rfSet}
       />
-      {rfv("chimney_provision") && rfv("chimney_provision") !== "None" && (
-        <>
-          <TField
-            label="Chimney Brand"
-            featureKey="chimney_brand"
-            placeholder="e.g. Faber, Elica, Glen"
-            rfv={rfv}
-            rfSet={rfSet}
-          />
-          <CondField label="Chimney Condition" featureKey="chimney_condition" rfv={rfv} rfSet={rfSet} />
-        </>
-      )}
       <SField
         label="Gas Connection Type"
         featureKey="gas_type"
@@ -522,22 +489,16 @@ function BathroomContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
         rfSet={rfSet}
       />
       {rfv("geyser_status") === "Geyser mounted" && (
-        <>
-          <TField
-            label="Geyser Brand"
-            featureKey="geyser_brand"
-            placeholder="e.g. Racold, AO Smith, Venus"
-            rfv={rfv}
-            rfSet={rfSet}
-          />
-          <CondField label="Geyser Condition" featureKey="geyser_condition" rfv={rfv} rfSet={rfSet} />
-        </>
+        <TField
+          label="Geyser Brand"
+          featureKey="geyser_brand"
+          placeholder="e.g. Racold, AO Smith, Venus"
+          rfv={rfv}
+          rfSet={rfSet}
+        />
       )}
       <YNField label="Exhaust Fan" featureKey="exhaust_fan_present" rfv={rfv} rfSet={rfSet} />
       <YNField label="Mirror" featureKey="mirror_present" rfv={rfv} rfSet={rfSet} />
-      {rfv("mirror_present") === "Y" && (
-        <CondField label="Mirror Condition" featureKey="mirror_condition" rfv={rfv} rfSet={rfSet} />
-      )}
       <TField
         label="Towel Rod Count"
         featureKey="towel_rod_count"
@@ -545,7 +506,6 @@ function BathroomContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
         rfv={rfv}
         rfSet={rfSet}
       />
-      <CondField label="Towel Rod Condition" featureKey="towel_rod_condition" rfv={rfv} rfSet={rfSet} />
       <SField
         label="Flush Type"
         featureKey="flush_type"
@@ -592,8 +552,6 @@ function BathroomContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
             rfv={rfv}
             rfSet={rfSet}
           />
-          <CondField label="Sink Condition" featureKey="sink_condition" rfv={rfv} rfSet={rfSet} />
-          <CondField label="Tap Condition" featureKey="sink_tap_condition" rfv={rfv} rfSet={rfSet} />
           <TField
             label="Sink Brand"
             featureKey="sink_brand"
@@ -605,7 +563,6 @@ function BathroomContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
       )}
       <YNField label="Overhead Shower" featureKey="shower_overhead" rfv={rfv} rfSet={rfSet} />
       <YNField label="Handheld Shower" featureKey="shower_handheld" rfv={rfv} rfSet={rfSet} />
-      <CondField label="Shower Condition" featureKey="shower_condition" rfv={rfv} rfSet={rfSet} />
       <TField
         label="Shower Brand"
         featureKey="shower_brand"
@@ -732,51 +689,10 @@ function BalconyContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
             rfv={rfv}
             rfSet={rfSet}
           />
-          <CondField label="Sink Condition" featureKey="sink_condition" rfv={rfv} rfSet={rfSet} />
         </>
       )}
-      <SubHeader label="Fittings" />
-      {/* Presence-based (distinct from count-based electrical inventory) */}
-      <YNField label="Ceiling Fan" featureKey="fan_present" rfv={rfv} rfSet={rfSet} />
-      {rfv("fan_present") === "Y" && (
-        <TField
-          label="Fan Brand"
-          featureKey="fan_brand"
-          placeholder="e.g. Usha, Orient"
-          rfv={rfv}
-          rfSet={rfSet}
-        />
-      )}
-      <YNField label="Light Fixture" featureKey="light_present" rfv={rfv} rfSet={rfSet} />
-      {rfv("light_present") === "Y" && (
-        <TField
-          label="Light Brand"
-          featureKey="light_brand"
-          placeholder="e.g. Philips, Havells"
-          rfv={rfv}
-          rfSet={rfSet}
-        />
-      )}
-      <YNField label="Switchboard" featureKey="switchboard_present" rfv={rfv} rfSet={rfSet} />
-      {rfv("switchboard_present") === "Y" && (
-        <TField
-          label="Switchboard Brand"
-          featureKey="switchboard_brand"
-          placeholder="e.g. Anchor, Havells"
-          rfv={rfv}
-          rfSet={rfSet}
-        />
-      )}
-      <YNField label="Curtain / Blind" featureKey="curtain_blind" rfv={rfv} rfSet={rfSet} />
-      {rfv("curtain_blind") === "Y" && (
-        <TField
-          label="Type"
-          featureKey="curtain_blind_type"
-          placeholder="e.g. Roller blind, Curtain"
-          rfv={rfv}
-          rfSet={rfSet}
-        />
-      )}
+      {/* Fittings (fan/light/switchboard) removed — use the Electrical
+          subsection inventory for this room instead. */}
       <LockFields prefix="balcony_lock" label="Balcony Lock" rfv={rfv} rfSet={rfSet} />
     </>
   );
@@ -788,16 +704,13 @@ function DiningRoomContent({ rfv, rfSet }: { rfv: RV; rfSet: RS }) {
       <CurtainFieldsHelper rfv={rfv} rfSet={rfSet} />
       <YNField label="Wash Basin Present" featureKey="wash_basin_present" rfv={rfv} rfSet={rfSet} />
       {rfv("wash_basin_present") === "Y" && (
-        <>
-          <CondField label="Wash Basin Condition" featureKey="wash_basin_condition" rfv={rfv} rfSet={rfSet} />
-          <TField
-            label="Wash Basin Brand"
-            featureKey="wash_basin_brand"
-            placeholder="e.g. Hindware, Cera"
-            rfv={rfv}
-            rfSet={rfSet}
-          />
-        </>
+        <TField
+          label="Wash Basin Brand"
+          featureKey="wash_basin_brand"
+          placeholder="e.g. Hindware, Cera"
+          rfv={rfv}
+          rfSet={rfSet}
+        />
       )}
       <LockFields prefix="room_lock" label="Room Lock" rfv={rfv} rfSet={rfSet} />
     </>
