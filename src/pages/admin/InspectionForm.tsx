@@ -40,7 +40,7 @@ import { PlumbingSubsection } from "@/components/admin/inspection/PlumbingSubsec
 import { RoomTypeFields } from "@/components/admin/inspection/RoomTypeFields";
 import { DerivedConditionChips } from "@/components/admin/inspection/DerivedConditionChips";
 import { useConditionSnapshot } from "@/hooks/useConditionSnapshot";
-import { useAutoPopulateDamages } from "@/hooks/useAutoPopulateDamages";
+import { useAutoPopulateDamages, useAutoPopulateApplianceDamages } from "@/hooks/useAutoPopulateDamages";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -141,6 +141,7 @@ export default function InspectionForm() {
 
   const { writeConditionSnapshot } = useConditionSnapshot(rooms, setRooms, queueRoomPatch);
   useAutoPopulateDamages(rooms, damages, setDamages, queueInspectionPatch, scheduleSave);
+  useAutoPopulateApplianceDamages(appliances, damages, setDamages, queueInspectionPatch);
 
   useEffect(() => {
     inspectionRef.current = inspection;

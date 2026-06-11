@@ -23,7 +23,6 @@ import { EntryList } from "./EntryList";
 import {
   DOOR_WINDOW_FIELDS,
   newDoorWindowEntry,
-  newCustomDoorWindowEntry,
   doorWindowEntryTitle,
 } from "./doorWindowFields";
 
@@ -81,13 +80,11 @@ export function DoorsWindowsSubsection({
             fields={DOOR_WINDOW_FIELDS}
             onUpdate={handleUpdate}
             onAdd={() => save([...entries, newDoorWindowEntry()])}
-            onAddCustom={() => save([...entries, newCustomDoorWindowEntry()])}
             onDelete={handleDelete}
             addLabel="Add door / window"
             deleteConfirmText="Delete this door / window entry?"
             emptyText="No entries. Tap + to document each door and window."
             entryTitle={doorWindowEntryTitle}
-            allowCustom
           />
         </div>
       </CollapsibleContent>

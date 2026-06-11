@@ -76,7 +76,7 @@ export function DamageLog({
   return (
     <>
       <CollapsibleCard
-        title="Pre-Existing Damage Log"
+        title="Damage Logs"
         badge={badge}
       >
         {/* Disclaimer */}

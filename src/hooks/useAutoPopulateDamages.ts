@@ -1,16 +1,32 @@
+/**
+ * useAutoPopulateDamages — watches `rooms` state and auto-creates/updates/removes
+ * damage log entries from room feature conditions and statuses.
+ *
+ * useAutoPopulateApplianceDamages — same pattern for appliance conditions.
+ *
+ * Each hook only touches entries it owns: room-sourced entries have
+ * `source_ref.room_id`, appliance-sourced have `source_ref.appliance_id`.
+ * Manual entries (is_auto_generated false or source_ref null) and
+ * furniture-sourced entries pass through untouched.
+ *
+ * Auto entries carry `source_condition` (human-readable trigger label) and
+ * pre-fill `notes` from the source entry's notes field.
+ */
 import { useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import type { LocalRoom, DamageItem } from "@/types/inspection";
+import type { LocalRoom, LocalAppliance, DamageItem } from "@/types/inspection";
 
 // ── Internal types ────────────────────────────────────────────────────────────
 
-type AutoSeverity = "repair_before_relet" | "urgent_immediate";
+type AutoSeverity = "cosmetic" | "repair_before_relet" | "urgent_immediate";
 
 type DesiredEntry = {
   compositeKey: string;
   location: string;
   damage_type: string;
   severity: AutoSeverity;
+  notes: string;
+  source_condition: string;
   source_ref: { room_id: string; field_key: string };
 };
 
@@ -18,14 +34,15 @@ type DesiredEntry = {
 
 const CONDITION_TO_SEVERITY: Record<string, AutoSeverity | null> = {
   good:            null,
-  minor_wear:      null,
+  minor_wear:      "cosmetic",
   moderate_damage: "repair_before_relet",
   severe_damage:   "urgent_immediate",
 };
 
 const ELECTRICAL_STATUS_SEVERITY: Record<string, AutoSeverity | null> = {
   working:     null,
-  flickering:  null,
+  flickering:  "cosmetic",
+  weak:        "cosmetic",
   loose:       "repair_before_relet",
   not_working: "repair_before_relet",
   damaged:     "repair_before_relet",
@@ -33,23 +50,71 @@ const ELECTRICAL_STATUS_SEVERITY: Record<string, AutoSeverity | null> = {
 };
 
 const PLUMBING_STATUS_SEVERITY: Record<string, AutoSeverity | null> = {
-  ok:          null,
-  leaking:     null,
-  slow_drain:  null,
-  blocked:     "repair_before_relet",
-  not_working: "repair_before_relet",
-  damaged:     "repair_before_relet",
-  missing:     "urgent_immediate",
+  ok:            null,
+  leaking:       "cosmetic",
+  dripping:      "cosmetic",
+  slow_drain:    "cosmetic",
+  low_pressure:  "cosmetic",
+  other:         "cosmetic",
+  blocked:       "repair_before_relet",
+  not_working:   "repair_before_relet",
+  damaged:       "repair_before_relet",
+  missing:       "urgent_immediate",
+  major_leakage: "urgent_immediate",
 };
 
-// ── Label maps ────────────────────────────────────────────────────────────────
+// ── Display label maps (condition labels match ROOM_CONDITION_OPTIONS) ───────
+
+const CONDITION_LABELS: Record<string, string> = {
+  good:            "Good",
+  minor_wear:      "Minor Wear",
+  moderate_damage: "Poor — Visible Damage",
+  severe_damage:   "Critical — Severe Damage",
+};
+
+const ELEC_STATUS_LABELS: Record<string, string> = {
+  flickering:  "Flickering",
+  weak:        "Weak",
+  loose:       "Loose / Unsafe",
+  not_working: "Not Working",
+  damaged:     "Damaged",
+  missing:     "Missing",
+};
+
+const PLUMB_STATUS_LABELS: Record<string, string> = {
+  leaking:       "Leaking",
+  dripping:      "Dripping",
+  slow_drain:    "Slow Drain",
+  low_pressure:  "Low Pressure",
+  other:         "Other",
+  blocked:       "Blocked",
+  not_working:   "Not Working",
+  damaged:       "Damaged",
+  missing:       "Missing",
+  major_leakage: "Major Leakage",
+};
+
+const DW_VALUE_LABELS: Record<string, string> = {
+  stiff:        "Stiff",
+  broken:       "Broken",
+  missing:      "Missing",
+  cracked:      "Cracked",
+  present_torn: "Torn",
+};
+
+// ── Location label maps ───────────────────────────────────────────────────────
 
 const WALL_LOCATION_LABELS: Record<string, string> = {
+  all_walls: "All Walls",
+  left:      "Left wall",
+  right:     "Right wall",
+  entry:     "Entry wall",
+  opposite:  "Opposite wall",
+  // Legacy values from old inspections
   road_facing:     "Road-facing wall",
   building_facing: "Building-facing wall",
   left_wall:       "Left wall",
   right_wall:      "Right wall",
-  all_walls:       "All walls",
   partition_wall:  "Partition wall",
 };
 
@@ -62,6 +127,11 @@ const FLOORING_ZONE_LABELS: Record<string, string> = {
 };
 
 const CEILING_AREA_LABELS: Record<string, string> = {
+  entire:       "Entire ceiling",
+  corner:       "Corner area",
+  above_window: "Above window",
+  centre:       "Centre",
+  // Legacy values from old inspections
   entire_ceiling:      "Entire ceiling",
   above_bed_area:      "Above bed area",
   above_kitchen_slab:  "Above kitchen slab",
@@ -126,21 +196,30 @@ function dwFieldSeverity(fieldName: string, value: string): AutoSeverity | null 
     return CONDITION_TO_SEVERITY[value] ?? null;
   }
   if (fieldName === "lock_latch") {
+    if (value === "stiff") return "cosmetic";
     if (value === "broken") return "repair_before_relet";
     if (value === "missing") return "urgent_immediate";
     return null;
   }
   if (fieldName === "glass_condition") {
     if (value === "cracked") return "repair_before_relet";
-    if (value === "broken") return "urgent_immediate";
+    if (value === "broken") return "repair_before_relet";
+    if (value === "missing") return "urgent_immediate";
     return null;
   }
   if (fieldName === "mosquito_mesh") {
-    // present_torn is cosmetic — no auto-damage
+    if (value === "present_torn") return "cosmetic";
     if (value === "missing") return "repair_before_relet";
     return null;
   }
   return null;
+}
+
+function dwValueLabel(fieldName: string, value: string): string {
+  if (fieldName === "frame_condition" || fieldName === "shutter_condition") {
+    return CONDITION_LABELS[value] ?? value;
+  }
+  return DW_VALUE_LABELS[value] ?? value;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -149,8 +228,26 @@ function asArray(v: unknown): Record<string, unknown>[] {
   return Array.isArray(v) ? (v as Record<string, unknown>[]) : [];
 }
 
+function asStr(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
 function entryId(entry: Record<string, unknown>, idx: number): string {
   return (entry.localId as string) || (entry.id as string) || String(idx);
+}
+
+/** Resolve a select value to its label, honouring `<key>_custom` free text. */
+function labelOrCustom(
+  map: Record<string, string>,
+  entry: Record<string, unknown>,
+  key: string,
+  fallback: string,
+  customSentinel = "custom",
+): string {
+  const value = entry[key] as string | undefined;
+  if (!value) return fallback;
+  if (value === customSentinel) return asStr(entry[`${key}_custom`]) || fallback;
+  return map[value] || value;
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
@@ -173,13 +270,14 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
       const eid = entryId(entry, i);
       const fieldKey = `wall_entries[${eid}].condition`;
       const cKey = `${room.id}:${fieldKey}`;
-      const rawLoc = (entry.which_wall as string | undefined) ?? "";
-      const locLabel = WALL_LOCATION_LABELS[rawLoc] || rawLoc || "Wall";
+      const locLabel = labelOrCustom(WALL_LOCATION_LABELS, entry, "which_wall", "Wall");
       desired.set(cKey, {
         compositeKey: cKey,
         location: `${roomLabel} — ${locLabel}`,
         damage_type: "Wall Condition",
         severity,
+        notes: asStr(entry.notes),
+        source_condition: CONDITION_LABELS[condition] ?? condition,
         source_ref: { room_id: room.id, field_key: fieldKey },
       });
     }
@@ -195,24 +293,24 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
       const eid = entryId(entry, i);
       const fieldKey = `flooring_entries[${eid}].condition`;
       const cKey = `${room.id}:${fieldKey}`;
-      const rawZone = (entry.flooring_zone as string | undefined) ?? "";
-      const zoneLabel = FLOORING_ZONE_LABELS[rawZone] || rawZone || "Flooring";
+      const zoneLabel = labelOrCustom(FLOORING_ZONE_LABELS, entry, "flooring_zone", "Flooring");
       desired.set(cKey, {
         compositeKey: cKey,
         location: `${roomLabel} — ${zoneLabel}`,
         damage_type: "Flooring Condition",
         severity,
+        notes: asStr(entry.notes),
+        source_condition: CONDITION_LABELS[condition] ?? condition,
         source_ref: { room_id: room.id, field_key: fieldKey },
       });
     }
 
-    // Ceiling entries — two independent triggers per entry: condition AND seepage
+    // Ceiling entries — two independent triggers per entry: condition AND dampness
     const ceilEntries = asArray(rf.ceiling_entries);
     for (let i = 0; i < ceilEntries.length; i++) {
       const entry = ceilEntries[i];
       const eid = entryId(entry, i);
-      const rawArea = (entry.ceiling_area as string | undefined) ?? "";
-      const areaLabel = CEILING_AREA_LABELS[rawArea] || rawArea || "Ceiling";
+      const areaLabel = labelOrCustom(CEILING_AREA_LABELS, entry, "ceiling_area", "Ceiling");
 
       const condition = entry.condition as string | undefined;
       const condSeverity = condition ? CONDITION_TO_SEVERITY[condition] : null;
@@ -224,6 +322,8 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
           location: `${roomLabel} — ${areaLabel}`,
           damage_type: "Ceiling Condition",
           severity: condSeverity,
+          notes: asStr(entry.notes),
+          source_condition: CONDITION_LABELS[condition!] ?? condition!,
           source_ref: { room_id: room.id, field_key: fieldKey },
         });
       }
@@ -237,6 +337,8 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
           location: `${roomLabel} — ${areaLabel}`,
           damage_type: `${areaLabel} — Seepage/Dampness`,
           severity: "repair_before_relet",
+          notes: asStr(entry.notes),
+          source_condition: seepage === "active_dampness" ? "Active Dampness" : "Seepage Suspected",
           source_ref: { room_id: room.id, field_key: fieldKey },
         });
       }
@@ -261,6 +363,8 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
             location: `${roomLabel} — False Ceiling`,
             damage_type: "Ceiling Condition",
             severity,
+            notes: asStr(fc.notes),
+            source_condition: CONDITION_LABELS[condition] ?? condition,
             source_ref: { room_id: room.id, field_key: fieldKey },
           });
         }
@@ -272,8 +376,9 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
     for (let i = 0; i < dwEntries.length; i++) {
       const entry = dwEntries[i];
       const eid = entryId(entry, i);
-      const rawItem = (entry.item_type as string | undefined) ?? "";
-      const itemLabel = DW_ITEM_LABELS[rawItem] || rawItem || "Door/Window";
+      const itemLabel = entry.is_custom
+        ? asStr(entry.custom_label) || "Door/Window"
+        : labelOrCustom(DW_ITEM_LABELS, entry, "item_type", "Door/Window");
       for (const fieldName of DW_TRIGGER_FIELDS) {
         const value = entry[fieldName] as string | undefined;
         if (!value) continue;
@@ -287,6 +392,8 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
           location: `${roomLabel} — ${itemLabel}`,
           damage_type: `${itemLabel} — ${fieldLabel}`,
           severity,
+          notes: asStr(entry.notes),
+          source_condition: dwValueLabel(fieldName, value),
           source_ref: { room_id: room.id, field_key: fieldKey },
         });
       }
@@ -303,13 +410,14 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
       const eid = entryId(entry, i);
       const fieldKey = `electrical_issues[${eid}].status`;
       const cKey = `${room.id}:${fieldKey}`;
-      const rawItem = (entry.item as string | undefined) ?? "";
-      const itemLabel = ELEC_ITEM_LABELS[rawItem] || rawItem || "Electrical item";
+      const itemLabel = labelOrCustom(ELEC_ITEM_LABELS, entry, "item", "Electrical item", "other");
       desired.set(cKey, {
         compositeKey: cKey,
         location: `${roomLabel} — ${itemLabel}`,
         damage_type: "Electrical Issue",
         severity,
+        notes: asStr(entry.notes),
+        source_condition: ELEC_STATUS_LABELS[status] ?? status,
         source_ref: { room_id: room.id, field_key: fieldKey },
       });
     }
@@ -325,13 +433,17 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
       const eid = entryId(entry, i);
       const fieldKey = `plumbing_issues[${eid}].status`;
       const cKey = `${room.id}:${fieldKey}`;
-      const rawItem = (entry.item as string | undefined) ?? "";
-      const itemLabel = PLUMBING_ITEM_LABELS[rawItem] || rawItem || "Plumbing item";
+      const itemLabel = PLUMBING_ITEM_LABELS[(entry.item as string) ?? ""] || asStr(entry.item) || "Plumbing item";
+      const statusLabel = status === "other"
+        ? (asStr(entry.status_custom) || "Other")
+        : (PLUMB_STATUS_LABELS[status] ?? status);
       desired.set(cKey, {
         compositeKey: cKey,
         location: `${roomLabel} — ${itemLabel}`,
         damage_type: "Plumbing Issue",
         severity,
+        notes: asStr(entry.notes),
+        source_condition: statusLabel,
         source_ref: { room_id: room.id, field_key: fieldKey },
       });
     }
@@ -340,7 +452,17 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
   return desired;
 }
 
-// ── Hook ──────────────────────────────────────────────────────────────────────
+// ── Shared reconcile helper ───────────────────────────────────────────────────
+
+function isRoomSourced(item: DamageItem): boolean {
+  return !!item.source_ref && "room_id" in item.source_ref;
+}
+
+function isApplianceSourced(item: DamageItem): boolean {
+  return !!item.source_ref && "appliance_id" in item.source_ref;
+}
+
+// ── Hook: room features → damage log ──────────────────────────────────────────
 
 export function useAutoPopulateDamages(
   rooms: LocalRoom[],
@@ -353,7 +475,6 @@ export function useAutoPopulateDamages(
 
   // Sync damagesRef every render so the main effect always sees latest damages
   // without needing damages in its dependency array (avoids circular updates).
-  // Registered first so it runs before the main effect on the same render.
   useEffect(() => {
     damagesRef.current = damages;
   });
@@ -368,21 +489,25 @@ export function useAutoPopulateDamages(
 
     // Step 1 — reconcile existing items against desired map
     for (const item of current) {
-      // Manual entries and furniture entries pass through untouched
-      if (!item.is_auto_generated || !item.source_ref) {
+      // Manual, furniture, and appliance-sourced entries pass through untouched
+      if (!item.is_auto_generated || !isRoomSourced(item)) {
         next.push(item);
         continue;
       }
-      if (item.source_ref.field_key.startsWith("furniture_item_")) {
+      const ref = item.source_ref as { room_id: string; field_key: string };
+      if (ref.field_key.startsWith("furniture_item_")) {
         next.push(item);
         continue;
       }
 
-      const cKey = `${item.source_ref.room_id}:${item.source_ref.field_key}`;
-      const roomExists = currentRoomIds.has(item.source_ref.room_id);
+      const cKey = `${ref.room_id}:${ref.field_key}`;
+      const roomExists = currentRoomIds.has(ref.room_id);
+      const desiredEntry = desired.get(cKey);
       // An auto entry is "edited" if the inspector set recommended_action OR
-      // typed notes (auto-created entries always start with notes: "").
-      const isEdited = item.recommended_action !== null || item.notes !== "";
+      // changed notes away from the auto-populated source notes.
+      const isEdited =
+        item.recommended_action !== null ||
+        (item.notes !== "" && item.notes !== (desiredEntry?.notes ?? ""));
 
       if (!roomExists) {
         // Room deleted — deliberate action; preserve ALL its damage records
@@ -392,21 +517,28 @@ export function useAutoPopulateDamages(
         continue;
       }
 
-      if (!desired.has(cKey)) {
+      if (!desiredEntry) {
         // Trigger gone (entry deleted or condition improved)
         if (isEdited) {
-          // Preserve inspector work — convert to manual entry
           next.push({ ...item, is_auto_generated: false, source_ref: null });
         }
-        // Otherwise drop the entry (not edited, trigger no longer valid)
         changed = true;
         continue;
       }
 
-      // Trigger still active — update severity if inspector hasn't edited this entry
-      const desiredEntry = desired.get(cKey)!;
-      if (!isEdited && item.severity !== desiredEntry.severity) {
-        next.push({ ...item, severity: desiredEntry.severity });
+      // Trigger still active — sync severity/condition/notes unless edited
+      if (
+        !isEdited &&
+        (item.severity !== desiredEntry.severity ||
+          item.source_condition !== desiredEntry.source_condition ||
+          item.notes !== desiredEntry.notes)
+      ) {
+        next.push({
+          ...item,
+          severity: desiredEntry.severity,
+          source_condition: desiredEntry.source_condition,
+          notes: desiredEntry.notes,
+        });
         changed = true;
       } else {
         next.push(item);
@@ -416,8 +548,11 @@ export function useAutoPopulateDamages(
     // Step 2 — add desired entries not yet in the list
     const existingCKeys = new Set(
       next
-        .filter((d) => d.is_auto_generated && d.source_ref)
-        .map((d) => `${d.source_ref!.room_id}:${d.source_ref!.field_key}`),
+        .filter((d) => d.is_auto_generated && isRoomSourced(d))
+        .map((d) => {
+          const ref = d.source_ref as { room_id: string; field_key: string };
+          return `${ref.room_id}:${ref.field_key}`;
+        }),
     );
 
     for (const [cKey, entry] of desired) {
@@ -427,10 +562,11 @@ export function useAutoPopulateDamages(
           location: entry.location,
           damage_type: entry.damage_type,
           severity: entry.severity,
-          notes: "",
+          notes: entry.notes,
           recommended_action: null,
           source_ref: entry.source_ref,
           is_auto_generated: true,
+          source_condition: entry.source_condition,
         });
         changed = true;
       }
@@ -440,6 +576,159 @@ export function useAutoPopulateDamages(
 
     setDamages(next);
     queueInspectionPatch({ pre_existing_damages: next });
-    scheduleSave();
   }, [rooms]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+// ── Hook: appliance conditions → damage log ───────────────────────────────────
+
+const APPLIANCE_CONDITION_SEVERITY: Record<string, AutoSeverity | null> = {
+  fully_functional: null,
+  minor_issues:     "cosmetic",
+  non_functional:   "repair_before_relet",
+};
+
+const APPLIANCE_CONDITION_LABELS: Record<string, string> = {
+  minor_issues:   "Minor Issues",
+  non_functional: "Non-Functional",
+};
+
+const APPLIANCE_TYPE_DISPLAY: Record<string, string> = {
+  refrigerator:      "Refrigerator",
+  washing_machine:   "Washing Machine",
+  dryer:             "Dryer",
+  air_conditioner:   "Air Conditioner",
+  geyser:            "Geyser / Water Heater",
+  microwave:         "Microwave",
+  stove_hob:         "Stove / Hob",
+  exhaust_fan:       "Exhaust Fan",
+  ceiling_fan:       "Ceiling Fan",
+  dishwasher:        "Dishwasher",
+  water_purifier:    "Water Purifier",
+  tv:                "Television",
+  fire_extinguisher: "Fire Extinguisher",
+  other:             "Other",
+};
+
+export function useAutoPopulateApplianceDamages(
+  appliances: LocalAppliance[],
+  damages: DamageItem[],
+  setDamages: Dispatch<SetStateAction<DamageItem[]>>,
+  queueInspectionPatch: (patch: Record<string, unknown>) => void,
+): void {
+  const damagesRef = useRef<DamageItem[]>(damages);
+
+  useEffect(() => {
+    damagesRef.current = damages;
+  });
+
+  useEffect(() => {
+    // Build desired map keyed by appliance id
+    const desired = new Map<string, {
+      location: string;
+      damage_type: string;
+      severity: AutoSeverity;
+      notes: string;
+      source_condition: string;
+    }>();
+
+    for (const appliance of appliances) {
+      const condition = appliance.condition ?? "";
+      const severity = APPLIANCE_CONDITION_SEVERITY[condition];
+      if (!severity) continue;
+      const typeLabel = APPLIANCE_TYPE_DISPLAY[appliance.appliance_type ?? ""] || appliance.appliance_type || "Appliance";
+      const label = appliance.custom_label ? ` — ${appliance.custom_label}` : "";
+      desired.set(appliance.id, {
+        location: appliance.location || "Common Area",
+        damage_type: `${typeLabel}${label}`,
+        severity,
+        notes: appliance.notes ?? "",
+        source_condition: APPLIANCE_CONDITION_LABELS[condition] ?? condition,
+      });
+    }
+
+    const currentApplianceIds = new Set(appliances.map((a) => a.id));
+    const current = damagesRef.current;
+    const next: DamageItem[] = [];
+    let changed = false;
+
+    for (const item of current) {
+      // Only touch appliance-sourced auto entries
+      if (!item.is_auto_generated || !isApplianceSourced(item)) {
+        next.push(item);
+        continue;
+      }
+      const ref = item.source_ref as { appliance_id: string; field_key: string };
+      const desiredEntry = desired.get(ref.appliance_id);
+      const applianceExists = currentApplianceIds.has(ref.appliance_id);
+      const isEdited =
+        item.recommended_action !== null ||
+        (item.notes !== "" && item.notes !== (desiredEntry?.notes ?? ""));
+
+      if (!applianceExists) {
+        // Appliance deleted — preserve the record as a manual entry
+        next.push({ ...item, is_auto_generated: false, source_ref: null });
+        changed = true;
+        continue;
+      }
+
+      if (!desiredEntry) {
+        // Condition back to fully functional (or cleared)
+        if (isEdited) {
+          next.push({ ...item, is_auto_generated: false, source_ref: null });
+        }
+        changed = true;
+        continue;
+      }
+
+      if (
+        !isEdited &&
+        (item.severity !== desiredEntry.severity ||
+          item.source_condition !== desiredEntry.source_condition ||
+          item.notes !== desiredEntry.notes ||
+          item.location !== desiredEntry.location ||
+          item.damage_type !== desiredEntry.damage_type)
+      ) {
+        next.push({
+          ...item,
+          location: desiredEntry.location,
+          damage_type: desiredEntry.damage_type,
+          severity: desiredEntry.severity,
+          source_condition: desiredEntry.source_condition,
+          notes: desiredEntry.notes,
+        });
+        changed = true;
+      } else {
+        next.push(item);
+      }
+    }
+
+    // Add new appliance entries
+    const existingIds = new Set(
+      next
+        .filter((d) => d.is_auto_generated && isApplianceSourced(d))
+        .map((d) => (d.source_ref as { appliance_id: string }).appliance_id),
+    );
+
+    for (const [applianceId, entry] of desired) {
+      if (!existingIds.has(applianceId)) {
+        next.push({
+          localId: crypto.randomUUID(),
+          location: entry.location,
+          damage_type: entry.damage_type,
+          severity: entry.severity,
+          notes: entry.notes,
+          recommended_action: null,
+          source_ref: { appliance_id: applianceId, field_key: "condition" },
+          is_auto_generated: true,
+          source_condition: entry.source_condition,
+        });
+        changed = true;
+      }
+    }
+
+    if (!changed) return;
+
+    setDamages(next);
+    queueInspectionPatch({ pre_existing_damages: next });
+  }, [appliances]); // eslint-disable-line react-hooks/exhaustive-deps
 }

@@ -48,7 +48,7 @@ export function KeyReturnSection({ keyReturn }: Props) {
 
   return (
     <View style={s.section}>
-      <Text style={styles.sectionHeader}>Key Return</Text>
+      <Text style={styles.sectionHeader}>Key Record</Text>
       <View style={s.headerRow}>
         <Text style={[s.cLabel,  s.headerText]}>Item</Text>
         <Text style={[s.cExp,    s.headerText]}>Expected</Text>

@@ -4,16 +4,19 @@
  *
  * These are consumed by SurfacesSubsection via EntryList.
  * Do not import from InspectionForm or other page-level files.
+ *
+ * "Custom" dropdown options use the customTextOnValue pattern: when selected,
+ * EntryList renders a free-text input storing at `<key>_custom`.
  */
 import type { FieldConfig } from "./EntryList";
 
 // ── Shared condition options (matches ROOM_CONDITION_OPTIONS in inspection.ts) ─
 
 const CONDITION_OPTIONS = [
-  { value: "good",            label: "Good Condition" },
-  { value: "minor_wear",      label: "Fair — Normal Wear" },
-  { value: "moderate_damage", label: "Poor — Needs Repair" },
-  { value: "severe_damage",   label: "Critical — Needs Replacement" },
+  { value: "good",            label: "Good" },
+  { value: "minor_wear",      label: "Minor Wear" },
+  { value: "moderate_damage", label: "Poor — Visible Damage" },
+  { value: "severe_damage",   label: "Critical — Severe Damage" },
 ];
 
 const conditionNotGood = (e: Record<string, unknown>) =>
@@ -28,13 +31,28 @@ export const WALL_FIELDS: FieldConfig[] = [
     type: "select",
     placeholder: "Select wall",
     options: [
-      { value: "road_facing",      label: "Road-facing wall" },
-      { value: "building_facing",  label: "Building-facing wall" },
-      { value: "left_wall",        label: "Left wall (as you enter)" },
-      { value: "right_wall",       label: "Right wall (as you enter)" },
-      { value: "all_walls",        label: "All walls" },
-      { value: "partition_wall",   label: "Partition wall" },
+      { value: "all_walls", label: "All Walls" },
+      { value: "left",      label: "Left" },
+      { value: "right",     label: "Right" },
+      { value: "entry",     label: "Entry" },
+      { value: "opposite",  label: "Opposite" },
+      { value: "custom",    label: "Custom" },
     ],
+    customTextOnValue: "custom",
+    customTextPlaceholder: "Describe which wall…",
+  },
+  {
+    key: "opening",
+    label: "Opening on this wall",
+    type: "select",
+    placeholder: "Select",
+    options: [
+      { value: "none",   label: "None" },
+      { value: "door",   label: "Door" },
+      { value: "custom", label: "Custom" },
+    ],
+    customTextOnValue: "custom",
+    customTextPlaceholder: "Describe the opening…",
   },
   {
     key: "condition",
@@ -68,16 +86,12 @@ export const WALL_FIELDS: FieldConfig[] = [
 export const newWallEntry = (): Record<string, unknown> => ({
   id: crypto.randomUUID(),
   which_wall: "",
+  which_wall_custom: "",
+  opening: "",
+  opening_custom: "",
   condition: "",
   paint_condition: "",
   notes: "",
-  is_custom: false,
-  custom_label: "",
-});
-
-export const newCustomWallEntry = (): Record<string, unknown> => ({
-  ...newWallEntry(),
-  is_custom: true,
 });
 
 // ── Flooring fields ───────────────────────────────────────────────────────────
@@ -94,7 +108,10 @@ export const FLOORING_FIELDS: FieldConfig[] = [
       { value: "near_window",   label: "Near window" },
       { value: "near_bathroom", label: "Near bathroom" },
       { value: "corner_area",   label: "Corner area" },
+      { value: "custom",        label: "Custom" },
     ],
+    customTextOnValue: "custom",
+    customTextPlaceholder: "Describe the zone…",
   },
   {
     key: "flooring_type",
@@ -140,17 +157,11 @@ export const FLOORING_FIELDS: FieldConfig[] = [
 export const newFlooringEntry = (): Record<string, unknown> => ({
   id: crypto.randomUUID(),
   flooring_zone: "",
+  flooring_zone_custom: "",
   flooring_type: "",
   condition: "",
   cracked_tiles_count: 0,
   notes: "",
-  is_custom: false,
-  custom_label: "",
-});
-
-export const newCustomFlooringEntry = (): Record<string, unknown> => ({
-  ...newFlooringEntry(),
-  is_custom: true,
 });
 
 // ── Ceiling fields ────────────────────────────────────────────────────────────
@@ -168,12 +179,14 @@ export const CEILING_FIELDS: FieldConfig[] = [
     type: "select",
     placeholder: "Select area",
     options: [
-      { value: "entire_ceiling",        label: "Entire ceiling" },
-      { value: "above_bed_area",        label: "Above bed area" },
-      { value: "above_kitchen_slab",    label: "Above kitchen slab" },
-      { value: "above_bathroom_area",   label: "Above bathroom area" },
-      { value: "corner_area",           label: "Corner area" },
+      { value: "entire",       label: "Entire ceiling" },
+      { value: "corner",       label: "Corner area" },
+      { value: "above_window", label: "Above window" },
+      { value: "centre",       label: "Centre" },
+      { value: "custom",       label: "Custom" },
     ],
+    customTextOnValue: "custom",
+    customTextPlaceholder: "Describe the area…",
   },
   {
     key: "condition",
@@ -184,14 +197,13 @@ export const CEILING_FIELDS: FieldConfig[] = [
   },
   {
     key: "seepage_dampness",
-    label: "Seepage / dampness",
+    label: "Dampness",
     type: "select",
     placeholder: "Select",
     options: [
-      { value: "none",              label: "None" },
-      { value: "staining_dry",      label: "Staining visible (dry)" },
-      { value: "active_dampness",   label: "Active dampness" },
-      { value: "seepage_suspected", label: "Seepage suspected" },
+      { value: "none",            label: "None" },
+      { value: "staining_dry",    label: "Staining visible (dry)" },
+      { value: "active_dampness", label: "Active dampness" },
     ],
   },
   {
@@ -206,16 +218,10 @@ export const CEILING_FIELDS: FieldConfig[] = [
 export const newCeilingEntry = (): Record<string, unknown> => ({
   id: crypto.randomUUID(),
   ceiling_area: "",
+  ceiling_area_custom: "",
   condition: "",
   seepage_dampness: "",
   notes: "",
-  is_custom: false,
-  custom_label: "",
-});
-
-export const newCustomCeilingEntry = (): Record<string, unknown> => ({
-  ...newCeilingEntry(),
-  is_custom: true,
 });
 
 // ── False ceiling (single object, not entry list) ─────────────────────────────

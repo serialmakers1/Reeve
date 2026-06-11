@@ -38,11 +38,8 @@ import {
   FLOORING_FIELDS,
   CEILING_FIELDS,
   newWallEntry,
-  newCustomWallEntry,
   newFlooringEntry,
-  newCustomFlooringEntry,
   newCeilingEntry,
-  newCustomCeilingEntry,
   FALSE_CEILING_TYPES,
   FALSE_CEILING_MATERIALS,
   DEFAULT_FALSE_CEILING,
@@ -216,20 +213,27 @@ export function SurfacesSubsection({
   // ── Entry title helpers ───────────────────────────────────────────────────
 
   const wallTitle = (entry: Record<string, unknown>, i: number): string => {
-    if (entry.is_custom) return String(entry.custom_label || `Wall ${i + 1}`);
+    if (entry.is_custom) return String(entry.custom_label || `Wall ${i + 1}`); // legacy entries
+    if (entry.which_wall === "custom") return String(entry.which_wall_custom || `Wall ${i + 1}`);
     const wallLabelMap: Record<string, string> = {
+      all_walls: "All Walls",
+      left:      "Left",
+      right:     "Right",
+      entry:     "Entry",
+      opposite:  "Opposite",
+      // Legacy values from old inspections
       road_facing:     "Road-facing wall",
       building_facing: "Building-facing wall",
       left_wall:       "Left wall",
       right_wall:      "Right wall",
-      all_walls:       "All walls",
       partition_wall:  "Partition wall",
     };
     return wallLabelMap[entry.which_wall as string] ?? `Wall ${i + 1}`;
   };
 
   const flooringTitle = (entry: Record<string, unknown>, i: number): string => {
-    if (entry.is_custom) return String(entry.custom_label || `Flooring zone ${i + 1}`);
+    if (entry.is_custom) return String(entry.custom_label || `Flooring zone ${i + 1}`); // legacy
+    if (entry.flooring_zone === "custom") return String(entry.flooring_zone_custom || `Flooring zone ${i + 1}`);
     const zoneMap: Record<string, string> = {
       entire_room:   "Entire room",
       near_entrance: "Near entrance",
@@ -241,8 +245,14 @@ export function SurfacesSubsection({
   };
 
   const ceilingTitle = (entry: Record<string, unknown>, i: number): string => {
-    if (entry.is_custom) return String(entry.custom_label || `Ceiling area ${i + 1}`);
+    if (entry.is_custom) return String(entry.custom_label || `Ceiling area ${i + 1}`); // legacy
+    if (entry.ceiling_area === "custom") return String(entry.ceiling_area_custom || `Ceiling area ${i + 1}`);
     const areaMap: Record<string, string> = {
+      entire:       "Entire ceiling",
+      corner:       "Corner area",
+      above_window: "Above window",
+      centre:       "Centre",
+      // Legacy values from old inspections
       entire_ceiling:      "Entire ceiling",
       above_bed_area:      "Above bed area",
       above_kitchen_slab:  "Above kitchen slab",
@@ -292,13 +302,11 @@ export function SurfacesSubsection({
               fields={WALL_FIELDS}
               onUpdate={updateEntry(wallEntries, updateWallEntries)}
               onAdd={() => updateWallEntries([...wallEntries, newWallEntry()])}
-              onAddCustom={() => updateWallEntries([...wallEntries, newCustomWallEntry()])}
               onDelete={deleteEntry(wallEntries, updateWallEntries)}
               addLabel="Add wall"
               deleteConfirmText="Delete this wall entry?"
               emptyText="No wall entries. Tap + to document wall condition."
               entryTitle={wallTitle}
-              allowCustom
             />
           </div>
 
@@ -310,13 +318,11 @@ export function SurfacesSubsection({
               fields={FLOORING_FIELDS}
               onUpdate={updateEntry(flooringEntries, updateFlooringEntries)}
               onAdd={() => updateFlooringEntries([...flooringEntries, newFlooringEntry()])}
-              onAddCustom={() => updateFlooringEntries([...flooringEntries, newCustomFlooringEntry()])}
               onDelete={deleteEntry(flooringEntries, updateFlooringEntries)}
               addLabel="Add flooring zone"
               deleteConfirmText="Delete this flooring entry?"
               emptyText="No flooring entries. Tap + to document flooring condition."
               entryTitle={flooringTitle}
-              allowCustom
             />
           </div>
 
@@ -328,13 +334,11 @@ export function SurfacesSubsection({
               fields={CEILING_FIELDS}
               onUpdate={updateEntry(ceilingEntries, updateCeilingEntries)}
               onAdd={() => updateCeilingEntries([...ceilingEntries, newCeilingEntry()])}
-              onAddCustom={() => updateCeilingEntries([...ceilingEntries, newCustomCeilingEntry()])}
               onDelete={deleteEntry(ceilingEntries, updateCeilingEntries)}
               addLabel="Add ceiling area"
               deleteConfirmText="Delete this ceiling entry?"
               emptyText="No ceiling entries. Tap + to document ceiling condition."
               entryTitle={ceilingTitle}
-              allowCustom
             />
           </div>
 
