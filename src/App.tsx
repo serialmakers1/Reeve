@@ -23,6 +23,7 @@ import Terms from "./pages/Terms";
 import Refund from "./pages/Refund";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import MoveInAudit from "./pages/MoveInAudit";
 
 // ── Lazy imports ───────────────────────────────────────────────────────────────
 const PropertyDetail         = React.lazy(() => import("./pages/PropertyDetail"));
@@ -122,6 +123,7 @@ function AppInner() {
         <Route path="/savings/owner" element={<OwnerSavingsCalculator />} />
         <Route path="/owner/how-it-works" element={<OwnerClarityGuide />} />
         <Route path="/owners" element={<OwnerLandingPage />} />
+        <Route path="/move-in-audit" element={<MoveInAudit />} />
         <Route path="/eligibility" element={<Eligibility />} />
         <Route path="/my-properties" element={<MyProperties />} />
         <Route path="/my-properties/new" element={<MyPropertyNew />} />
