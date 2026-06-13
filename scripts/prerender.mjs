@@ -668,6 +668,89 @@ const routes = [
   </main>
 </div>`,
   },
+
+  // ── /move-in-audit ─────────────────────────────────────────────────────────
+  {
+    outFile: path.join(DIST, 'move-in-audit', 'index.html'),
+    title: 'Move-in Audit — Rental Handover Documentation | Reeve',
+    description: 'Reeve documents the visible condition of your rented flat before possession — photos, videos, room-wise notes, and a neutral PDF report shared with all parties. Bengaluru rentals.',
+    ogTitle: 'Move-in Audit — Document Your Rental Before Possession',
+    ogDescription: 'A neutral handover record so deposit discussions are based on evidence, not memory. For tenants, owners, and brokers in Bengaluru.',
+    canonical: WWW + '/move-in-audit',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Service',
+          '@id': WWW + '/move-in-audit#service',
+          name: 'Reeve Move-in Audit',
+          serviceType: 'Rental Handover Documentation',
+          description: 'A neutral room-wise documentation of a rented flat\'s visible condition at handover, with photos, videos, and a PDF report shared with tenant and owner.',
+          provider: ORG_REF,
+          areaServed: AREA_SERVED,
+          offers: [
+            { '@type': 'Offer', name: '1 BHK Move-in Audit', price: '1199', priceCurrency: 'INR' },
+            { '@type': 'Offer', name: '2 BHK Move-in Audit', price: '2199', priceCurrency: 'INR' },
+            { '@type': 'Offer', name: '3 BHK+ Move-in Audit', price: '2999', priceCurrency: 'INR' },
+          ],
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home',         item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Move-in Audit', item: WWW + '/move-in-audit' },
+          ],
+        },
+      ],
+    },
+    bodyHtml: `
+<div style="font-family:system-ui,sans-serif">
+  <header>
+    <a href="/">Reeve</a>
+    <nav>
+      <a href="/search">Search Properties</a>
+      <a href="/owners">For Owners</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section aria-label="Move-in Audit hero">
+      <p>For tenants, owners, and brokers in Bengaluru</p>
+      <h1>Move in with clarity, not confusion.</h1>
+      <p>Reeve documents the visible condition of a rented flat before possession — room by room, with photos, videos, and a neutral PDF report shared with all parties.</p>
+      <a href="/contact?service=move-in-audit">Book a Move-in Audit</a>
+    </section>
+    <section aria-label="What we document">
+      <h2>What Reeve captures during a Move-in Audit</h2>
+      <ul>
+        <li>Room-wise condition — walls, flooring, ceiling, doors, windows, electrical, and plumbing</li>
+        <li>Photo and video evidence — captured during the visit and shared via a secure link</li>
+        <li>Keys and locks — number of keys, lock type, brand, and condition</li>
+        <li>Utilities and meters — electricity, water, gas consumer IDs and readings</li>
+        <li>Fixtures and fittings — light fixtures, fans, geysers, exhaust fans</li>
+        <li>Appliances and furniture — inventory with brand, model, condition, and ownership</li>
+        <li>Pre-existing damages — documented with location, type, and severity</li>
+        <li>PDF handover report — structured, branded, shared after the visit</li>
+      </ul>
+    </section>
+    <section aria-label="Pricing">
+      <h2>Simple pricing. No hidden costs.</h2>
+      <ul>
+        <li>1 BHK: ₹1,199</li>
+        <li>2 BHK: ₹2,199</li>
+        <li>3 BHK+: ₹2,999</li>
+      </ul>
+      <p>Fully furnished or heavy inventory: +₹500 to ₹750 depending on scope.</p>
+      <p>Anyone can pay — tenant, owner, broker, or split between parties. The report remains neutral regardless of who pays.</p>
+    </section>
+    <section aria-label="Call to action">
+      <h2>Moving in soon? Document it before you take the keys.</h2>
+      <a href="/contact?service=move-in-audit">Book a Move-in Audit</a>
+      <a href="/contact">Talk to Reeve</a>
+    </section>
+  </main>
+</div>`,
+  },
 ];
 
 // ── Write all routes ───────────────────────────────────────────────────────────

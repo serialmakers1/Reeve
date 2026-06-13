@@ -62,6 +62,11 @@ const ACTIVE_ROUTES = [
     priority:    '0.70',
   },
   {
+    path:        '/move-in-audit',
+    changefreq:  'monthly',
+    priority:    '0.85',
+  },
+  {
     path:        '/privacy',
     changefreq:  'yearly',
     priority:    '0.30',

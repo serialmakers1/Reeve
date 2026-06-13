@@ -1,3 +1,4 @@
+## [2026-06-13] feat | Built Move-in Audit page — /move-in-audit route, 9 sections (Hero, Audience, What We Document, How It Works, Pricing, Neutrality, Broker Partner, FAQ, Final CTA), SSG + sitemap entry [IST]
 ## [2026-06-11] fix | Condition label rename, auto-population expansion (minor wear + appliances), dropdown refinements, room-type field removals, PDF damage table fixes [12:30 IST]
 ## [2026-06-10] fix | Post-audit fixes: seepage trigger, edited detection, missing fields, dead code cleanup, DW labels, KeyReturn filter [23:15 IST]
 ## [2026-06-10] audit | Full end-to-end diagnostic of inspection form rebuild — 15-section report; fixed 4 critical/data-loss bugs (getWorstCondition missing import crash, pendingInspectionPatchRef undefined ref crash, old severity values in furniture damage handler, appliance location omitted from upsert); discovered `npx tsc --noEmit` is vacuous (root tsconfig files:[]) + corrupted supabase types.ts line 1 [22:30 IST]
