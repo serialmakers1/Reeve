@@ -53,6 +53,7 @@ interface Property {
   title: string | null;
   available_from: string | null;
   property_type: string | null;
+  maintenance_included_in_rent: boolean;
   primary_image_url: string | null;
 }
 
@@ -166,7 +167,8 @@ function topAmenity(amenities: any): string | null {
 function getHighlightPills(p: Property): string[] {
   const pills: string[] = [];
   pills.push(furnishingLabel(p.furnishing));
-  if (p.parking_4w && p.parking_4w !== "none") pills.push("Car Parking");
+  if (p.maintenance_included_in_rent) pills.push("Maintenance Included");
+  else if (p.parking_4w && p.parking_4w !== "none") pills.push("Car Parking");
   else if (p.parking_2w && p.parking_2w !== "none") pills.push("Bike Parking");
   const ta = topAmenity(p.amenities);
   if (ta) pills.push(ta.charAt(0).toUpperCase() + ta.slice(1));
@@ -454,13 +456,18 @@ function PropertyCardGrid({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: 
             </span>
           ))}
         </div>
-        <div className="flex gap-1.5 pt-2">
+        <div className="flex gap-1.5 pt-2 flex-wrap">
           <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
             2 Month Deposit
           </span>
           <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
             Zero Brokerage
           </span>
+          {p.maintenance_included_in_rent && (
+            <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+              Zero Additional Maintenance
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -521,13 +528,18 @@ function PropertyCardList({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: 
               </span>
             ))}
           </div>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
             <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
               2 Month Deposit
             </span>
             <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
               Zero Brokerage
             </span>
+            {p.maintenance_included_in_rent && (
+              <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                Zero Additional Maintenance
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -593,7 +605,7 @@ export default function SearchPage() {
         let query = supabase
           .from("properties")
           .select(
-            "id, building_name, floor_number, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type",
+            "id, building_name, floor_number, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, maintenance_included_in_rent",
             { count: "exact" }
           )
           .eq("status", "listed")

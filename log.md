@@ -1,3 +1,5 @@
+## [2026-06-17] fix | 7-issue property fix — maintenance badge, cover image sort, society maintenance display, Why7% clip, gas type, wardrobe count, search badge [IST]
+## [2026-06-17] diagnose | Property detail + search page 7-issue audit — deposit calc, cover image, maintenance badge, gas type, wardrobe count, Why7% border, society maintenance display [IST]
 ## [2026-06-13] feat | Built Move-in Audit page — /move-in-audit route, 9 sections (Hero, Audience, What We Document, How It Works, Pricing, Neutrality, Broker Partner, FAQ, Final CTA), SSG + sitemap entry [IST]
 ## [2026-06-11] fix | Condition label rename, auto-population expansion (minor wear + appliances), dropdown refinements, room-type field removals, PDF damage table fixes [12:30 IST]
 ## [2026-06-10] fix | Post-audit fixes: seepage trigger, edited detection, missing fields, dead code cleanup, DW labels, KeyReturn filter [23:15 IST]
