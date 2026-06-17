@@ -180,9 +180,13 @@ export default function PropertyEdit() {
   const [facing, setFacing] = useState<string>('');
   const [buildingAgeYears, setBuildingAgeYears] = useState<string>('');
 
+  // Section 2: Listing Details extra
+  const [maintenanceIncluded, setMaintenanceIncluded] = useState(false);
+
   // Section 5: Utilities & Policies
   const [waterIncluded, setWaterIncluded] = useState(false);
   const [gasIncluded, setGasIncluded] = useState(false);
+  const [gasType, setGasType] = useState<string>("");
   const [electricityIncluded, setElectricityIncluded] = useState(false);
   const [parking2w, setParking2w] = useState("none");
   const [parking4w, setParking4w] = useState("none");
@@ -256,8 +260,10 @@ export default function PropertyEdit() {
         setAvailableFrom(new Date(((data as Record<string, unknown>).available_from as string) + "T00:00:00"));
       }
       setFurnishing((data as Record<string, unknown>).furnishing as string || "");
+      setMaintenanceIncluded(!!(data as Record<string, unknown>).maintenance_included_in_rent);
       setWaterIncluded(!!(data as Record<string, unknown>).utility_water_included);
       setGasIncluded(!!(data as Record<string, unknown>).utility_gas_included);
+      setGasType((data as Record<string, unknown>).gas_type as string || "");
       setElectricityIncluded(!!(data as Record<string, unknown>).utility_electricity_included);
       setParking2w((data as Record<string, unknown>).parking_2w as string || "none");
       setParking4w((data as Record<string, unknown>).parking_4w as string || "none");
@@ -357,8 +363,10 @@ export default function PropertyEdit() {
         facing: facing || null,
         building_age_years: buildingAgeYears ? Number(buildingAgeYears) : null,
         furnishing_detail: furnishingDetail.length > 0 ? (furnishingDetail as any) : null,
+        maintenance_included_in_rent: maintenanceIncluded,
         utility_water_included: waterIncluded,
         utility_gas_included: gasIncluded,
+        gas_type: gasType || null,
         utility_electricity_included: electricityIncluded,
         parking_2w: parking2w as "none" | "covered" | "uncovered" | "both",
         parking_4w: parking4w as "none" | "covered" | "uncovered" | "both",
@@ -823,6 +831,13 @@ export default function PropertyEdit() {
             <Field label="Society Maintenance Approx (₹)">
               <Input type="number" value={societyMaintenance} onChange={(e) => setSocietyMaintenance(e.target.value)} className="min-h-[44px]" />
             </Field>
+            <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+              <div>
+                <Label className="text-sm font-medium">Society Maintenance Included in Rent</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">When on, tenants see "Included in Rent" instead of a separate maintenance amount</p>
+              </div>
+              <Switch checked={maintenanceIncluded} onCheckedChange={setMaintenanceIncluded} />
+            </div>
             <Field label="Security Deposit (months)">
               <Select value={securityDepositMonths} onValueChange={setSecurityDepositMonths}>
                 <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
@@ -960,6 +975,18 @@ export default function PropertyEdit() {
                 <Label className="text-sm">Electricity Included</Label>
                 <Switch checked={electricityIncluded} onCheckedChange={setElectricityIncluded} />
               </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Gas Type">
+                <Select value={gasType} onValueChange={setGasType}>
+                  <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Select gas type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Not specified</SelectItem>
+                    <SelectItem value="pipeline">Pipeline</SelectItem>
+                    <SelectItem value="cylinder">Cylinder</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Parking — 2 Wheeler">

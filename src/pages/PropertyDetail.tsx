@@ -91,6 +91,8 @@ interface PropertyData {
   building_rules: string | null;
   security_deposit_months: number;
   society_maintenance_approx: number | null;
+  maintenance_included_in_rent: boolean;
+  gas_type: string | null;
   utility_water_included: boolean;
   utility_electricity_included: boolean;
   utility_gas_included: boolean;
@@ -465,7 +467,7 @@ const PropertyDetail: React.FC = () => {
         supabase
           .from("properties")
           .select(
-            "id, owner_id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail"
+            "id, owner_id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -503,7 +505,8 @@ const PropertyDetail: React.FC = () => {
       }
 
       const fetchedImages = (imgRes.data ?? []) as unknown as PropertyImage[];
-      setImages(fetchedImages.length > 0 ? fetchedImages : PLACEHOLDER_IMAGES);
+      const sortedImages = [...fetchedImages].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
+      setImages(sortedImages.length > 0 ? sortedImages : PLACEHOLDER_IMAGES);
 
       setLoading(false);
     };
@@ -1010,6 +1013,11 @@ const PropertyDetail: React.FC = () => {
                 <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
                   🟢 2 Month Notice
                </span>
+               {property.maintenance_included_in_rent && (
+                 <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                   🟢 Zero Additional Maintenance
+                 </span>
+               )}
               </div>
             </section>
 
@@ -1033,7 +1041,7 @@ const PropertyDetail: React.FC = () => {
                         ₹{property.listed_rent.toLocaleString('en-IN')}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center px-4 py-2.5 border-t border-gray-100">
+                    <div className="flex justify-between items-center px-4 py-2.5 pb-3 border-t border-gray-100">
                       <span className="text-sm text-gray-600 flex items-center gap-1.5">Reeve Fee (7%) <WhyReeveFeeLink /></span>
                       <span className="text-sm font-medium text-gray-900">
                         ₹{Math.round(property.listed_rent * 0.07).toLocaleString('en-IN')}
@@ -1055,12 +1063,14 @@ const PropertyDetail: React.FC = () => {
                         ₹{(property.listed_rent * (property.security_deposit_months ?? 2)).toLocaleString('en-IN')}
                       </span>
                     </div>
-                    {property.society_maintenance_approx && (
+                    {property.society_maintenance_approx != null && (
                       <div className="flex justify-between items-start text-sm">
                         <span className="text-gray-500">Society Maintenance</span>
                         <span className="text-gray-700 text-right">
-                          ~₹{Number(property.society_maintenance_approx).toLocaleString('en-IN')}
-                          <span className="text-gray-400"> · Included in Base rent</span>
+                          {property.society_maintenance_approx === 0 || property.maintenance_included_in_rent
+                            ? "Included in Rent"
+                            : <>~₹{Number(property.society_maintenance_approx).toLocaleString('en-IN')}/mo{property.maintenance_included_in_rent && <span className="text-gray-400"> · Included in Rent</span>}</>
+                          }
                         </span>
                       </div>
                     )}
@@ -1088,7 +1098,7 @@ const PropertyDetail: React.FC = () => {
                 />
                 <UtilityPill
                   icon={<Flame className="h-3.5 w-3.5" />}
-                  label="Gas"
+                  label={property.gas_type === "pipeline" ? "Gas (Pipeline)" : property.gas_type === "cylinder" ? "Gas (Cylinder)" : "Gas"}
                   included={property.utility_gas_included}
                 />
               </div>
@@ -1120,7 +1130,7 @@ const PropertyDetail: React.FC = () => {
                     {(property.furnishing_detail as FurnishingDetailItem[]).map((f, idx) => {
                       const label = FURNISHING_DETAIL_LABELS[f.item] ?? f.item
                       const detail = [
-                        f.count && f.count > 1 ? `×${f.count}` : null,
+                        f.count != null && f.count >= 1 ? `×${f.count}` : null,
                         f.size ?? null,
                         f.rooms ?? null,
                       ].filter(Boolean).join(' · ')

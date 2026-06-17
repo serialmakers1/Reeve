@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       agreements: {
@@ -839,6 +864,7 @@ export type Database = {
           id: string
           inspection_id: string
           last_service_date: string | null
+          location: string | null
           manufacturing_year: number | null
           model_number: string | null
           notes: string | null
@@ -856,6 +882,7 @@ export type Database = {
           id?: string
           inspection_id: string
           last_service_date?: string | null
+          location?: string | null
           manufacturing_year?: number | null
           model_number?: string | null
           notes?: string | null
@@ -873,6 +900,7 @@ export type Database = {
           id?: string
           inspection_id?: string
           last_service_date?: string | null
+          location?: string | null
           manufacturing_year?: number | null
           model_number?: string | null
           notes?: string | null
@@ -950,6 +978,48 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspection_reports: {
+        Row: {
+          generated_at: string
+          generated_by: string
+          id: string
+          inspection_id: string
+          inspector_name_snapshot: string
+          report_type: string
+        }
+        Insert: {
+          generated_at?: string
+          generated_by: string
+          id?: string
+          inspection_id: string
+          inspector_name_snapshot: string
+          report_type: string
+        }
+        Update: {
+          generated_at?: string
+          generated_by?: string
+          id?: string
+          inspection_id?: string
+          inspector_name_snapshot?: string
+          report_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_reports_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_reports_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "property_inspections"
             referencedColumns: ["id"]
           },
         ]
@@ -1919,6 +1989,7 @@ export type Database = {
           floor_plan_url: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"]
           furnishing_detail: Json | null
+          gas_type: string | null
           id: string
           inspected_at: string | null
           inspection_accepted_at: string | null
@@ -1937,6 +2008,7 @@ export type Database = {
           locality: string | null
           longitude: number | null
           main_door_lock_type: string | null
+          maintenance_included_in_rent: boolean
           map_pin_url: string | null
           occupied_at: string | null
           off_market_at: string | null
@@ -1999,6 +2071,7 @@ export type Database = {
           floor_plan_url?: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"]
           furnishing_detail?: Json | null
+          gas_type?: string | null
           id?: string
           inspected_at?: string | null
           inspection_accepted_at?: string | null
@@ -2017,6 +2090,7 @@ export type Database = {
           locality?: string | null
           longitude?: number | null
           main_door_lock_type?: string | null
+          maintenance_included_in_rent?: boolean
           map_pin_url?: string | null
           occupied_at?: string | null
           off_market_at?: string | null
@@ -2079,6 +2153,7 @@ export type Database = {
           floor_plan_url?: string | null
           furnishing?: Database["public"]["Enums"]["furnishing_type"]
           furnishing_detail?: Json | null
+          gas_type?: string | null
           id?: string
           inspected_at?: string | null
           inspection_accepted_at?: string | null
@@ -2097,6 +2172,7 @@ export type Database = {
           locality?: string | null
           longitude?: number | null
           main_door_lock_type?: string | null
+          maintenance_included_in_rent?: boolean
           map_pin_url?: string | null
           occupied_at?: string | null
           off_market_at?: string | null
@@ -2300,8 +2376,10 @@ export type Database = {
           created_at: string
           general_observations: string | null
           id: string
+          inspection_summary: Json | null
           inspector_notes: string | null
           inspector_user_id: string
+          key_return_summary: Json | null
           media_drive_link: string | null
           mode: Database["public"]["Enums"]["inspection_mode"] | null
           owner_signed_off: boolean
@@ -2319,8 +2397,10 @@ export type Database = {
           created_at?: string
           general_observations?: string | null
           id?: string
+          inspection_summary?: Json | null
           inspector_notes?: string | null
           inspector_user_id: string
+          key_return_summary?: Json | null
           media_drive_link?: string | null
           mode?: Database["public"]["Enums"]["inspection_mode"] | null
           owner_signed_off?: boolean
@@ -2338,8 +2418,10 @@ export type Database = {
           created_at?: string
           general_observations?: string | null
           id?: string
+          inspection_summary?: Json | null
           inspector_notes?: string | null
           inspector_user_id?: string
+          key_return_summary?: Json | null
           media_drive_link?: string | null
           mode?: Database["public"]["Enums"]["inspection_mode"] | null
           owner_signed_off?: boolean
@@ -2859,6 +2941,7 @@ export type Database = {
         | "home_office"
         | "servant_quarter"
         | "store_room"
+        | "dining_room"
       stay_duration_type:
         | "less_than_10_months"
         | "10_to_12_months"
@@ -3007,6 +3090,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       agreement_status: [
@@ -3244,6 +3330,7 @@ export const Constants = {
         "home_office",
         "servant_quarter",
         "store_room",
+        "dining_room",
       ],
       stay_duration_type: [
         "less_than_10_months",
