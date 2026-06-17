@@ -705,7 +705,7 @@ const PropertyDetail: React.FC = () => {
       ? photoImages
       : images.filter(img => img.section === galleryTab && !img.is_floor_plan);
 
-  const depositAmount = 2 * property.listed_rent * property.security_deposit_months;
+  const depositAmount = property.listed_rent * property.security_deposit_months;
 
   // ─── Application history derived state ────────────────────────────────────
   // Derive each flag by scanning the full array rather than relying on ordering.
@@ -818,7 +818,7 @@ const PropertyDetail: React.FC = () => {
   const detailItems: { icon: React.ReactNode; label: string; value: string }[] = [];
   detailItems.push({ icon: <Home className="h-4 w-4" />, label: "BHK Type", value: bhkLabel(property.bhk) });
   if (property.square_footage) {
-    detailItems.push({ icon: <Maximize2 className="h-4 w-4" />, label: "Area", value: `${property.square_footage} sqft` });
+    detailItems.push({ icon: <Maximize2 className="h-4 w-4" />, label: "Carpet Area", value: `${property.square_footage} sqft` });
   }
   if (property.floor_number != null) {
     detailItems.push({ icon: <Building2 className="h-4 w-4" />, label: "Floor", value: String(property.floor_number) });
@@ -1052,7 +1052,7 @@ const PropertyDetail: React.FC = () => {
                     <div className="flex justify-between items-start text-sm">
                       <span className="text-gray-500">Security Deposit</span>
                       <span className="text-gray-700 text-right font-medium">
-                        ₹{(2 * property.listed_rent * (property.security_deposit_months ?? 2)).toLocaleString('en-IN')}
+                        ₹{(property.listed_rent * (property.security_deposit_months ?? 2)).toLocaleString('en-IN')}
                       </span>
                     </div>
                     {property.society_maintenance_approx && (
