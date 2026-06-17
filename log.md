@@ -1,3 +1,4 @@
+## [2026-06-17] fix | Gas Type SelectItem empty-string crash — changed placeholder value from "" to "none" sentinel [IST]
 ## [2026-06-17] fix | 7-issue property fix — maintenance badge, cover image sort, society maintenance display, Why7% clip, gas type, wardrobe count, search badge [IST]
 ## [2026-06-17] diagnose | Property detail + search page 7-issue audit — deposit calc, cover image, maintenance badge, gas type, wardrobe count, Why7% border, society maintenance display [IST]
 ## [2026-06-13] feat | Built Move-in Audit page — /move-in-audit route, 9 sections (Hero, Audience, What We Document, How It Works, Pricing, Neutrality, Broker Partner, FAQ, Final CTA), SSG + sitemap entry [IST]
