@@ -263,7 +263,7 @@ export default function PropertyEdit() {
       setMaintenanceIncluded(!!(data as Record<string, unknown>).maintenance_included_in_rent);
       setWaterIncluded(!!(data as Record<string, unknown>).utility_water_included);
       setGasIncluded(!!(data as Record<string, unknown>).utility_gas_included);
-      setGasType((data as Record<string, unknown>).gas_type as string || "");
+      setGasType((data as Record<string, unknown>).gas_type as string || "none");
       setElectricityIncluded(!!(data as Record<string, unknown>).utility_electricity_included);
       setParking2w((data as Record<string, unknown>).parking_2w as string || "none");
       setParking4w((data as Record<string, unknown>).parking_4w as string || "none");
@@ -366,7 +366,7 @@ export default function PropertyEdit() {
         maintenance_included_in_rent: maintenanceIncluded,
         utility_water_included: waterIncluded,
         utility_gas_included: gasIncluded,
-        gas_type: gasType || null,
+        gas_type: gasType === "none" ? null : gasType || null,
         utility_electricity_included: electricityIncluded,
         parking_2w: parking2w as "none" | "covered" | "uncovered" | "both",
         parking_4w: parking4w as "none" | "covered" | "uncovered" | "both",
@@ -981,7 +981,7 @@ export default function PropertyEdit() {
                 <Select value={gasType} onValueChange={setGasType}>
                   <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Select gas type" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Not specified</SelectItem>
+                    <SelectItem value="none">Not specified</SelectItem>
                     <SelectItem value="pipeline">Pipeline</SelectItem>
                     <SelectItem value="cylinder">Cylinder</SelectItem>
                   </SelectContent>
