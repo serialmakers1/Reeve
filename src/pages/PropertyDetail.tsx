@@ -196,7 +196,8 @@ const FURNISHING_DETAIL_LABELS: Record<string, string> = {
   geyser: 'Geyser', fridge: 'Fridge', washing_machine: 'Washing Machine',
   tv: 'TV', sofa: 'Sofa', dining_table: 'Dining Table', microwave: 'Microwave',
   modular_kitchen: 'Modular Kitchen', water_purifier: 'Water Purifier',
-  curtain_rod: 'Curtain Rod', curtains: 'Curtains'
+  curtain_rod: 'Curtain Rod', curtains: 'Curtains',
+  stove: 'Stove', chimney: 'Chimney', fan: 'Fan', exhaust_fan: 'Exhaust Fan'
 };
 
 const BUILDING_AMENITY_LABELS: Record<string, string> = {
@@ -204,7 +205,9 @@ const BUILDING_AMENITY_LABELS: Record<string, string> = {
   gym: 'Gym', swimming_pool: 'Swimming Pool', clubhouse: 'Clubhouse',
   visitor_parking: 'Visitor Parking', cctv: 'CCTV',
   children_play_area: "Children's Play Area", intercom: 'Intercom',
-  park: 'Park', maintenance_staff: 'Maintenance Staff', gated_access: 'Gated Access'
+  park: 'Park', maintenance_staff: 'Maintenance Staff', gated_access: 'Gated Access',
+  garden: 'Garden', sports_facility: 'Sports Facility',
+  community_hall: 'Community Hall', water_supply_24hr: '24hr Water Supply'
 };
 
 function amenityLabel(a: string): string {
@@ -705,7 +708,7 @@ const PropertyDetail: React.FC = () => {
   const activeImages = galleryTab === "floorplan"
     ? floorPlanImages
     : galleryTab === "all" || galleryTab === "photos"
-      ? photoImages
+      ? [...photoImages, ...floorPlanImages]
       : images.filter(img => img.section === galleryTab && !img.is_floor_plan);
 
   const depositAmount = property.listed_rent * property.security_deposit_months;
@@ -1181,6 +1184,10 @@ const PropertyDetail: React.FC = () => {
                     { key: 'park', label: 'Park' },
                     { key: 'maintenance_staff', label: 'Maintenance Staff' },
                     { key: 'gated_access', label: 'Gated Access' },
+                    { key: 'garden', label: 'Garden' },
+                    { key: 'sports_facility', label: 'Sports Facility' },
+                    { key: 'community_hall', label: 'Community Hall' },
+                    { key: 'water_supply_24hr', label: '24hr Water Supply' },
                   ].map(({ key, label }) => {
                     const present = rawAmenities?.building?.includes(key) ?? false;
                     return (

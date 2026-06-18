@@ -1,3 +1,5 @@
+## [2026-06-18] fix | 5-issue fix — furnishing items (stove/chimney/fan/exhaust), amenities (garden/sports/community/water), search UI hide, floor plan carousel, WhyReeveFeeModal height resolution [IST]
+## [2026-06-18] diagnose | 5-issue audit — furnishing items, amenities, search UI hide, floor plan carousel, WhyReeveFeeModal dimensions [IST]
 ## [2026-06-17] fix | Gas Type SelectItem empty-string crash — changed placeholder value from "" to "none" sentinel [IST]
 ## [2026-06-17] fix | 7-issue property fix — maintenance badge, cover image sort, society maintenance display, Why7% clip, gas type, wardrobe count, search badge [IST]
 ## [2026-06-17] diagnose | Property detail + search page 7-issue audit — deposit calc, cover image, maintenance badge, gas type, wardrobe count, Why7% border, society maintenance display [IST]

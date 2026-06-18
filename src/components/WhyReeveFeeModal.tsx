@@ -363,7 +363,7 @@ const FeeModalContent: React.FC<FeeModalContentProps> = ({ onClose }) => {
 
   return (
     <div
-      className="flex flex-col"
+      className="flex-1 flex flex-col"
       style={{ background: "#171714", minHeight: 0 }}
       aria-label="Why the Reeve fee"
     >
@@ -495,8 +495,8 @@ const WhyReeveFeeModal: React.FC<WhyReeveFeeModalProps> = ({ open, onClose }) =>
     return (
       <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
         <DrawerContent
-          className="overflow-y-auto"
-          style={{ background: "#171714", maxHeight: "92dvh", borderTop: "1px solid rgba(201,160,90,0.2)" }}
+          className="overflow-y-auto flex flex-col"
+          style={{ background: "#171714", maxHeight: "92svh", borderTop: "1px solid rgba(201,160,90,0.2)" }}
         >
           <FeeModalContent onClose={onClose} />
         </DrawerContent>
@@ -507,10 +507,11 @@ const WhyReeveFeeModal: React.FC<WhyReeveFeeModalProps> = ({ open, onClose }) =>
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
-        className="overflow-hidden p-0 gap-0 [&>button]:hidden"
+        className="overflow-hidden p-0 gap-0 [&>button]:hidden flex flex-col"
         style={{
           background: "#171714",
           maxWidth: "700px",
+          height: "min(88vh, 640px)",
           maxHeight: "88vh",
           border: "1px solid rgba(201,160,90,0.2)",
           borderRadius: "16px",

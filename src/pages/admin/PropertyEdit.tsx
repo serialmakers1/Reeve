@@ -51,6 +51,10 @@ const FURNISHING_ITEM_OPTIONS = [
   { value: 'modular_kitchen', label: 'Modular Kitchen', yesNoOnly: true, hasRooms: false },
   { value: 'water_purifier', label: 'Water Purifier / RO', yesNoOnly: true, hasRooms: false },
   { value: 'curtain_rod', label: 'Curtain Rods', hasRooms: false },
+  { value: 'stove', label: 'Stove', yesNoOnly: true, hasRooms: false },
+  { value: 'chimney', label: 'Chimney', yesNoOnly: true, hasRooms: false },
+  { value: 'fan', label: 'Fan', hasRooms: false },
+  { value: 'exhaust_fan', label: 'Exhaust Fan', hasRooms: false },
 ];
 
 const BHK_OPTIONS = [
@@ -104,6 +108,10 @@ const BUILDING_AMENITIES = [
   { value: "park", label: "Park" },
   { value: "maintenance_staff", label: "Maintenance Staff" },
   { value: "gated_access", label: "Gated Access" },
+  { value: "garden", label: "Garden" },
+  { value: "sports_facility", label: "Sports Facility" },
+  { value: "community_hall", label: "Community Hall" },
+  { value: "water_supply_24hr", label: "24hr Water Supply" },
 ];
 
 const PARKING_OPTIONS = [

@@ -767,7 +767,7 @@ export default function SearchPage() {
         </LoginDrawerPrimitive>
 
         {/* ─── Search Bar ─── */}
-        <div className="sticky top-[57px] z-30 border-b border-gray-200 bg-white">
+        <div className="hidden sticky top-[57px] z-30 border-b border-gray-200 bg-white">
           <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
             {/* Search input */}
             <div className="relative flex-1 max-w-xl">
@@ -868,7 +868,7 @@ export default function SearchPage() {
         {/* ─── BODY ─── */}
         <div className="mx-auto max-w-7xl lg:flex">
         {/* Desktop sidebar */}
-        <aside className="hidden w-72 flex-shrink-0 border-r border-gray-200 bg-white p-5 lg:block">
+        <aside className="hidden w-72 flex-shrink-0 border-r border-gray-200 bg-white p-5">
           <div className="sticky top-32">
             <h2 className="mb-4 text-sm font-bold text-gray-900 uppercase tracking-wider">
               Filters
@@ -885,7 +885,7 @@ export default function SearchPage() {
         {/* Results */}
         <main className="flex-1 p-4">
           {/* Mobile filter bar */}
-          <div className="mb-4 flex items-center justify-between lg:hidden">
+          <div className="hidden mb-4 flex items-center justify-between lg:hidden">
             <p className="text-sm text-gray-500">
               {!loading && `${totalCount} properties`}
             </p>
@@ -916,6 +916,11 @@ export default function SearchPage() {
               </DrawerContent>
             </Drawer>
           </div>
+
+          {/* Mobile property count */}
+          <p className="mb-3 text-sm text-gray-500 lg:hidden">
+            {!loading && `${totalCount} properties`}
+          </p>
 
           {/* Desktop count */}
           <div className="mb-4 hidden items-center justify-between lg:flex">
