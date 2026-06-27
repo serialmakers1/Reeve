@@ -676,7 +676,7 @@ const routes = [
     description: 'Reeve documents the visible condition of your rented flat before possession — photos, videos, room-wise notes, and a neutral PDF report shared with all parties. Bengaluru rentals.',
     ogTitle: 'Move-in Audit — Document Your Rental Before Possession',
     ogDescription: 'A neutral handover record so deposit discussions are based on evidence, not memory. For tenants, owners, and brokers in Bengaluru.',
-    canonical: WWW + '/move-in-audit',
+    canonical: BASE + '/move-in-audit',
     jsonLd: {
       '@context': 'https://schema.org',
       '@graph': [
@@ -699,6 +699,75 @@ const routes = [
           itemListElement: [
             { '@type': 'ListItem', position: 1, name: 'Home',         item: WWW + '/' },
             { '@type': 'ListItem', position: 2, name: 'Move-in Audit', item: WWW + '/move-in-audit' },
+          ],
+        },
+        {
+          '@type': 'FAQPage',
+          mainEntity: [
+            {
+              '@type': 'Question',
+              name: 'Is this a structural inspection?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'No. A Reeve Move-in Audit documents what is visibly observable during the handover visit. It does not cover hidden defects, structural integrity, electrical compliance, plumbing pressure, pest presence, or property valuation. It is a documentation service, not a technical inspection.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Who should pay for it?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Anyone — the tenant, the owner, or the broker. Many tenants book it to protect their deposit. Some owners book it to have a clean record from day one. Brokers sometimes include it as part of a premium handover. The report remains neutral regardless of who pays.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Will this guarantee my deposit is returned?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'No. A Move-in Audit creates a documented baseline — a neutral record of the property\'s condition on the day of possession. It does not guarantee any outcome. What it does is replace guesswork with evidence, so that any deposit discussion is based on a shared, dated record rather than conflicting memories.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Do both owner and tenant get the report?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Yes. The same report is shared with both parties. Neither the owner nor the tenant receives a version that differs from the other.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Can brokers book this for their clients?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Yes. Brokers can book a Move-in Audit for any rental handover they are facilitating. The booking process is the same — you select the BHK size, share the property address, and choose a date. An optional co-branded report mention is available for brokers who complete multiple handovers through Reeve.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Do you inspect fully furnished homes?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Yes. Fully furnished homes are covered, with an additional fee of ₹500 to ₹750 depending on scope. This applies when the flat has extensive furniture, multiple appliances, or requires item-level documentation beyond standard scope.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'When should I book it?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Ideally, after the rental agreement is finalised but before physical possession is taken — specifically before keys are handed over, before the tenant moves furniture in, and before the first night in the flat. This ensures the condition is documented before the tenant occupies the space. A Move-in Audit can also be conducted at move-out to compare exit condition against the move-in baseline.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'What if the owner or tenant disagrees with an observation?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Any party who disagrees with a specific observation in the report can raise it formally. The disagreement is recorded as a signed addendum attached to the original report. The original report is not changed — the addendum becomes part of the record alongside it.',
+              },
+            },
           ],
         },
       ],
@@ -747,6 +816,27 @@ const routes = [
       <h2>Moving in soon? Document it before you take the keys.</h2>
       <a href="/contact?service=move-in-audit">Book a Move-in Audit</a>
       <a href="/contact">Talk to Reeve</a>
+    </section>
+    <section aria-label="FAQ">
+      <h2>Common questions</h2>
+      <dl>
+        <dt>Is this a structural inspection?</dt>
+        <dd>No. A Reeve Move-in Audit documents what is visibly observable during the handover visit. It does not cover hidden defects, structural integrity, electrical compliance, plumbing pressure, pest presence, or property valuation. It is a documentation service, not a technical inspection.</dd>
+        <dt>Who should pay for it?</dt>
+        <dd>Anyone — the tenant, the owner, or the broker. Many tenants book it to protect their deposit. Some owners book it to have a clean record from day one. Brokers sometimes include it as part of a premium handover. The report remains neutral regardless of who pays.</dd>
+        <dt>Will this guarantee my deposit is returned?</dt>
+        <dd>No. A Move-in Audit creates a documented baseline — a neutral record of the property's condition on the day of possession. It does not guarantee any outcome. What it does is replace guesswork with evidence, so that any deposit discussion is based on a shared, dated record rather than conflicting memories.</dd>
+        <dt>Do both owner and tenant get the report?</dt>
+        <dd>Yes. The same report is shared with both parties. Neither the owner nor the tenant receives a version that differs from the other.</dd>
+        <dt>Can brokers book this for their clients?</dt>
+        <dd>Yes. Brokers can book a Move-in Audit for any rental handover they are facilitating. The booking process is the same — you select the BHK size, share the property address, and choose a date. An optional co-branded report mention is available for brokers who complete multiple handovers through Reeve.</dd>
+        <dt>Do you inspect fully furnished homes?</dt>
+        <dd>Yes. Fully furnished homes are covered, with an additional fee of ₹500 to ₹750 depending on scope. This applies when the flat has extensive furniture, multiple appliances, or requires item-level documentation beyond standard scope.</dd>
+        <dt>When should I book it?</dt>
+        <dd>Ideally, after the rental agreement is finalised but before physical possession is taken — specifically before keys are handed over, before the tenant moves furniture in, and before the first night in the flat. This ensures the condition is documented before the tenant occupies the space. A Move-in Audit can also be conducted at move-out to compare exit condition against the move-in baseline.</dd>
+        <dt>What if the owner or tenant disagrees with an observation?</dt>
+        <dd>Any party who disagrees with a specific observation in the report can raise it formally. The disagreement is recorded as a signed addendum attached to the original report. The original report is not changed — the addendum becomes part of the record alongside it.</dd>
+      </dl>
     </section>
   </main>
 </div>`,

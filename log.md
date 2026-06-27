@@ -157,3 +157,6 @@
 ## [2026-06-10] feat | Damage log auto-population: useAutoPopulateDamages hook watches rooms state, creates/updates/removes auto DamageItems for repair_before_relet + urgent_immediate conditions across wall/flooring/ceiling/false_ceiling/door-window/electrical/plumbing entry arrays; inspector edits preserved via recommended_action sentinel; room deletion converts to manual entries [IST]
 ## [2026-06-10] feat | Derived condition chips replace editable dropdowns, condition snapshot at completion and export [IST]
 ## [2026-06-10] feat | RoomTypeFields.tsx — replace IIFE room-type branches with module-level component; extend ElectricalInventory with 5 detail fields; delete GLASS_CONDITION_OPTIONS from InspectionForm; loadData synthesis for electrical_light_brand/type/switchboard_brand/wifi_point/wifi_brand; 5 Room Features children (Surfaces/DoorsWindows/Electrical/Plumbing/RoomTypeFields) [IST]
+
+## [2026-06-27] audit | SEO/GEO audit for /move-in-audit — [23 checks, 7 issues found: 1 canonical mismatch, 1 missing FAQPage JSON-LD, 1 missing FAQ in bodyHtml, 1 zero internal links, 3 platform-wide OG/Twitter gaps] [IST]
+## [2026-06-27] fix | SEO fixes for /move-in-audit — canonical prefix (WWW→BASE), FAQPage JSON-LD (8 Q&As), FAQ in bodyHtml (dl/dt/dd) [IST]
