@@ -61,6 +61,7 @@ import {
   Wind,
   Compass,
   CalendarDays,
+  Youtube,
 } from "lucide-react";
 import VisitSchedulerModal from "@/components/VisitSchedulerModal";
 import { useToast } from "@/hooks/use-toast";
@@ -102,6 +103,7 @@ interface PropertyData {
   facing: string | null;
   building_age_years: number | null;
   furnishing_detail: unknown;
+  youtube_walkthrough_url: string | null;
 }
 
 interface PropertyImage {
@@ -470,7 +472,7 @@ const PropertyDetail: React.FC = () => {
         supabase
           .from("properties")
           .select(
-            "id, owner_id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail"
+            "id, owner_id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -1020,6 +1022,17 @@ const PropertyDetail: React.FC = () => {
                  <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
                    🟢 Zero Additional Maintenance
                  </span>
+               )}
+               {property.youtube_walkthrough_url != null && property.youtube_walkthrough_url !== "" && (
+                 <a
+                   href={property.youtube_walkthrough_url}
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100"
+                 >
+                   <Youtube className="h-3.5 w-3.5" />
+                   Video Walkthrough
+                 </a>
                )}
               </div>
             </section>
