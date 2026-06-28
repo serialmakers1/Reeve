@@ -1,3 +1,5 @@
+## [2026-06-28] feat | YouTube walkthrough link — DB column, admin input in Listing Details, red pill badge in PropertyDetail green badges row [IST]
+## [2026-06-28] diagnose | YouTube walkthrough link — DB column, admin input, detail page placement below carousel [IST]
 ## [2026-06-18] fix | 5-issue fix — furnishing items (stove/chimney/fan/exhaust), amenities (garden/sports/community/water), search UI hide, floor plan carousel, WhyReeveFeeModal height resolution [IST]
 ## [2026-06-18] diagnose | 5-issue audit — furnishing items, amenities, search UI hide, floor plan carousel, WhyReeveFeeModal dimensions [IST]
 ## [2026-06-17] fix | Gas Type SelectItem empty-string crash — changed placeholder value from "" to "none" sentinel [IST]

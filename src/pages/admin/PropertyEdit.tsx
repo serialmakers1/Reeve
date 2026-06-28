@@ -188,6 +188,8 @@ export default function PropertyEdit() {
   const [facing, setFacing] = useState<string>('');
   const [buildingAgeYears, setBuildingAgeYears] = useState<string>('');
 
+  const [youtubeWalkthroughUrl, setYoutubeWalkthroughUrl] = useState("");
+
   // Section 2: Listing Details extra
   const [maintenanceIncluded, setMaintenanceIncluded] = useState(false);
 
@@ -280,6 +282,7 @@ export default function PropertyEdit() {
       setTitle((data as Record<string, unknown>).title as string || "");
       setDescription((data as Record<string, unknown>).description as string || "");
       setIsActive(!!(data as Record<string, unknown>).is_active);
+      setYoutubeWalkthroughUrl((data as Record<string, unknown>).youtube_walkthrough_url as string || "");
 
       // Owner profile fields
       const d = data as Record<string, unknown>;
@@ -395,6 +398,7 @@ export default function PropertyEdit() {
         owner_diet_preference: ownerDietPreference,
         owner_pet_preference: ownerPetPreference,
         owner_tenant_type_preference: ownerTenantTypePreference,
+        youtube_walkthrough_url: youtubeWalkthroughUrl.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id);
@@ -868,6 +872,14 @@ export default function PropertyEdit() {
                   <Calendar mode="single" selected={availableFrom} onSelect={setAvailableFrom} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
+            </Field>
+            <Field label="YouTube Walkthrough URL" className="sm:col-span-2">
+              <Input
+                value={youtubeWalkthroughUrl}
+                onChange={(e) => setYoutubeWalkthroughUrl(e.target.value)}
+                placeholder="https://youtube.com/watch?v=..."
+                className="min-h-[44px]"
+              />
             </Field>
           </div>
         </Section>

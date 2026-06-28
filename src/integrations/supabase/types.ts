@@ -2044,6 +2044,7 @@ export type Database = {
           utility_water_included: boolean
           vacancy_review_day14_at: string | null
           vacancy_review_day21_at: string | null
+          youtube_walkthrough_url: string | null
         }
         Insert: {
           agreement_pending_at?: string | null
@@ -2126,6 +2127,7 @@ export type Database = {
           utility_water_included?: boolean
           vacancy_review_day14_at?: string | null
           vacancy_review_day21_at?: string | null
+          youtube_walkthrough_url?: string | null
         }
         Update: {
           agreement_pending_at?: string | null
@@ -2208,6 +2210,7 @@ export type Database = {
           utility_water_included?: boolean
           vacancy_review_day14_at?: string | null
           vacancy_review_day21_at?: string | null
+          youtube_walkthrough_url?: string | null
         }
         Relationships: [
           {
