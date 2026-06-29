@@ -1,3 +1,5 @@
+## [2026-06-28] fix | Hide rent/fee/total rows in pricing card + sidebar fee text — CSS hidden, no deletions [IST]
+## [2026-06-28] diagnose | Hide rent/fee/total rows in PropertyDetail pricing card — line map and approach [IST]
 ## [2026-06-28] feat | YouTube walkthrough link — DB column, admin input in Listing Details, red pill badge in PropertyDetail green badges row [IST]
 ## [2026-06-28] diagnose | YouTube walkthrough link — DB column, admin input, detail page placement below carousel [IST]
 ## [2026-06-18] fix | 5-issue fix — furnishing items (stove/chimney/fan/exhaust), amenities (garden/sports/community/water), search UI hide, floor plan carousel, WhyReeveFeeModal height resolution [IST]
