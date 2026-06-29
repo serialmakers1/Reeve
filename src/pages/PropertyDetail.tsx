@@ -1050,7 +1050,7 @@ const PropertyDetail: React.FC = () => {
                   </div>
 
                   {/* Monthly costs table */}
-                  <div className="border border-gray-100 rounded-lg overflow-hidden mb-4">
+                  <div className="hidden border border-gray-100 rounded-lg overflow-hidden mb-4">
                     <div className="flex justify-between items-center px-4 py-2.5 bg-gray-50">
                       <span className="text-sm text-gray-600">Rent</span>
                       <span className="text-sm font-medium text-gray-900">
@@ -1072,7 +1072,7 @@ const PropertyDetail: React.FC = () => {
                   </div>
 
                   {/* One-time and additional costs */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 mt-4">
                     <div className="flex justify-between items-start text-sm">
                       <span className="text-gray-500">Security Deposit</span>
                       <span className="text-gray-700 text-right font-medium">
@@ -1286,7 +1286,7 @@ const PropertyDetail: React.FC = () => {
                     <span className="text-sm text-muted-foreground">/month</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Security Deposit: {formatIndianRupee(depositAmount)} · 7% Reeve fee
+                    Security Deposit: {formatIndianRupee(depositAmount)}
                   </p>
                   {isOwnProperty ? (
                     <p className="text-sm text-muted-foreground text-center py-2">This is your listed property.</p>
