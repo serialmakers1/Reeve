@@ -62,6 +62,7 @@ import {
   Compass,
   CalendarDays,
   Youtube,
+  MapPin,
 } from "lucide-react";
 import VisitSchedulerModal from "@/components/VisitSchedulerModal";
 import { useToast } from "@/hooks/use-toast";
@@ -104,6 +105,7 @@ interface PropertyData {
   building_age_years: number | null;
   furnishing_detail: unknown;
   youtube_walkthrough_url: string | null;
+  google_maps_url: string | null;
 }
 
 interface PropertyImage {
@@ -472,7 +474,7 @@ const PropertyDetail: React.FC = () => {
         supabase
           .from("properties")
           .select(
-            "id, owner_id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url"
+            "id, owner_id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -1023,19 +1025,37 @@ const PropertyDetail: React.FC = () => {
                    🟢 Zero Additional Maintenance
                  </span>
                )}
-               {property.youtube_walkthrough_url != null && property.youtube_walkthrough_url !== "" && (
-                 <a
-                   href={property.youtube_walkthrough_url}
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100"
-                 >
-                   <Youtube className="h-3.5 w-3.5" />
-                   Video Walkthrough
-                 </a>
-               )}
               </div>
             </section>
+
+            {/* Action buttons — Video Walkthrough + Google Maps */}
+            {(property.youtube_walkthrough_url != null && property.youtube_walkthrough_url !== "" ||
+              property.google_maps_url != null && property.google_maps_url !== "") && (
+              <div className="flex flex-wrap gap-3 px-4 lg:px-0">
+                {property.youtube_walkthrough_url != null && property.youtube_walkthrough_url !== "" && (
+                  <a
+                    href={property.youtube_walkthrough_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-red-50 hover:border-red-200 hover:text-red-600 cursor-pointer"
+                  >
+                    <Youtube className="h-4 w-4 text-red-500" />
+                    Video Walkthrough
+                  </a>
+                )}
+                {property.google_maps_url != null && property.google_maps_url !== "" && (
+                  <a
+                    href={property.google_maps_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 cursor-pointer"
+                  >
+                    <MapPin className="h-4 w-4 text-blue-500" />
+                    View on Map
+                  </a>
+                )}
+              </div>
+            )}
 
             {/* 3. Rent & Fees */}
             <section className="px-4 lg:px-0">

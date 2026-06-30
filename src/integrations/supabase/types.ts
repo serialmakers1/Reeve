@@ -1990,6 +1990,7 @@ export type Database = {
           furnishing: Database["public"]["Enums"]["furnishing_type"]
           furnishing_detail: Json | null
           gas_type: string | null
+          google_maps_url: string | null
           id: string
           inspected_at: string | null
           inspection_accepted_at: string | null
@@ -2073,6 +2074,7 @@ export type Database = {
           furnishing: Database["public"]["Enums"]["furnishing_type"]
           furnishing_detail?: Json | null
           gas_type?: string | null
+          google_maps_url?: string | null
           id?: string
           inspected_at?: string | null
           inspection_accepted_at?: string | null
@@ -2156,6 +2158,7 @@ export type Database = {
           furnishing?: Database["public"]["Enums"]["furnishing_type"]
           furnishing_detail?: Json | null
           gas_type?: string | null
+          google_maps_url?: string | null
           id?: string
           inspected_at?: string | null
           inspection_accepted_at?: string | null

@@ -1,3 +1,4 @@
+## [2026-06-28] feat | Google Maps link + action buttons row — DB column, admin input, moved YouTube from badges to dedicated button row with Maps button [IST]
 ## [2026-06-28] fix | Hide rent/fee/total rows in pricing card + sidebar fee text — CSS hidden, no deletions [IST]
 ## [2026-06-28] diagnose | Hide rent/fee/total rows in PropertyDetail pricing card — line map and approach [IST]
 ## [2026-06-28] feat | YouTube walkthrough link — DB column, admin input in Listing Details, red pill badge in PropertyDetail green badges row [IST]

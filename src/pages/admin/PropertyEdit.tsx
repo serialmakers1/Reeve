@@ -189,6 +189,7 @@ export default function PropertyEdit() {
   const [buildingAgeYears, setBuildingAgeYears] = useState<string>('');
 
   const [youtubeWalkthroughUrl, setYoutubeWalkthroughUrl] = useState("");
+  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
 
   // Section 2: Listing Details extra
   const [maintenanceIncluded, setMaintenanceIncluded] = useState(false);
@@ -283,6 +284,7 @@ export default function PropertyEdit() {
       setDescription((data as Record<string, unknown>).description as string || "");
       setIsActive(!!(data as Record<string, unknown>).is_active);
       setYoutubeWalkthroughUrl((data as Record<string, unknown>).youtube_walkthrough_url as string || "");
+      setGoogleMapsUrl((data as Record<string, unknown>).google_maps_url as string || "");
 
       // Owner profile fields
       const d = data as Record<string, unknown>;
@@ -399,6 +401,7 @@ export default function PropertyEdit() {
         owner_pet_preference: ownerPetPreference,
         owner_tenant_type_preference: ownerTenantTypePreference,
         youtube_walkthrough_url: youtubeWalkthroughUrl.trim() || null,
+        google_maps_url: googleMapsUrl.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id);
@@ -873,11 +876,19 @@ export default function PropertyEdit() {
                 </PopoverContent>
               </Popover>
             </Field>
-            <Field label="YouTube Walkthrough URL" className="sm:col-span-2">
+            <Field label="YouTube Walkthrough URL" className="sm:col-span-1">
               <Input
                 value={youtubeWalkthroughUrl}
                 onChange={(e) => setYoutubeWalkthroughUrl(e.target.value)}
                 placeholder="https://youtube.com/watch?v=..."
+                className="min-h-[44px]"
+              />
+            </Field>
+            <Field label="Google Maps URL" className="sm:col-span-1">
+              <Input
+                value={googleMapsUrl}
+                onChange={(e) => setGoogleMapsUrl(e.target.value)}
+                placeholder="https://maps.google.com/..."
                 className="min-h-[44px]"
               />
             </Field>
