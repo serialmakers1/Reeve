@@ -154,10 +154,10 @@ const routes = [
   // ── / (homepage) — patched in-place ────────────────────────────────────────
   {
     outFile: path.join(DIST, 'index.html'),
-    title: 'Reeve | Zero Brokerage Rentals in Bangalore',
-    description: "Zero brokerage. 2-month deposit. Reeve is Bangalore's fully managed rental platform — free for owners, fair for tenants.",
-    ogTitle: 'Reeve | Zero Brokerage Rentals in Bangalore',
-    ogDescription: 'Zero brokerage. 2-month deposit. Free property management for owners. No brokers. No hidden fees.',
+    title: 'Reeve | Rentals in Bangalore',
+    description: " 2-month deposit. Reeve is Bangalore's fully managed rental platform — free for owners, fair for tenants.",
+    ogTitle: 'Reeve | Rentals in Bangalore',
+    ogDescription: '2-month deposit. Free property management for owners. No brokers. No hidden fees.',
     canonical: BASE + '/',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -261,7 +261,7 @@ const routes = [
     <section aria-label="Hero">
       <p>Now live in Bangalore</p>
       <p>Reeve is Bangalore's fully managed rental platform — for tenants who want a fair deal, and owners who want their time back.</p>
-      <h1>Zero brokerage. Two month deposit. Free property management.</h1>
+      <h1>Two month deposit. Free property management.</h1>
       <p>Reeve manages everything between owners and tenants — at no cost to owners. No brokers. No hidden fees. Just a great home and a stress-free tenancy.</p>
       <a href="/search">Search Properties</a>
       <a href="/my-properties/new">List Your Property</a>
@@ -272,7 +272,6 @@ const routes = [
         <p>We charge a 7% Reeve Fee on each month's rent (dropping to 4% when you renew) — instead of a broker's 1–2 months. You save significantly on day one.</p>
         <ul>
           <li>2 month deposit only — not 3</li>
-          <li>Zero brokerage, always</li>
           <li>Platform-managed home, no middlemen</li>
         </ul>
         <a href="/savings/tenant">Calculate My Savings</a>
@@ -290,7 +289,7 @@ const routes = [
     </section>
     <section aria-label="Call to action">
       <h2>Ready to rent smarter?</h2>
-      <p>Join Bangalore's only zero-brokerage, fully managed rental platform.</p>
+      <p>Join Bangalore fully managed rental platform.</p>
       <a href="/search">Search Properties</a>
       <a href="/my-properties/new">List Your Property</a>
       <p>₹0 Brokerage · 2 Month Deposit · Fully Managed for Free</p>
@@ -437,10 +436,10 @@ const routes = [
   // ── /search ───────────────────────────────────────────────────────────────────
   {
     outFile: path.join(DIST, 'search', 'index.html'),
-    title: 'Search Rental Properties in Bangalore | Reeve — Zero Brokerage',
-    description: 'Browse zero-brokerage rental properties in Bangalore. Filter by BHK, locality, and rent range. Fully managed homes — no broker, no hidden fees, 2-month deposit.',
+    title: 'Search Rental Properties in Bangalore | Reeve ',
+    description: 'Browse rental properties in Bangalore. Filter by BHK, locality, and rent range. Fully managed homes — no broker, no hidden fees, 2-month deposit.',
     ogTitle: 'Search Rental Properties in Bangalore | Reeve',
-    ogDescription: 'Zero brokerage rental properties in Bangalore. Fully managed, professionally screened. No broker fees, 2-month deposit.',
+    ogDescription: 'Rental properties in Bangalore. Fully managed, professionally screened. No broker fees, 2-month deposit.',
     canonical: BASE + '/search',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -466,11 +465,10 @@ const routes = [
   </header>
   <main>
     <section aria-label="Property search">
-      <h1>Rental Properties in Bangalore — Zero Brokerage</h1>
+      <h1>Rental Properties in Bangalore </h1>
       <p>Browse Reeve-managed rental homes in Bangalore. Every property is professionally managed — tenant screening, rent collection, maintenance, and exit handled by Reeve. No broker, no hidden fees, 2-month deposit only.</p>
       <p>Filter by BHK, locality, furnishing, and rent range to find your ideal home. All listed properties are actively managed and ready for verified applicants.</p>
       <ul>
-        <li>Zero brokerage on every property</li>
         <li>2-month deposit — not 3</li>
         <li>Fully managed: no direct landlord contact needed</li>
         <li>Aadhaar + PAN + income verification before move-in</li>
@@ -484,9 +482,9 @@ const routes = [
   {
     outFile: path.join(DIST, 'savings', 'tenant', 'index.html'),
     title: 'Tenant Savings Calculator | Reeve — See How Much You Save vs a Broker',
-    description: 'Calculate how much you save renting through Reeve vs a traditional broker. Zero brokerage, 2-month deposit, 7% Reeve Fee. Most tenants save ₹1 lakh or more on day one.',
+    description: 'Calculate how much you save renting through Reeve vs a traditional broker. 2-month deposit, 7% Reeve Fee. Most tenants save ₹1 lakh or more on day one.',
     ogTitle: 'Tenant Savings Calculator | Reeve',
-    ogDescription: 'See exactly how much you save renting through Reeve vs a traditional broker. Zero brokerage, 2-month deposit, no hidden fees.',
+    ogDescription: 'See exactly how much you save renting through Reeve vs a traditional broker. 2-month deposit, no hidden fees.',
     canonical: BASE + '/savings/tenant',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -549,10 +547,10 @@ const routes = [
   <main>
     <section aria-label="Tenant savings calculator">
       <h1>How Much Do You Save Renting Through Reeve?</h1>
-      <p>Traditional brokers charge 1–2 months' rent as brokerage plus a 3-month deposit. Reeve charges zero brokerage, a 7% Reeve Fee per month (dropping to 4% on renewal), and only a 2-month deposit.</p>
+      <p>Traditional brokers charge 1–2 months' rent as brokerage plus a 3-month deposit. Reeve charges a 7% Reeve Fee per month (dropping to 4% on renewal), and only a 2-month deposit.</p>
       <h2>What Reeve charges tenants</h2>
       <ul>
-        <li>Zero brokerage — save 1–2 months' rent immediately</li>
+        <li>Save 1–2 months' rent immediately</li>
         <li>2-month deposit (not 3) — save 1 extra month upfront</li>
         <li>7% Reeve Fee per month on base rent (4% from year 2)</li>
         <li>No hidden fees</li>
@@ -579,7 +577,7 @@ const routes = [
   {
     outFile: path.join(DIST, 'contact', 'index.html'),
     title: 'Contact Reeve | Bangalore Rental Platform',
-    description: "Get in touch with Reeve — Bangalore's zero-brokerage rental platform. Call, WhatsApp, or email us. We're a small team and we read every message.",
+    description: "Get in touch with Reeve — Bangalore's fully managed rental platform. Call, WhatsApp, or email us. We're a small team and we read every message.",
     ogTitle: 'Contact Reeve | Bangalore Rental Platform',
     ogDescription: "Get in touch with Reeve. Call, WhatsApp, or email — we're a small team and we read every message.",
     canonical: BASE + '/contact',
