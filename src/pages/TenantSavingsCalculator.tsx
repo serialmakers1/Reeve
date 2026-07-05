@@ -342,7 +342,7 @@ export default function TenantSavingsPage(): React.JSX.Element {
             </p>
 
             <div className="t-fade-up mt-8 flex flex-wrap gap-3" style={{ animationDelay: "240ms" }}>
-              {["2 Month Deposit Only", "Zero Brokerage — Always", "Platform-Managed Home", "Zero SPAM Policy"].map(
+              {["2 Month Deposit Only", "Platform-Managed Home", "Zero SPAM Policy"].map(
                 (badge) => (
                   <span
                     key={badge}
