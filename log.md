@@ -1,3 +1,5 @@
+## [2026-07-05] fix | Floor plan carousel crash — aligned lightboxImages filter with activeImages to prevent index-out-of-bounds on floor plan click [IST]
+## [2026-07-05] diagnose | Floor plan carousel crash — lightboxImages vs activeImages array mismatch when "All Photos" selected [IST]
 ## [2026-06-28] feat | Google Maps link + action buttons row — DB column, admin input, moved YouTube from badges to dedicated button row with Maps button [IST]
 ## [2026-06-28] fix | Hide rent/fee/total rows in pricing card + sidebar fee text — CSS hidden, no deletions [IST]
 ## [2026-06-28] diagnose | Hide rent/fee/total rows in PropertyDetail pricing card — line map and approach [IST]

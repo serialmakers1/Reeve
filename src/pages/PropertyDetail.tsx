@@ -567,9 +567,11 @@ const PropertyDetail: React.FC = () => {
   }, [carouselApi]);
 
   // Lightbox nav
-  const lightboxImages = images.filter((img) =>
-    galleryTab === "floorplan" ? img.is_floor_plan : !img.is_floor_plan
-  );
+  const lightboxImages = galleryTab === "floorplan"
+    ? images.filter(img => img.is_floor_plan)
+    : galleryTab === "all" || galleryTab === "photos"
+      ? [...images.filter(img => !img.is_floor_plan), ...images.filter(img => img.is_floor_plan)]
+      : images.filter(img => img.section === galleryTab && !img.is_floor_plan);
   const openLightbox = (index: number) => {
     setLightboxIndex(index);
     setLightboxOpen(true);
