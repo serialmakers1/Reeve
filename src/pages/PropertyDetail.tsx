@@ -56,15 +56,15 @@ import {
   TreePine,
   Users,
   CircleDot,
-  ClipboardCheck,
-  Loader2,
+  // COMMONS-HIDE: ClipboardCheck, — only used in eligibility gate drawer (hidden)
+  // COMMONS-HIDE: Loader2, — only used in schedule visit CTA (hidden)
   Wind,
   Compass,
   CalendarDays,
   Youtube,
   MapPin,
 } from "lucide-react";
-import VisitSchedulerModal from "@/components/VisitSchedulerModal";
+// COMMONS-HIDE: import VisitSchedulerModal from "@/components/VisitSchedulerModal";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -375,6 +375,9 @@ function LoginDrawer({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
+// COMMONS-HIDE: false-as-boolean prevents lint no-constant-binary-expression on {COMMONS_HIDE && ...} blocks
+const COMMONS_HIDE = false as boolean;
+
 const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -425,42 +428,42 @@ const PropertyDetail: React.FC = () => {
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
 
-  // Check for existing visit
-  const fetchExistingVisit = useCallback(async () => {
-    if (!id) { setExistingVisit(null); return; }
-    if (!user) { setExistingVisit(null); return; }
-    const { data } = await supabase
-      .from("visits")
-      .select("id, scheduled_at, status")
-      .eq("property_id", id)
-      .eq("tenant_id", user.id)
-      .in("status", ["scheduled", "rescheduled", "confirmed"])
-      .maybeSingle();
-    setExistingVisit(data ?? null);
-  }, [id, user]);
+  // COMMONS-HIDE: Check for existing visit
+  // COMMONS-HIDE: const fetchExistingVisit = useCallback(async () => {
+  // COMMONS-HIDE:   if (!id) { setExistingVisit(null); return; }
+  // COMMONS-HIDE:   if (!user) { setExistingVisit(null); return; }
+  // COMMONS-HIDE:   const { data } = await supabase
+  // COMMONS-HIDE:     .from("visits")
+  // COMMONS-HIDE:     .select("id, scheduled_at, status")
+  // COMMONS-HIDE:     .eq("property_id", id)
+  // COMMONS-HIDE:     .eq("tenant_id", user.id)
+  // COMMONS-HIDE:     .in("status", ["scheduled", "rescheduled", "confirmed"])
+  // COMMONS-HIDE:     .maybeSingle();
+  // COMMONS-HIDE:   setExistingVisit(data ?? null);
+  // COMMONS-HIDE: }, [id, user]);
 
-  const handleVisitScheduled = useCallback(() => {
-    fetchExistingVisit();
-    setShowVisitConfirmation(true);
-  }, [fetchExistingVisit]);
+  // COMMONS-HIDE: const handleVisitScheduled = useCallback(() => {
+  // COMMONS-HIDE:   fetchExistingVisit();
+  // COMMONS-HIDE:   setShowVisitConfirmation(true);
+  // COMMONS-HIDE: }, [fetchExistingVisit]);
 
-  useEffect(() => {
-    fetchExistingVisit();
-  }, [fetchExistingVisit]);
+  // COMMONS-HIDE: useEffect(() => {
+  // COMMONS-HIDE:   fetchExistingVisit();
+  // COMMONS-HIDE: }, [fetchExistingVisit]);
 
-  // Fetch tenant profile (visit_scheduling_blocked) when session is known
-  useEffect(() => {
-    if (authLoading || !session) return;
-    const fetchProfile = async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("visit_scheduling_blocked, no_show_count")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-      setVisitSchedulingBlocked(!!(data as any)?.visit_scheduling_blocked);
-    };
-    fetchProfile();
-  }, [authLoading, session]);
+  // COMMONS-HIDE: Fetch tenant profile (visit_scheduling_blocked) when session is known
+  // COMMONS-HIDE: useEffect(() => {
+  // COMMONS-HIDE:   if (authLoading || !session) return;
+  // COMMONS-HIDE:   const fetchProfile = async () => {
+  // COMMONS-HIDE:     const { data } = await supabase
+  // COMMONS-HIDE:       .from("profiles")
+  // COMMONS-HIDE:       .select("visit_scheduling_blocked, no_show_count")
+  // COMMONS-HIDE:       .eq("user_id", session.user.id)
+  // COMMONS-HIDE:       .maybeSingle();
+  // COMMONS-HIDE:     setVisitSchedulingBlocked(!!(data as any)?.visit_scheduling_blocked);
+  // COMMONS-HIDE:   };
+  // COMMONS-HIDE:   fetchProfile();
+  // COMMONS-HIDE: }, [authLoading, session]);
 
   // Fetch property + images
   useEffect(() => {
@@ -541,17 +544,17 @@ const PropertyDetail: React.FC = () => {
       return;
     }
 
-    const fetchApplicationHistory = async () => {
-      const { data: appHistory } = await supabase
-        .from("applications")
-        .select("id, status, attempt_number, reapplication_eligible_from, proposed_rent, created_at")
-        .eq("property_id", id)
-        .eq("tenant_id", currentUserId)
-        .order("attempt_number", { ascending: false });
-      setApplicationHistory(appHistory ?? []);
-    };
-
-    fetchApplicationHistory();
+    // COMMONS-HIDE: fetchApplicationHistory disabled — CTAs hidden for Commons transition
+    // COMMONS-HIDE: const fetchApplicationHistory = async () => {
+    // COMMONS-HIDE:   const { data: appHistory } = await supabase
+    // COMMONS-HIDE:     .from("applications")
+    // COMMONS-HIDE:     .select("id, status, attempt_number, reapplication_eligible_from, proposed_rent, created_at")
+    // COMMONS-HIDE:     .eq("property_id", id)
+    // COMMONS-HIDE:     .eq("tenant_id", currentUserId)
+    // COMMONS-HIDE:     .order("attempt_number", { ascending: false });
+    // COMMONS-HIDE:   setApplicationHistory(appHistory ?? []);
+    // COMMONS-HIDE: };
+    // COMMONS-HIDE: fetchApplicationHistory();
   }, [id, user, authLoading, property]);
 
   // Carousel slide tracking
@@ -602,75 +605,49 @@ const PropertyDetail: React.FC = () => {
     return true;
   };
 
-  const handleScheduleVisit = async () => {
-    if (!handleVerificationGate(window.location.pathname)) return;
-    if (visitSchedulingBlocked) return;
+  // COMMONS-HIDE: handleScheduleVisit — visit scheduling hidden for Commons transition
+  // COMMONS-HIDE: const handleScheduleVisit = async () => {
+  // COMMONS-HIDE:   if (!handleVerificationGate(window.location.pathname)) return;
+  // COMMONS-HIDE:   if (visitSchedulingBlocked) return;
+  // COMMONS-HIDE:   setEligibilityChecking(true);
+  // COMMONS-HIDE:   const { data } = await supabase
+  // COMMONS-HIDE:     .from("eligibility")
+  // COMMONS-HIDE:     .select("status")
+  // COMMONS-HIDE:     .eq("user_id", user!.id)
+  // COMMONS-HIDE:     .eq("status", "passed")
+  // COMMONS-HIDE:     .limit(1)
+  // COMMONS-HIDE:     .maybeSingle();
+  // COMMONS-HIDE:   setEligibilityChecking(false);
+  // COMMONS-HIDE:   if (data) { setVisitModalOpen(true); } else { setEligibilityGateOpen(true); }
+  // COMMONS-HIDE: };
 
-    // Check eligibility before opening scheduling modal
-    setEligibilityChecking(true);
-    const { data } = await supabase
-      .from("eligibility")
-      .select("status")
-      .eq("user_id", user!.id)
-      .eq("status", "passed")
-      .limit(1)
-      .maybeSingle();
-    setEligibilityChecking(false);
+  // COMMONS-HIDE: handleScheduleConfirm — visit scheduling hidden for Commons transition
+  // COMMONS-HIDE: const handleScheduleConfirm = async (scheduledAt: Date) => {
+  // COMMONS-HIDE:   if (!session || !id) return;
+  // COMMONS-HIDE:   setScheduleLoading(true);
+  // COMMONS-HIDE:   const { data: visitData, error: visitError } = await supabase
+  // COMMONS-HIDE:     .from("visits")
+  // COMMONS-HIDE:     .insert({ property_id: id, tenant_id: session.user.id, scheduled_at: scheduledAt.toISOString(), status: "scheduled" as any })
+  // COMMONS-HIDE:     .select("id")
+  // COMMONS-HIDE:     .single();
+  // COMMONS-HIDE:   if (visitError || !visitData) {
+  // COMMONS-HIDE:     toast({ title: "Failed to schedule visit. Please try again.", variant: "destructive" });
+  // COMMONS-HIDE:     setScheduleLoading(false);
+  // COMMONS-HIDE:     return;
+  // COMMONS-HIDE:   }
+  // COMMONS-HIDE:   await supabase.from("visit_events").insert({ visit_id: visitData.id, tenant_id: session.user.id, property_id: id, event_type: "scheduled" as any, initiated_by: "tenant" as any, scheduled_at: scheduledAt.toISOString() } as any);
+  // COMMONS-HIDE:   setVisitModalOpen(false);
+  // COMMONS-HIDE:   setScheduleLoading(false);
+  // COMMONS-HIDE:   handleVisitScheduled();
+  // COMMONS-HIDE: };
 
-    if (data) {
-      setVisitModalOpen(true);
-    } else {
-      setEligibilityGateOpen(true);
-    }
-  };
-
-  const handleScheduleConfirm = async (scheduledAt: Date) => {
-    if (!session || !id) return;
-    setScheduleLoading(true);
-    const { data: visitData, error: visitError } = await supabase
-      .from("visits")
-      .insert({
-        property_id: id,
-        tenant_id: session.user.id,
-        scheduled_at: scheduledAt.toISOString(),
-        status: "scheduled" as any,
-      })
-      .select("id")
-      .single();
-    if (visitError || !visitData) {
-      toast({ title: "Failed to schedule visit. Please try again.", variant: "destructive" });
-      setScheduleLoading(false);
-      return;
-    }
-    await supabase.from("visit_events").insert({
-      visit_id: visitData.id,
-      tenant_id: session.user.id,
-      property_id: id,
-      event_type: "scheduled" as any,
-      initiated_by: "tenant" as any,
-      scheduled_at: scheduledAt.toISOString(),
-    } as any);
-    setVisitModalOpen(false);
-    setScheduleLoading(false);
-    handleVisitScheduled();
-  };
-
-  const handleApply = async () => {
-    if (!handleVerificationGate(window.location.pathname)) return;
-
-    const { data } = await supabase
-      .from("eligibility")
-      .select("status")
-      .eq("user_id", user!.id)
-      .limit(1)
-      .maybeSingle();
-
-    if (data?.status === "passed") {
-      navigate(`/dashboard/applications/new?property_id=${id}`);
-    } else {
-      navigate(`/eligibility?property_id=${id}`);
-    }
-  };
+  // COMMONS-HIDE: handleApply — application flow hidden for Commons transition
+  // COMMONS-HIDE: const handleApply = async () => {
+  // COMMONS-HIDE:   if (!handleVerificationGate(window.location.pathname)) return;
+  // COMMONS-HIDE:   const { data } = await supabase.from("eligibility").select("status").eq("user_id", user!.id).limit(1).maybeSingle();
+  // COMMONS-HIDE:   if (data?.status === "passed") { navigate(`/dashboard/applications/new?property_id=${id}`); }
+  // COMMONS-HIDE:   else { navigate(`/eligibility?property_id=${id}`); }
+  // COMMONS-HIDE: };
 
   const sections = useMemo(() => {
     const names = images
@@ -719,112 +696,22 @@ const PropertyDetail: React.FC = () => {
 
   const depositAmount = property.listed_rent * property.security_deposit_months;
 
-  // ─── Application history derived state ────────────────────────────────────
-  // Derive each flag by scanning the full array rather than relying on ordering.
-  // Ordering by attempt_number alone is non-deterministic when two rows share the
-  // same attempt_number (e.g. withdrawn + draft both at attempt 1). Using .find()
-  // is explicit and ordering-independent. See CLAUDE.md Application Flow Guards.
+  // COMMONS-HIDE: Application history derived state — CTAs hidden for Commons transition
+  // COMMONS-HIDE: const ACTIVE_STATUSES = ["submitted", "platform_review", "sent_to_owner", "owner_countered", "tenant_countered", "payment_pending", "payment_received", "kyc_pending", "kyc_passed", "kyc_failed", "agreement_pending", "lease_active"];
+  // COMMONS-HIDE: const DECIDED_STATUSES = ["owner_rejected", "platform_rejected", "owner_accepted"];
+  // COMMONS-HIDE: const draftApp = applicationHistory.find((a) => a.status === "draft") ?? null;
+  // COMMONS-HIDE: const hasDraft = draftApp !== null;
+  // COMMONS-HIDE: const activeApp = applicationHistory.find((a) => ACTIVE_STATUSES.includes(a.status)) ?? null;
+  // COMMONS-HIDE: const isActive = activeApp !== null;
+  // COMMONS-HIDE: const latestNonDraftApp = applicationHistory.find((a) => a.status !== "draft") ?? null;
+  // COMMONS-HIDE: const isOnHold = latestNonDraftApp?.status === "on_hold";
+  // COMMONS-HIDE: const isRejected = latestNonDraftApp != null && ["owner_rejected", "platform_rejected"].includes(latestNonDraftApp.status);
+  // COMMONS-HIDE: const decidedCount = applicationHistory.filter((a) => DECIDED_STATUSES.includes(a.status)).length;
+  // COMMONS-HIDE: const maxReached = decidedCount >= 3;
+  // COMMONS-HIDE: const withinCooldown = isRejected && latestNonDraftApp?.reapplication_eligible_from != null && new Date() < new Date(latestNonDraftApp.reapplication_eligible_from);
 
-  const ACTIVE_STATUSES = [
-    "submitted", "platform_review", "sent_to_owner",
-    "owner_countered", "tenant_countered",
-    "payment_pending", "payment_received",
-    "kyc_pending", "kyc_passed", "kyc_failed",
-    "agreement_pending", "lease_active",
-  ];
-  const DECIDED_STATUSES = ["owner_rejected", "platform_rejected", "owner_accepted"];
-
-  // Draft: explicit find — not dependent on sort order
-  const draftApp = applicationHistory.find((a) => a.status === "draft") ?? null;
-  const hasDraft = draftApp !== null;
-
-  // Active blocking application: any in-flight non-draft row
-  const activeApp = applicationHistory.find((a) => ACTIVE_STATUSES.includes(a.status)) ?? null;
-  const isActive = activeApp !== null;
-
-  // For cooldown / on-hold / rejection: use the most recent non-draft row
-  const latestNonDraftApp = applicationHistory.find((a) => a.status !== "draft") ?? null;
-  const isOnHold = latestNonDraftApp?.status === "on_hold";
-  const isRejected = latestNonDraftApp != null && ["owner_rejected", "platform_rejected"].includes(latestNonDraftApp.status);
-
-  const decidedCount = applicationHistory.filter((a) =>
-    DECIDED_STATUSES.includes(a.status)
-  ).length;
-
-  const maxReached = decidedCount >= 3;
-  const withinCooldown =
-    isRejected &&
-    latestNonDraftApp?.reapplication_eligible_from != null &&
-    new Date() < new Date(latestNonDraftApp.reapplication_eligible_from);
-
-  const renderApplySection = (mobile: boolean) => {
-    const btnClass = mobile ? "min-h-[48px] flex-1 text-xs font-medium whitespace-normal leading-tight" : "w-full min-h-[44px]";
-
-    if (hasDraft && draftApp) {
-      return (
-        <Button
-          onClick={() => navigate(`/dashboard/applications/new?resume=${draftApp!.id}`)}
-          className={btnClass}
-        >
-          Continue your saved draft →
-        </Button>
-      );
-    }
-
-    if (isActive && activeApp) {
-      return (
-        <p className="flex-1 text-xs text-gray-600 text-center py-2 leading-tight min-h-[48px] flex items-center justify-center">
-          Application in progress · {getFriendlyStatus(activeApp.status)}
-        </p>
-      );
-    }
-
-    if (isOnHold) {
-      return (
-        <p className="text-sm text-gray-600 text-center py-2">
-          Another applicant has secured this property. You'll be notified if anything changes.
-        </p>
-      );
-    }
-
-    if (maxReached) {
-      return (
-        <p className="text-sm text-gray-500 text-center py-2">
-          You've reached the maximum applications for this property. Please explore other listings.
-        </p>
-      );
-    }
-
-    if (withinCooldown && latestNonDraftApp?.reapplication_eligible_from) {
-      return (
-        <p className="text-sm text-gray-500 text-center py-2">
-          Your application was not successful. You may reapply after {format(new Date(latestNonDraftApp.reapplication_eligible_from), 'd MMM yyyy')}.
-        </p>
-      );
-    }
-
-    // "Apply Again" only when the user has previously submitted (non-draft history exists).
-    // A draft alone does not constitute a prior attempt.
-    const hasNonDraftHistory = applicationHistory.some((a) => a.status !== "draft");
-    const buttonLabel = hasNonDraftHistory ? "Apply Again" : "Apply Now";
-    const attemptLabel =
-      decidedCount === 1
-        ? "This will be your 2nd application for this property."
-        : decidedCount === 2
-        ? "This is your 3rd and final application for this property."
-        : "";
-
-    return (
-      <>
-        <Button onClick={handleApply} className={btnClass}>
-          {buttonLabel}
-        </Button>
-        {attemptLabel && (
-          <p className="text-xs text-gray-400 mt-1 text-center">{attemptLabel}</p>
-        )}
-      </>
-    );
-  };
+  // COMMONS-HIDE: renderApplySection — Apply/Draft CTA hidden for Commons transition
+  // COMMONS-HIDE: const renderApplySection = (mobile: boolean) => { ... };
 
   // Details grid items
   const detailItems: { icon: React.ReactNode; label: string; value: string }[] = [];
@@ -880,16 +767,19 @@ const PropertyDetail: React.FC = () => {
       {/* Login Drawer */}
       <LoginDrawer open={loginDrawerOpen} onOpenChange={setLoginDrawerOpen} propertyId={id} />
 
-      {/* Visit Scheduling Modal */}
-      <VisitSchedulerModal
-        open={visitModalOpen}
-        onClose={() => setVisitModalOpen(false)}
-        onConfirm={handleScheduleConfirm}
-        title="Schedule a Visit"
-        loading={scheduleLoading}
-      />
+      {/* COMMONS-HIDE: Visit Scheduling Modal */}
+      {COMMONS_HIDE && (
+        <VisitSchedulerModal
+          open={visitModalOpen}
+          onClose={() => setVisitModalOpen(false)}
+          onConfirm={() => {}}
+          title="Schedule a Visit"
+          loading={scheduleLoading}
+        />
+      )}
 
-      <div className="mx-auto max-w-4xl pb-36 lg:pb-8">
+      {/* COMMONS-HIDE: was pb-36 lg:pb-8 — reduced after hiding mobile CTA bar */}
+      <div className="mx-auto max-w-4xl pb-8">
         {/* Back button */}
         <div className="px-4 py-3">
           <button
@@ -1296,7 +1186,8 @@ const PropertyDetail: React.FC = () => {
             </section>
           </div>
 
-          {/* ─── Desktop Sidebar CTA ─────────────────────────── */}
+          {/* COMMONS-HIDE: Desktop Sidebar CTA — hidden for Commons transition */}
+          {COMMONS_HIDE && (
           <aside className="hidden lg:block flex-shrink-0 w-[340px]">
             <div className="sticky top-24 space-y-3">
               <Card className="border-border">
@@ -1373,27 +1264,27 @@ const PropertyDetail: React.FC = () => {
                             </div>
                           )}
                           <Button
-                            onClick={handleScheduleVisit}
+                            onClick={() => {}}
                             variant="outline"
                             className="w-full min-h-[44px]"
                             disabled={eligibilityChecking}
                           >
-                            {eligibilityChecking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</> : "Schedule a Visit"}
+                            Schedule a Visit
                           </Button>
                         </>
                       )}
-                      {renderApplySection(false)}
                     </>
                   )}
                 </CardContent>
               </Card>
             </div>
           </aside>
+          )}
         </div>
       </div>
 
-      {/* ─── Mobile Sticky CTA Bar ───────────────────────────── */}
-      {!isOwnProperty && (
+      {/* COMMONS-HIDE: Mobile Sticky CTA Bar — hidden for Commons transition */}
+      {COMMONS_HIDE && !isOwnProperty && (
         <div className={`fixed inset-x-0 z-40 border-t border-border bg-background px-4 py-3 pb-4 min-h-[72px] lg:hidden ${session ? 'bottom-16 pb-safe' : 'bottom-0'}`}>
           <div className="mx-auto flex max-w-4xl items-center gap-2">
             {showVisitConfirmation ? (
@@ -1435,25 +1326,25 @@ const PropertyDetail: React.FC = () => {
               </div>
             ) : (
               <Button
-                onClick={handleScheduleVisit}
+                onClick={() => {}}
                 variant="outline"
                 className="min-h-[48px] flex-1 text-sm font-medium"
                 disabled={eligibilityChecking}
               >
-                {eligibilityChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Schedule Visit"}
+                Schedule Visit
               </Button>
             )}
-            {renderApplySection(true)}
           </div>
         </div>
       )}
 
-      {/* ─── Eligibility Gate Modal ──────────────────────────── */}
+      {/* COMMONS-HIDE: Eligibility Gate Modal — hidden for Commons transition */}
+      {COMMONS_HIDE && (
       <Drawer open={eligibilityGateOpen} onOpenChange={setEligibilityGateOpen}>
         <DrawerContent>
           <div className="flex flex-col items-center gap-3 px-6 pt-6 pb-2 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent">
-              <ClipboardCheck className="h-7 w-7 text-primary" />
+              {/* ClipboardCheck COMMONS-HIDE */}
             </div>
             <h3 className="text-lg font-bold text-foreground">Set up Rental Preferences First</h3>
             <p className="text-sm text-muted-foreground">
@@ -1480,6 +1371,7 @@ const PropertyDetail: React.FC = () => {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+      )}
     </Layout>
   );
 };

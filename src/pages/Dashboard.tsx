@@ -1,16 +1,17 @@
-import { FileText, Heart, CreditCard, Wrench, FolderOpen, ShieldCheck, CalendarDays } from "lucide-react";
+import { Heart } from "lucide-react";
+// COMMONS-HIDE: FileText (Applications), CreditCard (Payments), Wrench (Maintenance), FolderOpen (Documents), ShieldCheck (Rental Preferences), CalendarDays (My Visits) — PM tiles removed for Commons transition
 import Layout from "@/components/Layout";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const tiles = [
-  { label: "Applications", icon: FileText, href: "/dashboard/applications" },
   { label: "Favourites", icon: Heart, href: "/dashboard/favourites" },
-  { label: "Rental Preferences", icon: ShieldCheck, href: "/eligibility" },
-  { label: "My Visits", icon: CalendarDays, href: "/dashboard/visits" },
-  { label: "Payments", icon: CreditCard },
-  { label: "Maintenance", icon: Wrench },
-  { label: "Documents", icon: FolderOpen },
+  // COMMONS-HIDE: { label: "Applications", icon: FileText, href: "/dashboard/applications" }, — PM tile
+  // COMMONS-HIDE: { label: "Rental Preferences", icon: ShieldCheck, href: "/eligibility" }, — has PM blocking logic; Phase 2 builds non-blocking replacement
+  // COMMONS-HIDE: { label: "My Visits", icon: CalendarDays, href: "/dashboard/visits" }, — PM tile
+  // COMMONS-HIDE: { label: "Payments", icon: CreditCard }, — PM tile
+  // COMMONS-HIDE: { label: "Maintenance", icon: Wrench }, — PM tile
+  // COMMONS-HIDE: { label: "Documents", icon: FolderOpen }, — PM tile
 ];
 
 export default function Dashboard() {
