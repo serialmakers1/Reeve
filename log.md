@@ -167,3 +167,5 @@
 
 ## [2026-06-27] audit | SEO/GEO audit for /move-in-audit — [23 checks, 7 issues found: 1 canonical mismatch, 1 missing FAQPage JSON-LD, 1 missing FAQ in bodyHtml, 1 zero internal links, 3 platform-wide OG/Twitter gaps] [IST]
 ## [2026-06-27] fix | SEO fixes for /move-in-audit — canonical prefix (WWW→BASE), FAQPage JSON-LD (8 Q&As), FAQ in bodyHtml (dl/dt/dd) [IST]
+## [2026-07-10] diagnose | Phase 0 diagnosis — PropertyDetail + Dashboard PM feature inventory [IST]
+## [2026-07-10] feat | Phase 0 Steps 0.1 + 0.3 — hid PM CTAs in PropertyDetail, hid PM tiles in Dashboard [IST]
