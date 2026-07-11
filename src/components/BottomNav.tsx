@@ -6,7 +6,7 @@ const TABS = [
   { label: 'Home',              icon: Home,            route: '/'              },
   { label: 'Browse Properties', icon: Search,          route: '/search'        },
   { label: 'Tenant Dashboard',  icon: LayoutDashboard, route: '/dashboard'     },
-  { label: 'Owner Dashboard',   icon: Building2,       route: '/my-properties' },
+  { label: 'Owner Dashboard',   icon: Building2,       route: '/owner-dashboard' },
 ];
 
 export default function BottomNav() {
@@ -18,6 +18,11 @@ export default function BottomNav() {
 
   const isActive = (route: string) => {
     if (route === '/') return location.pathname === '/';
+    // Owner Dashboard tab also highlights on legacy /my-properties URL during the transition
+    // (redirect fires but the check runs before pathname rewrite on the first render).
+    if (route === '/owner-dashboard') {
+      return location.pathname.startsWith('/owner-dashboard') || location.pathname.startsWith('/my-properties');
+    }
     return location.pathname.startsWith(route);
   };
 

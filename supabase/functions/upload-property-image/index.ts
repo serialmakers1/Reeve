@@ -170,6 +170,11 @@ Deno.serve(async (req: Request) => {
     const section = formData.get("section") as string | null;
     const isFloorPlanRaw = formData.get("is_floor_plan");
     const isFloorPlan = isFloorPlanRaw === "true";
+    // Optional (Prompt 4): route upload into an existing pending edit request's payload
+    // instead of directly inserting to property_images. Used when owner uploads photos
+    // while modifying an already-submitted edit.
+    const pendingEditRequestIdRaw = formData.get("pending_edit_request_id");
+    const pendingEditRequestId = pendingEditRequestIdRaw ? pendingEditRequestIdRaw.toString() : null;
 
     if (!fileField || !propertyId) {
       return new Response(
@@ -185,6 +190,75 @@ Deno.serve(async (req: Request) => {
         status: 400,
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });
+    }
+
+    // F.1) Validate pending_edit_request_id if present
+    if (pendingEditRequestId && !UUID_REGEX.test(pendingEditRequestId)) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid pending_edit_request_id" }), {
+        status: 400,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+
+    // F.5) Ownership check — caller must be admin OR the property's owner.
+    // Mirrors the pattern in delete-property-image (Phase 1 Commons hardening).
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const srHeaders = {
+      "apikey": serviceRoleKey,
+      "Authorization": `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+    };
+
+    const roleRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=role`,
+      { headers: srHeaders },
+    );
+    const roleRows = await roleRes.json();
+    const userRole: string = roleRows?.[0]?.role ?? "";
+    const isAdmin = userRole === "admin" || userRole === "super_admin";
+
+    if (!isAdmin) {
+      const propRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/properties?id=eq.${propertyIdStr}&select=owner_id`,
+        { headers: srHeaders },
+      );
+      const propRows = await propRes.json();
+      const ownerId: string = propRows?.[0]?.owner_id ?? "";
+      if (ownerId !== userId) {
+        return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
+          status: 403,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // F.6) If routing into a pending edit request, verify it exists and is pending.
+    // Ownership is transitive via the property (checked above).
+    if (pendingEditRequestId) {
+      const editRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/property_edit_requests?id=eq.${pendingEditRequestId}&select=status,property_id`,
+        { headers: srHeaders },
+      );
+      const editRows = await editRes.json();
+      const editRow = editRows?.[0];
+      if (!editRow) {
+        return new Response(JSON.stringify({ success: false, error: "Pending edit not found" }), {
+          status: 404,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      if (editRow.status !== "pending") {
+        return new Response(JSON.stringify({ success: false, error: "Edit request is no longer pending" }), {
+          status: 409,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      if (editRow.property_id !== propertyIdStr) {
+        return new Response(JSON.stringify({ success: false, error: "Edit request does not match property" }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // G) Validate file type
@@ -238,8 +312,59 @@ Deno.serve(async (req: Request) => {
     // K) Build public URL
     const publicUrl = `${R2_PUBLIC_URL}/${filePath}`;
 
-    // L) Insert into property_images
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // L) Branch: pending-edit path vs direct-insert path.
+    if (pendingEditRequestId) {
+      // Merge the URL into property_edit_requests.payload.photo_changes.add[].
+      // Fetch current payload, append, PATCH back.
+      const cur = await fetch(
+        `${SUPABASE_URL}/rest/v1/property_edit_requests?id=eq.${pendingEditRequestId}&select=payload`,
+        { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
+      );
+      const curRows = await cur.json();
+      const payload = curRows?.[0]?.payload ?? {};
+      const photoChanges = payload.photo_changes ?? {};
+      const add = Array.isArray(photoChanges.add) ? photoChanges.add : [];
+      const tempId = crypto.randomUUID();
+      add.push({
+        temp_id: tempId,
+        url: publicUrl,
+        section: section || null,
+        caption: null,
+        is_primary: false,
+        is_floor_plan: isFloorPlan,
+        sort_order: 0,
+      });
+      const newPayload = {
+        ...payload,
+        photo_changes: { ...photoChanges, add },
+      };
+
+      const patchRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/property_edit_requests?id=eq.${pendingEditRequestId}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: serviceRoleKey,
+            Authorization: `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ payload: newPayload }),
+        },
+      );
+      if (!patchRes.ok) {
+        return new Response(JSON.stringify({ success: false, error: "Failed to update pending edit" }), {
+          status: 500,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({ success: true, url: publicUrl, id: tempId, pending: true }),
+        { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Direct-insert path (unchanged from Prompt 1).
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/property_images`, {
       method: "POST",
       headers: {

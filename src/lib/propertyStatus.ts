@@ -42,6 +42,32 @@ const STATUS_CONFIG: Record<string, StatusDisplay> = {
     color: "border-gray-400 text-gray-500 bg-gray-50",
     nextAction: "Contact Reeve to re-list",
   },
+  // ── Commons Phase 1 statuses ──────────────────────────────────────────────
+  pending_review: {
+    label: "Under Review",
+    color: "border-blue-500 text-blue-600 bg-blue-50",
+    nextAction: "Reeve is reviewing your listing",
+  },
+  changes_requested: {
+    label: "Changes Requested",
+    color: "border-amber-500 text-amber-600 bg-amber-50",
+    nextAction: "Update your listing and resubmit",
+  },
+  edit_pending_review: {
+    label: "Live · Edit Under Review",
+    color: "border-blue-500 text-blue-600 bg-blue-50",
+    nextAction: "Your edit is being reviewed",
+  },
+  unlisted: {
+    label: "Unlisted",
+    color: "border-gray-400 text-gray-500 bg-gray-50",
+    nextAction: "Re-list to make visible again",
+  },
+  archived: {
+    label: "Archived",
+    color: "border-gray-400 text-gray-500 bg-gray-50",
+    nextAction: "Contact support to restore",
+  },
 };
 
 const DEFAULT_STATUS: StatusDisplay = {

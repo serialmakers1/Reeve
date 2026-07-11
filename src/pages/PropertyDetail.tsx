@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { WhyReeveFeeLink } from "@/components/WhyReeveFeeModal";
+import PublicTimeline, { type PublicTimelineRow } from "@/components/property-detail/PublicTimeline";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import posthog from "posthog-js";
 import { format } from "date-fns";
@@ -73,6 +74,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 interface PropertyData {
   id: string;
   owner_id: string | null;
+  status: string;
   building_name: string;
   floor_number: number | null;
   total_floors: number | null;
@@ -424,6 +426,7 @@ const PropertyDetail: React.FC = () => {
 
   // Own property detection
   const [isOwnProperty, setIsOwnProperty] = useState(false);
+  const [publicTimeline, setPublicTimeline] = useState<PublicTimelineRow[]>([]);
 
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
@@ -477,7 +480,7 @@ const PropertyDetail: React.FC = () => {
         supabase
           .from("properties")
           .select(
-            "id, owner_id, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url"
+            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -517,6 +520,21 @@ const PropertyDetail: React.FC = () => {
       const fetchedImages = (imgRes.data ?? []) as unknown as PropertyImage[];
       const sortedImages = [...fetchedImages].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
       setImages(sortedImages.length > 0 ? sortedImages : PLACEHOLDER_IMAGES);
+
+      // Public activity log timeline (curated events only — RLS enforces is_public=true).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: logRows } = await (supabase as any)
+        .from("property_activity_log")
+        .select("id, action, payload, is_public, created_at")
+        .eq("property_id", raw.id)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false });
+      if (logRows) {
+        setPublicTimeline(logRows as PublicTimelineRow[]);
+        if ((logRows as PublicTimelineRow[]).length > 0) {
+          posthog?.capture("commons_property_public_timeline_viewed", { property_id: raw.id, event_count: (logRows as PublicTimelineRow[]).length });
+        }
+      }
 
       setLoading(false);
     };
@@ -680,6 +698,45 @@ const PropertyDetail: React.FC = () => {
           <Button onClick={() => navigate("/search")} className="min-h-[44px]">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Search
           </Button>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Owner viewing their own archived/unlisted property → friendly notice instead of the
+  // public detail layout. RLS lets them fetch these; non-owners are already blocked and
+  // fall through to the notFound branch above.
+  if (isOwnProperty && (property.status === "archived" || property.status === "unlisted")) {
+    posthog?.capture("commons_archived_property_notice_shown", {
+      property_id: property.id, status: property.status,
+    });
+    const isArchived = property.status === "archived";
+    return (
+      <Layout>
+        <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
+          <Home className="mb-4 h-16 w-16 text-muted-foreground/40" />
+          <h1 className="mb-2 text-xl font-bold text-foreground">
+            {isArchived ? "This property is archived" : "This property is unlisted"}
+          </h1>
+          <p className="mb-6 text-sm text-muted-foreground max-w-md">
+            {isArchived
+              ? "This listing is archived and no longer visible to tenants. Contact support to restore it."
+              : "This listing is unlisted and hidden from tenants. Re-list it from your dashboard to make it visible again."}
+          </p>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate("/owner-dashboard")} className="min-h-[44px]">
+              Go to my dashboard
+            </Button>
+            {!isArchived && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/owner-dashboard/property/${property.id}`)}
+                className="min-h-[44px]"
+              >
+                Manage this property
+              </Button>
+            )}
+          </div>
         </div>
       </Layout>
     );
@@ -1151,6 +1208,11 @@ const PropertyDetail: React.FC = () => {
                   ))}
                 </div>
               </section>
+            )}
+
+            {/* Public timeline — curated public activity events */}
+            {publicTimeline.length > 0 && (
+              <PublicTimeline rows={publicTimeline} />
             )}
 
             {/* 8. Building Rules */}

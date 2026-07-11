@@ -1,6 +1,14 @@
-# Reeve Commons — Rollback & Decision Notes
+# Reeve Commons — Documentation Index
 
-## Phase 0 Decisions
+Split into focused files for AI + human parsing. Grep across all files with `grep -r "<term>" commons-*.md`.
+
+- [commons-decisions.md](./commons-decisions.md) — Locked decisions with reasoning (D-XXX entries).
+- [commons-schema.md](./commons-schema.md) — DB tables, columns, enums, RLS policies, migrations.
+- [commons-ux.md](./commons-ux.md) — UI/UX flow decisions, layouts, empty states, copy.
+- [commons-status-flow.md](./commons-status-flow.md) — Property status state machine (7 statuses, 14 transitions).
+- [commons-forward-plan.md](./commons-forward-plan.md) — Phase 2+ deferred items.
+
+## Phase 0 rollback notes
 
 ### PropertyDetail.tsx
 - `pb-36 lg:pb-8` changed to `pb-8` — restore to `pb-36 lg:pb-8` if mobile CTA bar is re-enabled.

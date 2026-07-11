@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Users, Home, FileText, Building2, ClipboardList, UserPlus, Menu, X, User, ChevronDown, CalendarDays, ScrollText, Phone } from "lucide-react";
+import { Users, Home, FileText, Building2, ClipboardList, ClipboardCheck, UserPlus, Menu, X, User, ChevronDown, CalendarDays, ScrollText, Phone } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { label: "Owner Pipeline", path: "/admin/owners", icon: Users },
   { label: "Leads", path: "/admin/leads", icon: UserPlus },
   { label: "Properties", path: "/admin/properties", icon: Building2 },
+  { label: "Listing Reviews", path: "/admin/listing-reviews", icon: ClipboardCheck },
   { label: "Inspections", path: "/admin/inspections", icon: ClipboardList },
   { label: "Field Calendar", path: "/admin/calendar", icon: CalendarDays },
   { label: "Visit Logs", path: "/admin/visits", icon: ScrollText },
@@ -33,6 +34,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [authChecked, setAuthChecked] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pendingReviewCount, setPendingReviewCount] = useState(0);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -56,6 +58,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       }
 
       setAuthChecked(true);
+
+      // Poll pending review count for nav badge
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const [{ count: newCount }, { count: editCount }] = await Promise.all([
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from("properties").select("id", { count: "exact", head: true }).eq("status", "pending_review"),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from("property_edit_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      ]);
+      setPendingReviewCount((newCount ?? 0) + (editCount ?? 0));
     };
     checkAdmin();
   }, [navigate]);
@@ -93,7 +105,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             }`}
           >
             <item.icon className="h-5 w-5 shrink-0" />
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {item.path === "/admin/listing-reviews" && pendingReviewCount > 0 && (
+              <span className="ml-auto rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 min-w-[20px] text-center">
+                {pendingReviewCount}
+              </span>
+            )}
           </Link>
         );
       })}

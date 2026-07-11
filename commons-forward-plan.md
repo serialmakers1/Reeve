@@ -1,0 +1,211 @@
+# Reeve Commons — Forward Plan (Deferred Items)
+
+Everything captured during Phase 1 planning that is NOT built in Phase 1. Grouped by phase. Each entry notes what's already decided so we don't re-litigate.
+
+---
+
+## Phase 2 candidates
+
+### Google Places autocomplete for address
+- Decision: Chosen over MapMyIndia and manual entry.
+- Blocker: Requires Google Cloud billing setup.
+- Files affected: Section 1 of ListProperty form; introduces new address components (sublocality, formatted_address).
+- Related: enables `latitude` / `longitude` capture.
+
+### `properties.latitude` and `properties.longitude`
+- Decision: Populate only after Google Places is wired.
+- Reasoning: Manual lat/lng entry is error-prone. No point adding the columns until we have an accurate source.
+- Consumers: distance-to-search-anchor, map view on property detail (also deferred).
+
+### Rental preferences form + `rental_preferences` table
+- Decision: Non-blocking form (unlike current `/eligibility` which blocks).
+- Scope: tenant-side counterpart of the owner listing. Feeds contact request UX.
+- Related: needed before contact request review can show meaningful data (Phase 3).
+
+### Non-blocking replacement for `/eligibility`
+- Decision: Replace the current blocking form.
+- Related to: Dashboard.tsx Rental Preferences tile re-add (see Phase 0 rollback notes in commons.md).
+
+---
+
+## Phase 3 candidates
+
+### Contact request build
+- URL, table (`contact_requests`), and RLS all designed during Phase 3.
+- UX pattern locked: Option F expand-in-place (see commons-decisions.md D-063 and commons-ux.md §3).
+
+### Tenant re-request cooldown
+- Decision: Cooldown period NOT yet decided — needs empirical data from early requests.
+- Backend logging of re-request flag is captured earlier so we have data by the time we design the cooldown.
+
+### Re-request cooldown timer visible to tenant
+- Decision: Timer shown to tenant only after backend data reveals the right cooldown period.
+
+### Contact request rate limits, expiry, freshness decay
+- Decision: Deferred to post-launch per build plan.
+- Related: request TTL, hide-when-old, automatic archiving.
+
+### Backend logging for re-request flag tracking
+- Decision: Log every re-request attempt to power future cooldown and analytics.
+
+---
+
+## Later phases (Phase 4-6 or Post-launch)
+
+### Profile photo upload UI
+- Decision: Use Supabase Storage bucket `profile-photos` (not R2 — see D-050).
+- Reason: profile photos are small and low-egress; R2's egress-free advantage doesn't apply.
+- Phase 1 populates `profile_photo_url` from Google OAuth only.
+
+### Ratings & reviews on public profiles
+- Decision: Placeholder section already exists on `/u/:userId` from Phase 1.
+- Scope: tenant rates owner post-tenancy and vice versa.
+
+### Public property detail rendering of new Phase 1 fields
+- Decision: `security_deposit_amount`, `building_notes`, custom furnishing items, custom amenities all captured in Phase 1 but their public rendering on `PropertyDetail` is deferred.
+- Reason: PropertyDetail redesign is a Phase 4-ish body of work.
+
+### "About the owner" mini-profile block on public property detail
+- Decision: Sits inside PropertyDetail with a link to `/u/:ownerId`.
+- Reason: Follows public profile page ship.
+
+### Public timeline on property detail page
+- Decision: Always visible from Phase 1 launch; events curated (see commons-decisions.md D-081).
+- Scope in Phase 1: renders `property_activity_log` rows where `is_public = true`.
+- Later polish: richer event iconography, richer copy templates.
+
+### Contact request stats on property management page
+- Decision: Placeholder line `12 requests · 3 approved · 2 declined · 7 pending` — designed during planning but built later.
+- Location: Requests tab of property management page.
+
+### Admin badge counts on sidebar
+- Decision: Pending listing review count as a badge on `Listing Reviews` nav item.
+- Nice-to-have; not blocking for Phase 1 launch of the review queue.
+
+### Header nav `/list` CTA
+- Decision: Not linked from Header/Footer until Phase 6 cutover.
+- Route created in Phase 1 (App.tsx) but reachable only via direct URL or `Add Property` button on dashboard.
+
+### `is_public` hide-profile UI toggle
+- Decision: Column exists from Phase 1 (default true). No UI in Phase 1.
+- Reason: Reserved shape for future preference.
+
+### Drag-to-reorder for property photos
+- Decision: Not in Phase 1 (admin form doesn't have it either).
+- Library candidate when built: dnd-kit.
+- `sort_order` column exists on `property_images` already.
+
+### PropertyDetail location map view
+- Decision: Depends on Google Places / lat-lng being populated.
+
+### Location dropdown for city / state
+- Decision: Current Phase 1 uses free-text. Once we have canonical list from Google Places, replace with dropdown.
+
+### PM-history backfill into `property_activity_log`
+- Decision: NOT planned. Log starts empty at Phase 1 launch.
+- Reason: Backfilled events risk incorrect actor attribution.
+
+### Tier system on verified badge
+- Decision: Current checkmark is binary (all users verified). Future tier (e.g., ID-verified) could differentiate.
+- Placement: profile pages only (Phase 1); could extend if tiers emerge.
+
+---
+
+## REMIND LATER (surfaced during Prompt 1)
+
+Items flagged during the Prompt 1 planning round. Each has a target phase and enough context to pick up cold.
+
+### Header dropdown "My Profile" → `/me` (Phase 6 cutover)
+- Phase 1 keeps `Header.tsx` unchanged. `My Profile` continues pointing to `/profile` (settings).
+- `/me` reachable only by direct URL until Phase 6.
+- Repoint two lines in Header.tsx (desktop dropdown + mobile menu).
+- Supersedes D-048.
+
+### BottomNav "Owner Dashboard" tab repoint (Prompt 6 — inside Phase 1)
+- Currently points to `/my-properties`.
+- When `/owner-dashboard` is built in Prompt 6, either repoint the tab OR add a redirect `/my-properties` → `/owner-dashboard`.
+- Chosen approach (redirect) confirmed in D-089-adjacent decisions.
+
+### MyPropertyNew.tsx deletion (post-Phase 6 stability)
+- Retained in Phase 1 as rollback safety (D-089).
+- Delete only after Phase 6 has been stable for one release cycle.
+- Just remove the file + its lazy import in App.tsx (redirect stays).
+
+### R2 immediate-delete Edge Function on rejection/superseding (Phase 2 optimization)
+- Phase 1 relies on the monthly n8n orphan cleanup (D-096).
+- Phase 2 upgrade: RPC-triggered Edge Function deletes R2 objects for rejected/superseded photo_changes.add entries immediately.
+- Benefit: faster reclaim; sub-24h vs 7-day cleanup window.
+
+### Full session-recovery via localStorage on `/list` (later phase)
+- Phase 1 shows a session-expiration modal with plain-text form state (D-100).
+- Later: transparent localStorage backup + auto-restore on re-login.
+- Non-trivial to build; not required for launch.
+
+### Owner viewing their own archived property URL — Option B message (Phase 2 confirmation)
+- Behavior when owner navigates to `/owner-dashboard/property/:id` for an archived property is undecided.
+- Option A: show archived read-only view; Option B: redirect with toast "This property is archived. Contact support to restore."
+- Recommend B; confirm with real usage.
+
+### Photo edits go through review vs direct — revisit (post-launch, based on owner feedback)
+- D-090 mandates all photo edits on `listed` properties go through the edit_request flow.
+- May feel heavyweight for simple photo swaps.
+- Revisit after 30 days of production usage.
+
+### Photo reorder as trivial vs review-required — revisit (post-launch)
+- Currently bundled with all photo edits (D-005, D-090).
+- Reorder is arguably lower-risk than add/delete and could be allowed direct.
+- Revisit if reorder frequency is significant.
+
+### Ownership transfer mechanism for admin (Phase 3+ or as needed)
+- No current path for admin to reassign `properties.owner_id`.
+- Needed for: owner leaves platform, property sold, incorrect account attribution.
+- Not urgent — handle manually via Supabase Studio until frequency justifies a UI.
+
+### Legacy PM property status handling on `/owner-dashboard` (Prompt 6 details)
+- `/owner-dashboard` grid must handle a user who has BOTH Commons properties and legacy PM properties (in `inspection_*`, `agreement_pending`, etc.).
+- Decision: show both, distinguish visually. PM cards route to the existing `/my-properties/:id` page.
+- Commons cards route to `/owner-dashboard/property/:id`.
+
+### Photo reordering as an owner action — deferred entirely
+- Ordering is captured in `sort_order`, but no drag-to-reorder UI ships in Phase 1.
+- Existing admin form doesn't have it either; parity preserved.
+- Deferred to Phase 4 or so.
+
+### Admin review queue realtime updates (post-Phase 1)
+- Queue currently refetches on tab change and after each admin action.
+- Adding Supabase Realtime subscriptions on `properties` (status=pending_review) and `property_edit_requests` (status=pending) would auto-refresh the queue when owners submit or supersede.
+- Not built now — the ~seconds staleness during manual review is acceptable.
+
+### Cross-user `users.full_name` visibility (Prompt 5 deferred)
+- `users_select_own` is restrictive. `/u/:userId` and admin review queue rely on `public_profiles` view for cross-user display names.
+- If admin needs richer cross-user data (phone, verification badges) on the queue, add a purpose-built RPC rather than widening the `users_select_own` policy.
+
+### ✅ Session storage restore prompt on /list/:id mount (RESOLVED in Prompt 9)
+### ✅ Modify-edit auto-transition redundancy (RESOLVED in Prompt 9 — auto-transition removed)
+### ✅ Public timeline curated events on property detail page (RESOLVED in Prompt 9)
+### ✅ Owner archived property URL message (RESOLVED in Prompt 9)
+
+### Baseline typecheck error count capture
+- Before applying Phase 1 migrations, capture `npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -c "error TS"`.
+- Store the number in the log entry for Prompt 1 execution.
+- After types.ts regeneration, confirm within ±5.
+
+## Explicit non-goals for Phase 1
+
+- No PM-to-Commons migration path (existing PM properties stay in PM statuses).
+- No cross-role UI (users don't see "owner mode" / "tenant mode" toggle).
+- No notifications system (email/SMS/push) for status changes — polling / re-visit only.
+- No pricing recommendations or market data on the listing form.
+- No mobile app work.
+- No i18n / multi-language.
+
+---
+
+## Locked decisions that affect the future
+
+These decisions were made during Phase 1 planning but their effect extends into later phases. They should be preserved unless explicitly superseded.
+
+- Commons and PM share the `properties` table (D-013). PM properties are identified by their status values (`inspection_*`, `occupied`, `off_market`, etc.). Any future feature querying "Commons listings" filters by the 7 Commons statuses.
+- All new Phase 1 fields also appear in admin PropertyEdit (D-044). Any future admin form redesign must preserve them.
+- The public activity timeline's curated event set (D-081, D-082) is the authoritative list. Adding new event types requires an explicit is_public decision each time.
+- Profile system is unified across roles (D-046). Any future role-specific profile fields should extend `profiles`, not create new tables.

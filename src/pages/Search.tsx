@@ -608,7 +608,7 @@ export default function SearchPage() {
             "id, building_name, floor_number, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, maintenance_included_in_rent",
             { count: "exact" }
           )
-          .eq("status", "listed")
+          .in("status", ["listed", "edit_pending_review"])
           .eq("is_active", true)
           .order("listed_at", { ascending: false })
           .range(from, to);

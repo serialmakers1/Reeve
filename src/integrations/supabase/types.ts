@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -11,31 +11,6 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.4"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
   }
   public: {
     Tables: {
@@ -1644,6 +1619,38 @@ export type Database = {
           },
         ]
       }
+      owner_action_acknowledgments: {
+        Row: {
+          acknowledged_at: string
+          id: string
+          target_id: string
+          target_type: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string
+          id?: string
+          target_id: string
+          target_type: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string
+          id?: string
+          target_id?: string
+          target_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_action_acknowledgments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       owner_action_log: {
         Row: {
           action_taken: string
@@ -1863,9 +1870,11 @@ export type Database = {
           bank_account_name: string | null
           bank_account_number: string | null
           bank_ifsc: string | null
+          bio: string | null
           created_at: string
           date_of_birth: string | null
           diet: Database["public"]["Enums"]["diet_type"] | null
+          display_name: string | null
           emergency_contact_email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -1874,6 +1883,7 @@ export type Database = {
           has_pets: boolean | null
           id: string
           is_foreign_citizen: boolean
+          is_public: boolean
           kyc_verified: boolean
           kyc_verified_at: string | null
           marital_status: Database["public"]["Enums"]["marital_status"] | null
@@ -1895,9 +1905,11 @@ export type Database = {
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_ifsc?: string | null
+          bio?: string | null
           created_at?: string
           date_of_birth?: string | null
           diet?: Database["public"]["Enums"]["diet_type"] | null
+          display_name?: string | null
           emergency_contact_email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -1906,6 +1918,7 @@ export type Database = {
           has_pets?: boolean | null
           id?: string
           is_foreign_citizen?: boolean
+          is_public?: boolean
           kyc_verified?: boolean
           kyc_verified_at?: string | null
           marital_status?: Database["public"]["Enums"]["marital_status"] | null
@@ -1927,9 +1940,11 @@ export type Database = {
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_ifsc?: string | null
+          bio?: string | null
           created_at?: string
           date_of_birth?: string | null
           diet?: Database["public"]["Enums"]["diet_type"] | null
+          display_name?: string | null
           emergency_contact_email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -1938,6 +1953,7 @@ export type Database = {
           has_pets?: boolean | null
           id?: string
           is_foreign_citizen?: boolean
+          is_public?: boolean
           kyc_verified?: boolean
           kyc_verified_at?: string | null
           marital_status?: Database["public"]["Enums"]["marital_status"] | null
@@ -1977,6 +1993,7 @@ export type Database = {
           board_status: Database["public"]["Enums"]["board_status"]
           building_age_years: number | null
           building_name: string
+          building_notes: string | null
           building_rules: string | null
           city: string
           created_at: string
@@ -2030,6 +2047,7 @@ export type Database = {
           pet_policy: string | null
           pincode: string | null
           property_type: string | null
+          security_deposit_amount: number | null
           security_deposit_months: number
           service_agreement_id: string | null
           society_maintenance_approx: number | null
@@ -2061,6 +2079,7 @@ export type Database = {
           board_status?: Database["public"]["Enums"]["board_status"]
           building_age_years?: number | null
           building_name: string
+          building_notes?: string | null
           building_rules?: string | null
           city: string
           created_at?: string
@@ -2114,6 +2133,7 @@ export type Database = {
           pet_policy?: string | null
           pincode?: string | null
           property_type?: string | null
+          security_deposit_amount?: number | null
           security_deposit_months?: number
           service_agreement_id?: string | null
           society_maintenance_approx?: number | null
@@ -2145,6 +2165,7 @@ export type Database = {
           board_status?: Database["public"]["Enums"]["board_status"]
           building_age_years?: number | null
           building_name?: string
+          building_notes?: string | null
           building_rules?: string | null
           city?: string
           created_at?: string
@@ -2198,6 +2219,7 @@ export type Database = {
           pet_policy?: string | null
           pincode?: string | null
           property_type?: string | null
+          security_deposit_amount?: number | null
           security_deposit_months?: number
           service_agreement_id?: string | null
           society_maintenance_approx?: number | null
@@ -2228,6 +2250,61 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_role: string
+          created_at: string
+          id: string
+          is_public: boolean
+          payload: Json
+          property_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_role: string
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          payload?: Json
+          property_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_role?: string
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          payload?: Json
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_activity_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_activity_log_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_activity_log_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
         ]
@@ -2308,6 +2385,77 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_edit_requests: {
+        Row: {
+          acknowledged_at: string | null
+          created_at: string
+          id: string
+          owner_id: string
+          payload: Json
+          property_id: string
+          rejection_reason: string | null
+          rejection_reason_text: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          created_at?: string
+          id?: string
+          owner_id: string
+          payload?: Json
+          property_id: string
+          rejection_reason?: string | null
+          rejection_reason_text?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          created_at?: string
+          id?: string
+          owner_id?: string
+          payload?: Json
+          property_id?: string
+          rejection_reason?: string | null
+          rejection_reason_text?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_edit_requests_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_edit_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_edit_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_edit_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -2707,8 +2855,48 @@ export type Database = {
         }
         Relationships: []
       }
+      public_profiles: {
+        Row: {
+          bio: string | null
+          display_name: string | null
+          is_public: boolean | null
+          profile_photo_url: string | null
+          user_id: string | null
+        }
+        Insert: {
+          bio?: string | null
+          display_name?: string | null
+          is_public?: boolean | null
+          profile_photo_url?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          bio?: string | null
+          display_name?: string | null
+          is_public?: boolean | null
+          profile_photo_url?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      approve_edit_request: {
+        Args: { p_edit_request_id: string }
+        Returns: undefined
+      }
+      cancel_pending_edit_request: {
+        Args: { p_property_id: string }
+        Returns: undefined
+      }
       complete_visit: {
         Args: {
           p_admin_note?: string
@@ -2722,11 +2910,27 @@ export type Database = {
       get_user_role: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_property_owner: { Args: { prop_id: string }; Returns: boolean }
+      reject_edit_request: {
+        Args: {
+          p_edit_request_id: string
+          p_reason: string
+          p_reason_text?: string
+        }
+        Returns: undefined
+      }
       reschedule_visit: {
         Args: {
           p_actor: string
           p_new_scheduled_at: string
           p_visit_id: string
+        }
+        Returns: string
+      }
+      submit_property_edit_request: {
+        Args: {
+          p_field_changes: Json
+          p_photo_changes: Json
+          p_property_id: string
         }
         Returns: string
       }
@@ -2927,6 +3131,11 @@ export type Database = {
         | "expiring"
         | "turnover"
         | "inactive"
+        | "pending_review"
+        | "changes_requested"
+        | "edit_pending_review"
+        | "unlisted"
+        | "archived"
       room_condition:
         | "good"
         | "minor_wear"
@@ -3096,9 +3305,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       agreement_status: [
@@ -3314,6 +3520,11 @@ export const Constants = {
         "expiring",
         "turnover",
         "inactive",
+        "pending_review",
+        "changes_requested",
+        "edit_pending_review",
+        "unlisted",
+        "archived",
       ],
       room_condition: [
         "good",
