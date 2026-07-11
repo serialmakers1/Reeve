@@ -16,7 +16,7 @@ npm run test       # vitest
 
 ## Typecheck (IMPORTANT)
 - Correct command: `npx tsc -p tsconfig.app.json --noEmit` — NOT `npx tsc --noEmit`, which checks ZERO files (root tsconfig has `"files": []` + project references).
-- ~420 pre-existing errors are baseline noise from Supabase generated types (query generic inference); they do NOT block the vite build. Verify by diffing against this baseline, not expecting zero. New TS2304/TS2552 (unresolved identifier) errors in touched files = runtime crashes vite won't catch.
+- Baseline: **411 pre-existing errors** (as of Phase 1 Prompt 2, 2026-07-10) from Supabase generated types (query generic inference); they do NOT block the vite build. Verify by diffing against this baseline, not expecting zero. New TS2304/TS2552 (unresolved identifier) errors in touched files = runtime crashes vite won't catch.
 
 ## SSG (Static Site Generation)
 Approach: custom post-build prerender script — no SSR framework, no new dependencies.
@@ -280,6 +280,114 @@ non-deterministic.
 
 ## Index Naming Convention
 All DB indexes follow `idx_<table>_<column>` (confirmed from existing indexes: `idx_visits_status`, `idx_leads_status`, `idx_applications_status`, etc.). Multi-column: `idx_<table>_<col1>_<col2>`. Storage bucket naming: kebab-case (`tenant-documents`, `owner-documents`). Property images go to Cloudflare R2 (not Supabase Storage) — no `property-images` bucket in `storage.buckets`.
+
+## Migration Conventions (Reeve Commons Phase 1+)
+- Single-purpose migration files — each does one logical thing. Prefer 7 focused files over 1 mega-file (rollback safety, review clarity).
+- All migrations idempotent — `IF NOT EXISTS` on ADD VALUE / ADD COLUMN, `DROP … IF EXISTS` before CREATE POLICY/TRIGGER/FUNCTION.
+- Postgres BEFORE triggers fire alphabetically by trigger name. When ordering matters, name accordingly. Example: `enforce_property_owner_transitions_trigger` (validate) sorts before `handle_property_status_change` (mutate), so validation runs first.
+- Enum ADD VALUE requires COMMIT between the ADD and any reference to the new value. Use one BEGIN/COMMIT per ADD VALUE, or split across separate migration files.
+- All new tables get RLS enabled at creation time; policies added in the same or a following migration.
+- Property activity log (`property_activity_log`) and edit requests (`property_edit_requests`) are NEVER written directly from the frontend — service_role via RPCs and triggers only.
+
+## Commons Prompt 10 fixes
+- `property_images_select_public` widened to include `edit_pending_review` — previously public search returned these listings but the photos policy blocked cover images. Fixed in `20260710121000_fix_commons_gaps.sql`.
+- `property_activity_log_writer` trigger extended with an `admin_edit` branch: fires when `is_admin()` UPDATE changes tracked Tier-2 fields with no status change. Log row is private (`is_public=false`). Admin PropertyEdit form itself unchanged — logging happens transparently via trigger.
+- ListProperty Path B submit is now guarded against empty payloads — toast "No changes to submit" prevents empty edit requests from clogging the admin queue.
+- ListProperty preview mode computes effective photos in Path B: existing minus `photo_changes.delete`, plus `photo_changes.add` mapped to preview shape.
+
+## Commons Prompt 9 polish
+- Public timeline on PropertyDetail: `src/components/property-detail/PublicTimeline.tsx` reads `property_activity_log` WHERE `is_public=true` for the property. Renders `payload.summary` only — no actor, no reasons. Distinct from owner-facing `ActivityTimeline`. First 10 events shown; "Show all" expands.
+- Archived/unlisted owner branch on PropertyDetail: when `isOwnProperty && (status=archived OR status=unlisted)`, render a friendly notice with dashboard link and (for unlisted) direct link to `/owner-dashboard/property/:id`. Non-owners still 404 via RLS.
+- `properties.status` added to PropertyDetail's SELECT column list and to `PropertyData` interface (previously omitted).
+- ListProperty session restore modal: on mount for Path B properties, reads `sessionStorage.getItem(edit_draft:${propertyId})`. If < 7 days old and current in-memory payload is empty, offers "Restore changes" vs "Start fresh". Restore path applies field_changes + photo_changes and forces modifyingEdit=true.
+- ListProperty modify-edit auto-transition REMOVED. Owner must click the explicit "Modify edit" button in the edit_pending_review banner to unlock the form. `updateField` no longer sets `modifyingEdit=true` on Path B; readOnly gate above returns before writes in the read-only state.
+
+## Commons Admin Review (Phase 1 Prompt 8)
+- Route `/admin/listing-reviews` — 2 tabs (New Listings | Edit Requests) with count badges. Sort: oldest (default), newest, owner name. City filter derived from queue data. Tab state persists in `?tab=`.
+- Route `/admin/listing-reviews/:type/:id` — detail. `:type` = `new` (id is properties.id) or `edit` (id is property_edit_requests.id).
+- New listing approve → direct `UPDATE properties SET status='listed'` — trigger sets is_active + listed_at + emits log entry.
+- New listing "Request changes" → per D-118: `UPDATE properties SET status='changes_requested'` then non-atomic INSERT into property_activity_log with `action='listing_rejected'` payload `{ summary, reason, reason_text }`.
+- Edit request approve/reject → RPCs `approve_edit_request(uuid)` / `reject_edit_request(uuid,text,text)` (from Prompt 4).
+- Race guard: RPCs raise if edit no longer pending. Admin sees toast "This edit was superseded or cancelled by the owner. Refreshing…" and detail refetches.
+- AdminLayout: "Listing Reviews" nav item added between Properties and Inspections. Live badge counts `properties WHERE status='pending_review'` + `property_edit_requests WHERE status='pending'`.
+- Revision history: `property_edit_requests` with `status IN (superseded, rejected, withdrawn, approved)` ordered DESC. Collapsible timestamps expand to full field diff.
+- Owner identity in queue rows: fetched from `public_profiles` view (single `.in()` per queue load). Cross-user `users` reads deferred (see forward-plan).
+- Queue uses client-side filter+sort over a single fetch per tab (D-119).
+
+## Commons Property Management (Phase 1 Prompt 7)
+- `/owner-dashboard/property/:id` = full 4-tab (Requests | Details | Photos | Activity) page. Replaces Prompt 6 placeholder. Tab state persisted in `?tab=`.
+- Reusable pieces: `src/components/property-management/ConfirmDialog.tsx` (single dialog used for all 5 owner action modals) and `src/components/property-management/ActivityTimeline.tsx` (renders `property_activity_log` with discriminated union narrowing).
+- Confirmation modals — copy locked per commons-ux.md §7:
+  1. Withdraw (pending_review → draft) — direct UPDATE
+  2. Cancel listing (any → archived) — direct UPDATE, destructive
+  3. Unlist (listed → unlisted) — direct UPDATE, destructive
+  4. Re-list (unlisted → listed) — direct UPDATE, trigger handles is_active
+  5. Cancel pending edit (edit_pending_review → listed) — RPC `cancel_pending_edit_request`
+- Per-field "Currently live: X" subtitles (deferred from Prompt 4) IMPLEMENTED in Details tab: for every field in `pendingEdit.payload.field_changes`, `FieldRow` renders the pending value in blue with a small "Currently live: <old value>" line underneath.
+- Photos tab shows: existing photos (with strikethrough + "Marked for deletion" if in `photo_changes.delete`), pending adds (with "Pending review" badge). Owner clicks "Manage photos" → `/list/:id` to edit.
+- Activity tab reads `property_activity_log` in reverse chrono, narrows payload via switch on `action`, prefers `payload.summary` with fallback derived per action. Rejection reason expandable.
+- `changes_requested` banner reason resolves from most recent `listing_rejected` or `edit_rejected` activity log entry (looks at `payload.reason_text ?? payload.reason`). Ack via `owner_action_acknowledgments` (target_type='property').
+- Legacy PM statuses (`inspection_*`, `agreement_pending`, `occupied`, `off_market`, `inactive`, etc.): read-only details, no owner actions, notice "Contact your account manager for changes."
+- Summary card visible on all tabs; "View public listing" link only for `listed` / `edit_pending_review`.
+
+## Commons Owner Dashboard (Phase 1 Prompt 6)
+- `/owner-dashboard` is the new canonical dashboard URL. `/my-properties` redirects to it. `/my-properties/new` still redirects to `/list` (unchanged from Prompt 3). `/my-properties/:id` (MyPropertyDetail) preserved for legacy PM properties — Commons cards route to `/owner-dashboard/property/:id`.
+- BottomNav "Owner Dashboard" tab points to `/owner-dashboard`; active-tab check also matches `/my-properties` during transition.
+- Header dropdown unchanged (D-088 — nav updates deferred to Phase 6).
+- `OwnerPropertyManagement.tsx` at `/owner-dashboard/property/:id` is a Prompt 6 placeholder. Prompt 7 replaces it with the full 4-tab (Requests/Details/Photos/Activity) experience. Placeholder actions: draft/changes_requested → "Continue editing" → `/list/:id`; listed/edit_pending_review → "Edit listing"; unlisted → "Re-list" (direct UPDATE, valid owner transition).
+- Draft cap of 20 (D-101) enforced client-side in dashboard Add Property button + DB trigger belt-and-suspenders.
+- Legacy PM statuses (inspection_*, occupied, off_market, etc.) render in the Active tab with their existing badges — no special treatment. Archived properties in a separate tab, hidden from Active (D-069).
+- Reusable components: `PropertyCard` (owner-dashboard folder), `TopRequestsStrip` (reserved for Phase 3 contact requests — renders null when count=0).
+
+## Commons Profile Pages (Phase 1 Prompt 5)
+- Two new routes: `/me` (editable public identity) and `/u/:userId` (read-only view). Header nav still points to `/profile` (D-088).
+- `/me` uses `getUserDisplayName()` fallback chain; UPSERT on `profiles` (INSERTs if missing). Shows Google-pulled `profile_photo_url` + initials fallback via `ProfileAvatar`.
+- `/u/:userId` reads from `public_profiles` VIEW (migration `20260710120800`) — exposes only `user_id, display_name, bio, profile_photo_url, is_public`. Sensitive columns (Aadhaar, PAN, KYC, etc.) are unreachable via the view. Filters by `COALESCE(is_public, true) = true`. Grants: SELECT to authenticated and anon.
+- View is `security_invoker = false` — runs as owner, bypasses profiles RLS by design (only the 5 safe columns exposed). Self-redirect: viewing `/u/<own id>` → `/me`.
+- Shared components: `src/components/profile/ProfileAvatar.tsx` (djb2-hash → 12-color palette; stable per name), `src/components/profile/ListingsGrid.tsx` (queries `properties` where `owner_id = userId AND status IN ('listed','edit_pending_review') AND is_active = true`).
+- Empty ratings section reserves space for future ratings system; do not build ratings now.
+- Verified badge: subtle green checkmark shown if `users.phone_verified` OR `users.email_verified`.
+
+## Commons Edit Flow (Phase 1 Prompt 4)
+- Route `/list/:id` opens ListProperty in edit mode; wrapped in `<ListPropertyEditWrapper>` to force `key={id}` remount (D-102).
+- Two write paths derived from property status:
+  - **Path A** (`draft`, `changes_requested`): field changes patch `properties` directly via `useListingSave` (auto-save 500ms).
+  - **Path B** (`listed`, `edit_pending_review`): field changes accumulate in local `editRequestPayload = {field_changes, photo_changes}`; no DB write until Submit. Submit calls RPC `submit_property_edit_request` which supersedes any prior pending row and transitions `listed → edit_pending_review`.
+- Blocked statuses (`pending_review`, `unlisted`, `archived`) redirect to `/my-properties` with a status-specific toast.
+- `edit_pending_review` opens in read-only mode (`opacity-70 pointer-events-none` on the accordion) with two actions: **Modify edit** (unlock form; next Submit supersedes the pending row) and **Cancel pending edit** (RPC `cancel_pending_edit_request`).
+- `changes_requested` shows an amber banner with the admin's rejection reason. "OK, got it" inserts into `owner_action_acknowledgments` (target_type='property'). Ack persists cross-device.
+- Photo upload branches on `path`. In Path B modify-edit mode the Edge Function receives `pending_edit_request_id` and folds the R2 URL into `payload.photo_changes.add[]` (no property_images INSERT). In Path B first-time editing a `listed` property (before any Submit), photos INSERT directly to property_images but are ALSO mirrored into `editRequestPayload.photo_changes.add` so the RPC has a complete snapshot on Submit.
+- Photo delete in Path B: local-add cancels drop from `photo_changes.add`; existing images append to `photo_changes.delete` (admin applies on approval).
+- Session storage: `edit_draft:${propertyId}` — silent save on every payload change; cleared on Submit/cancel. Restore is silent (no prompt).
+- RPCs (in migration `20260710120700_add_edit_request_rpcs.sql`): `submit_property_edit_request(uuid,jsonb,jsonb) → uuid`, `approve_edit_request(uuid) → void`, `reject_edit_request(uuid,text,text) → void`, `cancel_pending_edit_request(uuid) → void`. All SECURITY DEFINER; all authorize via `auth.uid() + is_admin()`.
+- Rejected edits keep property `listed` with the live values intact (D-094).
+- Approve RPC uses `COALESCE` per column so partial edits work correctly. Enum type: **`parking_availability`** (not `parking_type`).
+
+## Commons ListProperty (Phase 1 Prompt 3)
+- Route: `/list` (create), `/list/:id` (edit — Prompt 4). `/my-properties/new` redirects to `/list`.
+- File: `src/pages/ListProperty.tsx` — 9-section vertical accordion, auto-save via `useListingSave`, photo pipeline via `processPhotoForUpload`.
+- Shared preview: `src/components/listing/PropertyPreview.tsx` (lightweight tenant-view dialog; not a wrapper around PropertyDetail).
+- Shared constants: `src/config/property-form.ts` (BHK/PROPERTY_TYPE/FURNISHING/etc. options — duplicated from admin/PropertyEdit, admin file untouched).
+- Draft lifecycle: draft row auto-created 800ms after 6 required INSERT fields fill in (`building_name`, `street_address`, `city`, `bhk`, `furnishing`, `owner_id`). Once draft exists, every field change auto-saves via `useListingSave.patch()`. URL becomes `/list?draft=<id>` — route stays `/list` so `key="new"` doesn't remount.
+- Draft cap: 20 per user. Enforced client-side (modal blocking entry) + DB trigger (belt-and-suspenders).
+- Photo section (Section 7) disabled until draft exists (D-108). Uses PHOTO_CONFIG constants.
+- Submit → `properties.status = 'pending_review'`. DB trigger enforces required-field + min-3-photos gate server-side. Missing sections turn 🔴 and page scrolls to first incomplete.
+- Session-expired modal is non-dismissible; shows JSON block of form state so owner can copy manually before re-login.
+- Header/Footer/BottomNav NOT touched — `/list` unlinked until Phase 6 cutover.
+
+## Commons Frontend Primitives (Phase 1 Prompt 2)
+- Photo constants: `src/config/photo.ts` (PHOTO_CONFIG — compression, min/max count, accepted formats, sections).
+- User display: `src/lib/user.ts` — `getUserDisplayName(user, profile)` is the ONLY correct way to render user names. Fallback chain: `profiles.display_name` → `users.full_name` → email prefix → "Anonymous". Never throws.
+- Photo pipeline: `src/lib/photo.ts` — `processPhotoForUpload(file)`. Raw size check → HEIC conversion (dynamic import of heic2any) → compression. Silent, returns `{ ok, file } | { ok:false, error }`.
+- Listing auto-save: `src/hooks/useListingSave.ts` — mirrors `useInspectionSave` (ref-based patch, 500ms debounce, newer-edits-win on failure). `saveState` includes `session_expired` for D-100 modal wiring. No-op if propertyId is null.
+- Activity log types: `src/types/activity-log.ts` — `ActivityLogPayload` discriminated union. Every variant has `summary: string`. Only writers (triggers + RPCs) touch these; readers narrow via `switch(payload.action)`.
+- Deps added: `browser-image-compression` (static), `heic2any` (**always dynamic-import only** — ~200KB gzipped, do not `import` at module top).
+
+## Commons Property Status Machine (Phase 1)
+Seven Commons statuses added to `property_status` enum: `pending_review`, `changes_requested`, `edit_pending_review`, `unlisted`, `archived` (plus existing `draft` and `listed`). PM statuses (`inspection_*`, `agreement_pending`, `occupied`, `off_market`, `expiring`, `turnover`, `inactive`) remain untouched. See commons-status-flow.md for the full 14-transition matrix.
+- `enforce_property_owner_transitions` trigger validates owner-initiated transitions; admin bypasses via `is_admin()`.
+- `handle_property_status_change` trigger auto-manages `is_active` (keeps true for `listed` and `edit_pending_review`, sets false when leaving `listed` for anything else except `occupied`/`edit_pending_review`).
+- `property_activity_log_writer` trigger emits one log row per status change; curated events (`listed` from pending_review/unlisted, `unlisted`) get `is_public=true`.
 
 ## Inspection Form Conventions (post user-testing refinements, 2026-06)
 - Condition display labels (DB values unchanged): good="Good", minor_wear="Minor Wear", moderate_damage="Poor — Visible Damage", severe_damage="Critical — Severe Damage".

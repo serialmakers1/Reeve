@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { SuspenseFallback } from "@/components/SuspenseFallback";
@@ -36,9 +36,14 @@ const OwnerClarityGuide      = React.lazy(() => import("./pages/OwnerClarityGuid
 // Owner
 const MyProperties           = React.lazy(() => import("./pages/MyProperties"));
 const MyPropertyNew          = React.lazy(() => import("./pages/MyPropertyNew"));
+const ListProperty           = React.lazy(() => import("./pages/ListProperty"));
+const OwnerDashboard         = React.lazy(() => import("./pages/OwnerDashboard"));
+const OwnerPropertyManagement = React.lazy(() => import("./pages/OwnerPropertyManagement"));
 const MyPropertyDetail       = React.lazy(() => import("./pages/MyPropertyDetail"));
 const OwnerApplicationDetail = React.lazy(() => import("./pages/OwnerApplicationDetail"));
 const Profile                = React.lazy(() => import("./pages/Profile"));
+const Me                     = React.lazy(() => import("./pages/Me"));
+const PublicProfile          = React.lazy(() => import("./pages/PublicProfile"));
 
 // Tenant authenticated
 const Dashboard              = React.lazy(() => import("./pages/Dashboard"));
@@ -52,6 +57,8 @@ const VisitsList             = React.lazy(() => import("./pages/VisitsList"));
 const OwnerPipeline          = React.lazy(() => import("./pages/admin/OwnerPipeline"));
 const PropertyEdit           = React.lazy(() => import("./pages/admin/PropertyEdit"));
 const AdminProperties        = React.lazy(() => import("./pages/admin/Properties"));
+const ListingReviewQueue     = React.lazy(() => import("./pages/admin/ListingReviewQueue"));
+const ListingReviewDetail    = React.lazy(() => import("./pages/admin/ListingReviewDetail"));
 const TenantPipeline         = React.lazy(() => import("./pages/admin/TenantPipeline"));
 const AdminApplicationDetail = React.lazy(() => import("./pages/admin/ApplicationDetail"));
 const InspectionsList        = React.lazy(() => import("./pages/admin/Inspections"));
@@ -70,6 +77,12 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Forces ListProperty to remount when :id changes so useListingSave refs reset (D-102).
+function ListPropertyEditWrapper() {
+  const { id } = useParams<{ id: string }>();
+  return <ListProperty key={id ?? "edit"} />;
+}
 
 // ── Realtime subscription — only mounted when authenticated ───────────────────
 function VisitsRealtimeMount() {
@@ -125,11 +138,17 @@ function AppInner() {
         <Route path="/owners" element={<OwnerLandingPage />} />
         <Route path="/move-in-audit" element={<MoveInAudit />} />
         <Route path="/eligibility" element={<Eligibility />} />
-        <Route path="/my-properties" element={<MyProperties />} />
-        <Route path="/my-properties/new" element={<MyPropertyNew />} />
+        <Route path="/my-properties" element={<Navigate to="/owner-dashboard" replace />} />
+        <Route path="/owner-dashboard" element={<OwnerDashboard />} />
+        <Route path="/owner-dashboard/property/:id" element={<OwnerPropertyManagement />} />
+        <Route path="/my-properties/new" element={<Navigate to="/list" replace />} />
+        <Route path="/list" element={<ListProperty key="new" />} />
+        <Route path="/list/:id" element={<ListPropertyEditWrapper />} />
         <Route path="/my-properties/:id" element={<MyPropertyDetail />} />
         <Route path="/my-properties/:propertyId/applications/:applicationId" element={<OwnerApplicationDetail />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/me" element={<Me />} />
+        <Route path="/u/:userId" element={<PublicProfile />} />
         <Route path="/owner" element={<Navigate to="/my-properties" replace />} />
         <Route path="/owner/dashboard" element={<Navigate to="/my-properties" replace />} />
         <Route path="/owner/properties/new" element={<Navigate to="/my-properties/new" replace />} />
@@ -147,6 +166,8 @@ function AppInner() {
         <Route path="/admin/leads" element={<Leads />} />
         <Route path="/admin/properties" element={<AdminProperties />} />
         <Route path="/admin/properties/:id" element={<PropertyEdit />} />
+        <Route path="/admin/listing-reviews" element={<ListingReviewQueue />} />
+        <Route path="/admin/listing-reviews/:type/:id" element={<ListingReviewDetail />} />
         <Route path="/admin/inspections" element={<InspectionsList />} />
         <Route path="/admin/inspections/:propertyId" element={<InspectionForm />} />
         <Route path="/admin/calendar" element={<FieldCalendar />} />
