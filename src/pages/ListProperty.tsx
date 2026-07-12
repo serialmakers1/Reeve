@@ -390,7 +390,23 @@ export default function ListProperty() {
 
   const readOnly = entryStatus === "edit_pending_review" && !modifyingEdit;
 
-  const { saveState, patch, saveNow } = useListingSave(propertyId);
+  const { saveState, patch, saveNow, lastError } = useListingSave(propertyId);
+
+  // ─── Surface save failures as a toast (D-127) ────────────────────────────
+  // Fires when useListingSave sets a non-null lastError. Session-expired case
+  // is handled separately by the sessionExpired modal, so skip toast for that.
+  const lastToastedErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!lastError) return;
+    if (saveState === "session_expired") return;
+    if (lastToastedErrorRef.current === lastError) return;
+    lastToastedErrorRef.current = lastError;
+    toast({
+      variant: "destructive",
+      title: "Save failed",
+      description: lastError,
+    });
+  }, [lastError, saveState, toast]);
 
   // ─── PostHog: page opened once per mount ─────────────────────────────────
   useEffect(() => {
@@ -506,8 +522,22 @@ export default function ListProperty() {
   }, [isEditMode, idParam, user?.id]);
 
   // ─── Load draft from ?draft= query on mount (create-mode resume) ─────────
+  // Fires ONCE per mount, only if the query param was present on initial load.
+  // D-127 fix: previously this re-ran when createDraft set ?draft=<newId>,
+  // re-fetching the just-inserted row (with only the 6 threshold fields) and
+  // clobbering everything the owner had typed after crossing the threshold.
+  const draftInitialResumeRef = useRef<string | null>(null);
   useEffect(() => {
-    if (isEditMode || !draftIdFromQuery || !user?.id) return;
+    if (isEditMode || !user?.id) return;
+    // Latch: capture whatever draftIdFromQuery was on the FIRST render where
+    // user became available. Subsequent draftIdFromQuery changes (from
+    // createDraft's setSearchParams) do not retrigger the fetch.
+    if (draftInitialResumeRef.current !== null) return;
+    if (!draftIdFromQuery) {
+      draftInitialResumeRef.current = ""; // mark as "checked, nothing to load"
+      return;
+    }
+    draftInitialResumeRef.current = draftIdFromQuery;
     (async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await (supabase as any)
@@ -519,7 +549,8 @@ export default function ListProperty() {
       if (!data) return;
       prefillFormFromRow(data as Record<string, unknown>, setForm);
     })();
-  }, [draftIdFromQuery, user?.id, isEditMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, isEditMode]);
 
   // ─── Load images when propertyId known ───────────────────────────────────
   useEffect(() => {
@@ -582,8 +613,15 @@ export default function ListProperty() {
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K], dbPatch?: Record<string, unknown>) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (readOnly) return; // no writes while pending edit is under review
-    const payload = dbPatch ?? mapFieldToDb(key, value);
-    if (!payload || Object.keys(payload).length === 0) return;
+    const rawPayload = dbPatch ?? mapFieldToDb(key, value);
+    if (!rawPayload || Object.keys(rawPayload).length === 0) return;
+    // Defensive normalization: DATE columns must receive YYYY-MM-DD strings,
+    // not Date objects. Any caller passing a Date via dbPatch is normalized
+    // here (D-127 root cause 3 belt-and-suspenders).
+    const payload: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(rawPayload)) {
+      payload[k] = v instanceof Date ? format(v, "yyyy-MM-dd") : v;
+    }
 
     if (path === "B") {
       // Owner must click "Modify edit" explicitly to enter modify mode — no auto-transition.

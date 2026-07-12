@@ -1,3 +1,13 @@
+## [2026-07-12] hotfix + docs | Phase 1.5 Prompt 1 — data loss fix + admin name fix + commons memory update for Phase 1.5 [IST]
+
+Fixed A3 (draft-load useEffect no longer re-fetches on internal setSearchParams — latched via draftInitialResumeRef). useListingSave now exposes lastError; ListProperty subscribes and toasts on non-null. Defensive Date-to-YYYY-MM-DD normalization in updateField payload. getUserDisplayName simplified per D-125 (users.full_name only; profile arg preserved for backwards compat, no longer consulted). STATUS_CONFIG in propertyStatus.ts gained guidance field per D-138 with locked copy for 7 statuses; deduplicated old PM `listed` entry.
+
+Migrations added: 20260711120000_fix_admin_only_property_fields.sql (git-sync of 2026-07-11 hotfix — D-124), 20260712120000_widen_public_profiles_view.sql (F1 fix — D-125, D-126; view now selects users.full_name via LEFT JOIN profiles).
+
+Memory: commons-decisions.md gained D-124 through D-152 (29 entries covering Phase 1.5 architecture, schema, UX, and 13-prompt sequence). commons-forward-plan.md appended Phase 1.5 deferred items + prompt sequence. commons-schema.md gained §14 migrations list, §15 widened view, §16 event-scoped acks note, §17 field spec architecture. commons-ux.md gained §10 StatusGuidance content + Final Checks 3-checkbox + search rent/sale toggle + section validation + available_from date rules. CLAUDE.md gained compact "Commons Phase 1.5" section listing the 8 load-bearing invariants.
+
+Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched files. Types regenerated from REMOTE — public_profiles type still reflects display_name until migration is pushed; will need re-regen after `supabase db push`.
+
 ## [2026-07-05] fix | Floor plan carousel crash — aligned lightboxImages filter with activeImages to prevent index-out-of-bounds on floor plan click [IST]
 ## [2026-07-05] diagnose | Floor plan carousel crash — lightboxImages vs activeImages array mismatch when "All Photos" selected [IST]
 ## [2026-06-28] feat | Google Maps link + action buttons row — DB column, admin input, moved YouTube from badges to dedicated button row with Maps button [IST]

@@ -243,3 +243,44 @@ Each modal has a `Cancel` button (dismisses without action).
 - Photos organized by section (Living Room, Bedrooms, etc.); custom sections allowed.
 - One photo marked as cover; one marked as floor plan.
 - Removing or adding photos on a listed property triggers an edit request (Tier 2 review).
+
+---
+
+## 10. Phase 1.5 additions
+
+### StatusGuidance component (D-138)
+
+Rendered on the property management page (Details tab) and on ListProperty edit mode. Not dismissible. Data source: `STATUS_CONFIG[status].guidance` in `src/lib/propertyStatus.ts` (added in Prompt 1). Full component built in Prompt 11.
+
+Per-status content locked in Prompt 1:
+
+| Status | Heading | Body |
+|---|---|---|
+| `draft` | Draft — continue where you left off | You've started a listing. Continue filling the sections above. We auto-save your progress as you type. When all required sections are complete, click 'Submit for review'. |
+| `pending_review` | Your listing is under review | Our team checks all listings within 24-48 hours for accuracy and quality. You'll get an email once your listing is approved. You can withdraw or cancel your submission anytime before then. For questions, contact support@reeve.in. |
+| `changes_requested` | Admin requested changes | We've reviewed your listing and requested some changes. Review the admin's feedback shown below, update the sections, and click 'Submit for review' again. For questions, contact support@reeve.in. |
+| `listed` | Your listing is live | Tenants can now find your property and request contact with you. Any edits you make will go through admin review before applying to your live listing — the live version won't change until your edits are approved. For questions, contact support@reeve.in. |
+| `edit_pending_review` | Your edit is under review | Your live listing continues to show current values to tenants. Once approved, the changes go live. You can cancel or modify this edit anytime. For questions, contact support@reeve.in. |
+| `unlisted` | Your listing is not visible | Click 'Re-list' to make it live again — if no changes have been made, it goes live immediately. To edit before re-listing, re-list first, then edit. For questions, contact support@reeve.in. |
+| `archived` | This listing is archived | This listing has been archived and is not visible anywhere. To restore, contact support@reeve.in. |
+
+### Final Checks 3-checkbox pattern (D-148)
+
+Section 9 requires 3 checkboxes; Submit is disabled until all three are checked:
+
+1. `I confirm I am the legal owner or authorized representative of this property, and I have permission to list it.` (existing consent — D-036)
+2. `I agree to the [Terms of Service](/terms).`
+3. `I accept the [Privacy Policy](/privacy).`
+
+### Search rent/sale toggle (D-143)
+
+Search page has `[Rent] [Buy]` toggle at the top. URL query param `?type=rent` or `?type=sale` persists selection. Session storage remembers last choice as fallback. Default: `rent`.
+
+### Section validation logic (D-144)
+
+Optional-only sections (Section 5 Amenities, Section 6 Rules) render ⚪ (not started) by default. They only turn ✅ once the user opens them OR enters any data. Required sections continue to show their icon derived from field completion.
+
+### `available_from` date picker rules (D-146)
+
+- Past dates allowed. On selection, show an inline warning: `Available from is in the past — is this correct?`
+- Future dates limited to 90 days ahead of today.
