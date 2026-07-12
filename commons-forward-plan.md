@@ -209,3 +209,41 @@ These decisions were made during Phase 1 planning but their effect extends into 
 - All new Phase 1 fields also appear in admin PropertyEdit (D-044). Any future admin form redesign must preserve them.
 - The public activity timeline's curated event set (D-081, D-082) is the authoritative list. Adding new event types requires an explicit is_public decision each time.
 - Profile system is unified across roles (D-046). Any future role-specific profile fields should extend `profiles`, not create new tables.
+
+---
+
+## Phase 1.5 additions — deferred items (surfaced 2026-07-12)
+
+- Google Maps + Places API integration for location fields (nearest metro, distance, landmark autocomplete).
+- Path-based search URLs (`/search/rent`, `/search/sale`) — SEO improvement.
+- EMI calculator on public sale detail page.
+- Comparable properties analytics view (owner-facing on sale listings).
+- Internationalization (English / Hindi / Kannada label variants in field spec).
+- Broker/agent registration and listing model.
+- PG (paying guest) listing type.
+- Commercial properties (beyond residential).
+- Loan pre-approval details.
+- Society NOC verification workflow.
+- Nearby school/hospital data.
+- Rental preferences form + table (Phase 2/3).
+- Contact requests (Phase 3).
+- Ratings & reviews (post-launch).
+- Profile photo upload UI (later).
+- Photo reorder (post-Phase 1).
+- R2 immediate-delete on rejection/superseding (Phase 2).
+
+## Phase 1.5 prompt sequence (D-152)
+
+1. Emergency (data loss + admin name + commons memory update) — THIS prompt.
+2. Field spec architecture (`src/config/property-fields.ts`).
+3. Refactor ListProperty to consume spec.
+4. Refactor admin PropertyEdit to consume spec.
+5. Refactor PropertyDetail to consume spec.
+6. Quick wins (A1, A2, B1, B2, B3, C1, E1, E2, F2, J1).
+7. India fields — schema (parking counts + India rental fields).
+8. India fields — wire into surfaces.
+9. Rent/sale — schema (listing_type enum + sale columns).
+10. Rent/sale — wire (spec + surfaces + search filter).
+11. Comms (H1, H2, H3, StatusGuidance component).
+12. Admin quality checks — G1 (queue full property view + search).
+13. Admin quality checks — G2 + G3 (detail full property + Decisions tab).

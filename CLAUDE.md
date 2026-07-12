@@ -289,6 +289,18 @@ All DB indexes follow `idx_<table>_<column>` (confirmed from existing indexes: `
 - All new tables get RLS enabled at creation time; policies added in the same or a following migration.
 - Property activity log (`property_activity_log`) and edit requests (`property_edit_requests`) are NEVER written directly from the frontend — service_role via RPCs and triggers only.
 
+## Commons Phase 1.5 (started 2026-07-12)
+
+- **Field spec is single source of truth** for property fields (D-128). `src/config/property-fields.ts` will drive `ListProperty.tsx`, admin `PropertyEdit.tsx`, and `PropertyDetail.tsx`. Adding a field = single-file change.
+- **`getUserDisplayName()` reads `users.full_name` only** (D-125). `profiles.display_name` and `profiles.is_public` are dead columns (kept per never-drop ground rule).
+- **`public_profiles` view** exposes `user_id`, `full_name`, `profile_photo_url`, `bio` — widened in `20260712120000_widen_public_profiles_view.sql` (D-126).
+- **Email + phone are always private.** Admin queries `public.users` directly via `is_admin()` RLS. Never surface via the view.
+- **Support email**: `support@reeve.in`. Single canonical address across all owner-facing copy (D-139).
+- **StatusGuidance data** lives in `STATUS_CONFIG[status].guidance` in `propertyStatus.ts`. Full React component built in Prompt 11 (D-138).
+- **`prevent_owner_updating_admin_fields()`** no longer guards `status` — Commons owner status transitions are validated by `enforce_property_owner_transitions_trigger` (D-124). Git-synced in `20260711120000_fix_admin_only_property_fields.sql`.
+- **Phase 1.5 prompt sequence** (D-152): 1=Emergency, 2=Spec, 3=Refactor-Owner, 4=Refactor-Admin, 5=Refactor-Detail, 6=Quick-wins, 7=IndiaFields-Schema, 8=IndiaFields-Wire, 9=RentSale-Schema, 10=RentSale-Wire, 11=Comms, 12=Admin-G1, 13=Admin-G2+G3.
+- **A3 data-loss root cause** (D-127): draft-load useEffect must fire once per mount only — latched via `draftInitialResumeRef`. Auto-save failures now surface via `lastError` toast subscription. Date fields normalized to YYYY-MM-DD before patch.
+
 ## Commons Prompt 10 fixes
 - `property_images_select_public` widened to include `edit_pending_review` — previously public search returned these listings but the photos policy blocked cover images. Fixed in `20260710121000_fix_commons_gaps.sql`.
 - `property_activity_log_writer` trigger extended with an `admin_edit` branch: fires when `is_admin()` UPDATE changes tracked Tier-2 fields with no status change. Log row is private (`is_public=false`). Admin PropertyEdit form itself unchanged — logging happens transparently via trigger.

@@ -1110,3 +1110,264 @@ decision: The "Preview as tenant" modal in Path B mode computes the effective ph
 reasoning: Preview must reflect the intent of the submission — including pending photo changes. Without the merge, owner sees stale photos in preview and can't verify their changes look right.
 supersedes: none
 files_affected: ListProperty.tsx previewData builder
+
+## D-124: Admin-only property fields trigger — status removed from guard list (hotfix 2026-07-11)
+date: 2026-07-11
+phase: 1
+category: schema
+decision: `prevent_owner_updating_admin_fields()` function's guard list no longer includes `status`. Owners can now transition status through valid Commons flow. Status transitions validated by `enforce_property_owner_transitions_trigger` alphabetically before this trigger.
+reasoning: Original PM-era trigger blocked all non-admin status changes. Commons requires owners to submit for review, unlist, re-list, cancel edits. `enforce_property_owner_transitions_trigger` provides layered validation.
+supersedes: none
+files_affected: prevent_owner_updating_admin_fields function, supabase/migrations/20260711120000_fix_admin_only_property_fields.sql (git-sync)
+
+## D-125: Simplified name/identity model — display_name dropped, use users.full_name
+date: 2026-07-12
+phase: 1.5
+category: profile
+decision: `profiles.display_name` and `profiles.is_public` become dead columns. All UI renders `users.full_name` via `getUserDisplayName()`. `public_profiles` view exposes `user_id`, `full_name`, `profile_photo_url`, `bio` (widening).
+reasoning: display_name added complexity without solving privacy; users typically share real names in Indian property context; simpler mental model. Bio remains public identity content.
+supersedes: D-085 (display_name fallback chain)
+files_affected: getUserDisplayName utility, public_profiles view, /me page, /u/:userId page, admin queue name lookup
+
+## D-126: Public identity boundary — full_name public, email + phone always private
+date: 2026-07-12
+phase: 1.5
+category: profile
+decision: `public_profiles` view exposes only user_id, full_name, profile_photo_url, bio. Email and phone NEVER exposed via view. Admin queries `users` table directly via `is_admin()` RLS. Contact requests (Phase 3) exchange phone via email, not via profile lookup.
+reasoning: Clear public/private boundary. No RLS drift. Phone stays private always. Email only visible to admin for support/investigation.
+supersedes: F1 diagnostic Option C
+files_affected: public_profiles view, admin listing review queue, admin PropertyEdit
+
+## D-127: Data loss bug root causes — three concurrent issues
+date: 2026-07-12
+phase: 1.5
+category: bug
+decision: A3 data loss caused by (1) draft-load useEffect re-firing after `createDraft` mutates `?draft=` param and clobbering local state via `prefillFormFromRow`, (2) auto-save is fire-and-forget with no error toast, (3) available_from Date object should always be serialized as YYYY-MM-DD; defensive normalization added. Fixes applied in ListProperty.tsx + useListingSave.ts.
+reasoning: Silent save failures + re-fetch race with just-typed state = data loss. Explicit error surface + latched initial-mount guard = predictable behavior.
+supersedes: D-087 (save button behavior — refined with error surfacing)
+files_affected: ListProperty.tsx, useListingSave.ts
+
+## D-128: Field spec architecture (Option A) — single source of truth for property fields
+date: 2026-07-12
+phase: 1.5
+category: architecture
+decision: `src/config/property-fields.ts` becomes canonical spec for all property fields. Each field defines: key, owner label, admin label, public label, input type, options (with value+label), display formatter, audiences array (owner_form / admin_form / public_detail), editableBy array (owner / admin), section grouping, validation constraints. All three surfaces (ListProperty, admin PropertyEdit, PropertyDetail) refactor to consume spec.
+reasoning: 3-way sync bug (I3 diagnostic) systemic — fields drift between surfaces. Rent/sale addition doubles field count and would worsen drift. Spec eliminates drift by design. Adding a field becomes single-file change.
+supersedes: I3 diagnostic Option B rejected
+files_affected: src/config/property-fields.ts (new), ListProperty.tsx, admin PropertyEdit.tsx, PropertyDetail.tsx
+
+## D-129: audiences array visibility model
+date: 2026-07-12
+phase: 1.5
+category: architecture
+decision: Field spec uses `audiences: string[]` array with values from `['owner_form', 'admin_form', 'public_detail']`. Field appears on surface only if surface is in audiences. Empty array = hidden everywhere.
+reasoning: Explicit array clearer than boolean flags. Easy to grep. Easy to add new surface (e.g., admin analytics view) without refactoring existing fields.
+supersedes: none
+files_affected: src/config/property-fields.ts
+
+## D-130: Spec-driven validation — simple constraints in spec, complex in components
+date: 2026-07-12
+phase: 1.5
+category: architecture
+decision: Field spec includes `required`, `min`, `max`, `pattern`, `options`. Complex cross-field or custom validation stays in form components.
+reasoning: 90% of validation is simple constraints. Spec-driven simple validation is DRY. Complex validation is form-specific.
+supersedes: none
+files_affected: property-fields.ts, ListProperty.tsx
+
+## D-131: Rent/sale support — same properties table, listing_type discriminator
+date: 2026-07-12
+phase: 1.5
+category: schema
+decision: Properties table gains `listing_type` enum (`rent`, `sale`) with default `rent`. New sale-specific columns all nullable. Rental columns remain nullable. Single row can transition between rent/sale (values preserved).
+reasoning: Property asset is same regardless of transaction type. Amenities/photos/address common. Same detail page, same admin queue, same search interface with type filter. No table duplication.
+supersedes: I4 diagnostic recommendation
+files_affected: properties table, listing_type enum, sale columns
+
+## D-132: India-safe sale fields
+date: 2026-07-12
+phase: 1.5
+category: schema
+decision: Sale fields: `sale_price` (numeric, required for sale), `price_negotiable` (boolean), `possession_status` (enum: ready_to_move / under_construction / new_launch), `possession_date` (date, nullable), `rera_registration_number` (text, optional but nudged), `khata_type` (enum: A / B / not_applicable), `property_tax_paid_upto` (date, optional). `expected_price_per_sqft` is manual input, not auto-calculated.
+reasoning: India market specificity. RERA for new construction, khata for Karnataka clarity, tax receipts for buyer trust. All except sale_price optional.
+supersedes: none
+files_affected: properties table, sale-related migrations
+
+## D-133: India rental additions
+date: 2026-07-12
+phase: 1.5
+category: schema
+decision: New rental fields: `notice_period_months` (number, default 1), `annual_rent_increase_pct` (number, nullable). New location: `landmark` (text, optional). New amenity: water storage (enum: sump_only / overhead_only / both / none) — stored under building amenities.
+reasoning: India-specific rental practice. Notice period is standard Indian rental term. Annual rent increase discloses to tenants upfront. Landmark helps navigation.
+supersedes: none
+files_affected: properties table
+
+## D-134: Parking model — simple counts + notes
+date: 2026-07-12
+phase: 1.5
+category: schema
+decision: Add `parking_2w_count` (integer, default 0), `parking_4w_count` (integer, default 0), `parking_notes` (text, nullable). Existing `parking_2w` / `parking_4w` enum type stays.
+reasoning: Owner asked for count; shared parking edge case goes into free-text notes. Simple integer, no complex model.
+supersedes: none
+files_affected: properties table
+
+## D-135: Rent vs sale on public listing — "available from" and "possession from" are separate
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: `available_from` displays as "Available from" in rental section. New `possession_date` displays as "Possession from" in sale section. Two different DB fields, two different labels. No shared field renaming.
+reasoning: Different semantic meaning; renaming causes confusion. Separate fields, separate labels, clean rendering.
+supersedes: none
+files_affected: PropertyDetail.tsx sale section, field spec
+
+## D-136: Annual rent increase — public visibility
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: `annual_rent_increase_pct` displays on public property detail page. Tenants see it before contacting owner.
+reasoning: Transparency. Tenants deserve to know 15% annual increase before applying. No owner opt-out.
+supersedes: none
+files_affected: PropertyDetail.tsx
+
+## D-137: RERA and khata public visibility
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: `rera_registration_number` and `khata_type` display on public sale detail page. Both are public information.
+reasoning: Signal to buyers. Khata type is publicly recorded info in Karnataka. RERA is federally mandated for new construction.
+supersedes: none
+files_affected: PropertyDetail.tsx sale section
+
+## D-138: StatusGuidance component — always visible, not dismissible, soft timing
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: Property management page (Details tab) and ListProperty edit mode both render a `StatusGuidance` component. Not dismissible. Shows full explanation of current status, what happens next, soft timing where applicable ("Usually within 24-48 hours"). Data lives in STATUS_CONFIG[status].guidance in propertyStatus.ts.
+reasoning: Owners benefit from re-reading. Prevents "Nothing is happening" support tickets. Soft timing signals expectation without commitment.
+supersedes: H3 diagnostic recommendation
+files_affected: new StatusGuidance component (Prompt 11), propertyStatus.ts
+
+## D-139: Support email standardized
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: All owner-facing communication references `support@reeve.in`. No other support email variants.
+reasoning: Single canonical support address. Owner memorizes one contact point.
+supersedes: none
+files_affected: StatusGuidance messages, error handlers
+
+## D-140: Rejection persistence — permanent panel, no auto-dismiss
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: Admin rejection reasons displayed as permanent panel on property management page. Not dismissible. Removed only when property is resubmitted (status transitions away from `changes_requested` or `listed`).
+reasoning: Owner needs constant reference to feedback while editing. Dismiss-then-hide loses context. Data always in DB; UI matches DB state.
+supersedes: D-092 (banner acknowledgment) refined
+files_affected: property management page, useOwnerActionAck hook (if any)
+
+## D-141: Acknowledgments scoped to event_id, not property_id
+date: 2026-07-12
+phase: 1.5
+category: schema
+decision: `owner_action_acknowledgments.target_id` scopes to specific rejection event (activity_log_id or edit_request_id) instead of property_id. Each new rejection creates new ack row needed.
+reasoning: H2 bug — second rejection banner didn't appear because old ack row satisfied query. Event-scoped acks eliminate this bug.
+supersedes: D-092 refined
+files_affected: owner_action_acknowledgments schema, migration
+
+## D-142: Admin queue full property view + search + audit history
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: (G1) Admin properties page extended with status filter (all statuses including drafts, archived) and search by building name, owner name, owner email, owner phone. (G2) Admin listing review detail shows full property (photos, all fields, description). (G3) New "Decisions" tab in listing reviews for approved/rejected history.
+reasoning: Admin quality-check requires seeing everything. Search for support cases. Audit history for accountability.
+supersedes: G1/G2/G3 diagnostic recommendations
+files_affected: admin properties page, admin listing review detail, admin listing review queue
+
+## D-143: Search rent/sale toggle with URL query param
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: Search page has `[Rent] [Buy]` toggle at top. URL query param `?type=rent` or `?type=sale` persists selection. Session storage remembers last choice as fallback. Default: rent.
+reasoning: Familiar UI pattern. Shareable URLs. Session storage removes friction across visits.
+supersedes: none
+files_affected: Search.tsx
+
+## D-144: Section validation — optional-only sections stay unmarked until touched
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: Sections with no required fields show ⚪ (not started) icon by default. Only turn ✅ (complete) after user opens them or enters any data.
+reasoning: A1 diagnostic — sections were showing complete on page load with no user action. Confusing.
+supersedes: D-Q9 diagnostic Option D refined
+files_affected: ListProperty.tsx section status logic
+
+## D-145: Required section headers show red asterisk
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: Section headers for required sections show `*` suffix in red. Field labels for required fields already show `*` (verify these render correctly).
+reasoning: A2 diagnostic — standard convention. Visual signal of what must be filled.
+supersedes: none
+files_affected: ListProperty.tsx section headers
+
+## D-146: Available_from — allow past dates with immediate warning
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: `available_from` date picker allows past dates. Immediate inline warning when past date selected: "Available from is in the past — is this correct?" Future dates limited to 90 days ahead.
+reasoning: Some legitimate cases (vacant unit); block-only is too restrictive; warning prompts owner to confirm.
+supersedes: none
+files_affected: ListProperty.tsx date picker
+
+## D-147: EV charging in building amenities
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: Add "EV Charging" to BUILDING_AMENITIES constant.
+reasoning: India EV adoption growing. Building amenity signal for buyers/renters.
+supersedes: none
+files_affected: src/config/property-form.ts constants
+
+## D-148: Terms + Privacy checkboxes required in Final Checks
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: Section 9 (Final Checks) requires 3 checkboxes: (1) legal owner/rep consent (existing), (2) agree to Terms of Service (linked to /terms), (3) accept Privacy Policy (linked to /privacy). All 3 must be checked to enable Submit.
+reasoning: Legal compliance. Explicit consent. Links help owners find the policies.
+supersedes: none
+files_affected: ListProperty.tsx Section 9
+
+## D-149: Status labels everywhere — no raw status codes visible to users
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: All UI surfaces use `getStatusDisplay()` from `propertyStatus.ts`. No raw enum values ("pending_review") shown to owners, admins, or public. Public timeline reads structured payload fields, applies STATUS_CONFIG lookup client-side.
+reasoning: E1/E2 diagnostic. Enum codes look like debug output.
+supersedes: none
+files_affected: OwnerDashboard, OwnerPropertyManagement, ListProperty, PublicTimeline, ActivityTimeline
+
+## D-150: Text input focus ring — no clipping
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: Fix CSS overflow on shadcn form field wrappers to prevent focus ring left edge from being clipped.
+reasoning: B1 diagnostic — visual bug.
+supersedes: none
+files_affected: form field wrappers CSS
+
+## D-151: PublicProfile — no self-redirect
+date: 2026-07-12
+phase: 1.5
+category: ux
+decision: `/u/:userId` renders public view regardless of viewer identity. Removed the "if userId === current user's id → redirect to /me" logic.
+reasoning: F2 diagnostic — self-redirect broke "View my public profile" preview feature. Simpler to always render.
+supersedes: none
+files_affected: PublicProfile.tsx
+
+## D-152: Phase 1.5 prompt sequence (13 prompts)
+date: 2026-07-12
+phase: 1.5
+category: forward-plan
+decision: Phase 1.5 executes in 13 sequential prompts: 1-Emergency (data loss + admin name + commons update), 2-Spec (field spec architecture), 3-Refactor-Owner (ListProperty consumes spec), 4-Refactor-Admin (PropertyEdit consumes spec), 5-Refactor-Detail (PropertyDetail consumes spec), 6-QuickWins (A1, A2, B1, B2, B3, C1, E1, E2, F2, J1), 7-IndiaFields-Schema (parking + India rental), 8-IndiaFields-Wire, 9-RentSale-Schema, 10-RentSale-Wire (spec + surfaces + search filter), 11-Comms (H1, H2, H3, StatusGuidance), 12-Admin-1 (G1), 13-Admin-2+3 (G2 + G3).
+reasoning: Sequential enables verification checkpoints. Foundation-first (spec) enables all field additions cleanly.
+supersedes: none
+files_affected: commons-forward-plan.md

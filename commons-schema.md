@@ -354,3 +354,66 @@ export type ActivityLogPayload =
 ```
 
 Readers switch on `action` for narrowing. New variants can be added without DB migration — only the TS type and the RPCs writing them change.
+
+---
+
+## 14. Phase 1.5 migrations
+
+Sequential migration files for Phase 1.5:
+
+| Filename | Purpose |
+|---|---|
+| `20260711120000_fix_admin_only_property_fields.sql` | Git-sync of 2026-07-11 SQL editor fix — removes `status` from prevent_owner_updating_admin_fields guard list (D-124) |
+| `20260712120000_widen_public_profiles_view.sql` | F1 fix — public_profiles now exposes user_id, full_name, profile_photo_url, bio (D-125, D-126) |
+| `20260712120100_add_parking_and_india_rental_fields.sql` | India + parking (D-133, D-134) |
+| `20260712120200_add_listing_type_and_sale_fields.sql` | Rent/sale (D-131, D-132) |
+| `20260712120300_fix_acknowledgments_scoping.sql` | Ack event-scoped (D-141) — H2 fix |
+
+## 15. `public_profiles` view (widened — D-125, D-126)
+
+```sql
+CREATE VIEW public.public_profiles WITH (security_invoker = false) AS
+SELECT
+  u.id                   AS user_id,
+  u.full_name,
+  p.profile_photo_url,
+  p.bio
+FROM public.users u
+LEFT JOIN public.profiles p ON p.user_id = u.id;
+
+GRANT SELECT ON public.public_profiles TO authenticated;
+GRANT SELECT ON public.public_profiles TO anon;
+```
+
+- `display_name` and `is_public` are dropped from the view. `profiles.display_name` and `profiles.is_public` are dead columns per the ground rule ("never dropped").
+- Email and phone are NEVER exposed via this view. Admin queries `public.users` directly via `is_admin()` RLS (D-126).
+
+## 16. `owner_action_acknowledgments` — event-scoped (D-141)
+
+Phase 1 shape scoped `target_id` to `property_id`. Phase 1.5 rescopes to the specific rejection event (`activity_log_id` or `edit_request_id`). Migration `20260712120300_fix_acknowledgments_scoping.sql` handles the rewrite.
+
+- New `target_type` values: `activity_log_event`, `edit_request_event` (in addition to `property`).
+- Old `property`-scoped rows retained for backward compat; new banners write event-scoped rows.
+
+## 17. Field spec architecture (D-128, D-129, D-130)
+
+`src/config/property-fields.ts` is the single source of truth for property fields. Each field entry:
+
+```ts
+interface PropertyFieldSpec {
+  key: string;                          // DB column
+  ownerLabel: string;                   // shown on ListProperty
+  adminLabel: string;                   // shown on admin PropertyEdit
+  publicLabel: string;                  // shown on PropertyDetail
+  input: 'text' | 'number' | 'select' | 'switch' | 'date' | 'textarea';
+  options?: Array<{ value: string; label: string }>;
+  displayFormatter?: (v: unknown) => string;
+  audiences: Array<'owner_form' | 'admin_form' | 'public_detail'>;
+  editableBy: Array<'owner' | 'admin'>;
+  section?: string;                     // owner form section grouping
+  required?: boolean;
+  min?: number; max?: number; pattern?: RegExp;
+}
+```
+
+Consumers: `ListProperty.tsx`, admin `PropertyEdit.tsx`, `PropertyDetail.tsx`. Rent/sale distinction is captured via a `showWhen` predicate on `listing_type`.

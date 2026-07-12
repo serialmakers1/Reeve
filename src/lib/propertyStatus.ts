@@ -1,16 +1,26 @@
 /** Shared property status helpers for owner-facing UI */
 
+export interface StatusGuidance {
+  heading: string;
+  body: string;
+}
+
 export interface StatusDisplay {
   label: string;
   color: string; // tailwind border/text/bg class fragment
   nextAction: string;
+  guidance?: StatusGuidance; // D-138: rendered by StatusGuidance component (Prompt 11)
 }
 
 const STATUS_CONFIG: Record<string, StatusDisplay> = {
   draft: {
     label: "Setup Started",
     color: "border-amber-500 text-amber-600 bg-amber-50",
-    nextAction: "Upload documents & request inspection",
+    nextAction: "Continue where you left off",
+    guidance: {
+      heading: "Draft — continue where you left off",
+      body: "You've started a listing. Continue filling the sections above. We auto-save your progress as you type. When all required sections are complete, click 'Submit for review'.",
+    },
   },
   inspection_proposed: {
     label: "Under Review",
@@ -27,11 +37,6 @@ const STATUS_CONFIG: Record<string, StatusDisplay> = {
     color: "border-blue-500 text-blue-600 bg-blue-50",
     nextAction: "Waiting for Reeve review",
   },
-  listed: {
-    label: "Live",
-    color: "border-green-500 text-green-600 bg-green-50",
-    nextAction: "Property is live — view applications",
-  },
   occupied: {
     label: "Occupied",
     color: "border-green-600 text-green-700 bg-green-50",
@@ -47,26 +52,55 @@ const STATUS_CONFIG: Record<string, StatusDisplay> = {
     label: "Under Review",
     color: "border-blue-500 text-blue-600 bg-blue-50",
     nextAction: "Reeve is reviewing your listing",
+    guidance: {
+      heading: "Your listing is under review",
+      body: "Our team checks all listings within 24-48 hours for accuracy and quality. You'll get an email once your listing is approved. You can withdraw or cancel your submission anytime before then. For questions, contact support@reeve.in.",
+    },
   },
   changes_requested: {
     label: "Changes Requested",
     color: "border-amber-500 text-amber-600 bg-amber-50",
-    nextAction: "Update your listing and resubmit",
+    nextAction: "Update and resubmit",
+    guidance: {
+      heading: "Admin requested changes",
+      body: "We've reviewed your listing and requested some changes. Review the admin's feedback shown below, update the sections, and click 'Submit for review' again. For questions, contact support@reeve.in.",
+    },
+  },
+  listed: {
+    label: "Live",
+    color: "border-green-500 text-green-600 bg-green-50",
+    nextAction: "Your listing is visible to tenants",
+    guidance: {
+      heading: "Your listing is live",
+      body: "Tenants can now find your property and request contact with you. Any edits you make will go through admin review before applying to your live listing — the live version won't change until your edits are approved. For questions, contact support@reeve.in.",
+    },
   },
   edit_pending_review: {
     label: "Live · Edit Under Review",
     color: "border-blue-500 text-blue-600 bg-blue-50",
     nextAction: "Your edit is being reviewed",
+    guidance: {
+      heading: "Your edit is under review",
+      body: "Your live listing continues to show current values to tenants. Once approved, the changes go live. You can cancel or modify this edit anytime. For questions, contact support@reeve.in.",
+    },
   },
   unlisted: {
     label: "Unlisted",
     color: "border-gray-400 text-gray-500 bg-gray-50",
     nextAction: "Re-list to make visible again",
+    guidance: {
+      heading: "Your listing is not visible",
+      body: "Click 'Re-list' to make it live again — if no changes have been made, it goes live immediately. To edit before re-listing, re-list first, then edit. For questions, contact support@reeve.in.",
+    },
   },
   archived: {
     label: "Archived",
     color: "border-gray-400 text-gray-500 bg-gray-50",
     nextAction: "Contact support to restore",
+    guidance: {
+      heading: "This listing is archived",
+      body: "This listing has been archived and is not visible anywhere. To restore, contact support@reeve.in.",
+    },
   },
 };
 

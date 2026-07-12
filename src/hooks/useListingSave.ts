@@ -17,10 +17,11 @@
  *   - On unmount, best-effort fire-and-forget flush of any pending changes.
  *
  * Return:
- *   { saveState, patch, saveNow }
+ *   { saveState, patch, saveNow, lastError }
  *   - saveState: "idle" | "saving" | "saved" | "failed" | "session_expired"
  *   - patch(partial): accumulate a partial update and schedule the debounced save
  *   - saveNow(): cancel debounce and flush immediately; returns after DB round-trip
+ *   - lastError: string | null — most recent save error message (surface via toast)
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -40,6 +41,7 @@ const AUTH_ERROR_RX = /\b(jwt|auth|unauthor(?:ized|ised))\b/i;
 
 export function useListingSave(propertyId: string | null) {
   const [saveState, setSaveState] = useState<ListingSaveState>("idle");
+  const [lastError, setLastError] = useState<string | null>(null);
   const pendingChangesRef = useRef<Record<string, unknown>>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef<boolean>(false);
@@ -83,15 +85,18 @@ export function useListingSave(propertyId: string | null) {
         // Merge snapshot BEHIND any edits that arrived while the request was in flight.
         // Order: { ...snapshot, ...newer } → newer keys win.
         pendingChangesRef.current = { ...snapshot, ...pendingChangesRef.current };
-        const isAuthError = AUTH_ERROR_RX.test(error.message);
+        const isAuthError = AUTH_ERROR_RX.test(error.message ?? "");
+        setLastError(error.message ?? "Save failed");
         setSaveState(isAuthError ? "session_expired" : "failed");
       } else {
+        setLastError(null);
         setSaveState("saved");
       }
     } catch (e) {
       // Network / unexpected error — restore snapshot behind newer edits.
       pendingChangesRef.current = { ...snapshot, ...pendingChangesRef.current };
       const msg = e instanceof Error ? e.message : String(e);
+      setLastError(msg);
       setSaveState(AUTH_ERROR_RX.test(msg) ? "session_expired" : "failed");
     } finally {
       inFlightRef.current = false;
@@ -156,5 +161,5 @@ export function useListingSave(propertyId: string | null) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { saveState, patch, saveNow };
+  return { saveState, patch, saveNow, lastError };
 }
