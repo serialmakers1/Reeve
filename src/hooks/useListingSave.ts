@@ -21,7 +21,7 @@
  *   - On unmount, best-effort fire-and-forget flush of any pending changes.
  *
  * Return:
- *   { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges }
+ *   { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges, poisonedKeys }
  *   - saveState: "idle" | "saving" | "saved" | "failed" | "session_expired"
  *   - patch(partial): accumulate a partial update and schedule the debounced save
  *   - saveNow(): cancel debounce and flush immediately; returns after DB round-trip
@@ -32,10 +32,26 @@
  *     Consumers should call this after saveNow() to guard submit — even though
  *     saveNow() awaits the round-trip, hasPendingChanges() catches the case
  *     where the buffer accumulated MORE edits during the round-trip.
+ *   - poisonedKeys: column names whose most recent PATCH was rejected by the
+ *     server and haven't yet been re-saved successfully. Use to name failing
+ *     columns in the submit-blocked toast and to keep the owning section red.
+ *     Cleared per-column when a successful PATCH includes the same column.
+ *
+ * Diagnostic: every PostgREST failure also emits console.error("[useListingSave]
+ * PATCH failed", { payload, message, details, hint, code }). Do not remove —
+ * this is how future column mismatches get diagnosed.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+// PostgREST error shape (the client returns a plain object with these fields).
+type PostgrestError = {
+  message?: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+};
 
 export type ListingSaveState =
   | "idle"
@@ -55,6 +71,12 @@ export function useListingSave(propertyId: string | null) {
   // Increments on every failure so consumers (toast, section-error highlight)
   // re-fire even when the error message is identical across retries.
   const [failureTick, setFailureTick] = useState<number>(0);
+  // Column names whose PATCH was rejected by PostgREST since last successful
+  // save for that column. Surfaces via `poisonedKeys` — consumers use this to
+  // name the failing columns in the submit-blocked toast, and to mark the
+  // owning sections as errored. Persists until a subsequent PATCH containing
+  // the same column succeeds (recovery path) or the hook unmounts.
+  const [poisonedKeys, setPoisonedKeys] = useState<string[]>([]);
   const pendingChangesRef = useRef<Record<string, unknown>>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef<boolean>(false);
@@ -95,18 +117,43 @@ export function useListingSave(propertyId: string | null) {
         .eq("id", id);
 
       if (error) {
-        const isAuthError = AUTH_ERROR_RX.test(error.message ?? "");
+        const pgError = error as PostgrestError;
+        const isAuthError = AUTH_ERROR_RX.test(pgError.message ?? "");
         // Session-expired: safe to re-queue — user will re-auth and retry.
         // Other errors (400/CHECK/enum): DROP the failed snapshot. Re-queuing it
         // poisons every subsequent save with the same bad column (D-127 amp).
-        // User's next edit re-adds; failed-column state surfaces via lastError.
+        // User's next edit re-adds; failed-column state surfaces via lastError
+        // + poisonedKeys.
         if (isAuthError) {
           pendingChangesRef.current = { ...snapshot, ...pendingChangesRef.current };
+        } else {
+          // Record every top-level key in the failed snapshot as poisoned so
+          // consumers can name the bad columns in the block toast and turn
+          // the owning sections red. Actionable info the server error hides.
+          const failedKeys = Object.keys(snapshot);
+          if (failedKeys.length > 0) {
+            setPoisonedKeys((prev) => Array.from(new Set([...prev, ...failedKeys])));
+          }
+          // Dev diagnostic — surfaces the exact failing column + PostgREST hint.
+          // Kept as console.error (not removed) so future 400s are self-diagnosing.
+          // eslint-disable-next-line no-console
+          console.error("[useListingSave] PATCH failed", {
+            payload: snapshot,
+            message: pgError.message,
+            details: pgError.details,
+            hint: pgError.hint,
+            code: pgError.code,
+          });
         }
-        setLastError(error.message ?? "Save failed");
+        setLastError(pgError.message ?? "Save failed");
         setSaveState(isAuthError ? "session_expired" : "failed");
         setFailureTick((n) => n + 1);
       } else {
+        // Success — clear any poisoned keys that this successful snapshot resolved.
+        const savedKeys = Object.keys(snapshot);
+        if (savedKeys.length > 0) {
+          setPoisonedKeys((prev) => prev.filter((k) => !savedKeys.includes(k)));
+        }
         setLastError(null);
         setSaveState("saved");
       }
@@ -185,5 +232,16 @@ export function useListingSave(propertyId: string | null) {
     [],
   );
 
-  return { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges };
+  // Stable identity for consumers that put poisonedKeys in a useEffect dep array.
+  const poisonedKeysStable = useMemo(() => poisonedKeys, [poisonedKeys]);
+
+  return {
+    saveState,
+    patch,
+    saveNow,
+    lastError,
+    failureTick,
+    hasPendingChanges,
+    poisonedKeys: poisonedKeysStable,
+  };
 }
