@@ -390,23 +390,36 @@ export default function ListProperty() {
 
   const readOnly = entryStatus === "edit_pending_review" && !modifyingEdit;
 
-  const { saveState, patch, saveNow, lastError } = useListingSave(propertyId);
+  const { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges } =
+    useListingSave(propertyId);
 
   // ─── Surface save failures as a toast (D-127) ────────────────────────────
-  // Fires when useListingSave sets a non-null lastError. Session-expired case
-  // is handled separately by the sessionExpired modal, so skip toast for that.
-  const lastToastedErrorRef = useRef<string | null>(null);
+  // Fires on every failure via failureTick — re-toasts even when the same
+  // column keeps 400ing with the same message across retries.
+  // Session-expired case is handled separately by the sessionExpired modal.
   useEffect(() => {
-    if (!lastError) return;
+    if (failureTick === 0) return; // skip initial mount
     if (saveState === "session_expired") return;
-    if (lastToastedErrorRef.current === lastError) return;
-    lastToastedErrorRef.current = lastError;
+    if (!lastError) return;
     toast({
       variant: "destructive",
       title: "Save failed",
       description: lastError,
     });
-  }, [lastError, saveState, toast]);
+    // Also mark the currently-open section as errored so the ✅ turns red —
+    // reconciles UI/DB divergence without a full DB re-read (Part B).
+    const openMatch = openAccordion.match(/^section-(\d+)$/);
+    if (openMatch) {
+      const sec = Number(openMatch[1]) as SectionNum;
+      setErroredSections((prev) => {
+        if (prev.has(sec)) return prev;
+        const next = new Set(prev);
+        next.add(sec);
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [failureTick]);
 
   // ─── PostHog: page opened once per mount ─────────────────────────────────
   useEffect(() => {
@@ -840,6 +853,23 @@ export default function ListProperty() {
     // Flush any pending edits first
     await saveNow();
 
+    // Path A only: block submit if auto-save is currently failing or has
+    // unpersisted changes. Otherwise the DB row is stale and the server
+    // trigger reports the generic "required fields missing" message that
+    // hides the real cause (D-127 root cause: silent 400 → false ✅ UI).
+    if (path !== "B") {
+      if (saveState === "failed" || saveState === "session_expired" || hasPendingChanges()) {
+        toast({
+          variant: "destructive",
+          title: "Save failed — cannot submit",
+          description:
+            lastError ??
+            "Some of your changes did not save. Fix the highlighted section and try again.",
+        });
+        return;
+      }
+    }
+
     // Client-side gate: all required sections complete
     const missing = REQUIRED_SECTIONS.filter((s) => sectionStatuses[s] !== "complete");
     if (missing.length > 0) {
@@ -925,7 +955,7 @@ export default function ListProperty() {
     });
     toast({ title: "Submitted for review!", description: "We'll review your listing within 48 hours." });
     navigate("/my-properties", { replace: true });
-  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, editRequestPayload]);
+  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, editRequestPayload, saveState, hasPendingChanges, lastError]);
 
   // ─── Preview data ────────────────────────────────────────────────────────
   const previewData = useMemo<PropertyPreviewData>(() => ({

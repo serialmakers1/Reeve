@@ -10,18 +10,28 @@
  *   - Accepts propertyId. Null → hook is a no-op (draft row doesn't exist yet).
  *   - patch(partial) accumulates in pendingChangesRef and schedules a save.
  *   - Debounce: 500ms after last patch call.
- *   - On save failure, restore snapshot merged BEHIND newer edits so in-flight
- *     changes are preserved (newer-edits-win).
+ *   - On save failure:
+ *       * Auth/session_expired: snapshot re-queued behind newer edits (safe to retry after re-auth).
+ *       * Network catch: snapshot re-queued behind newer edits (safe to retry).
+ *       * PostgREST 4xx (schema/enum/CHECK): snapshot DROPPED — re-queuing would
+ *         poison every subsequent save with the same bad column. User's next
+ *         keystroke re-adds; the persistent failure surfaces via lastError.
  *   - On 401/auth failure, saveState = "session_expired". Form consumes this
  *     to open a non-dismissible session-expired modal (D-100).
  *   - On unmount, best-effort fire-and-forget flush of any pending changes.
  *
  * Return:
- *   { saveState, patch, saveNow, lastError }
+ *   { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges }
  *   - saveState: "idle" | "saving" | "saved" | "failed" | "session_expired"
  *   - patch(partial): accumulate a partial update and schedule the debounced save
  *   - saveNow(): cancel debounce and flush immediately; returns after DB round-trip
  *   - lastError: string | null — most recent save error message (surface via toast)
+ *   - failureTick: increments on every failure so consumers re-fire even when
+ *     the error message is identical across retries.
+ *   - hasPendingChanges(): true if pending buffer non-empty OR a save is in flight.
+ *     Consumers should call this after saveNow() to guard submit — even though
+ *     saveNow() awaits the round-trip, hasPendingChanges() catches the case
+ *     where the buffer accumulated MORE edits during the round-trip.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -42,6 +52,9 @@ const AUTH_ERROR_RX = /\b(jwt|auth|unauthor(?:ized|ised))\b/i;
 export function useListingSave(propertyId: string | null) {
   const [saveState, setSaveState] = useState<ListingSaveState>("idle");
   const [lastError, setLastError] = useState<string | null>(null);
+  // Increments on every failure so consumers (toast, section-error highlight)
+  // re-fire even when the error message is identical across retries.
+  const [failureTick, setFailureTick] = useState<number>(0);
   const pendingChangesRef = useRef<Record<string, unknown>>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef<boolean>(false);
@@ -82,22 +95,28 @@ export function useListingSave(propertyId: string | null) {
         .eq("id", id);
 
       if (error) {
-        // Merge snapshot BEHIND any edits that arrived while the request was in flight.
-        // Order: { ...snapshot, ...newer } → newer keys win.
-        pendingChangesRef.current = { ...snapshot, ...pendingChangesRef.current };
         const isAuthError = AUTH_ERROR_RX.test(error.message ?? "");
+        // Session-expired: safe to re-queue — user will re-auth and retry.
+        // Other errors (400/CHECK/enum): DROP the failed snapshot. Re-queuing it
+        // poisons every subsequent save with the same bad column (D-127 amp).
+        // User's next edit re-adds; failed-column state surfaces via lastError.
+        if (isAuthError) {
+          pendingChangesRef.current = { ...snapshot, ...pendingChangesRef.current };
+        }
         setLastError(error.message ?? "Save failed");
         setSaveState(isAuthError ? "session_expired" : "failed");
+        setFailureTick((n) => n + 1);
       } else {
         setLastError(null);
         setSaveState("saved");
       }
     } catch (e) {
-      // Network / unexpected error — restore snapshot behind newer edits.
+      // Network / unexpected error — safe to retry, re-queue snapshot behind newer edits.
       pendingChangesRef.current = { ...snapshot, ...pendingChangesRef.current };
       const msg = e instanceof Error ? e.message : String(e);
       setLastError(msg);
       setSaveState(AUTH_ERROR_RX.test(msg) ? "session_expired" : "failed");
+      setFailureTick((n) => n + 1);
     } finally {
       inFlightRef.current = false;
     }
@@ -161,5 +180,10 @@ export function useListingSave(propertyId: string | null) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { saveState, patch, saveNow, lastError };
+  const hasPendingChanges = useCallback(
+    () => Object.keys(pendingChangesRef.current).length > 0 || inFlightRef.current,
+    [],
+  );
+
+  return { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges };
 }
