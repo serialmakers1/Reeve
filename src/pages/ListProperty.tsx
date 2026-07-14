@@ -55,6 +55,24 @@ const REQUIRED_SECTIONS: SectionNum[] = [1, 2, 3, 7, 9];
 type SectionNum = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 type SectionStatus = "not_started" | "in_progress" | "complete" | "error";
 
+// DB column name → owning accordion section. Used to map poisonedKeys from
+// useListingSave into erroredSections so an auto-save failure highlights the
+// right section, even if the user has moved past it.
+// Columns unknown here (e.g. amenities JSONB) fall through to no highlight —
+// still surfaces in the block toast + console.error.
+const DB_COLUMN_TO_SECTION: Record<string, SectionNum> = {
+  building_name: 1, street_address: 1, locality: 1, city: 1, state: 1, pincode: 1, google_maps_url: 1,
+  bhk: 2, property_type: 2, floor_number: 2, total_floors: 2, square_footage: 2, facing: 2, building_age_years: 2,
+  listed_rent: 3, security_deposit_amount: 3, security_deposit_months: 3, society_maintenance_approx: 3,
+  maintenance_included_in_rent: 3, available_from: 3,
+  furnishing: 4, furnishing_detail: 4, bathrooms: 4, balconies: 4,
+  amenities: 5, parking_2w: 5, parking_4w: 5,
+  utility_water_included: 5, utility_gas_included: 5, utility_electricity_included: 5, gas_type: 5,
+  pet_policy: 6, building_rules: 6, building_notes: 6,
+  youtube_walkthrough_url: 7,
+  title: 8, description: 8,
+};
+
 interface CustomItem { name: string; count?: number }
 
 interface FormState {
@@ -390,7 +408,7 @@ export default function ListProperty() {
 
   const readOnly = entryStatus === "edit_pending_review" && !modifyingEdit;
 
-  const { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges } =
+  const { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges, poisonedKeys } =
     useListingSave(propertyId);
 
   // ─── Surface save failures as a toast (D-127) ────────────────────────────
@@ -420,6 +438,26 @@ export default function ListProperty() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [failureTick]);
+
+  // ─── Mark sections owning poisoned columns as errored ────────────────────
+  // Runs whenever poisonedKeys changes — including when keys are cleared by a
+  // successful re-save (the section stays errored until the section is truly
+  // clean; the user's next successful edit removes the key here).
+  useEffect(() => {
+    if (poisonedKeys.length === 0) return;
+    setErroredSections((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const key of poisonedKeys) {
+        const sec = DB_COLUMN_TO_SECTION[key];
+        if (sec !== undefined && !next.has(sec)) {
+          next.add(sec);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [poisonedKeys]);
 
   // ─── PostHog: page opened once per mount ─────────────────────────────────
   useEffect(() => {
@@ -858,13 +896,19 @@ export default function ListProperty() {
     // trigger reports the generic "required fields missing" message that
     // hides the real cause (D-127 root cause: silent 400 → false ✅ UI).
     if (path !== "B") {
-      if (saveState === "failed" || saveState === "session_expired" || hasPendingChanges()) {
+      const blocked =
+        saveState === "failed" ||
+        saveState === "session_expired" ||
+        hasPendingChanges() ||
+        poisonedKeys.length > 0;
+      if (blocked) {
         toast({
           variant: "destructive",
           title: "Save failed — cannot submit",
-          description:
-            lastError ??
-            "Some of your changes did not save. Fix the highlighted section and try again.",
+          description: poisonedKeys.length > 0
+            ? `These fields didn't save: ${poisonedKeys.join(", ")}. Fix them in the highlighted section and try again.`
+            : lastError ??
+              "Some of your changes did not save. Fix the highlighted section and try again.",
         });
         return;
       }
@@ -955,7 +999,7 @@ export default function ListProperty() {
     });
     toast({ title: "Submitted for review!", description: "We'll review your listing within 48 hours." });
     navigate("/my-properties", { replace: true });
-  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, editRequestPayload, saveState, hasPendingChanges, lastError]);
+  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, editRequestPayload, saveState, hasPendingChanges, lastError, poisonedKeys]);
 
   // ─── Preview data ────────────────────────────────────────────────────────
   const previewData = useMemo<PropertyPreviewData>(() => ({
