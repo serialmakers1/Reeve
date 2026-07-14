@@ -86,10 +86,14 @@ export function useListingSave(propertyId: string | null) {
   const propertyIdRef = useRef<string | null>(propertyId);
   useEffect(() => {
     propertyIdRef.current = propertyId;
+    // eslint-disable-next-line no-console
+    console.debug("[useListingSave] propertyId set →", propertyId);
   }, [propertyId]);
 
   const flushNow = useCallback(async (): Promise<void> => {
     const id = propertyIdRef.current;
+    // eslint-disable-next-line no-console
+    console.debug("[useListingSave] flushNow entry", { id, inFlight: inFlightRef.current, pending: pendingChangesRef.current });
     if (!id) return;
     if (inFlightRef.current) return;
 
@@ -184,6 +188,8 @@ export function useListingSave(propertyId: string | null) {
    */
   const patch = useCallback(
     (partial: Record<string, unknown>) => {
+      // eslint-disable-next-line no-console
+      console.debug("[useListingSave] patch()", { propertyId: propertyIdRef.current, partial });
       if (!propertyIdRef.current) return;
       pendingChangesRef.current = { ...pendingChangesRef.current, ...partial };
       setSaveState((s) => (s === "session_expired" ? "session_expired" : "idle"));
