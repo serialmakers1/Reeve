@@ -1371,3 +1371,21 @@ decision: Phase 1.5 executes in 13 sequential prompts: 1-Emergency (data loss + 
 reasoning: Sequential enables verification checkpoints. Foundation-first (spec) enables all field additions cleanly.
 supersedes: none
 files_affected: commons-forward-plan.md
+
+## D-153: Pre-draft field buffering — patch() never drops edits
+date: 2026-07-14
+phase: 1.5
+category: bug
+decision: `useListingSave.patch()` buffers field changes even while propertyId is null (pre-draft); the buffer auto-flushes via effect once the draft row exists. All `if (propertyId)` guards on patch() call sites in ListProperty.tsx removed. createDraft's INSERT payload unchanged (threshold fields only) — the post-insert flush carries everything else.
+reasoning: TRUE root cause of the recurring "required fields missing" submit failure (misdiagnosed twice as save-failure/poison-loop). Draft INSERT fires only after the Section-4 furnishing threshold; Section-3 fields (security_deposit_amount, available_from) are typed earlier while propertyId is null and were silently discarded by patch()'s early return — and createDraft's INSERT payload omits them. Fill-order dependent, which is why Phase 1 testing passed. Evidence: two production HARs showing draft POST without deposit/available_from and zero subsequent field PATCHes.
+supersedes: D-127 (refined — the three original root causes were real but not the submit blocker)
+files_affected: src/hooks/useListingSave.ts, src/pages/ListProperty.tsx, src/test/useListingSave.test.ts
+
+## D-154: Save-failure defense stack (poisonedKeys + submit guard)
+date: 2026-07-14
+phase: 1.5
+category: architecture
+decision: useListingSave keeps a defense stack for genuine PATCH failures: (1) failed PostgREST snapshots are DROPPED not re-queued (breaks poison loop), (2) failed column names tracked in `poisonedKeys` until a later save with the same column succeeds, (3) every failure console.errors {payload, message, details, hint, code}, (4) failureTick re-fires the toast on identical messages, (5) ListProperty submit blocks when saveState is failed/session_expired, hasPendingChanges(), or poisonedKeys non-empty — toast names the exact columns via DB_COLUMN_TO_SECTION which also flips owning sections to errored.
+reasoning: Auto-save failures must never be silent and must never let submit produce the opaque server trigger error. Auth/network failures still re-queue (safe to retry); only schema/enum/CHECK rejections drop.
+supersedes: none
+files_affected: src/hooks/useListingSave.ts, src/pages/ListProperty.tsx

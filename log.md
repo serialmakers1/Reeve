@@ -1,3 +1,11 @@
+## [2026-07-14] fix | Pre-draft field loss root cause (D-153) — patch() buffers before draft exists; save-failure defense stack (D-154); sw.js offline fallback [IST]
+
+TRUE root cause of the recurring "Cannot submit for review: required fields missing" failure: patch() dropped every field typed before the draft row existed (Section-3 deposit/available_from are typed before the Section-4 furnishing threshold that triggers createDraft, whose INSERT payload omits them). Evidence: two production HARs showing draft POST without those columns and zero subsequent field PATCHes. Misdiagnosed twice (poison-merge, submit guard) — those fixes were real hardening but not the blocker; they ship as the D-154 defense stack (drop failed snapshots, poisonedKeys tracking, failureTick toast re-fire, submit block naming exact columns, console.error full payload).
+
+Fix: useListingSave.patch() now buffers while propertyId is null; effect auto-flushes on id arrival. Removed all `if (propertyId)` guards on patch() call sites in ListProperty. Regression test added: src/test/useListingSave.test.ts (3 files, 14 tests pass). Also fixed public/sw.js offline fallback resolving undefined → "Failed to convert value to 'Response'" (cache-miss now falls back to cached '/' shell for navigations, else Response.error(); CACHE_NAME bumped to v2).
+
+Memory: D-153 + D-154 appended to commons-decisions.md; CLAUDE.md Phase 1.5 section gained pre-draft buffering + defense stack + sw.js invariants. Typecheck: 415 (baseline, no delta).
+
 ## [2026-07-12] hotfix + docs | Phase 1.5 Prompt 1 — data loss fix + admin name fix + commons memory update for Phase 1.5 [IST]
 
 Fixed A3 (draft-load useEffect no longer re-fetches on internal setSearchParams — latched via draftInitialResumeRef). useListingSave now exposes lastError; ListProperty subscribes and toasts on non-null. Defensive Date-to-YYYY-MM-DD normalization in updateField payload. getUserDisplayName simplified per D-125 (users.full_name only; profile arg preserved for backwards compat, no longer consulted). STATUS_CONFIG in propertyStatus.ts gained guidance field per D-138 with locked copy for 7 statuses; deduplicated old PM `listed` entry.

@@ -7,7 +7,10 @@
  * lifecycle guarantees; sharing would obscure the specifics.
  *
  * Behavior:
- *   - Accepts propertyId. Null → hook is a no-op (draft row doesn't exist yet).
+ *   - Accepts propertyId. While null (pre-draft), patch() still BUFFERS changes;
+ *     flushes are deferred until the draft row exists, then fire automatically.
+ *     Do not drop pre-draft patches — Section 3 fields are typed before the
+ *     Section 4 threshold field that triggers draft creation.
  *   - patch(partial) accumulates in pendingChangesRef and schedules a save.
  *   - Debounce: 500ms after last patch call.
  *   - On save failure:
@@ -182,7 +185,8 @@ export function useListingSave(propertyId: string | null) {
 
   /**
    * Accumulate a partial update and schedule a debounced save.
-   * No-op if propertyId is null (form still in pre-draft state).
+   * Buffers even while propertyId is null (pre-draft) — flush is a no-op until
+   * the draft row exists, then the buffered changes go out in one PATCH.
    * Clears any prior session_expired state — user is editing again so we assume
    * they've re-authenticated (form will show 401 again if not).
    */
@@ -190,13 +194,26 @@ export function useListingSave(propertyId: string | null) {
     (partial: Record<string, unknown>) => {
       // eslint-disable-next-line no-console
       console.debug("[useListingSave] patch()", { propertyId: propertyIdRef.current, partial });
-      if (!propertyIdRef.current) return;
+      // BUFFER even when propertyId is null (pre-draft). Dropping pre-draft
+      // patches was the root cause of the "required fields missing" submit
+      // failure: Section 3 fields (deposit, available_from) are typed BEFORE
+      // the Section 4 furnishing threshold that triggers draft creation, and
+      // createDraft's INSERT payload doesn't include them. Buffered changes
+      // flush automatically once propertyId arrives (effect below).
       pendingChangesRef.current = { ...pendingChangesRef.current, ...partial };
       setSaveState((s) => (s === "session_expired" ? "session_expired" : "idle"));
       scheduleSave();
     },
     [scheduleSave],
   );
+
+  // Flush the pre-draft buffer as soon as the draft row exists. Covers every
+  // field the owner filled before crossing the createDraft threshold.
+  useEffect(() => {
+    if (propertyId && Object.keys(pendingChangesRef.current).length > 0) {
+      scheduleSave();
+    }
+  }, [propertyId, scheduleSave]);
 
   /**
    * Flush pending changes immediately (cancels the debounce timer).
