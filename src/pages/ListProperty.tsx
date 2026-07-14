@@ -681,10 +681,12 @@ export default function ListProperty() {
         ...prev,
         field_changes: { ...prev.field_changes, ...payload },
       }));
-    } else if (propertyId) {
+    } else {
+      // Pre-draft (propertyId null) included: useListingSave buffers and
+      // auto-flushes once the draft row exists. Never drop pre-draft edits.
       patch(payload);
     }
-  }, [propertyId, patch, path, readOnly]);
+  }, [patch, path, readOnly]);
 
   // ─── First-save (create draft) ───────────────────────────────────────────
   const createDraft = useCallback(async () => {
@@ -1335,7 +1337,7 @@ export default function ListProperty() {
                           onCheckedChange={() => {
                             const next = checked ? form.furnishing_items.filter((v) => v !== opt.value) : [...form.furnishing_items, opt.value];
                             setForm((f) => ({ ...f, furnishing_items: next }));
-                            if (propertyId) patch({ furnishing_detail: buildFurnishingDetail({ ...form, furnishing_items: next }), amenities: buildAmenitiesJson({ ...form, furnishing_items: next }) });
+                            patch({ furnishing_detail: buildFurnishingDetail({ ...form, furnishing_items: next }), amenities: buildAmenitiesJson({ ...form, furnishing_items: next }) });
                           }} />
                         <span className="text-sm flex-1">{opt.label}</span>
                         {checked && !opt.yesNoOnly && (
@@ -1343,7 +1345,7 @@ export default function ListProperty() {
                             onChange={(e) => {
                               const counts = { ...form.furnishing_counts, [opt.value]: Number(e.target.value) || 1 };
                               setForm((f) => ({ ...f, furnishing_counts: counts }));
-                              if (propertyId) patch({ furnishing_detail: buildFurnishingDetail({ ...form, furnishing_counts: counts }) });
+                              patch({ furnishing_detail: buildFurnishingDetail({ ...form, furnishing_counts: counts }) });
                             }}
                             className="w-14 h-8 text-sm" />
                         )}
@@ -1363,20 +1365,20 @@ export default function ListProperty() {
                       onChange={(e) => {
                         const list = [...form.custom_furnishing]; list[i] = { ...list[i], name: e.target.value };
                         setForm((f) => ({ ...f, custom_furnishing: list }));
-                        if (propertyId) patch({ furnishing_detail: buildFurnishingDetail({ ...form, custom_furnishing: list }) });
+                        patch({ furnishing_detail: buildFurnishingDetail({ ...form, custom_furnishing: list }) });
                       }}
                       className="min-h-[40px] flex-1" />
                     <Input type="number" min={1} value={c.count ?? 1} placeholder="Qty"
                       onChange={(e) => {
                         const list = [...form.custom_furnishing]; list[i] = { ...list[i], count: Number(e.target.value) || 1 };
                         setForm((f) => ({ ...f, custom_furnishing: list }));
-                        if (propertyId) patch({ furnishing_detail: buildFurnishingDetail({ ...form, custom_furnishing: list }) });
+                        patch({ furnishing_detail: buildFurnishingDetail({ ...form, custom_furnishing: list }) });
                       }}
                       className="w-20 h-10" />
                     <button type="button" onClick={() => {
                       const list = form.custom_furnishing.filter((_, j) => j !== i);
                       setForm((f) => ({ ...f, custom_furnishing: list }));
-                      if (propertyId) patch({ furnishing_detail: buildFurnishingDetail({ ...form, custom_furnishing: list }) });
+                      patch({ furnishing_detail: buildFurnishingDetail({ ...form, custom_furnishing: list }) });
                     }}><Trash2 className="h-4 w-4 text-muted-foreground" /></button>
                   </div>
                 ))}
@@ -1401,7 +1403,7 @@ export default function ListProperty() {
                         <Checkbox checked={checked} onCheckedChange={() => {
                           const next = checked ? form.building_amenities.filter((v) => v !== a.value) : [...form.building_amenities, a.value];
                           setForm((f) => ({ ...f, building_amenities: next }));
-                          if (propertyId) patch({ amenities: buildAmenitiesJson({ ...form, building_amenities: next }) });
+                          patch({ amenities: buildAmenitiesJson({ ...form, building_amenities: next }) });
                         }} />
                         <span className="text-sm">{a.label}</span>
                       </label>
@@ -1420,12 +1422,12 @@ export default function ListProperty() {
                       onChange={(e) => {
                         const list = [...form.custom_amenities]; list[i] = e.target.value;
                         setForm((f) => ({ ...f, custom_amenities: list }));
-                        if (propertyId) patch({ amenities: buildAmenitiesJson({ ...form, custom_amenities: list }) });
+                        patch({ amenities: buildAmenitiesJson({ ...form, custom_amenities: list }) });
                       }} className="min-h-[40px] flex-1" />
                     <button type="button" onClick={() => {
                       const list = form.custom_amenities.filter((_, j) => j !== i);
                       setForm((f) => ({ ...f, custom_amenities: list }));
-                      if (propertyId) patch({ amenities: buildAmenitiesJson({ ...form, custom_amenities: list }) });
+                      patch({ amenities: buildAmenitiesJson({ ...form, custom_amenities: list }) });
                     }}><Trash2 className="h-4 w-4 text-muted-foreground" /></button>
                   </div>
                 ))}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'reeve-shell-v1';
+const CACHE_NAME = 'reeve-shell-v2';
 
 const SHELL_ASSETS = [
   '/',
@@ -34,6 +34,16 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(async () => {
+        // respondWith must resolve to a Response — resolving undefined throws
+        // "Failed to convert value to 'Response'" and fails the request.
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.mode === 'navigate') {
+          const shell = await caches.match('/');
+          if (shell) return shell;
+        }
+        return Response.error();
+      })
   );
 });
