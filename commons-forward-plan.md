@@ -11,6 +11,13 @@ Everything captured during Phase 1 planning that is NOT built in Phase 1. Groupe
 - Blocker: Requires Google Cloud billing setup.
 - Files affected: Section 1 of ListProperty form; introduces new address components (sublocality, formatted_address).
 - Related: enables `latitude` / `longitude` capture.
+- Note (Sync P5): `landmark` field added in Phase 1.5 Prompt 8 (`audiences: ['owner_form', 'admin_form', 'public_detail']`) — when Google Places wires in, the landmark input is already plumbed; only the address-autocomplete flow needs to be added.
+
+### `state` and `pincode` as public search filters
+- Decision: Columns exist and are populated on all properties. `TODO(P2)` tags in `src/config/property-fields.ts` on the spec entries.
+- Blocker: Search page has no address-level filter UI yet.
+- When wired: re-add `public_detail` to both fields' `audiences` in the spec, and add rendering to the address line on `PropertyDetail.tsx`. Owner form + admin form entries already render these fields.
+- Related to Google Places above — once canonical, state can become a dropdown too.
 
 ### `properties.latitude` and `properties.longitude`
 - Decision: Populate only after Google Places is wired.
@@ -247,3 +254,10 @@ These decisions were made during Phase 1 planning but their effect extends into 
 11. Comms (H1, H2, H3, StatusGuidance component).
 12. Admin quality checks — G1 (queue full property view + search).
 13. Admin quality checks — G2 + G3 (detail full property + Decisions tab).
+
+---
+
+## Sync notes (Phase 1.5 addendum, 2026-07-14)
+
+- CLAUDE.md trimmed to ~275 lines in Sync Prompt 5; full history in `commons-decisions.md` D-001–D-171.
+- Sync series (P1–P5, D-167–D-171) closed the parity audit — no outstanding cleanup items from Phase 1.5 itself. Future scope goes above under Phase 2+.

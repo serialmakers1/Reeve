@@ -417,3 +417,212 @@ interface PropertyFieldSpec {
 ```
 
 Consumers: `ListProperty.tsx`, admin `PropertyEdit.tsx`, `PropertyDetail.tsx`. Rent/sale distinction is captured via a `showWhen` predicate on `listing_type`.
+
+## 18. Field spec module shape (Prompt 2 shipped state — supersedes §17 draft)
+
+The spec module actually shipped in Phase 1.5 Prompt 2 diverged from the §17 sketch — this section is canonical. §17 kept as historical decision record.
+
+**Location:** `src/config/property-fields.ts` (single file — types + data + helpers).
+
+**Fields on the shipped `PropertyFieldSpec`:**
+
+```ts
+interface PropertyFieldSpec {
+  key: string;                            // DB column name (storage source of truth)
+  label: string;                          // owner-form default; label used unless overridden
+  adminLabel?: string;                    // admin-form label if different
+  publicLabel?: string;                   // public-detail label if different
+  placeholder?: string;
+  helper?: string;
+  input: 'text' | 'textarea' | 'number' | 'select' | 'multiselect'
+       | 'checkbox' | 'switch' | 'date' | 'radio' | 'json';
+  options?: PropertyFieldOption[];
+  audiences: PropertyFieldSurface[];      // ['owner_form','admin_form','public_detail']
+  editableBy: PropertyFieldRole[];        // ['owner','admin']
+  ownerSection?: OwnerFormSection;
+  requiredOwner?: boolean;
+  requiredAdmin?: boolean;
+  min?: number; max?: number;
+  pattern?: RegExp;
+  maxLength?: number;
+  visibleWhen?: (values) => boolean;      // e.g. gas_type only when utility_gas_included
+  display?: (value: unknown) => string;   // formatter for public-detail + admin queue
+  displayIcon?: string;
+  tier?: 'locked' | 'review_required';    // 'locked' = Tier 1 admin-only after listing
+}
+```
+
+**Owner form sections (fixed order):** `location, basics, rent_deposit, sale, inside, building_society, rules_preferences, photos, description, final_checks`. `sale` is defined but has no fields until Prompt 9 (rent/sale schema).
+
+**Canonical helpers exported alongside `PROPERTY_FIELDS`:**
+- `getFieldsForSurface(spec, surface)`
+- `getOwnerFieldsGrouped(spec)` — returns `Map<OwnerFormSection, spec[]>` in canonical order
+- `getFieldLabel(field, surface)` — resolves admin/public overrides
+- `formatFieldValue(field, value)` — display formatter with sensible default (option label → String → "—")
+- `isFieldVisible(field, values)` — evaluates `visibleWhen`
+- `validateSpec(spec)` — returns `string[]` of problems; asserted empty in `src/test/property-fields.test.ts`
+
+**JSONB fields (`furnishing_detail`, `amenities`):** entered as `input: 'json'` — the spec exposes the column and helper text, but the consumer owns the UI (uses `FURNISHING_ITEM_OPTIONS` / `BUILDING_AMENITIES` from `property-form.ts`). Do not try to render these generically in Prompts 3–5.
+
+**Deferred:** the spec deliberately excludes `listing_type` (Prompt 9), parking counts + India rental fields (Prompt 7), and sale-specific columns (Prompt 9). Each will land with its own decision entry.
+
+**Not wired yet.** Consumers (`ListProperty`, admin `PropertyEdit`, `PropertyDetail`) continue to read fields their existing way through Prompts 3–5. `src/config/property-form.ts` constants stay in use until then — the spec is additive.
+
+## 19. Phase 1.5 Prompt 7 — India fields (applied via MCP; migration name `phase_1_5_prompt_7_india_fields_schema`)
+
+Seven columns added to `public.properties`. All nullable. Applied directly through MCP — no file in `supabase/migrations/`. Types.ts regenerated.
+
+| Column | Type | Default | Constraint | Notes |
+|---|---|---|---|---|
+| `parking_2w_count` | `integer` | `0` | — | Complements enum `parking_2w`; enum = availability, count = quantity. |
+| `parking_4w_count` | `integer` | `0` | — | Same relationship to `parking_4w`. |
+| `parking_notes` | `text` | — | — | Free-text parking clarifications (e.g. shared, reserved slot number). |
+| `landmark` | `text` | — | — | Free-text nearby-landmark string for directions. |
+| `notice_period_months` | `integer` | `1` | — | Rent-only field; visibility gated in Prompt 8 via `visibleWhen` on `listing_type === 'rent'`. |
+| `annual_rent_increase_pct` | `numeric` | — | CHECK 0–100 | **Always public** on PropertyDetail (D-136). |
+| `water_storage` | `text` | — | CHECK IN `sump_only` \| `overhead_only` \| `both` \| `none` | Enum-string via CHECK (no Postgres ENUM type). |
+
+**Wiring status:** schema only. No `PROPERTY_FIELDS` entry, no surface rendering, no save path. Prompt 8 wires spec + ListProperty + admin PropertyEdit + PropertyDetail.
+
+## 20. Phase 1.5 Prompt 9 — rent/sale schema (applied via MCP; migration name `phase_1_5_prompt_9_rent_sale_schema`)
+
+New enum type + 9 columns on `public.properties`. Applied directly through MCP — no file in `supabase/migrations/`. Types.ts regenerated. All 20 existing rows backfilled with `listing_type = 'rent'` — backward-compatible.
+
+**New enum:** `public.property_listing_type` with values `'rent'`, `'sale'`.
+
+**New column (NOT NULL):**
+
+| Column | Type | Default | Notes |
+|---|---|---|---|
+| `listing_type` | `property_listing_type` | `'rent'` | NOT NULL. Default guarantees backward compatibility with existing rent rows. |
+
+**New sale-specific columns (all nullable):**
+
+| Column | Type | Constraint | Notes |
+|---|---|---|---|
+| `sale_price` | `numeric` | CHECK ≥ 0 | Total sale amount in INR. Required for sale submissions (Prompt 10 wires the trigger branch). |
+| `price_negotiable` | `boolean` | — | Owner-declared. Displayed as-is. |
+| `expected_price_per_sqft` | `numeric` | CHECK ≥ 0 | **Manual input**, not auto-calculated from `sale_price / square_footage`. |
+| `possession_status` | `text` | CHECK IN `ready_to_move` \| `under_construction` \| `new_launch` | Enum-string via CHECK (no PG ENUM type). |
+| `possession_date` | `date` | — | Sale-equivalent of `available_from` (D-135). Two separate columns — do not repurpose `available_from` for sale listings. |
+| `rera_registration_number` | `text` | — | Optional; strongly recommended for under-construction. |
+| `khata_type` | `text` | CHECK IN `A` \| `B` \| `not_applicable` | Karnataka property title classification. |
+| `property_tax_paid_upto` | `date` | — | Verification signal for buyers. |
+
+**Wiring status:** schema only. No `PROPERTY_FIELDS` entry, no surface rendering, no save path, no `visibleWhen` on rent-only fields. Prompt 10 does all of that AND updates the `enforce_property_owner_transitions` trigger per D-160.
+
+**Backfill audit:** all 20 existing rows have `listing_type = 'rent'`. Sale columns are NULL on every existing row (nothing to migrate).
+
+## 21. Phase 1.5 Prompt 11 — comms schema (applied via MCP)
+
+### RPC: `reject_property_listing(p_property_id uuid, p_reason text, p_reason_text text DEFAULT NULL) RETURNS void`
+Admin-only (checks `is_admin()`). Transitions `pending_review → changes_requested` on `properties`, then INSERTs a `property_activity_log` row with `action='listing_rejected'`, `payload = { summary, reason, reason_text, from_status:'pending_review', to_status:'changes_requested' }`, `is_public=false`. Atomic — a failure at either step rolls back.
+
+Mirrors `reject_edit_request`. Frontend call site: `src/pages/admin/ListingReviewDetail.tsx:requestChangesOnNewListing`.
+
+### `owner_action_acknowledgments.activity_log_id` (new column) + new unique index
+
+Column: `activity_log_id uuid REFERENCES property_activity_log(id) ON DELETE CASCADE`. Nullable — legacy rows keep NULL.
+
+Old unique constraint on `(user_id, target_type, target_id)` was DROPPED. Replaced with unique index:
+```sql
+CREATE UNIQUE INDEX owner_action_acknowledgments_scoped_unique
+  ON owner_action_acknowledgments (user_id, target_type, target_id, activity_log_id)
+  NULLS NOT DISTINCT;
+```
+
+`NULLS NOT DISTINCT` means two rows with the same 3-tuple and NULL `activity_log_id` collide (matches pre-Prompt-11 semantics for legacy rows); rows with distinct `activity_log_id`s coexist (enables per-rejection ack tracking, D-141).
+
+Backfill: 1 pre-existing semantically-malformed row was deleted during migration.
+
+### `property_activity_log_writer` trigger — skip when transitioning to `changes_requested`
+
+The trigger's log-emission branch now short-circuits when `NEW.status = 'changes_requested'`. The RPC (`reject_property_listing`) owns the log entry for that transition — no double-log. All other status transitions still emit via the trigger as before.
+
+**Wiring status:** fully wired in Prompt 11 (D-163). RejectionPanel + StatusGuidance components consume this schema.
+
+## 22. Phase 1.5 Prompt 12 — admin visibility G1 (applied via MCP)
+
+### RPC: `admin_delete_draft_property(p_property_id uuid) RETURNS void`
+Admin-only (checks `is_admin()`). Guards, in order:
+1. Property exists → else RAISE.
+2. `status = 'draft'` → else RAISE ("Only draft properties may be deleted").
+3. No `applications` rows reference the property → else RAISE ("Property has N applications; archive instead").
+4. No `visits` rows reference the property → else RAISE ("Property has N visits; archive instead").
+
+Then `DELETE FROM properties WHERE id = p_property_id`. Cascading FKs handle the remaining child tables.
+
+Frontend call site: `src/pages/admin/Properties.tsx:confirmDelete` (Delete draft row action). Never call raw `.delete()` from client — the RPC is the only supported deletion path.
+
+### FKs referencing `properties(id)` — deletion behavior reference
+
+| Child table | On delete | Notes |
+|---|---|---|
+| `property_images` | CASCADE | Photos in Cloudflare R2 remain — separate cleanup job would be needed to purge those; scoped as post-launch. |
+| `property_activity_log` | CASCADE | |
+| `property_edit_requests` | CASCADE | |
+| `property_inspections` | CASCADE | |
+| `favourites` | CASCADE | |
+| `inspection_callbacks` | CASCADE | |
+| `applications` | NO ACTION | Blocks delete — RPC guard raises before reaching this. |
+| `visits` | NO ACTION | Blocks delete — RPC guard raises before reaching this. |
+| `leases`, `agreements`, `payments`, `keys_tracking`, `maintenance_requests`, `property_condition_reports`, `owner_action_log` | NO ACTION | Should never appear for a `draft` property; if they do, Postgres blocks with FK violation and the RPC surfaces the error message. |
+
+### Existing RLS (unchanged, cited for reference)
+- `users_select_own` = `(id = auth.uid()) OR is_admin()` — admin cross-user reads for the search index are permitted.
+- `properties_delete` = `is_admin()` — admin CAN raw-DELETE, but the RPC is the required client entry point (adds guards + preserves invariants).
+- `enforce_property_owner_transitions` — admin bypasses via `is_admin()`, so restore-archived (`.update({ status: 'unlisted' })`) succeeds without needing the trigger's allowed-transition list.
+
+## 23. Phase 1.5 Prompt 13 — G2+G3 admin visibility (data-source reference, no schema change)
+
+### G2 (ListingReviewDetail) — no schema change
+Reads the full `properties` row plus the existing edit request payload. Admin-only `flat_number` line respects the spec's `audiences: ['admin_form']` — no leak to public surface (D-091). Field render matches spec ordering; no server-side additions.
+
+### G3 (DecisionsTab) — data source table
+
+| Decision kind | Source table | Filter | Effective timestamp | Actor field | Reason field |
+|---|---|---|---|---|---|
+| `listing_approved` | `property_activity_log` | `action = 'listing_approved'` | `created_at` | `actor_id → users(full_name)` | none (payload has no reason) |
+| `listing_rejected` | `property_activity_log` | `action = 'listing_rejected'` | `created_at` | `actor_id → users(full_name)` | `payload.reason` — legacy pre-Prompt-11 rows may be null (render "—") |
+| `edit_approved` | `property_edit_requests` | `status = 'approved'` | `reviewed_at ?? created_at` | `reviewed_by → users(full_name)` | none |
+| `edit_rejected` | `property_edit_requests` | `status = 'rejected'` | `reviewed_at ?? created_at` | `reviewed_by → users(full_name)` | `rejection_reason` |
+| `edit_withdrawn` | `property_edit_requests` | `status = 'withdrawn'` | `reviewed_at ?? created_at` (usually created_at) | none (owner action) — render "Owner" | none |
+| `edit_superseded` | `property_edit_requests` | `status = 'superseded'` | `reviewed_at ?? created_at` (usually created_at) | none (system action) — render "—" | none |
+
+### Anti-pattern: never UNION
+Edit decisions live only in `property_edit_requests`. Do NOT pull `edit_approved`/`edit_rejected` from `property_activity_log` — the writer trigger is suppressed for those transitions, but even if a future migration re-enables it, the RPCs are the source of truth. UNION-ing the two tables would double-count.
+
+### Photo prefetch
+Same pattern as Prompts 4/5 admin surfaces: single `property_images` query with `.in('property_id', [...ids]).eq('is_primary', true)`, build a `Map<property_id, url>` client-side.
+
+### Row navigation
+Rows link to `/owner-dashboard/property/:id`. No separate `/admin/decisions/:id` route — the owner property-management page's Activity Timeline is the richer historical view and is already admin-viewable.
+
+## 24. Phase 1.5 addendum — move-in charges + brokerage (applied via MCP, D-166)
+
+Four new nullable columns on `public.properties`. All optional; no backfill needed (20 existing rows kept NULL).
+
+| Column | Type | Default | Constraint | Notes |
+|---|---|---|---|---|
+| `move_in_charges_amount` | `numeric` | — | CHECK ≥ 0 | Rent-side one-time cost. |
+| `rent_brokerage_type` | `text` | — | CHECK IN `none` \| `fixed` \| `months` | Free-text with CHECK, matching D-159 `water_storage` pattern (no PG ENUM). |
+| ~~`rent_brokerage_amount`~~ | — | — | — | **DROPPED in Sync Prompt 3 (D-169)** — overloaded column split into `rent_brokerage_fixed_amount` + `rent_brokerage_months` below. Zero data loss (column was empty). |
+| `rent_brokerage_fixed_amount` | `numeric` | — | CHECK ≥ 0 | Rupees. Populated when `rent_brokerage_type='fixed'`; NULL otherwise. Spec `visibleWhen` gates render to type=fixed. D-169. |
+| `rent_brokerage_months` | `numeric` | — | CHECK ≥ 0 | Month count. Populated when `rent_brokerage_type='months'`; NULL otherwise. Spec `visibleWhen` gates render to type=months. D-169. |
+| `sale_brokerage_pct` | `numeric` | — | CHECK 0–10 | Percentage. Upper bound 10 is generous — 5 is more typical in Bengaluru sale transactions. Adjustable via DROP + ADD CONSTRAINT if edge cases surface. |
+
+**Wiring status:** fully wired in D-166 (spec + owner form Section 3 + Sale section + admin PropertyEdit + public rent/sale Cards).
+
+**Not touched:** `PUBLIC_DETAILS_GRID_KEYS` (bespoke render in existing Cards, same as `sale_price`/`price_negotiable`/`expected_price_per_sqft` per D-162), `enforce_property_owner_transitions` trigger (D-160 — none of the 4 fields are required for submit), any RLS policy, any RPC.
+
+## 25. Phase 1.5 Sync series summary (D-167–D-171)
+
+Five-prompt parity-audit cleanup after Phase 1.5 shipped. All frontend + one schema change; no RLS/RPC/trigger changes.
+
+- **Sync P1 (D-167)** — `PropertyDetail.formatDeposit` prefers `security_deposit_amount` over `months × rent`; `ensurePrimaryPhoto` cover auto-select on both surfaces; audience corrections on `security_deposit_months` (widened to public), `state`+`pincode` (narrowed off public — TODO(P2)); `property_type` public label via `PROPERTY_TYPE_OPTIONS`. Data migration (MCP): 2 legacy `pet_policy` free-text rows normalized to canonical enum.
+- **Sync P2 (D-168)** — `<SpecField input='date'>` branch with `datePickerOptions?: { warnOnPast?, maxDaysFromNow? }`. All 3 date fields (`available_from`, `possession_date`, `property_tax_paid_upto`) spec-driven on owner + admin; 6 bespoke Popover+Calendar blocks removed. Admin `available_from` gains amber past-date warning + 90-day cap (parity with owner).
+- **Sync P3 (D-169)** — brokerage column split (see §24): `rent_brokerage_amount` dropped, replaced by `rent_brokerage_fixed_amount` + `rent_brokerage_months`. `gas_type` spec gains `'none'` option (caller-side transform writes NULL). `pet_policy` admin migrated from free-text `<Input>` to `<SpecField>` select. `types.ts` regenerated.
+- **Sync P4 (D-170)** — `<FurnishingEditor>` + `<AmenitiesEditor>` shared components in `src/components/property/`. Owner FormState migrated to JSONB shape (`furnishing_detail: FurnishingDetailItem[]` + flat `building_amenities: string[]` with customs mixed). Admin gains custom-items UI (previously absent). `FurnishingDetailItem` + `buildAmenitiesJson` in `@/types/property`; admin imports options from `@/config/property-form` (owner canonical).
+- **Sync P5 (D-171)** — `security_deposit_months` owner input added to Section 3 alongside chips (chips now write BOTH amount and months). `maintenance_included` FormState key renamed to `maintenance_included_in_rent` (matches DB column; bridge removed). Dead `furnishingItems` state removed from `PropertyEdit.tsx` (D-170 follow-up). `CLAUDE.md` trimmed from 438 → ~275 lines. Full history: `commons-decisions.md` D-001–D-171.
+
+**Not touched by any sync prompt:** RLS policies, RPCs, triggers, edge functions, `client.ts`, `config.toml`, any migration file (only schema change was via MCP in P3).

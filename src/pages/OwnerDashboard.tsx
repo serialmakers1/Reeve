@@ -37,6 +37,7 @@ interface OwnerProperty {
   status: string;
   is_active: boolean;
   created_at: string;
+  listing_type?: string | null;
 }
 
 export default function OwnerDashboard() {
@@ -62,7 +63,7 @@ export default function OwnerDashboard() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: props } = await (supabase as any)
         .from("properties")
-        .select("id, building_name, locality, city, bhk, listed_rent, status, is_active, created_at")
+        .select("id, building_name, locality, city, bhk, listed_rent, status, is_active, created_at, listing_type")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: false });
       const rows = (props ?? []) as OwnerProperty[];

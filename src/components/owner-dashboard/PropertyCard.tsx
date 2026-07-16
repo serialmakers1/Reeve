@@ -13,6 +13,9 @@ interface Props {
     status: string;
     is_active: boolean;
     created_at: string;
+    // Prompt 10b (D-162) — optional so callers not yet passing it don't break.
+    // Fail-safe: absent / null → treated as rent.
+    listing_type?: string | null;
   };
   primaryPhotoUrl: string | null;
   onClick: () => void;
@@ -58,7 +61,13 @@ export default function PropertyCard({ property, primaryPhotoUrl, onClick }: Pro
         </span>
       </div>
       <div className="p-3 space-y-1">
-        <p className="text-sm font-semibold text-foreground truncate">{title}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-semibold text-foreground truncate flex-1">{title}</p>
+          {/* Prompt 10b (D-162) — small listing-type chip; muted so status badge dominates. */}
+          <span className="shrink-0 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            {property.listing_type === "sale" ? "For Sale" : "For Rent"}
+          </span>
+        </div>
         {subtitle && (
           <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
         )}

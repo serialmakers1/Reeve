@@ -14,6 +14,7 @@ import { useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import { CheckCircle2, Circle, RefreshCcw, Archive } from "lucide-react";
 import type { ActivityLogPayload } from "@/types/activity-log";
+import { getStatusDisplay } from "@/lib/propertyStatus";
 
 export interface PublicTimelineRow {
   id: string;
@@ -30,7 +31,15 @@ interface Props {
 const INITIAL_LIMIT = 10;
 
 function summaryFor(row: PublicTimelineRow): string {
-  const p = row.payload as ActivityLogPayload;
+  const p = row.payload as ActivityLogPayload & { from_status?: string; to_status?: string };
+  // Prefer structured status-transition labels via getStatusDisplay so E2 never
+  // shows raw enum codes to the public — fall back to curated summary, then
+  // action-hardcoded string (defensive for legacy rows without either).
+  if (p.from_status && p.to_status) {
+    const from = getStatusDisplay(p.from_status).label;
+    const to = getStatusDisplay(p.to_status).label;
+    return `${from} → ${to}`;
+  }
   if (p.summary) return p.summary;
   switch (row.action) {
     case "listing_approved": return "Listed on Reeve";

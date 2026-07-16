@@ -41,23 +41,21 @@ export default function PublicProfile() {
   const [privateProfile, setPrivateProfile] = useState(false);
   const posthogFiredRef = useRef(false);
 
-  // Self-redirect: viewing own profile → /me
-  useEffect(() => {
-    if (!authLoading && user?.id && userId && user.id === userId) {
-      navigate("/me", { replace: true });
-    }
-  }, [authLoading, user?.id, userId, navigate]);
+  // F2 (D-151): no self-redirect. /u/:userId renders the public view regardless
+  // of viewer identity so owners can preview their own public profile.
 
   useEffect(() => {
     if (authLoading || !userId || !user?.id) return;
-    if (user.id === userId) return; // effect above handles the redirect
     if (posthogFiredRef.current) return;
     posthogFiredRef.current = true;
-    posthog?.capture("commons_profile_viewed", { self: false, target_user_id: userId });
+    posthog?.capture("commons_profile_viewed", {
+      self: user.id === userId,
+      target_user_id: userId,
+    });
   }, [authLoading, userId, user?.id]);
 
   useEffect(() => {
-    if (authLoading || !userId || !user?.id || user.id === userId) return;
+    if (authLoading || !userId || !user?.id) return;
     (async () => {
       // Read public_profiles view (see migration 20260710120800). Filters by is_public.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

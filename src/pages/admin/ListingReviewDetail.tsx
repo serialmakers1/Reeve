@@ -37,6 +37,7 @@ import {
 import { BHK_OPTIONS } from "@/config/property-form";
 import { getUserDisplayName } from "@/lib/user";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
+import EditRequestDiff from "@/components/property-management/EditRequestDiff";
 
 const REJECTION_REASONS = [
   { value: "incomplete_details", label: "Incomplete details" },
@@ -57,6 +58,26 @@ interface PropertyRow {
   available_from: string | null;
   title: string | null; description: string | null;
   building_rules: string | null; building_notes: string | null; pet_policy: string | null;
+  // Prompt 13 (D-165) — admin-only exposure.
+  flat_number: string | null;
+  // Prompt 8 (D-159) — India fields.
+  landmark: string | null;
+  notice_period_months: number | null;
+  annual_rent_increase_pct: number | null;
+  water_storage: string | null;
+  parking_2w: string | null; parking_4w: string | null;
+  parking_2w_count: number | null; parking_4w_count: number | null;
+  parking_notes: string | null;
+  // Prompt 10 (D-161/D-162) — rent/sale.
+  listing_type: string | null;
+  sale_price: number | null;
+  price_negotiable: boolean | null;
+  expected_price_per_sqft: number | null;
+  possession_status: string | null;
+  possession_date: string | null;
+  rera_registration_number: string | null;
+  khata_type: string | null;
+  property_tax_paid_upto: string | null;
 }
 
 interface EditRequestRow {
@@ -186,30 +207,24 @@ export default function ListingReviewDetail() {
   const requestChangesOnNewListing = async () => {
     if (!property || busy) return;
     setBusy(true);
-    // Two-step per D-118: UPDATE status + INSERT activity log with reason.
+    // Prompt 11 (D-163): single-RPC path replaces the two-step D-118 UPDATE+INSERT.
+    // reject_property_listing (admin-only, applied via MCP) transitions status +
+    // writes the listing_rejected activity_log entry atomically. The
+    // property_activity_log_writer trigger skips its automatic log for the
+    // pending_review→changes_requested transition, so no double-log.
+    const reasonLabel = REJECTION_REASONS.find((r) => r.value === reason)?.label ?? reason;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: e1 } = await (supabase as any).from("properties")
-      .update({ status: "changes_requested" }).eq("id", property.id);
-    if (e1) {
-      setBusy(false);
-      toast({ title: "Could not request changes", description: e1.message, variant: "destructive" });
+    const { error } = await (supabase as any).rpc("reject_property_listing", {
+      p_property_id: property.id,
+      p_reason: reasonLabel,
+      p_reason_text: reasonText.trim() || null,
+    });
+    setBusy(false);
+    if (error) {
+      toast({ title: "Could not request changes", description: error.message, variant: "destructive" });
       await load();
       return;
     }
-    // Non-atomic follow-up log entry (D-118 accepts this trade-off).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("property_activity_log").insert({
-      property_id: property.id,
-      actor_role: "admin",
-      action: "listing_rejected",
-      payload: {
-        summary: `Admin requested changes${reason === "other" ? "" : `: ${REJECTION_REASONS.find(r => r.value === reason)?.label}`}`,
-        reason,
-        reason_text: reasonText.trim() || null,
-      },
-      is_public: false,
-    });
-    setBusy(false);
     posthog?.capture("commons_admin_new_listing_changes_requested", { property_id: property.id, reason });
     toast({ title: "Changes requested" });
     setShowRequestChanges(false);
@@ -311,23 +326,80 @@ export default function ListingReviewDetail() {
           </div>
         </div>
 
-        {/* Property snapshot always shown */}
+        {/* Property snapshot — Prompt 13 (G2/D-165): full view including India (Prompt 8) +
+            rent/sale (Prompt 10) fields, admin-only flat_number line, listing-type chip. */}
         <section className="rounded-lg border bg-card p-4 space-y-3">
-          <h2 className="text-sm font-semibold">Property</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Property</h2>
+            {/* Prompt 10b chip parity — muted so it doesn't dominate. */}
+            <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {property.listing_type === "sale" ? "For Sale" : "For Rent"}
+            </span>
+          </div>
+          {/* Admin-only exposure of flat_number (D-091: never public; spec audiences=['admin_form']). */}
+          <div className="rounded border border-amber-100 bg-amber-50/50 px-3 py-2 text-xs">
+            <span className="font-medium text-amber-900">Flat number (admin only):</span>{" "}
+            <span className="text-amber-800">{property.flat_number ?? "—"}</span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <Field k="Building" v={property.building_name} />
             <Field k="Address" v={property.street_address} />
             <Field k="Locality" v={property.locality} />
+            <Field k="Landmark" v={property.landmark} />
             <Field k="City" v={property.city} />
             <Field k="Pincode" v={property.pincode} />
             <Field k="BHK" v={bhkLabel(property.bhk)} />
             <Field k="Type" v={property.property_type} />
-            <Field k="Rent" v={property.listed_rent ? `₹${property.listed_rent.toLocaleString("en-IN")}` : null} />
-            <Field k="Deposit" v={property.security_deposit_amount ? `₹${property.security_deposit_amount.toLocaleString("en-IN")}` : null} />
-            <Field k="Available from" v={property.available_from ? format(new Date(property.available_from), "PPP") : null} />
             <Field k="Furnishing" v={property.furnishing} />
             <Field k="Area (sqft)" v={property.square_footage} />
           </div>
+
+          {/* Rent-side pricing block (rendered for rent + legacy null listing_type). */}
+          {property.listing_type !== "sale" && (
+            <div className="rounded border border-border/60 bg-muted/20 p-3 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Rent & Deposit</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <Field k="Rent" v={property.listed_rent ? `₹${property.listed_rent.toLocaleString("en-IN")}` : null} />
+                <Field k="Deposit" v={property.security_deposit_amount ? `₹${property.security_deposit_amount.toLocaleString("en-IN")}` : null} />
+                <Field k="Available from" v={property.available_from ? format(new Date(property.available_from), "PPP") : null} />
+                <Field k="Notice period (months)" v={property.notice_period_months} />
+                <Field k="Annual rent increase (%)" v={property.annual_rent_increase_pct != null ? `${property.annual_rent_increase_pct}%` : null} />
+              </div>
+            </div>
+          )}
+
+          {/* Sale-side pricing block. */}
+          {property.listing_type === "sale" && (
+            <div className="rounded border border-border/60 bg-muted/20 p-3 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Sale Details</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <Field k="Sale price" v={property.sale_price ? `₹${property.sale_price.toLocaleString("en-IN")}` : null} />
+                <Field k="Negotiable" v={property.price_negotiable ? "Yes" : "No"} />
+                <Field k="Expected ₹/sqft" v={property.expected_price_per_sqft ? `₹${property.expected_price_per_sqft.toLocaleString("en-IN")}` : null} />
+                <Field k="Possession status" v={property.possession_status?.replace(/_/g, " ") ?? null} />
+                {property.possession_status === "under_construction" && (
+                  <Field k="Possession from" v={property.possession_date ? format(new Date(property.possession_date), "PPP") : null} />
+                )}
+                <Field k="RERA number" v={property.rera_registration_number} />
+                <Field k="Khata type" v={property.khata_type} />
+                <Field k="Tax paid up to" v={property.property_tax_paid_upto ? format(new Date(property.property_tax_paid_upto), "PPP") : null} />
+              </div>
+            </div>
+          )}
+
+          {/* Building / parking / water */}
+          <div className="rounded border border-border/60 bg-muted/20 p-3 space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase">Building & Society</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              <Field k="2W parking" v={property.parking_2w && property.parking_2w !== "none" ? `${property.parking_2w}${property.parking_2w_count ? ` · ${property.parking_2w_count} slot${property.parking_2w_count === 1 ? "" : "s"}` : ""}` : null} />
+              <Field k="4W parking" v={property.parking_4w && property.parking_4w !== "none" ? `${property.parking_4w}${property.parking_4w_count ? ` · ${property.parking_4w_count} slot${property.parking_4w_count === 1 ? "" : "s"}` : ""}` : null} />
+              <Field k="Water storage" v={property.water_storage?.replace(/_/g, " ") ?? null} />
+            </div>
+            {property.parking_notes && (
+              <div><p className="text-xs text-muted-foreground">Parking notes</p><p className="text-sm whitespace-pre-line">{property.parking_notes}</p></div>
+            )}
+          </div>
+
           {property.title && <div><p className="text-xs text-muted-foreground">Title</p><p className="text-sm">{property.title}</p></div>}
           {property.description && <div><p className="text-xs text-muted-foreground">Description</p><p className="text-sm whitespace-pre-line">{property.description}</p></div>}
           {property.pet_policy && <div><p className="text-xs text-muted-foreground">Pet policy</p><p className="text-sm">{property.pet_policy}</p></div>}
@@ -335,22 +407,20 @@ export default function ListingReviewDetail() {
           {property.building_notes && <div><p className="text-xs text-muted-foreground">About the building</p><p className="text-sm whitespace-pre-line">{property.building_notes}</p></div>}
         </section>
 
-        {/* Diff view for edit type */}
+        {/* Diff view for edit type — Prompt 13 (D-165): "Currently live: X" subtitle
+            via <EditRequestDiff>. Same visual pattern owners see (D-093). */}
         {!isNewType && editRequest && (
           <section className="rounded-lg border bg-card p-4 space-y-3">
             <h2 className="text-sm font-semibold">Proposed changes</h2>
             {changedKeys.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {changedKeys.map((k) => (
-                  <div key={k} className="grid grid-cols-3 gap-2 text-sm">
-                    <span className="text-xs text-muted-foreground truncate">{k}</span>
-                    <span className="text-xs text-muted-foreground line-through truncate" title="Current">
-                      {formatValue((property as unknown as Record<string, unknown>)[k])}
-                    </span>
-                    <span className="text-sm font-medium text-blue-700 truncate" title="Proposed">
-                      {formatValue(fieldChanges[k])}
-                    </span>
-                  </div>
+                  <EditRequestDiff
+                    key={k}
+                    label={k.replace(/_/g, " ")}
+                    proposedValue={formatValue(fieldChanges[k])}
+                    liveValue={formatValue((property as unknown as Record<string, unknown>)[k])}
+                  />
                 ))}
               </div>
             ) : (
