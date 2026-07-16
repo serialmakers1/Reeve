@@ -15,6 +15,8 @@ import { format } from "date-fns";
 import { AlertCircle, ExternalLink, Pencil } from "lucide-react";
 
 import Layout from "@/components/Layout";
+import RejectionPanel from "@/components/property-management/RejectionPanel";
+import StatusGuidance from "@/components/property-management/StatusGuidance";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -94,8 +96,7 @@ export default function OwnerPropertyManagement() {
   const [images, setImages] = useState<ImageRow[]>([]);
   const [pendingEdit, setPendingEdit] = useState<PendingEditRow | null>(null);
   const [activity, setActivity] = useState<TimelineRow[]>([]);
-  const [ackId, setAckId] = useState<string | null>(null);
-  const [banner, setBanner] = useState<{ reason: string } | null>(null);
+  // Prompt 11: local banner/ack state removed — RejectionPanel owns fetch + ack (D-141).
   const [loading, setLoading] = useState(true);
 
   const [confirmKind, setConfirmKind] = useState<null | "withdraw" | "archive" | "unlist" | "relist" | "cancel_edit">(null);
@@ -104,7 +105,7 @@ export default function OwnerPropertyManagement() {
     if (!id || !user?.id) return;
     setLoading(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [{ data: propRow }, { data: imgRows }, { data: peRow }, { data: logRows }, { data: ackRow }] = await Promise.all([
+    const [{ data: propRow }, { data: imgRows }, { data: peRow }, { data: logRows }] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any).from("properties").select("*").eq("id", id).maybeSingle(),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -117,9 +118,6 @@ export default function OwnerPropertyManagement() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any).from("property_activity_log")
         .select("id, actor_id, actor_role, action, payload, created_at").eq("property_id", id).order("created_at", { ascending: false }),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any).from("owner_action_acknowledgments")
-        .select("id").eq("user_id", user.id).eq("target_type", "property").eq("target_id", id).maybeSingle(),
     ]);
     if (!propRow) {
       toast({ title: "Property not found", variant: "destructive" });
@@ -135,21 +133,6 @@ export default function OwnerPropertyManagement() {
     setImages((imgRows ?? []) as ImageRow[]);
     setPendingEdit((peRow ?? null) as PendingEditRow | null);
     setActivity((logRows ?? []) as TimelineRow[]);
-    setAckId((ackRow?.id ?? null) as string | null);
-
-    // Compute changes-requested banner if applicable
-    if (propRow.status === "changes_requested") {
-      // Look at most recent rejection in activity log or edit_requests
-      const rejectionLog = (logRows as TimelineRow[] ?? []).find(
-        (r) => r.action === "listing_rejected" || r.action === "edit_rejected",
-      );
-      const reason = ((rejectionLog?.payload as { reason?: string; reason_text?: string } | undefined)?.reason_text
-        ?? (rejectionLog?.payload as { reason?: string } | undefined)?.reason
-        ?? "Please address the requested changes and resubmit.");
-      setBanner({ reason });
-    } else {
-      setBanner(null);
-    }
     setLoading(false);
   }, [id, user?.id, navigate, toast]);
 
@@ -205,15 +188,7 @@ export default function OwnerPropertyManagement() {
   const pendingAdds = (pendingEdit?.payload.photo_changes?.add ?? []) as PendingAdd[];
   const pendingDeletes = new Set(pendingEdit?.payload.photo_changes?.delete ?? []);
 
-  const acknowledgeBanner = useCallback(async () => {
-    if (!property?.id || !user?.id) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("owner_action_acknowledgments")
-      .insert({ user_id: user.id, target_type: "property", target_id: property.id });
-    setAckId("acked");
-    setBanner(null);
-    posthog?.capture("commons_banner_acknowledged", { property_id: property.id, target_type: "property" });
-  }, [property?.id, user?.id]);
+  // Prompt 11: acknowledgeBanner removed — RejectionPanel owns the upsert with activity_log_id.
 
   // ── Owner state transitions ──
   const doTransition = useCallback(async (nextStatus: string, actionLabel: string) => {
@@ -313,21 +288,9 @@ export default function OwnerPropertyManagement() {
           </div>
         </div>
 
-        {/* changes_requested banner */}
-        {property.status === "changes_requested" && banner && !ackId && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-amber-800">Admin requested changes</p>
-                <p className="text-sm text-amber-700 mt-1 whitespace-pre-line">{banner.reason}</p>
-              </div>
-              <Button size="sm" variant="ghost" onClick={acknowledgeBanner} className="shrink-0 h-8 text-xs">
-                OK, got it
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Prompt 11 (H1/H2, D-140/D-141): rejection panel now lives inside the
+            Details tab via <RejectionPanel />. That component owns its own log
+            fetch + activity_log_id-scoped ack query — second rejection reappears. */}
 
         {/* edit_pending_review banner */}
         {property.status === "edit_pending_review" && (
@@ -366,6 +329,11 @@ export default function OwnerPropertyManagement() {
 
           {/* Details */}
           <TabsContent value="details" className="space-y-6">
+            {/* Prompt 11 (H3, D-138) — always-visible status explainer. */}
+            <StatusGuidance status={property.status} />
+            {/* Prompt 11 (H1/H2, D-140/D-141) — persistent amber rejection panel;
+                ack scoped to activity_log_id so second rejection reappears. */}
+            {user?.id && <RejectionPanel propertyId={property.id} userId={user.id} />}
             <DetailsSection title="Location">
               <FieldRow k="Building" v={view.building_name} pending={pendingFieldKeys.has("building_name")} live={property.building_name} />
               <FieldRow k="Address" v={view.street_address} pending={pendingFieldKeys.has("street_address")} live={property.street_address} />

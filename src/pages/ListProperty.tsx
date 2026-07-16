@@ -15,10 +15,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import posthog from "posthog-js";
 import { format } from "date-fns";
-import { CalendarIcon, CheckCircle2, Circle, AlertCircle, X, Eye, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, AlertCircle, X, Eye, Trash2 } from "lucide-react";
 import { getStatusDisplay } from "@/lib/propertyStatus";
 
 import Layout from "@/components/Layout";
+import { SpecField } from "@/components/property/SpecField";
+import { ensurePrimaryPhoto } from "@/lib/property-images";
+import RejectionPanel from "@/components/property-management/RejectionPanel";
+import StatusGuidance from "@/components/property-management/StatusGuidance";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -26,11 +30,13 @@ import { useListingSave } from "@/hooks/useListingSave";
 import { processPhotoForUpload } from "@/lib/photo";
 import { PHOTO_CONFIG } from "@/config/photo";
 import {
-  BHK_OPTIONS, PROPERTY_TYPE_OPTIONS, FURNISHING_OPTIONS, FURNISHING_ITEM_OPTIONS,
+  BHK_OPTIONS, PROPERTY_TYPE_OPTIONS, FURNISHING_OPTIONS,
   BUILDING_AMENITIES, PARKING_OPTIONS, FACING_OPTIONS, GAS_TYPE_OPTIONS,
   PET_POLICY_OPTIONS, INDIAN_STATES,
-  type FurnishingDetailItem,
 } from "@/config/property-form";
+import { type FurnishingDetailItem, buildAmenitiesJson } from "@/types/property";
+import { FurnishingEditor } from "@/components/property/FurnishingEditor";
+import { AmenitiesEditor } from "@/components/property/AmenitiesEditor";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -40,8 +46,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -62,20 +66,30 @@ type SectionStatus = "not_started" | "in_progress" | "complete" | "error";
 // still surfaces in the block toast + console.error.
 const DB_COLUMN_TO_SECTION: Record<string, SectionNum> = {
   building_name: 1, street_address: 1, locality: 1, city: 1, state: 1, pincode: 1, google_maps_url: 1,
+  landmark: 1,
   bhk: 2, property_type: 2, floor_number: 2, total_floors: 2, square_footage: 2, facing: 2, building_age_years: 2,
   listed_rent: 3, security_deposit_amount: 3, security_deposit_months: 3, society_maintenance_approx: 3,
   maintenance_included_in_rent: 3, available_from: 3,
+  notice_period_months: 3, annual_rent_increase_pct: 3,
+  // Prompt 10a (D-161) — sale fields share the Section-3 slot (Rent & Deposit ↔ Sale toggle).
+  listing_type: 3, sale_price: 3, price_negotiable: 3, expected_price_per_sqft: 3,
+  possession_status: 3, possession_date: 3, rera_registration_number: 3, khata_type: 3, property_tax_paid_upto: 3,
+  // Phase 1.5 addendum (D-166).
+  move_in_charges_amount: 3, rent_brokerage_type: 3, rent_brokerage_fixed_amount: 3, rent_brokerage_months: 3, sale_brokerage_pct: 3,
   furnishing: 4, furnishing_detail: 4, bathrooms: 4, balconies: 4,
   amenities: 5, parking_2w: 5, parking_4w: 5,
+  parking_2w_count: 5, parking_4w_count: 5, parking_notes: 5, water_storage: 5,
   utility_water_included: 5, utility_gas_included: 5, utility_electricity_included: 5, gas_type: 5,
   pet_policy: 6, building_rules: 6, building_notes: 6,
   youtube_walkthrough_url: 7,
   title: 8, description: 8,
 };
 
-interface CustomItem { name: string; count?: number }
+// D-170: CustomItem removed — customs now live inside furnishing_detail with `custom: true`.
 
 interface FormState {
+  // Prompt 10a (D-161) — listing_type at the top of the form; Rent vs Sale gate.
+  listing_type: string; // 'rent' | 'sale'
   // Section 1
   building_name: string;
   street_address: string;
@@ -84,6 +98,7 @@ interface FormState {
   state: string;
   pincode: string;
   google_maps_url: string;
+  landmark: string;                           // Prompt 8 — India field
   // Section 2
   bhk: string;
   property_type: string;
@@ -95,23 +110,41 @@ interface FormState {
   // Section 3
   listed_rent: string;
   security_deposit_amount: string;
+  security_deposit_months: string;
   society_maintenance_approx: string;
-  maintenance_included: boolean;
+  maintenance_included_in_rent: boolean;
   available_from: Date | undefined;
-  // Section 4
+  notice_period_months: string;               // Prompt 8 — India field
+  annual_rent_increase_pct: string;           // Prompt 8 — India field
+  // Phase 1.5 addendum (D-166) — move-in charges + rent brokerage.
+  move_in_charges_amount: string;
+  rent_brokerage_type: string;                // '' | 'none' | 'fixed' | 'months'
+  rent_brokerage_fixed_amount: string;
+  rent_brokerage_months: string;
+  // Prompt 10a — Sale-only fields (rendered when listing_type === 'sale').
+  sale_price: string;
+  price_negotiable: boolean;
+  expected_price_per_sqft: string;
+  possession_status: string;
+  possession_date: Date | undefined;
+  rera_registration_number: string;
+  khata_type: string;
+  property_tax_paid_upto: Date | undefined;
+  // Phase 1.5 addendum (D-166) — sale brokerage.
+  sale_brokerage_pct: string;
+  // Section 4 (D-170: canonicalized to JSONB shape)
   furnishing: string;
-  furnishing_items: string[];               // predefined items ticked
-  furnishing_counts: Record<string, number>;
-  furnishing_sizes: Record<string, string>;
-  furnishing_rooms: Record<string, string>;
-  custom_furnishing: CustomItem[];
+  furnishing_detail: FurnishingDetailItem[];
   bathrooms: string;
   balconies: string;
-  // Section 5
+  // Section 5 (D-170: flat array; custom items mixed with canonical)
   building_amenities: string[];
-  custom_amenities: string[];
   parking_2w: string;
   parking_4w: string;
+  parking_2w_count: string;                   // Prompt 8 — India field
+  parking_4w_count: string;                   // Prompt 8 — India field
+  parking_notes: string;                      // Prompt 8 — India field
+  water_storage: string;                      // Prompt 8 — India field
   water_included: boolean;
   gas_included: boolean;
   gas_type: string;
@@ -128,24 +161,33 @@ interface FormState {
   description: string;
   // Section 9
   consent: boolean;
+  terms_privacy_consent: boolean;
 }
 
 const INITIAL_STATE: FormState = {
+  listing_type: "rent",
+  sale_price: "", price_negotiable: false, expected_price_per_sqft: "",
+  possession_status: "", possession_date: undefined,
+  rera_registration_number: "", khata_type: "", property_tax_paid_upto: undefined,
+  sale_brokerage_pct: "",
   building_name: "", street_address: "", locality: "", city: "", state: "Karnataka",
-  pincode: "", google_maps_url: "",
+  pincode: "", google_maps_url: "", landmark: "",
   bhk: "", property_type: "", floor_number: "", total_floors: "", square_footage: "",
   facing: "", building_age_years: "",
-  listed_rent: "", security_deposit_amount: "", society_maintenance_approx: "",
-  maintenance_included: false, available_from: undefined,
-  furnishing: "", furnishing_items: [], furnishing_counts: {}, furnishing_sizes: {}, furnishing_rooms: {},
-  custom_furnishing: [], bathrooms: "", balconies: "",
-  building_amenities: [], custom_amenities: [],
+  listed_rent: "", security_deposit_amount: "", security_deposit_months: "", society_maintenance_approx: "",
+  maintenance_included_in_rent: false, available_from: undefined,
+  notice_period_months: "", annual_rent_increase_pct: "",
+  move_in_charges_amount: "", rent_brokerage_type: "", rent_brokerage_fixed_amount: "", rent_brokerage_months: "",
+  furnishing: "", furnishing_detail: [], bathrooms: "", balconies: "",
+  building_amenities: [],
   parking_2w: "none", parking_4w: "none",
+  parking_2w_count: "", parking_4w_count: "", parking_notes: "", water_storage: "",
   water_included: false, gas_included: false, gas_type: "", electricity_included: false,
   pet_policy: "", pet_policy_text: "", building_rules: "", building_notes: "",
   youtube_walkthrough_url: "",
   title: "", description: "",
   consent: false,
+  terms_privacy_consent: false,
 };
 
 interface PropertyImageRow {
@@ -165,34 +207,9 @@ const parseNum = (s: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-function buildFurnishingDetail(f: FormState): FurnishingDetailItem[] {
-  const items: FurnishingDetailItem[] = [];
-  for (const key of f.furnishing_items) {
-    const opt = FURNISHING_ITEM_OPTIONS.find((o) => o.value === key);
-    const entry: FurnishingDetailItem = { item: key };
-    if (opt && !opt.yesNoOnly) {
-      entry.count = f.furnishing_counts[key] ?? 1;
-    }
-    if (opt && "hasSize" in opt && opt.hasSize && f.furnishing_sizes[key]) {
-      entry.size = f.furnishing_sizes[key];
-    }
-    if (opt && "hasRooms" in opt && opt.hasRooms && f.furnishing_rooms[key]) {
-      entry.rooms = f.furnishing_rooms[key];
-    }
-    items.push(entry);
-  }
-  for (const c of f.custom_furnishing) {
-    if (c.name.trim()) items.push({ item: c.name.trim(), count: c.count, custom: true });
-  }
-  return items;
-}
-
-function buildAmenitiesJson(f: FormState) {
-  return {
-    building: [...f.building_amenities, ...f.custom_amenities.map((s) => s.trim()).filter(Boolean)],
-    furnishing_items: f.furnishing_items,
-  };
-}
+// D-170: buildFurnishingDetail + old buildAmenitiesJson removed — owner state
+// now holds furnishing_detail directly (JSONB shape). Amenities JSONB derived
+// via the shared @/types/property helper.
 
 function truncate(s: string, max: number): string {
   return s.length <= max ? s : s.slice(0, max - 1) + "…";
@@ -203,20 +220,6 @@ function truncate(s: string, max: number): string {
 function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<React.SetStateAction<FormState>>) {
   const amenities = (d.amenities as { building?: string[]; furnishing_items?: string[] } | null) ?? {};
   const furnDetail = (d.furnishing_detail as FurnishingDetailItem[] | null) ?? [];
-  const stdItems: string[] = [];
-  const counts: Record<string, number> = {};
-  const sizes: Record<string, string> = {};
-  const rooms: Record<string, string> = {};
-  const customs: CustomItem[] = [];
-  for (const item of furnDetail) {
-    if (item.custom) customs.push({ name: item.item, count: item.count });
-    else {
-      stdItems.push(item.item);
-      if (item.count) counts[item.item] = item.count;
-      if (item.size) sizes[item.item] = item.size;
-      if (item.rooms) rooms[item.item] = item.rooms;
-    }
-  }
   setForm({
     building_name: (d.building_name as string) ?? "",
     street_address: (d.street_address as string) ?? "",
@@ -225,6 +228,7 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     state: (d.state as string) ?? "Karnataka",
     pincode: (d.pincode as string) ?? "",
     google_maps_url: (d.google_maps_url as string) ?? "",
+    landmark: (d.landmark as string) ?? "",
     bhk: (d.bhk as string) ?? "",
     property_type: (d.property_type as string) ?? "",
     floor_number: d.floor_number != null ? String(d.floor_number) : "",
@@ -234,18 +238,28 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     building_age_years: d.building_age_years != null ? String(d.building_age_years) : "",
     listed_rent: d.listed_rent != null ? String(d.listed_rent) : "",
     security_deposit_amount: d.security_deposit_amount != null ? String(d.security_deposit_amount) : "",
+    security_deposit_months: d.security_deposit_months != null ? String(d.security_deposit_months) : "",
     society_maintenance_approx: d.society_maintenance_approx != null ? String(d.society_maintenance_approx) : "",
-    maintenance_included: !!d.maintenance_included_in_rent,
+    maintenance_included_in_rent: !!d.maintenance_included_in_rent,
     available_from: d.available_from ? new Date((d.available_from as string) + "T00:00:00") : undefined,
+    notice_period_months: d.notice_period_months != null ? String(d.notice_period_months) : "",
+    annual_rent_increase_pct: d.annual_rent_increase_pct != null ? String(d.annual_rent_increase_pct) : "",
+    // Phase 1.5 addendum (D-166).
+    move_in_charges_amount: d.move_in_charges_amount != null ? String(d.move_in_charges_amount) : "",
+    rent_brokerage_type: (d.rent_brokerage_type as string) ?? "",
+    rent_brokerage_fixed_amount: d.rent_brokerage_fixed_amount != null ? String(d.rent_brokerage_fixed_amount) : "",
+    rent_brokerage_months: d.rent_brokerage_months != null ? String(d.rent_brokerage_months) : "",
     furnishing: (d.furnishing as string) ?? "",
-    furnishing_items: stdItems, furnishing_counts: counts, furnishing_sizes: sizes, furnishing_rooms: rooms,
-    custom_furnishing: customs,
+    furnishing_detail: furnDetail,
     bathrooms: d.bathrooms != null ? String(d.bathrooms) : "",
     balconies: d.balconies != null ? String(d.balconies) : "",
-    building_amenities: (amenities.building ?? []).filter((a) => BUILDING_AMENITIES.some((b) => b.value === a)),
-    custom_amenities: (amenities.building ?? []).filter((a) => !BUILDING_AMENITIES.some((b) => b.value === a)),
+    building_amenities: amenities.building ?? [],
     parking_2w: (d.parking_2w as string) ?? "none",
     parking_4w: (d.parking_4w as string) ?? "none",
+    parking_2w_count: d.parking_2w_count != null ? String(d.parking_2w_count) : "",
+    parking_4w_count: d.parking_4w_count != null ? String(d.parking_4w_count) : "",
+    parking_notes: (d.parking_notes as string) ?? "",
+    water_storage: (d.water_storage as string) ?? "",
     water_included: !!d.utility_water_included,
     gas_included: !!d.utility_gas_included,
     gas_type: (d.gas_type as string) ?? "",
@@ -258,30 +272,67 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     title: (d.title as string) ?? "",
     description: (d.description as string) ?? "",
     consent: false,
+    terms_privacy_consent: false,
+    // Prompt 10a — rent/sale.
+    listing_type: (d.listing_type as string) ?? "rent",
+    sale_price: d.sale_price != null ? String(d.sale_price) : "",
+    price_negotiable: !!d.price_negotiable,
+    expected_price_per_sqft: d.expected_price_per_sqft != null ? String(d.expected_price_per_sqft) : "",
+    possession_status: (d.possession_status as string) ?? "",
+    possession_date: d.possession_date ? new Date((d.possession_date as string) + "T00:00:00") : undefined,
+    rera_registration_number: (d.rera_registration_number as string) ?? "",
+    khata_type: (d.khata_type as string) ?? "",
+    property_tax_paid_upto: d.property_tax_paid_upto ? new Date((d.property_tax_paid_upto as string) + "T00:00:00") : undefined,
+    sale_brokerage_pct: d.sale_brokerage_pct != null ? String(d.sale_brokerage_pct) : "",
   });
 }
 
 // Section-status computations
-function computeSectionStatus(section: SectionNum, f: FormState, imageCount: number, errored: Set<SectionNum>): SectionStatus {
+function computeSectionStatus(
+  section: SectionNum,
+  f: FormState,
+  imageCount: number,
+  errored: Set<SectionNum>,
+  openedSections: Set<SectionNum>,
+): SectionStatus {
   const isErrored = errored.has(section);
-  const complete = isSectionComplete(section, f, imageCount);
+  const complete = isSectionComplete(section, f, imageCount, openedSections);
   if (complete) return "complete";
   if (isErrored) return "error";
   if (isSectionTouched(section, f, imageCount)) return "in_progress";
   return "not_started";
 }
 
-function isSectionComplete(section: SectionNum, f: FormState, imageCount: number): boolean {
+/**
+ * Sections 5/6/8 have zero required fields. Per D-144 they stay ⚪ until the
+ * user has opened them at least once OR entered any field. `openedSections`
+ * carries the "opened" signal; `isSectionTouched` covers the "has data" signal.
+ * Sections 1/2/3/4/7/9 have required fields → completion still derived from data.
+ */
+function isSectionComplete(
+  section: SectionNum,
+  f: FormState,
+  imageCount: number,
+  openedSections: Set<SectionNum>,
+): boolean {
   switch (section) {
     case 1: return !!(f.building_name.trim() && f.street_address.trim() && f.locality.trim() && f.city.trim() && f.state);
     case 2: return !!(f.bhk && f.property_type);
-    case 3: return !!(parseNum(f.listed_rent) && parseNum(f.security_deposit_amount) && f.available_from);
+    case 3: {
+      // Prompt 10a (D-161): Section-3 slot flips between Rent & Deposit and
+      // Sale Details based on listing_type. Required-field set differs.
+      if (f.listing_type === "sale") {
+        const needsPossessionDate = f.possession_status === "under_construction";
+        return !!(parseNum(f.sale_price) && f.possession_status && (!needsPossessionDate || f.possession_date));
+      }
+      return !!(parseNum(f.listed_rent) && parseNum(f.security_deposit_amount) && f.available_from);
+    }
     case 4: return !!f.furnishing;
-    case 5: return true; // optional
-    case 6: return true; // optional
+    case 5: return openedSections.has(5) || isSectionTouched(5, f, imageCount);
+    case 6: return openedSections.has(6) || isSectionTouched(6, f, imageCount);
     case 7: return imageCount >= PHOTO_CONFIG.upload.minCount;
-    case 8: return true; // optional
-    case 9: return f.consent;
+    case 8: return openedSections.has(8) || isSectionTouched(8, f, imageCount);
+    case 9: return f.consent && f.terms_privacy_consent;
   }
 }
 
@@ -289,13 +340,18 @@ function isSectionTouched(section: SectionNum, f: FormState, imageCount: number)
   switch (section) {
     case 1: return !!(f.building_name || f.street_address || f.locality || f.city || f.pincode || f.google_maps_url);
     case 2: return !!(f.bhk || f.property_type || f.floor_number || f.total_floors || f.square_footage || f.facing || f.building_age_years);
-    case 3: return !!(f.listed_rent || f.security_deposit_amount || f.society_maintenance_approx || f.maintenance_included || f.available_from);
-    case 4: return !!(f.furnishing || f.furnishing_items.length || f.custom_furnishing.length || f.bathrooms || f.balconies);
-    case 5: return !!(f.building_amenities.length || f.custom_amenities.length || f.parking_2w !== "none" || f.parking_4w !== "none" || f.water_included || f.gas_included || f.electricity_included);
+    case 3: {
+      if (f.listing_type === "sale") {
+        return !!(f.sale_price || f.possession_status || f.possession_date || f.expected_price_per_sqft || f.rera_registration_number || f.khata_type || f.property_tax_paid_upto || f.price_negotiable);
+      }
+      return !!(f.listed_rent || f.security_deposit_amount || f.society_maintenance_approx || f.maintenance_included_in_rent || f.available_from);
+    }
+    case 4: return !!(f.furnishing || f.furnishing_detail.length || f.bathrooms || f.balconies);
+    case 5: return !!(f.building_amenities.length || f.parking_2w !== "none" || f.parking_4w !== "none" || f.water_included || f.gas_included || f.electricity_included);
     case 6: return !!(f.pet_policy || f.building_rules || f.building_notes);
     case 7: return imageCount > 0 || !!f.youtube_walkthrough_url;
     case 8: return !!(f.title || f.description);
-    case 9: return f.consent;
+    case 9: return f.consent || f.terms_privacy_consent;
   }
 }
 
@@ -313,6 +369,13 @@ function sectionSummary(section: SectionNum, f: FormState, images: PropertyImage
       return t(parts.filter(Boolean).join(" · "));
     }
     case 3: {
+      if (f.listing_type === "sale") {
+        const price = parseNum(f.sale_price);
+        const parts: string[] = [];
+        if (price) parts.push(`₹${price.toLocaleString("en-IN")}`);
+        if (f.possession_status) parts.push(f.possession_status.replace(/_/g, " "));
+        return t(parts.join(" · "));
+      }
       const rent = parseNum(f.listed_rent);
       const dep = parseNum(f.security_deposit_amount);
       const parts: string[] = [];
@@ -322,7 +385,7 @@ function sectionSummary(section: SectionNum, f: FormState, images: PropertyImage
     }
     case 4: {
       const type = FURNISHING_OPTIONS.find((o) => o.value === f.furnishing)?.label ?? "";
-      const count = f.furnishing_items.length + f.custom_furnishing.filter((c) => c.name).length;
+      const count = f.furnishing_detail.filter((it) => !it.custom || it.item.trim()).length;
       return t([type, count ? `${count} items` : ""].filter(Boolean).join(" · "));
     }
     case 5: {
@@ -380,6 +443,10 @@ export default function ListProperty() {
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
   const [openAccordion, setOpenAccordion] = useState<string>("section-1");
   const [erroredSections, setErroredSections] = useState<Set<SectionNum>>(new Set());
+  // A1 (D-144) — sections user has opened at least once. Optional-only sections
+  // stay ⚪ until they appear in this set OR any of their fields become truthy.
+  // Initial section (1) auto-counted since the accordion opens on section-1.
+  const [openedSections, setOpenedSections] = useState<Set<SectionNum>>(new Set([1]));
   const [showPreview, setShowPreview] = useState(false);
   const [showDraftLimit, setShowDraftLimit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -393,8 +460,7 @@ export default function ListProperty() {
   const [pendingEdit, setPendingEdit] = useState<PendingEditRow | null>(null);
   const [editRequestPayload, setEditRequestPayload] = useState<EditRequestPayload>(EMPTY_EDIT_PAYLOAD);
   const [modifyingEdit, setModifyingEdit] = useState(false);
-  const [showChangesBanner, setShowChangesBanner] = useState(false);
-  const [changesRejectionText, setChangesRejectionText] = useState<string>("");
+  // Prompt 11: rejection state removed — RejectionPanel owns fetch + ack (D-141).
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [pendingRestore, setPendingRestore] = useState<EditRequestPayload | null>(null);
@@ -540,28 +606,8 @@ export default function ListProperty() {
           });
         }
       }
-      // Load latest rejected edit_request for changes_requested banner text
-      if (status === "changes_requested") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: rej } = await (supabase as any)
-          .from("property_edit_requests")
-          .select("id, rejection_reason_text, rejection_reason")
-          .eq("property_id", idParam)
-          .eq("status", "rejected")
-          .order("reviewed_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: ack } = await (supabase as any)
-          .from("owner_action_acknowledgments")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("target_type", "property")
-          .eq("target_id", idParam)
-          .maybeSingle();
-        setChangesRejectionText(rej?.rejection_reason_text ?? rej?.rejection_reason ?? "Please address the requested changes and resubmit.");
-        setShowChangesBanner(!ack);
-      }
+      // Prompt 11: rejection reason fetch + ack query moved into RejectionPanel (D-141).
+
 
       const merged = pending ? { ...prop, ...pending.payload.field_changes } : prop;
       prefillFormFromRow(merged, setForm);
@@ -624,10 +670,10 @@ export default function ListProperty() {
   const sectionStatuses = useMemo(() => {
     const map = {} as Record<SectionNum, SectionStatus>;
     for (const s of [1, 2, 3, 4, 5, 6, 7, 8, 9] as SectionNum[]) {
-      map[s] = computeSectionStatus(s, form, images.length, erroredSections);
+      map[s] = computeSectionStatus(s, form, images.length, erroredSections, openedSections);
     }
     return map;
-  }, [form, images.length, erroredSections]);
+  }, [form, images.length, erroredSections, openedSections]);
 
   const requiredComplete = REQUIRED_SECTIONS.filter((s) => sectionStatuses[s] === "complete").length;
 
@@ -828,6 +874,17 @@ export default function ListProperty() {
             section, sort_order: 0,
           }]);
         }
+        // Sync Prompt 1 (D-167) — auto-select first upload as cover if property has no primary yet.
+        // Client-side prevHadPrimary check keeps local state consistent with the DB update.
+        // In edit_pending_review path (Path B) the listed property usually already has a primary
+        // — helper no-ops in that case.
+        if (propertyId) {
+          const prevHadPrimary = images.some((i) => i.is_primary);
+          await ensurePrimaryPhoto(propertyId, json.id);
+          if (!prevHadPrimary) {
+            setImages((prev) => prev.map((i) => (i.id === json.id ? { ...i, is_primary: true } : i)));
+          }
+        }
       } else {
         toast({ title: json.error || "Upload failed", variant: "destructive" });
       }
@@ -1012,10 +1069,11 @@ export default function ListProperty() {
     facing: form.facing,
     listed_rent: form.listed_rent, security_deposit_amount: form.security_deposit_amount,
     society_maintenance_approx: form.society_maintenance_approx,
-    maintenance_included: form.maintenance_included,
+    maintenance_included: form.maintenance_included_in_rent,  // preview payload key is intentional (renders "Included")
     available_from: form.available_from ? format(form.available_from, "PP") : "",
-    furnishing_detail: buildFurnishingDetail(form),
-    building_amenities: form.building_amenities, custom_amenities: form.custom_amenities,
+    furnishing_detail: form.furnishing_detail,
+    building_amenities: form.building_amenities.filter((v) => BUILDING_AMENITIES.some((b) => b.value === v)),
+    custom_amenities: form.building_amenities.filter((v) => !BUILDING_AMENITIES.some((b) => b.value === v)),
     parking_2w: PARKING_OPTIONS.find((o) => o.value === form.parking_2w)?.label ?? form.parking_2w,
     parking_4w: PARKING_OPTIONS.find((o) => o.value === form.parking_4w)?.label ?? form.parking_4w,
     water_included: form.water_included, gas_included: form.gas_included, gas_type: form.gas_type,
@@ -1136,16 +1194,7 @@ export default function ListProperty() {
     navigate("/my-properties", { replace: true });
   }, [propertyId, pendingEdit, cancelling, toast, navigate]);
 
-  // ─── Acknowledge changes_requested banner ────────────────────────────────
-  const acknowledgeBanner = useCallback(async () => {
-    if (!propertyId || !user?.id) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
-      .from("owner_action_acknowledgments")
-      .insert({ user_id: user.id, target_type: "property", target_id: propertyId });
-    setShowChangesBanner(false);
-    posthog?.capture("commons_banner_acknowledged", { property_id: propertyId, target_type: "property" });
-  }, [propertyId, user?.id]);
+  // Prompt 11: acknowledgeBanner removed — RejectionPanel owns the upsert with activity_log_id (D-141).
 
   // ─── Session-expired modal state derived from useListingSave ─────────────
   const sessionExpired = saveState === "session_expired";
@@ -1180,19 +1229,13 @@ export default function ListProperty() {
           </div>
         )}
 
-        {/* Changes-requested banner */}
-        {showChangesBanner && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-amber-800">Admin requested changes</p>
-                <p className="text-sm text-amber-700 mt-1 whitespace-pre-line">{changesRejectionText}</p>
-              </div>
-              <Button size="sm" variant="ghost" onClick={acknowledgeBanner} className="shrink-0 h-8 text-xs">
-                OK, got it
-              </Button>
-            </div>
+        {/* Prompt 11 (H1/H2/H3, D-138/D-140/D-141): in edit mode, always-visible
+            StatusGuidance + persistent RejectionPanel (both self-contained; ack
+            scoped to activity_log_id so a second admin rejection reappears). */}
+        {isEditMode && propertyId && entryStatus !== "loading" && entryStatus !== "blocked" && entryStatus !== "create" && (
+          <div className="mb-4 space-y-3">
+            <StatusGuidance status={entryStatus} />
+            {user?.id && <RejectionPanel propertyId={propertyId} userId={user.id} />}
           </div>
         )}
 
@@ -1226,60 +1269,132 @@ export default function ListProperty() {
           </div>
         </header>
 
-        <Accordion type="single" collapsible value={openAccordion} onValueChange={setOpenAccordion} className={cn("w-full", readOnly && "opacity-70 pointer-events-none select-none")}>
-          {/* Section 1 */}
-          <SectionShell num={1} title="Where is your property?" status={sectionStatuses[1]} summary={sectionSummary(1, form, images)}>
+        {/* Prompt 10a (D-161) — listing_type toggle above the accordion. Tier-1
+            locked for owner post-draft; admin can change (Prompt 10b wires admin).
+            Trigger validates listing_type-branched required fields on server side
+            (D-160). UI validates first. */}
+        <div className="mb-6">
+          <SpecField
+            fieldKey="listing_type"
+            surface="owner_form"
+            value={form.listing_type}
+            onChange={(v: string) => updateField("listing_type", v)}
+            readOnly={entryStatus !== "create" && entryStatus !== "draft" && entryStatus !== "changes_requested"}
+            className="max-w-xs"
+          />
+        </div>
+
+        <Accordion type="single" collapsible value={openAccordion} onValueChange={(v) => {
+          setOpenAccordion(v);
+          // A1 (D-144): record which sections the user has opened so optional-only
+          // sections (5, 6, 8) can transition from ⚪ to ✅ on first open.
+          const match = v?.match(/^section-(\d+)$/);
+          if (match) {
+            const sec = Number(match[1]) as SectionNum;
+            setOpenedSections((prev) => (prev.has(sec) ? prev : new Set(prev).add(sec)));
+          }
+        }} className={cn("w-full", readOnly && "opacity-70 pointer-events-none select-none")}>
+          {/* Section 1 — scalar rendering driven by PROPERTY_FIELDS spec (D-128, D-155). JSONB sections remain bespoke. */}
+          <SectionShell num={1} title="Where is your property?" status={sectionStatuses[1]} summary={sectionSummary(1, form, images)} required>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Building name *"><Input value={form.building_name} onChange={(e) => updateField("building_name", e.target.value)} placeholder="e.g. Prestige Lakeside" className="min-h-[44px]" /></FormField>
-              <FormField label="Full address *"><Input value={form.street_address} onChange={(e) => updateField("street_address", e.target.value)} placeholder="Street, block, unit" className="min-h-[44px]" /></FormField>
-              <FormField label="Locality *"><Input value={form.locality} onChange={(e) => updateField("locality", e.target.value)} placeholder="e.g. Koramangala" className="min-h-[44px]" /></FormField>
-              <FormField label="City *"><Input value={form.city} onChange={(e) => updateField("city", e.target.value)} placeholder="e.g. Bangalore" className="min-h-[44px]" /></FormField>
-              <FormField label="State *">
-                <Select value={form.state} onValueChange={(v) => updateField("state", v)}>
-                  <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>{INDIAN_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
-              </FormField>
+              <SpecField fieldKey="building_name" surface="owner_form" value={form.building_name} onChange={(v: string) => updateField("building_name", v)} />
+              <SpecField fieldKey="street_address" surface="owner_form" value={form.street_address} onChange={(v: string) => updateField("street_address", v)} />
+              <SpecField fieldKey="locality" surface="owner_form" value={form.locality} onChange={(v: string) => updateField("locality", v)} />
+              <SpecField fieldKey="city" surface="owner_form" value={form.city} onChange={(v: string) => updateField("city", v)} />
+              <SpecField fieldKey="state" surface="owner_form" value={form.state} onChange={(v: string) => updateField("state", v)} />
+              {/* Country — hardcoded UI element, not a DB column. Not in PROPERTY_FIELDS. */}
               <FormField label="Country"><Input value="India" disabled className="min-h-[44px]" /></FormField>
-              <FormField label="Pincode"><Input value={form.pincode} onChange={(e) => updateField("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="560095" className="min-h-[44px]" /></FormField>
-              <FormField label="Google Maps link" hint="Paste a Maps link so tenants know exactly where it is">
-                <Input value={form.google_maps_url} onChange={(e) => updateField("google_maps_url", e.target.value)} placeholder="https://maps.google.com/..." className="min-h-[44px]" />
-              </FormField>
+              {/* pincode: caller owns the digit-only transform; spec has pattern but no transformer. */}
+              <SpecField
+                fieldKey="pincode"
+                surface="owner_form"
+                value={form.pincode}
+                onChange={(v: string) => updateField("pincode", v.replace(/\D/g, "").slice(0, 6))}
+              />
+              <SpecField fieldKey="google_maps_url" surface="owner_form" value={form.google_maps_url} onChange={(v: string) => updateField("google_maps_url", v)} />
+              <SpecField fieldKey="landmark" surface="owner_form" value={form.landmark} onChange={(v: string) => updateField("landmark", v)} />
             </div>
           </SectionShell>
 
-          {/* Section 2 */}
-          <SectionShell num={2} title="The basics" status={sectionStatuses[2]} summary={sectionSummary(2, form, images)}>
+          {/* Section 2 — scalar rendering driven by PROPERTY_FIELDS spec (D-128, D-155). */}
+          <SectionShell num={2} title="The basics" status={sectionStatuses[2]} summary={sectionSummary(2, form, images)} required>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="BHK *">
-                <Select value={form.bhk} onValueChange={(v) => updateField("bhk", v)}>
-                  <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>{BHK_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Property type *">
-                <Select value={form.property_type} onValueChange={(v) => updateField("property_type", v)}>
-                  <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>{PROPERTY_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Floor number"><Input type="number" value={form.floor_number} onChange={(e) => updateField("floor_number", e.target.value)} className="min-h-[44px]" /></FormField>
-              <FormField label="Total floors"><Input type="number" value={form.total_floors} onChange={(e) => updateField("total_floors", e.target.value)} className="min-h-[44px]" /></FormField>
-              <FormField label="Carpet area (sqft)"><Input type="number" value={form.square_footage} onChange={(e) => updateField("square_footage", e.target.value)} className="min-h-[44px]" /></FormField>
-              <FormField label="Facing" hint="Helps tenants who care about sunlight">
-                <Select value={form.facing} onValueChange={(v) => updateField("facing", v)}>
-                  <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Optional" /></SelectTrigger>
-                  <SelectContent>{FACING_OPTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Building age (years)"><Input type="number" value={form.building_age_years} onChange={(e) => updateField("building_age_years", e.target.value)} className="min-h-[44px]" /></FormField>
+              <SpecField fieldKey="bhk" surface="owner_form" value={form.bhk} onChange={(v: string) => updateField("bhk", v)} />
+              <SpecField fieldKey="property_type" surface="owner_form" value={form.property_type} onChange={(v: string) => updateField("property_type", v)} />
+              <SpecField fieldKey="floor_number" surface="owner_form" value={form.floor_number} onChange={(v: string) => updateField("floor_number", v)} />
+              <SpecField fieldKey="total_floors" surface="owner_form" value={form.total_floors} onChange={(v: string) => updateField("total_floors", v)} />
+              <SpecField fieldKey="square_footage" surface="owner_form" value={form.square_footage} onChange={(v: string) => updateField("square_footage", v)} />
+              {/* TODO(spec): fold helper into PROPERTY_FIELDS.facing.helper in Prompt 6 bundle */}
+              <SpecField
+                fieldKey="facing"
+                surface="owner_form"
+                value={form.facing}
+                onChange={(v: string) => updateField("facing", v)}
+                helperOverride="Helps tenants who care about sunlight"
+                placeholderOverride="Optional"
+              />
+              <SpecField fieldKey="building_age_years" surface="owner_form" value={form.building_age_years} onChange={(v: string) => updateField("building_age_years", v)} />
             </div>
           </SectionShell>
 
-          {/* Section 3 */}
-          <SectionShell num={3} title="Rent & Deposit" status={sectionStatuses[3]} summary={sectionSummary(3, form, images)}>
+          {/* Section 3 — Prompt 10a (D-161): dual-mode. Title, body, and required-field
+              set switch on form.listing_type. Sale mode renders under "Sale Details";
+              rent mode retains the pre-Prompt-10 Rent & Deposit body verbatim. */}
+          <SectionShell
+            num={3}
+            title={form.listing_type === "sale" ? "Sale Details" : "Rent & Deposit"}
+            status={sectionStatuses[3]}
+            summary={sectionSummary(3, form, images)}
+            required
+          >
+            {form.listing_type === "sale" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <SpecField fieldKey="sale_price" surface="owner_form" value={form.sale_price} onChange={(v: string) => updateField("sale_price", v)} />
+                <SpecField fieldKey="expected_price_per_sqft" surface="owner_form" value={form.expected_price_per_sqft} onChange={(v: string) => updateField("expected_price_per_sqft", v)} />
+                <SpecField fieldKey="price_negotiable" surface="owner_form" value={form.price_negotiable} onChange={(v: boolean) => updateField("price_negotiable", v)} />
+                <SpecField fieldKey="possession_status" surface="owner_form" value={form.possession_status} onChange={(v: string) => updateField("possession_status", v)} />
+                {/* D-168: spec-driven date field. visibleWhen gates render on possession_status === 'under_construction'.
+                    SpecField's generic T is `unknown`: value is a Date, onChange emits ISO string | null. Cast bridges the two. */}
+                <SpecField
+                  fieldKey="possession_date"
+                  surface="owner_form"
+                  value={form.possession_date as unknown}
+                  onChange={((iso: string | null) =>
+                    updateField(
+                      "possession_date",
+                      iso ? new Date(iso + "T00:00:00") : undefined,
+                      { possession_date: iso ?? null },
+                    )) as (v: unknown) => void}
+                  formValues={{ possession_status: form.possession_status }}
+                />
+                <SpecField fieldKey="rera_registration_number" surface="owner_form" value={form.rera_registration_number} onChange={(v: string) => updateField("rera_registration_number", v)} />
+                <SpecField fieldKey="khata_type" surface="owner_form" value={form.khata_type} onChange={(v: string) => updateField("khata_type", v)} />
+                {/* D-168: spec-driven date field (no warnOnPast, no maxDaysFromNow). */}
+                <SpecField
+                  fieldKey="property_tax_paid_upto"
+                  surface="owner_form"
+                  value={form.property_tax_paid_upto as unknown}
+                  onChange={((iso: string | null) =>
+                    updateField(
+                      "property_tax_paid_upto",
+                      iso ? new Date(iso + "T00:00:00") : undefined,
+                      { property_tax_paid_upto: iso ?? null },
+                    )) as (v: unknown) => void}
+                />
+                {/* Phase 1.5 addendum (D-166) — sale brokerage. */}
+                <SpecField
+                  fieldKey="sale_brokerage_pct"
+                  surface="owner_form"
+                  value={form.sale_brokerage_pct}
+                  onChange={(v: string) => updateField("sale_brokerage_pct", v)}
+                  formValues={{ listing_type: form.listing_type }}
+                />
+              </div>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Monthly rent (₹) *"><Input type="number" value={form.listed_rent} onChange={(e) => updateField("listed_rent", e.target.value)} placeholder="35000" className="min-h-[44px]" /></FormField>
+              <SpecField fieldKey="listed_rent" surface="owner_form" value={form.listed_rent} onChange={(v: string) => updateField("listed_rent", v)} />
+              {/* Bespoke: security_deposit_amount input + 1/2/3-month convenience chips.
+                  D-171: chips now write BOTH the amount and security_deposit_months. */}
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">Security deposit (₹) *</Label>
                 <Input type="number" value={form.security_deposit_amount} onChange={(e) => updateField("security_deposit_amount", e.target.value)} placeholder="70000" className="min-h-[44px]" />
@@ -1287,7 +1402,11 @@ export default function ListProperty() {
                   <div className="flex gap-1.5 pt-1">
                     {[1, 2, 3].map((n) => (
                       <button key={n} type="button"
-                        onClick={() => updateField("security_deposit_amount", String((parseNum(form.listed_rent) ?? 0) * n))}
+                        onClick={() => {
+                          const amount = String((parseNum(form.listed_rent) ?? 0) * n);
+                          setForm((f) => ({ ...f, security_deposit_amount: amount, security_deposit_months: String(n) }));
+                          patch({ security_deposit_amount: parseNum(amount), security_deposit_months: n });
+                        }}
                         className="text-xs px-2 py-1 rounded border border-border hover:bg-accent text-muted-foreground">
                         {n} month{n > 1 ? "s" : ""}
                       </button>
@@ -1295,26 +1414,79 @@ export default function ListProperty() {
                   </div>
                 ) : null}
               </div>
-              <FormField label="Society maintenance (₹)"><Input type="number" value={form.society_maintenance_approx} onChange={(e) => updateField("society_maintenance_approx", e.target.value)} className="min-h-[44px]" /></FormField>
-              <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
-                <div><Label className="text-sm font-medium">Maintenance included in rent</Label>
-                  <p className="text-xs text-muted-foreground">Tenants see "Included" instead of a separate amount</p></div>
-                <Switch checked={form.maintenance_included} onCheckedChange={(v) => updateField("maintenance_included", v, { maintenance_included_in_rent: v })} />
+              {/* D-171: standalone months input; spec visibleWhen gates on listing_type !== 'sale'. */}
+              <SpecField
+                fieldKey="security_deposit_months"
+                surface="owner_form"
+                value={form.security_deposit_months}
+                onChange={(v: string) => updateField("security_deposit_months", v)}
+                formValues={{ listing_type: form.listing_type }}
+              />
+              <SpecField fieldKey="society_maintenance_approx" surface="owner_form" value={form.society_maintenance_approx} onChange={(v: string) => updateField("society_maintenance_approx", v)} />
+              {/* D-171: FormState key renamed to match DB column; bridge removed. */}
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div><Label className="text-sm font-medium">Maintenance included in rent</Label>
+                    <p className="text-xs text-muted-foreground">Tenants see "Included" instead of a separate amount</p></div>
+                  <Switch checked={form.maintenance_included_in_rent} onCheckedChange={(v) => updateField("maintenance_included_in_rent", v)} />
+                </div>
               </div>
-              <FormField label="Available from *">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full min-h-[44px] justify-start", !form.available_from && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {form.available_from ? format(form.available_from, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={form.available_from} onSelect={(d) => updateField("available_from", d, { available_from: d ? format(d, "yyyy-MM-dd") : null })} className="p-3 pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              </FormField>
+              {/* D-168: spec-driven date field. warnOnPast + maxDaysFromNow:90 come from datePickerOptions (D-146 preserved). */}
+              <SpecField
+                fieldKey="available_from"
+                surface="owner_form"
+                value={form.available_from as unknown}
+                onChange={((iso: string | null) =>
+                  updateField(
+                    "available_from",
+                    iso ? new Date(iso + "T00:00:00") : undefined,
+                    { available_from: iso ?? null },
+                  )) as (v: unknown) => void}
+              />
+              {/* Prompt 8 India fields — spec-driven scalars in the same Section-3 grid.
+                  Prompt 10a: both fields carry visibleWhen: (v) => v.listing_type !== 'sale';
+                  they're inside the rent branch anyway, but formValues is passed so the
+                  predicate is honored consistently if the branch guard changes later. */}
+              <SpecField fieldKey="notice_period_months" surface="owner_form" value={form.notice_period_months} onChange={(v: string) => updateField("notice_period_months", v)} formValues={form as unknown as Record<string, unknown>} />
+              <SpecField fieldKey="annual_rent_increase_pct" surface="owner_form" value={form.annual_rent_increase_pct} onChange={(v: string) => updateField("annual_rent_increase_pct", v)} formValues={form as unknown as Record<string, unknown>} />
+              {/* Phase 1.5 addendum (D-166) — One-time charges sub-heading + move-in +
+                  brokerage. Section 3 hit 10 fields in rent mode; the divider prevents
+                  a wall-of-inputs feel. col-span-2 spans both grid columns. */}
+              <div className="sm:col-span-2 mt-2 pt-2 border-t border-border/60">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">One-time charges</p>
+              </div>
+              <SpecField
+                fieldKey="move_in_charges_amount"
+                surface="owner_form"
+                value={form.move_in_charges_amount}
+                onChange={(v: string) => updateField("move_in_charges_amount", v)}
+                formValues={{ listing_type: form.listing_type }}
+              />
+              <SpecField
+                fieldKey="rent_brokerage_type"
+                surface="owner_form"
+                value={form.rent_brokerage_type}
+                onChange={(v: string) => updateField("rent_brokerage_type", v)}
+                formValues={{ listing_type: form.listing_type }}
+              />
+              {/* D-169: brokerage amount split into two typed columns.
+                  Spec visibleWhen gates each to the matching rent_brokerage_type value. */}
+              <SpecField
+                fieldKey="rent_brokerage_fixed_amount"
+                surface="owner_form"
+                value={form.rent_brokerage_fixed_amount}
+                onChange={(v: string) => updateField("rent_brokerage_fixed_amount", v)}
+                formValues={{ listing_type: form.listing_type, rent_brokerage_type: form.rent_brokerage_type }}
+              />
+              <SpecField
+                fieldKey="rent_brokerage_months"
+                surface="owner_form"
+                value={form.rent_brokerage_months}
+                onChange={(v: string) => updateField("rent_brokerage_months", v)}
+                formValues={{ listing_type: form.listing_type, rent_brokerage_type: form.rent_brokerage_type }}
+              />
             </div>
+            )}
           </SectionShell>
 
           {/* Section 4 */}
@@ -1326,63 +1498,17 @@ export default function ListProperty() {
                   <SelectContent>{FURNISHING_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </FormField>
-              <div>
-                <Label className="text-sm font-medium">What's already there?</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                  {FURNISHING_ITEM_OPTIONS.map((opt) => {
-                    const checked = form.furnishing_items.includes(opt.value);
-                    return (
-                      <label key={opt.value} className={cn("flex items-center gap-2 rounded border p-2", checked && "border-primary bg-accent/30")}>
-                        <Checkbox checked={checked}
-                          onCheckedChange={() => {
-                            const next = checked ? form.furnishing_items.filter((v) => v !== opt.value) : [...form.furnishing_items, opt.value];
-                            setForm((f) => ({ ...f, furnishing_items: next }));
-                            patch({ furnishing_detail: buildFurnishingDetail({ ...form, furnishing_items: next }), amenities: buildAmenitiesJson({ ...form, furnishing_items: next }) });
-                          }} />
-                        <span className="text-sm flex-1">{opt.label}</span>
-                        {checked && !opt.yesNoOnly && (
-                          <Input type="number" min={1} max={20} value={form.furnishing_counts[opt.value] ?? 1}
-                            onChange={(e) => {
-                              const counts = { ...form.furnishing_counts, [opt.value]: Number(e.target.value) || 1 };
-                              setForm((f) => ({ ...f, furnishing_counts: counts }));
-                              patch({ furnishing_detail: buildFurnishingDetail({ ...form, furnishing_counts: counts }) });
-                            }}
-                            className="w-14 h-8 text-sm" />
-                        )}
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-sm font-medium">Something else? Add it</Label>
-                  <button type="button" onClick={() => setForm((f) => ({ ...f, custom_furnishing: [...f.custom_furnishing, { name: "" }] }))} className="text-sm text-primary hover:underline">+ Add item</button>
-                </div>
-                {form.custom_furnishing.map((c, i) => (
-                  <div key={i} className="flex items-center gap-2 mb-2">
-                    <Input value={c.name} placeholder="e.g. Study table"
-                      onChange={(e) => {
-                        const list = [...form.custom_furnishing]; list[i] = { ...list[i], name: e.target.value };
-                        setForm((f) => ({ ...f, custom_furnishing: list }));
-                        patch({ furnishing_detail: buildFurnishingDetail({ ...form, custom_furnishing: list }) });
-                      }}
-                      className="min-h-[40px] flex-1" />
-                    <Input type="number" min={1} value={c.count ?? 1} placeholder="Qty"
-                      onChange={(e) => {
-                        const list = [...form.custom_furnishing]; list[i] = { ...list[i], count: Number(e.target.value) || 1 };
-                        setForm((f) => ({ ...f, custom_furnishing: list }));
-                        patch({ furnishing_detail: buildFurnishingDetail({ ...form, custom_furnishing: list }) });
-                      }}
-                      className="w-20 h-10" />
-                    <button type="button" onClick={() => {
-                      const list = form.custom_furnishing.filter((_, j) => j !== i);
-                      setForm((f) => ({ ...f, custom_furnishing: list }));
-                      patch({ furnishing_detail: buildFurnishingDetail({ ...form, custom_furnishing: list }) });
-                    }}><Trash2 className="h-4 w-4 text-muted-foreground" /></button>
-                  </div>
-                ))}
-              </div>
+              {/* D-170: shared JSONB editor. Same component used on admin form. */}
+              <FurnishingEditor
+                value={form.furnishing_detail}
+                onChange={(updated) => {
+                  setForm((f) => ({ ...f, furnishing_detail: updated }));
+                  patch({
+                    furnishing_detail: updated,
+                    amenities: buildAmenitiesJson(form.building_amenities, updated),
+                  });
+                }}
+              />
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Bathrooms"><Input type="number" min={1} max={10} value={form.bathrooms} onChange={(e) => updateField("bathrooms", e.target.value)} className="min-h-[44px]" /></FormField>
                 <FormField label="Balconies"><Input type="number" min={0} max={10} value={form.balconies} onChange={(e) => updateField("balconies", e.target.value)} className="min-h-[44px]" /></FormField>
@@ -1393,45 +1519,17 @@ export default function ListProperty() {
           {/* Section 5 */}
           <SectionShell num={5} title="Building & Society" status={sectionStatuses[5]} summary={sectionSummary(5, form, images)}>
             <div className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium">Building amenities</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                  {BUILDING_AMENITIES.map((a) => {
-                    const checked = form.building_amenities.includes(a.value);
-                    return (
-                      <label key={a.value} className="flex items-center gap-2 min-h-[36px] cursor-pointer">
-                        <Checkbox checked={checked} onCheckedChange={() => {
-                          const next = checked ? form.building_amenities.filter((v) => v !== a.value) : [...form.building_amenities, a.value];
-                          setForm((f) => ({ ...f, building_amenities: next }));
-                          patch({ amenities: buildAmenitiesJson({ ...form, building_amenities: next }) });
-                        }} />
-                        <span className="text-sm">{a.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-sm font-medium">Something else? Add it</Label>
-                  <button type="button" onClick={() => setForm((f) => ({ ...f, custom_amenities: [...f.custom_amenities, ""] }))} className="text-sm text-primary hover:underline">+ Add amenity</button>
-                </div>
-                {form.custom_amenities.map((v, i) => (
-                  <div key={i} className="flex items-center gap-2 mb-2">
-                    <Input value={v} placeholder="e.g. Rooftop terrace"
-                      onChange={(e) => {
-                        const list = [...form.custom_amenities]; list[i] = e.target.value;
-                        setForm((f) => ({ ...f, custom_amenities: list }));
-                        patch({ amenities: buildAmenitiesJson({ ...form, custom_amenities: list }) });
-                      }} className="min-h-[40px] flex-1" />
-                    <button type="button" onClick={() => {
-                      const list = form.custom_amenities.filter((_, j) => j !== i);
-                      setForm((f) => ({ ...f, custom_amenities: list }));
-                      patch({ amenities: buildAmenitiesJson({ ...form, custom_amenities: list }) });
-                    }}><Trash2 className="h-4 w-4 text-muted-foreground" /></button>
-                  </div>
-                ))}
-              </div>
+              {/* D-170: shared JSONB editor. Same component used on admin form. */}
+              <AmenitiesEditor
+                value={form.building_amenities}
+                onChange={(updated) => {
+                  setForm((f) => ({ ...f, building_amenities: updated }));
+                  patch({ amenities: buildAmenitiesJson(updated, form.furnishing_detail) });
+                }}
+              />
+              {/* Prompt 8 (D-159): parking enum + count inline. Enum stays bespoke;
+                  count uses <SpecField> for label/helper. Public detail renders these
+                  compound ("Covered · 2 slots") via a bespoke formatter. */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="2-wheeler parking">
                   <Select value={form.parking_2w} onValueChange={(v) => updateField("parking_2w", v)}>
@@ -1439,49 +1537,59 @@ export default function ListProperty() {
                     <SelectContent>{PARKING_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </FormField>
+                <SpecField fieldKey="parking_2w_count" surface="owner_form" value={form.parking_2w_count} onChange={(v: string) => updateField("parking_2w_count", v)} />
                 <FormField label="4-wheeler parking">
                   <Select value={form.parking_4w} onValueChange={(v) => updateField("parking_4w", v)}>
                     <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
                     <SelectContent>{PARKING_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </FormField>
+                <SpecField fieldKey="parking_4w_count" surface="owner_form" value={form.parking_4w_count} onChange={(v: string) => updateField("parking_4w_count", v)} />
               </div>
+              <SpecField fieldKey="parking_notes" surface="owner_form" value={form.parking_notes} onChange={(v: string) => updateField("parking_notes", v)} />
+              <SpecField fieldKey="water_storage" surface="owner_form" value={form.water_storage} onChange={(v: string) => updateField("water_storage", v)} className="max-w-xs" />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <UtilityToggle label="Water included" checked={form.water_included} onChange={(v) => updateField("water_included", v, { utility_water_included: v })} />
                 <UtilityToggle label="Gas included" checked={form.gas_included} onChange={(v) => updateField("gas_included", v, { utility_gas_included: v })} />
                 <UtilityToggle label="Electricity included" checked={form.electricity_included} onChange={(v) => updateField("electricity_included", v, { utility_electricity_included: v })} />
               </div>
               {form.gas_included && (
-                <FormField label="Gas type">
-                  <Select value={form.gas_type} onValueChange={(v) => updateField("gas_type", v)}>
-                    <SelectTrigger className="min-h-[44px] max-w-xs"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>{GAS_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                </FormField>
+                <SpecField
+                  fieldKey="gas_type"
+                  surface="owner_form"
+                  value={form.gas_type || "none"}
+                  onChange={(v: string) => updateField("gas_type", v === "none" ? "" : v, { gas_type: v === "none" ? null : v })}
+                  className="max-w-xs"
+                />
               )}
             </div>
           </SectionShell>
 
-          {/* Section 6 */}
+          {/* Section 6 — scalar rendering driven by PROPERTY_FIELDS spec (D-128, D-155). */}
           <SectionShell num={6} title="Rules & preferences" status={sectionStatuses[6]} summary={sectionSummary(6, form, images)}>
             <div className="space-y-4">
-              <FormField label="Pet policy">
-                <Select value={form.pet_policy} onValueChange={(v) => updateField("pet_policy", v)}>
-                  <SelectTrigger className="min-h-[44px] max-w-xs"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>{PET_POLICY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="House rules" hint="Vegetarian only? No smoking? Curfew? Anything tenants should know.">
-                <Textarea value={form.building_rules} onChange={(e) => updateField("building_rules", e.target.value)} rows={3} />
-              </FormField>
-              <FormField label="About the building / neighborhood" hint="Gated society? Near a Metro? 5-min walk to market? Sell your building.">
-                <Textarea value={form.building_notes} onChange={(e) => updateField("building_notes", e.target.value)} rows={3} />
-              </FormField>
+              <SpecField fieldKey="pet_policy" surface="owner_form" value={form.pet_policy} onChange={(v: string) => updateField("pet_policy", v)} />
+              {/* TODO(spec): fold helper into PROPERTY_FIELDS.building_rules.helper in Prompt 6 bundle */}
+              <SpecField
+                fieldKey="building_rules"
+                surface="owner_form"
+                value={form.building_rules}
+                onChange={(v: string) => updateField("building_rules", v)}
+                helperOverride="Vegetarian only? No smoking? Curfew? Anything tenants should know."
+              />
+              {/* TODO(spec): fold helper into PROPERTY_FIELDS.building_notes.helper in Prompt 6 bundle */}
+              <SpecField
+                fieldKey="building_notes"
+                surface="owner_form"
+                value={form.building_notes}
+                onChange={(v: string) => updateField("building_notes", v)}
+                helperOverride="Gated society? Near a Metro? 5-min walk to market? Sell your building."
+              />
             </div>
           </SectionShell>
 
           {/* Section 7: Photos */}
-          <SectionShell num={7} title="Photos" status={sectionStatuses[7]} summary={sectionSummary(7, form, images)}>
+          <SectionShell num={7} title="Photos" status={sectionStatuses[7]} summary={sectionSummary(7, form, images)} required>
             {!propertyId ? (
               <p className="text-sm text-muted-foreground border border-dashed rounded-lg p-6 text-center">
                 Complete the sections above first — we'll save a draft, then you can upload photos.
@@ -1539,25 +1647,41 @@ export default function ListProperty() {
             {imagesLoading && <p className="text-xs text-muted-foreground">Loading photos...</p>}
           </SectionShell>
 
-          {/* Section 8 */}
+          {/* Section 8 — scalar rendering driven by PROPERTY_FIELDS spec (D-128, D-155). Title stays bespoke: placeholder derives from live bhk+locality. */}
           <SectionShell num={8} title="Description" status={sectionStatuses[8]} summary={sectionSummary(8, form, images)}>
             <div className="space-y-4">
+              {/* Bespoke: title placeholder is dynamic (live-computed from bhk + locality) — spec placeholders are static. */}
               <FormField label="Title" hint="Auto-generated if blank">
                 <Input value={form.title} onChange={(e) => updateField("title", e.target.value)} placeholder={`${BHK_OPTIONS.find((o) => o.value === form.bhk)?.label ?? ""} in ${form.locality || "..."}`.trim()} className="min-h-[44px]" />
               </FormField>
-              <FormField label="Description" hint="What makes this property special? Nearby landmarks? Metro? Schools? Best time to see it?">
-                <Textarea value={form.description} onChange={(e) => updateField("description", e.target.value)} rows={5} />
-              </FormField>
+              {/* TODO(spec): fold helper into PROPERTY_FIELDS.description.helper in Prompt 6 bundle */}
+              <SpecField
+                fieldKey="description"
+                surface="owner_form"
+                value={form.description}
+                onChange={(v: string) => updateField("description", v)}
+                helperOverride="What makes this property special? Nearby landmarks? Metro? Schools? Best time to see it?"
+              />
             </div>
           </SectionShell>
 
           {/* Section 9 */}
-          <SectionShell num={9} title="Final checks" status={sectionStatuses[9]} summary={sectionSummary(9, form, images)}>
+          <SectionShell num={9} title="Final checks" status={sectionStatuses[9]} summary={sectionSummary(9, form, images)} required>
             <div className="space-y-4">
               <label className="flex items-start gap-3 cursor-pointer">
                 <Checkbox checked={form.consent} onCheckedChange={(v) => setForm((f) => ({ ...f, consent: !!v }))} className="mt-1" />
                 <span className="text-sm">
                   I confirm I am the legal owner or authorized representative of this property, and I have permission to list it.
+                </span>
+              </label>
+              {/* J1 (D-148): Terms + Privacy consent required to submit. */}
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox checked={form.terms_privacy_consent} onCheckedChange={(v) => setForm((f) => ({ ...f, terms_privacy_consent: !!v }))} className="mt-1" />
+                <span className="text-sm">
+                  I agree to Reeve's{" "}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary underline">Terms of Service</a>
+                  {" "}and{" "}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline">Privacy Policy</a>.
                 </span>
               </label>
               <div className="flex flex-wrap gap-2">
@@ -1584,7 +1708,7 @@ export default function ListProperty() {
                 <Button
                   onClick={submit}
                   disabled={submitting || !propertyId || (path === "B" && Object.keys(editRequestPayload.field_changes).length === 0 && editRequestPayload.photo_changes.add.length === 0 && editRequestPayload.photo_changes.delete.length === 0 && editRequestPayload.photo_changes.update.length === 0)}
-                  className={cn(path === "A" && (requiredComplete < 5 || !form.consent || images.length < 3) ? "opacity-70" : "")}
+                  className={cn(path === "A" && (requiredComplete < 5 || !form.consent || !form.terms_privacy_consent || images.length < 3) ? "opacity-70" : "")}
                 >
                   {submitting ? "Submitting..." : path === "B" ? "Submit for review" : "Submit for review"}
                 </Button>
@@ -1674,9 +1798,9 @@ export default function ListProperty() {
 // ─── Sub-renders ──────────────────────────────────────────────────────────────
 
 function SectionShell({
-  num, title, status, summary, children,
+  num, title, status, summary, children, required,
 }: {
-  num: SectionNum; title: string; status: SectionStatus; summary: string; children: React.ReactNode;
+  num: SectionNum; title: string; status: SectionStatus; summary: string; children: React.ReactNode; required?: boolean;
 }) {
   return (
     <AccordionItem value={`section-${num}`} id={`section-${num}-header`}>
@@ -1684,12 +1808,17 @@ function SectionShell({
         <div className="flex items-center justify-between flex-1 gap-3 pr-2">
           <div className="flex items-center gap-3 min-w-0">
             <StatusIcon status={status} />
-            <span className="text-sm font-medium text-left">{title}</span>
+            <span className="text-sm font-medium text-left">
+              {title}
+              {/* A2: red asterisk on required section headers (Location, Basics, Rent & Deposit, Photos, Final Checks). */}
+              {required && <span className="text-destructive ml-1" aria-hidden="true">*</span>}
+            </span>
           </div>
           {summary && <span className="text-xs text-muted-foreground truncate max-w-[40%]">{summary}</span>}
         </div>
       </AccordionTrigger>
-      <AccordionContent className="pt-2">{children}</AccordionContent>
+      {/* A2/B1: pl-1 pr-1 so focus-ring left edge on inputs inside AccordionContent isn't clipped by Radix's overflow-hidden animation container. */}
+      <AccordionContent className="pt-2 px-1">{children}</AccordionContent>
     </AccordionItem>
   );
 }
@@ -1701,7 +1830,7 @@ function StatusIcon({ status }: { status: SectionStatus }) {
   return <Circle className="h-5 w-5 text-muted-foreground shrink-0" />;
 }
 
-function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function FormField({ label, hint, children }: { label: React.ReactNode; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label className="text-sm font-medium">{label}</Label>
@@ -1738,6 +1867,28 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "state": return { state: strVal };
     case "pincode": return { pincode: strVal.trim() || null };
     case "google_maps_url": return { google_maps_url: strVal.trim() || null };
+    case "landmark": return { landmark: strVal.trim() || null };
+    case "notice_period_months": return { notice_period_months: parseNum(strVal) };
+    case "annual_rent_increase_pct": return { annual_rent_increase_pct: parseNum(strVal) };
+    case "parking_2w_count": return { parking_2w_count: parseNum(strVal) ?? 0 };
+    case "parking_4w_count": return { parking_4w_count: parseNum(strVal) ?? 0 };
+    case "parking_notes": return { parking_notes: strVal.trim() || null };
+    case "water_storage": return { water_storage: strVal || null };
+    // Prompt 10a (D-161) — rent/sale. Date fields (possession_date, property_tax_paid_upto)
+    // go through explicit dbPatch from the Calendar onSelect handler; not in this switch.
+    case "listing_type": return { listing_type: strVal };
+    case "sale_price": return { sale_price: parseNum(strVal) };
+    case "price_negotiable": return { price_negotiable: !!value };
+    case "expected_price_per_sqft": return { expected_price_per_sqft: parseNum(strVal) };
+    case "possession_status": return { possession_status: strVal || null };
+    case "rera_registration_number": return { rera_registration_number: strVal.trim() || null };
+    case "khata_type": return { khata_type: strVal || null };
+    // Phase 1.5 addendum (D-166).
+    case "move_in_charges_amount": return { move_in_charges_amount: parseNum(strVal) };
+    case "rent_brokerage_type": return { rent_brokerage_type: strVal || null };
+    case "rent_brokerage_fixed_amount": return { rent_brokerage_fixed_amount: parseNum(strVal) };
+    case "rent_brokerage_months": return { rent_brokerage_months: parseNum(strVal) };
+    case "sale_brokerage_pct": return { sale_brokerage_pct: parseNum(strVal) };
     case "bhk": return { bhk: strVal };
     case "property_type": return { property_type: strVal || null };
     case "floor_number": return { floor_number: parseNum(strVal) };
@@ -1747,7 +1898,9 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "building_age_years": return { building_age_years: parseNum(strVal) };
     case "listed_rent": return { listed_rent: parseNum(strVal) ?? 0 };
     case "security_deposit_amount": return { security_deposit_amount: parseNum(strVal) };
+    case "security_deposit_months": return { security_deposit_months: parseNum(strVal) };
     case "society_maintenance_approx": return { society_maintenance_approx: parseNum(strVal) };
+    case "maintenance_included_in_rent": return { maintenance_included_in_rent: !!value };
     case "furnishing": return { furnishing: strVal };
     case "bathrooms": return { bathrooms: parseNum(strVal) };
     case "balconies": return { balconies: parseNum(strVal) };

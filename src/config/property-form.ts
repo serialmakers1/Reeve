@@ -28,8 +28,8 @@ export const FURNISHING_OPTIONS = [
 ] as const;
 
 export const FURNISHING_ITEM_OPTIONS = [
-  { value: "bed", label: "Bed", hasSize: true, yesNoOnly: false },
-  { value: "mattress", label: "Mattress", hasSize: true, yesNoOnly: false },
+  { value: "bed", label: "Bed", hasSizeText: true, yesNoOnly: false },
+  { value: "mattress", label: "Mattress", hasSizeText: true, yesNoOnly: false },
   { value: "ac", label: "AC", hasRooms: true, yesNoOnly: false },
   { value: "wardrobe", label: "Wardrobe", yesNoOnly: false },
   { value: "geyser", label: "Geyser", yesNoOnly: false },
@@ -66,6 +66,7 @@ export const BUILDING_AMENITIES = [
   { value: "sports_facility", label: "Sports Facility" },
   { value: "community_hall", label: "Community Hall" },
   { value: "water_supply_24hr", label: "24hr Water Supply" },
+  { value: "ev_charging", label: "EV Charging" }, // B2 (D-158): added Phase 1.5 Prompt 6
 ] as const;
 
 export const PARKING_OPTIONS = [
@@ -100,10 +101,6 @@ export const INDIAN_STATES = [
   "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
 ] as const;
 
-export type FurnishingDetailItem = {
-  item: string;      // matches FURNISHING_ITEM_OPTIONS.value OR free-text custom label
-  count?: number;
-  size?: string;
-  rooms?: string;
-  custom?: boolean;  // true for owner-added items
-};
+// D-170: FurnishingDetailItem moved to @/types/property (shared type).
+// Re-exported here for backward compatibility with legacy imports.
+export type { FurnishingDetailItem } from "@/types/property";

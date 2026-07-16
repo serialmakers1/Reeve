@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -561,6 +562,27 @@ export default function SearchPage() {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [draftFilters, setDraftFilters] = useState<Filters>(DEFAULT_FILTERS);
 
+  // Prompt 10b (D-162) — rent/sale toggle. Precedence: URL ?type= > session > default rent.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [listingType, setListingType] = useState<"rent" | "sale">(() => {
+    const fromUrl = searchParams.get("type");
+    if (fromUrl === "sale" || fromUrl === "rent") return fromUrl;
+    if (typeof window !== "undefined") {
+      const fromSession = sessionStorage.getItem("search_listing_type");
+      if (fromSession === "sale" || fromSession === "rent") return fromSession;
+    }
+    return "rent";
+  });
+  const handleListingTypeChange = (next: "rent" | "sale") => {
+    setListingType(next);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("search_listing_type", next);
+    }
+    const params = new URLSearchParams(searchParams);
+    params.set("type", next);
+    setSearchParams(params, { replace: true });
+  };
+
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -605,11 +627,15 @@ export default function SearchPage() {
         let query = supabase
           .from("properties")
           .select(
-            "id, building_name, floor_number, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, maintenance_included_in_rent",
+            "id, building_name, floor_number, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, maintenance_included_in_rent, listing_type, sale_price, possession_status",
             { count: "exact" }
           )
           .in("status", ["listed", "edit_pending_review"])
           .eq("is_active", true)
+          // Prompt 10b (D-162) — rent/sale filter. Fail-safe pattern: legacy rows
+          // with null listing_type never match either — but all 20 existing rows
+          // were backfilled to 'rent' per Prompt 9, so `.eq` is correct.
+          .eq("listing_type", listingType)
           .order("listed_at", { ascending: false })
           .range(from, to);
 
@@ -623,12 +649,17 @@ export default function SearchPage() {
           query = query.in("bhk", filters.bhk as any);
         }
 
-        // Budget
-        if (filters.budgetMin != null) {
-          query = query.gte("listed_rent", filters.budgetMin);
-        }
-        if (filters.budgetMax != null) {
-          query = query.lte("listed_rent", filters.budgetMax);
+        // Budget — rent-only filter (targets listed_rent). Prompt 10b: skipped for
+        // sale searches so sale rows (null listed_rent) aren't accidentally excluded.
+        // A sale-price budget filter is out of Prompt 10b scope (existing filter UI
+        // stays visible; a proper sale-price control belongs in the filter redesign).
+        if (listingType !== "sale") {
+          if (filters.budgetMin != null) {
+            query = query.gte("listed_rent", filters.budgetMin);
+          }
+          if (filters.budgetMax != null) {
+            query = query.lte("listed_rent", filters.budgetMax);
+          }
         }
 
         // Furnishing
@@ -690,7 +721,7 @@ export default function SearchPage() {
         setLoadingMore(false);
       }
     },
-    [debouncedSearch, filters]
+    [debouncedSearch, filters, listingType]
   );
 
   // Reset and fetch when search or filters change
@@ -765,6 +796,40 @@ export default function SearchPage() {
             </LoginDrawerFooter>
           </LoginDrawerContent>
         </LoginDrawerPrimitive>
+
+        {/* Prompt 10b (D-162) — For Rent / For Sale toggle. */}
+        <div className="border-b border-gray-200 bg-white">
+          <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-3">
+            <div className="inline-flex rounded-lg border border-border p-1 bg-muted/40">
+              <button
+                type="button"
+                onClick={() => handleListingTypeChange("rent")}
+                aria-pressed={listingType === "rent"}
+                className={cn(
+                  "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  listingType === "rent"
+                    ? "bg-white text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                For Rent
+              </button>
+              <button
+                type="button"
+                onClick={() => handleListingTypeChange("sale")}
+                aria-pressed={listingType === "sale"}
+                className={cn(
+                  "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  listingType === "sale"
+                    ? "bg-white text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                For Sale
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* ─── Search Bar ─── */}
         <div className="hidden sticky top-[57px] z-30 border-b border-gray-200 bg-white">

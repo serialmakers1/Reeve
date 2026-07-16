@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -1776,6 +1776,7 @@ export type Database = {
       owner_action_acknowledgments: {
         Row: {
           acknowledged_at: string
+          activity_log_id: string | null
           id: string
           target_id: string
           target_type: string
@@ -1783,6 +1784,7 @@ export type Database = {
         }
         Insert: {
           acknowledged_at?: string
+          activity_log_id?: string | null
           id?: string
           target_id: string
           target_type: string
@@ -1790,12 +1792,20 @@ export type Database = {
         }
         Update: {
           acknowledged_at?: string
+          activity_log_id?: string | null
           id?: string
           target_id?: string
           target_type?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "owner_action_acknowledgments_activity_log_id_fkey"
+            columns: ["activity_log_id"]
+            isOneToOne: false
+            referencedRelation: "property_activity_log"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "owner_action_acknowledgments_user_id_fkey"
             columns: ["user_id"]
@@ -2178,6 +2188,7 @@ export type Database = {
         Row: {
           agreement_pending_at: string | null
           amenities: Json | null
+          annual_rent_increase_pct: number | null
           auto_accept_enabled: boolean
           available_from: string | null
           balconies: number | null
@@ -2195,6 +2206,7 @@ export type Database = {
           created_at: string
           description: string | null
           draft_at: string | null
+          expected_price_per_sqft: number | null
           facing: string | null
           flat_number: string | null
           flat_number_revealed: boolean
@@ -2214,16 +2226,21 @@ export type Database = {
           inspection_scheduled_at: string | null
           inspection_start_time: string | null
           is_active: boolean
+          khata_type: string | null
+          landmark: string | null
           last_leased_at: string | null
           latitude: number | null
           legal_owner_name: string | null
           listed_at: string | null
           listed_rent: number
+          listing_type: Database["public"]["Enums"]["property_listing_type"]
           locality: string | null
           longitude: number | null
           main_door_lock_type: string | null
           maintenance_included_in_rent: boolean
           map_pin_url: string | null
+          move_in_charges_amount: number | null
+          notice_period_months: number | null
           occupied_at: string | null
           off_market_at: string | null
           owner_committed_12_months: boolean | null
@@ -2239,10 +2256,23 @@ export type Database = {
           owner_rep_phone: string | null
           owner_tenant_type_preference: string | null
           parking_2w: Database["public"]["Enums"]["parking_availability"]
+          parking_2w_count: number | null
           parking_4w: Database["public"]["Enums"]["parking_availability"]
+          parking_4w_count: number | null
+          parking_notes: string | null
           pet_policy: string | null
           pincode: string | null
+          possession_date: string | null
+          possession_status: string | null
+          price_negotiable: boolean | null
+          property_tax_paid_upto: string | null
           property_type: string | null
+          rent_brokerage_fixed_amount: number | null
+          rent_brokerage_months: number | null
+          rent_brokerage_type: string | null
+          rera_registration_number: string | null
+          sale_brokerage_pct: number | null
+          sale_price: number | null
           security_deposit_amount: number | null
           security_deposit_months: number
           service_agreement_id: string | null
@@ -2259,11 +2289,13 @@ export type Database = {
           utility_water_included: boolean
           vacancy_review_day14_at: string | null
           vacancy_review_day21_at: string | null
+          water_storage: string | null
           youtube_walkthrough_url: string | null
         }
         Insert: {
           agreement_pending_at?: string | null
           amenities?: Json | null
+          annual_rent_increase_pct?: number | null
           auto_accept_enabled?: boolean
           available_from?: string | null
           balconies?: number | null
@@ -2281,6 +2313,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           draft_at?: string | null
+          expected_price_per_sqft?: number | null
           facing?: string | null
           flat_number?: string | null
           flat_number_revealed?: boolean
@@ -2300,16 +2333,21 @@ export type Database = {
           inspection_scheduled_at?: string | null
           inspection_start_time?: string | null
           is_active?: boolean
+          khata_type?: string | null
+          landmark?: string | null
           last_leased_at?: string | null
           latitude?: number | null
           legal_owner_name?: string | null
           listed_at?: string | null
           listed_rent?: number
+          listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
           longitude?: number | null
           main_door_lock_type?: string | null
           maintenance_included_in_rent?: boolean
           map_pin_url?: string | null
+          move_in_charges_amount?: number | null
+          notice_period_months?: number | null
           occupied_at?: string | null
           off_market_at?: string | null
           owner_committed_12_months?: boolean | null
@@ -2325,10 +2363,23 @@ export type Database = {
           owner_rep_phone?: string | null
           owner_tenant_type_preference?: string | null
           parking_2w?: Database["public"]["Enums"]["parking_availability"]
+          parking_2w_count?: number | null
           parking_4w?: Database["public"]["Enums"]["parking_availability"]
+          parking_4w_count?: number | null
+          parking_notes?: string | null
           pet_policy?: string | null
           pincode?: string | null
+          possession_date?: string | null
+          possession_status?: string | null
+          price_negotiable?: boolean | null
+          property_tax_paid_upto?: string | null
           property_type?: string | null
+          rent_brokerage_fixed_amount?: number | null
+          rent_brokerage_months?: number | null
+          rent_brokerage_type?: string | null
+          rera_registration_number?: string | null
+          sale_brokerage_pct?: number | null
+          sale_price?: number | null
           security_deposit_amount?: number | null
           security_deposit_months?: number
           service_agreement_id?: string | null
@@ -2345,11 +2396,13 @@ export type Database = {
           utility_water_included?: boolean
           vacancy_review_day14_at?: string | null
           vacancy_review_day21_at?: string | null
+          water_storage?: string | null
           youtube_walkthrough_url?: string | null
         }
         Update: {
           agreement_pending_at?: string | null
           amenities?: Json | null
+          annual_rent_increase_pct?: number | null
           auto_accept_enabled?: boolean
           available_from?: string | null
           balconies?: number | null
@@ -2367,6 +2420,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           draft_at?: string | null
+          expected_price_per_sqft?: number | null
           facing?: string | null
           flat_number?: string | null
           flat_number_revealed?: boolean
@@ -2386,16 +2440,21 @@ export type Database = {
           inspection_scheduled_at?: string | null
           inspection_start_time?: string | null
           is_active?: boolean
+          khata_type?: string | null
+          landmark?: string | null
           last_leased_at?: string | null
           latitude?: number | null
           legal_owner_name?: string | null
           listed_at?: string | null
           listed_rent?: number
+          listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
           longitude?: number | null
           main_door_lock_type?: string | null
           maintenance_included_in_rent?: boolean
           map_pin_url?: string | null
+          move_in_charges_amount?: number | null
+          notice_period_months?: number | null
           occupied_at?: string | null
           off_market_at?: string | null
           owner_committed_12_months?: boolean | null
@@ -2411,10 +2470,23 @@ export type Database = {
           owner_rep_phone?: string | null
           owner_tenant_type_preference?: string | null
           parking_2w?: Database["public"]["Enums"]["parking_availability"]
+          parking_2w_count?: number | null
           parking_4w?: Database["public"]["Enums"]["parking_availability"]
+          parking_4w_count?: number | null
+          parking_notes?: string | null
           pet_policy?: string | null
           pincode?: string | null
+          possession_date?: string | null
+          possession_status?: string | null
+          price_negotiable?: boolean | null
+          property_tax_paid_upto?: string | null
           property_type?: string | null
+          rent_brokerage_fixed_amount?: number | null
+          rent_brokerage_months?: number | null
+          rent_brokerage_type?: string | null
+          rera_registration_number?: string | null
+          sale_brokerage_pct?: number | null
+          sale_price?: number | null
           security_deposit_amount?: number | null
           security_deposit_months?: number
           service_agreement_id?: string | null
@@ -2431,6 +2503,7 @@ export type Database = {
           utility_water_included?: boolean
           vacancy_review_day14_at?: string | null
           vacancy_review_day21_at?: string | null
+          water_storage?: string | null
           youtube_walkthrough_url?: string | null
         }
         Relationships: [
@@ -3125,6 +3198,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_delete_draft_property: {
+        Args: { p_property_id: string }
+        Returns: undefined
+      }
       approve_edit_request: {
         Args: { p_edit_request_id: string }
         Returns: undefined
@@ -3149,6 +3226,14 @@ export type Database = {
       reject_edit_request: {
         Args: {
           p_edit_request_id: string
+          p_reason: string
+          p_reason_text?: string
+        }
+        Returns: undefined
+      }
+      reject_property_listing: {
+        Args: {
+          p_property_id: string
           p_reason: string
           p_reason_text?: string
         }
@@ -3354,6 +3439,7 @@ export type Database = {
         | "damage_recovery"
         | "early_exit_fee"
       pet_type: "none" | "dog" | "cat" | "bird" | "other"
+      property_listing_type: "rent" | "sale"
       property_status:
         | "draft"
         | "inspection_proposed"
@@ -3743,6 +3829,7 @@ export const Constants = {
         "early_exit_fee",
       ],
       pet_type: ["none", "dog", "cat", "bird", "other"],
+      property_listing_type: ["rent", "sale"],
       property_status: [
         "draft",
         "inspection_proposed",

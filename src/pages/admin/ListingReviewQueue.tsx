@@ -15,6 +15,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import DecisionsTab from "@/components/admin/DecisionsTab";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -24,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { BHK_OPTIONS } from "@/config/property-form";
 import { getUserDisplayName } from "@/lib/user";
 
-type TabValue = "new" | "edit";
+type TabValue = "new" | "edit" | "decisions";
 type SortKey = "oldest" | "newest" | "owner";
 
 interface NewListingRow {
@@ -38,6 +39,7 @@ interface NewListingRow {
   created_at: string;
   primary_photo?: string | null;
   owner_name?: string;
+  listing_type?: string | null;
 }
 
 interface EditRequestRow {
@@ -55,6 +57,7 @@ interface EditRequestRow {
     locality: string | null;
     city: string | null;
     primary_photo?: string | null;
+    listing_type?: string | null;
   };
   owner_name?: string;
   prior_revisions?: number;
@@ -67,7 +70,11 @@ export default function ListingReviewQueue() {
   const navigate = useNavigate();
   useRequireAuth({ requireAdmin: true });
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab: TabValue = (searchParams.get("tab") as TabValue) === "edit" ? "edit" : "new";
+  const initialTab: TabValue = ((): TabValue => {
+    const t = searchParams.get("tab");
+    if (t === "edit" || t === "decisions") return t;
+    return "new";
+  })();
   const [tab, setTab] = useState<TabValue>(initialTab);
   const [city, setCity] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("oldest");
@@ -90,7 +97,7 @@ export default function ListingReviewQueue() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: props } = await (supabase as any)
       .from("properties")
-      .select("id, owner_id, building_name, bhk, locality, city, listed_rent, created_at")
+      .select("id, owner_id, building_name, bhk, locality, city, listed_rent, created_at, listing_type")
       .eq("status", "pending_review")
       .order("created_at", { ascending: true });
 
@@ -129,7 +136,7 @@ export default function ListingReviewQueue() {
       editRows.length
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ? (supabase as any).from("properties")
-            .select("id, building_name, bhk, locality, city")
+            .select("id, building_name, bhk, locality, city, listing_type")
             .in("id", editRows.map((r) => r.property_id))
         : Promise.resolve({ data: [] }),
       editRows.length
@@ -242,13 +249,14 @@ export default function ListingReviewQueue() {
         </div>
 
         <Tabs value={tab} onValueChange={(v) => changeTab(v as TabValue)}>
-          <TabsList className="grid grid-cols-2 w-full">
+          <TabsList className="grid grid-cols-3 w-full">
             <TabsTrigger value="new">
               New Listings {newListings.length > 0 && <Badge variant="secondary" className="ml-1.5">{newListings.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="edit">
               Edit Requests {editRequests.length > 0 && <Badge variant="secondary" className="ml-1.5">{editRequests.length}</Badge>}
             </TabsTrigger>
+            <TabsTrigger value="decisions">Decisions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="new" className="mt-3">
@@ -270,6 +278,7 @@ export default function ListingReviewQueue() {
                       rent={r.listed_rent}
                       submittedAt={r.created_at}
                       onReview={() => navigate(`/admin/listing-reviews/new/${r.id}`)}
+                      listingType={r.listing_type}
                     />
                   </li>
                 ))}
@@ -300,6 +309,7 @@ export default function ListingReviewQueue() {
                         ownerName={r.owner_name}
                         submittedAt={r.created_at}
                         onReview={() => navigate(`/admin/listing-reviews/edit/${r.id}`)}
+                        listingType={r.property?.listing_type}
                         badges={[
                           `${fieldCount} field${fieldCount === 1 ? "" : "s"}`,
                           changeCount > 0 ? `${changeCount} photo change${changeCount === 1 ? "" : "s"}` : "",
@@ -312,6 +322,12 @@ export default function ListingReviewQueue() {
               </ul>
             )}
           </TabsContent>
+
+          {/* Prompt 13 (G3, D-165) — read-only audit tab. Aggregates two separate
+              queries client-side (never UNION — same event lives in both tables). */}
+          <TabsContent value="decisions" className="mt-3">
+            <DecisionsTab />
+          </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
@@ -319,7 +335,7 @@ export default function ListingReviewQueue() {
 }
 
 function QueueRow({
-  thumb, title, location, ownerName, rent, submittedAt, onReview, badges,
+  thumb, title, location, ownerName, rent, submittedAt, onReview, badges, listingType,
 }: {
   thumb: string | null;
   title: string;
@@ -329,6 +345,8 @@ function QueueRow({
   submittedAt: string;
   onReview: () => void;
   badges?: string[];
+  // Prompt 10b (D-162). Optional so pre-existing call sites without it still compile.
+  listingType?: string | null;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-lg border bg-card p-3 hover:bg-muted/50 transition-colors">
@@ -341,6 +359,10 @@ function QueueRow({
           {[location, ownerName].filter(Boolean).join(" · ")}
         </p>
         <div className="flex flex-wrap gap-1.5 mt-1">
+          {/* Prompt 10b — muted chip; smaller weight than status/rent badges. */}
+          <Badge variant="outline" className="text-[10px] bg-muted/40 text-muted-foreground">
+            {listingType === "sale" ? "For Sale" : "For Rent"}
+          </Badge>
           {rent != null && rent > 0 && (
             <Badge variant="outline" className="text-[10px]">₹{rent.toLocaleString("en-IN")}/mo</Badge>
           )}

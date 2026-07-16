@@ -29,6 +29,9 @@ import {
   DrawerFooter,
 } from "@/components/ui/drawer";
 import Layout from "@/components/Layout";
+import { SpecField } from "@/components/property/SpecField";
+import { PUBLIC_DETAILS_GRID_KEYS } from "@/config/property-fields";
+import { PROPERTY_TYPE_OPTIONS } from "@/config/property-form";
 import {
   ArrowLeft,
   Shield,
@@ -94,6 +97,7 @@ interface PropertyData {
   description: string | null;
   building_rules: string | null;
   security_deposit_months: number;
+  security_deposit_amount: number | null; // Sync Prompt 1 (D-167) — public deposit display prefers this over months × rent.
   society_maintenance_approx: number | null;
   maintenance_included_in_rent: boolean;
   gas_type: string | null;
@@ -108,6 +112,30 @@ interface PropertyData {
   furnishing_detail: unknown;
   youtube_walkthrough_url: string | null;
   google_maps_url: string | null;
+  // Prompt 8 (D-159) — India fields.
+  landmark: string | null;
+  notice_period_months: number | null;
+  annual_rent_increase_pct: number | null;
+  water_storage: string | null;
+  parking_2w_count: number | null;
+  parking_4w_count: number | null;
+  parking_notes: string | null;
+  // Prompt 10b (D-162) — rent/sale.
+  listing_type: string;
+  sale_price: number | null;
+  price_negotiable: boolean | null;
+  expected_price_per_sqft: number | null;
+  possession_status: string | null;
+  possession_date: string | null;
+  rera_registration_number: string | null;
+  khata_type: string | null;
+  property_tax_paid_upto: string | null;
+  // Phase 1.5 addendum (D-166) — move-in charges + brokerage.
+  move_in_charges_amount: number | null;
+  rent_brokerage_type: string | null;
+  rent_brokerage_fixed_amount: number | null;
+  rent_brokerage_months: number | null;
+  sale_brokerage_pct: number | null;
 }
 
 interface PropertyImage {
@@ -121,6 +149,24 @@ interface PropertyImage {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Sync Prompt 1 (D-167) — public deposit display.
+ * Precedence: owner-entered amount → months × rent → 2 × rent default.
+ * When amount and months both set, months appears as parenthetical context.
+ */
+export function formatDeposit(
+  amount: number | null | undefined,
+  months: number | null | undefined,
+  rent: number,
+): string {
+  if (typeof amount === "number" && amount > 0) {
+    const base = `₹${amount.toLocaleString("en-IN")}`;
+    return typeof months === "number" && months > 0 ? `${base} (${months} months)` : base;
+  }
+  const multiplier = typeof months === "number" && months > 0 ? months : 2;
+  return `₹${(rent * multiplier).toLocaleString("en-IN")}`;
+}
 
 function formatIndianRupee(n: number): string {
   const s = Math.round(n).toString();
@@ -480,7 +526,7 @@ const PropertyDetail: React.FC = () => {
         supabase
           .from("properties")
           .select(
-            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url"
+            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url, landmark, notice_period_months, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_type, rent_brokerage_fixed_amount, rent_brokerage_months, sale_brokerage_pct"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -498,7 +544,9 @@ const PropertyDetail: React.FC = () => {
         return;
       }
 
-      const raw = propRes.data;
+      // Prompt 8: cast around Supabase's SelectQueryError inference cascade
+      // that triggers on this long select string. Runtime shape matches PropertyData.
+      const raw = propRes.data as unknown as PropertyData & { amenities: unknown };
       setProperty({
         ...raw,
         amenities: Array.isArray(raw.amenities) ? (raw.amenities as string[]) : null,
@@ -751,7 +799,8 @@ const PropertyDetail: React.FC = () => {
       ? [...photoImages, ...floorPlanImages]
       : images.filter(img => img.section === galleryTab && !img.is_floor_plan);
 
-  const depositAmount = property.listed_rent * property.security_deposit_months;
+  // Sync Prompt 1 (D-167) — prefers owner-entered amount over months × rent.
+  const depositDisplay = formatDeposit(property.security_deposit_amount, property.security_deposit_months, property.listed_rent);
 
   // COMMONS-HIDE: Application history derived state — CTAs hidden for Commons transition
   // COMMONS-HIDE: const ACTIVE_STATUSES = ["submitted", "platform_review", "sent_to_owner", "owner_countered", "tenant_countered", "payment_pending", "payment_received", "kyc_pending", "kyc_passed", "kyc_failed", "agreement_pending", "lease_active"];
@@ -770,43 +819,24 @@ const PropertyDetail: React.FC = () => {
   // COMMONS-HIDE: renderApplySection — Apply/Draft CTA hidden for Commons transition
   // COMMONS-HIDE: const renderApplySection = (mobile: boolean) => { ... };
 
-  // Details grid items
-  const detailItems: { icon: React.ReactNode; label: string; value: string }[] = [];
-  detailItems.push({ icon: <Home className="h-4 w-4" />, label: "BHK Type", value: bhkLabel(property.bhk) });
-  if (property.square_footage) {
-    detailItems.push({ icon: <Maximize2 className="h-4 w-4" />, label: "Carpet Area", value: `${property.square_footage} sqft` });
-  }
-  if (property.floor_number != null) {
-    detailItems.push({ icon: <Building2 className="h-4 w-4" />, label: "Floor", value: String(property.floor_number) });
-  }
-  if (property.total_floors != null) {
-    detailItems.push({ icon: <Layers className="h-4 w-4" />, label: "Total Floors", value: String(property.total_floors) });
-  }
-  if (property.bathrooms) {
-    detailItems.push({ icon: <Droplets className="h-4 w-4" />, label: "Bathrooms", value: String(property.bathrooms) });
-  }
-  if (property.balconies) {
-    detailItems.push({ icon: <Wind className="h-4 w-4" />, label: "Balconies", value: String(property.balconies) });
-  }
-  if (property.facing) {
-    detailItems.push({ icon: <Compass className="h-4 w-4" />, label: "Facing", value: property.facing });
-  }
-  if (property.building_age_years) {
-    detailItems.push({ icon: <CalendarDays className="h-4 w-4" />, label: "Building Age", value: `~${property.building_age_years} yrs` });
-  }
-  detailItems.push({ icon: <Armchair className="h-4 w-4" />, label: "Furnishing", value: furnishingLabel(property.furnishing) });
-  if (property.parking_4w && property.parking_4w !== "none") {
-    detailItems.push({ icon: <Car className="h-4 w-4" />, label: "4-Wheeler Parking", value: parkingLabel(property.parking_4w) });
-  }
-  if (property.parking_2w && property.parking_2w !== "none") {
-    detailItems.push({ icon: <Bike className="h-4 w-4" />, label: "2-Wheeler Parking", value: parkingLabel(property.parking_2w) });
-  }
-  if (property.main_door_lock_type) {
-    detailItems.push({ icon: <KeyRound className="h-4 w-4" />, label: "Lock Type", value: property.main_door_lock_type });
-  }
-  if (property.pet_policy) {
-    detailItems.push({ icon: <PawPrint className="h-4 w-4" />, label: "Pet Policy", value: property.pet_policy });
-  }
+  // Details grid — spec-driven via PROPERTY_FIELDS (D-128, D-155, D-157).
+  // Membership + order comes from PUBLIC_DETAILS_GRID_KEYS; visibility guards
+  // stay here so semantics (parking !== "none", non-null vs truthy) match the
+  // pre-refactor page. To add/remove a scalar from the grid: edit
+  // src/config/property-fields.ts only — no changes to this file.
+  const propertyRow = property as unknown as Record<string, unknown>;
+  const shouldShowGridField = (key: string): boolean => {
+    const v = propertyRow[key];
+    // floor_number / total_floors: != null (keep 0). Others: truthy.
+    if (key === "floor_number" || key === "total_floors") {
+      if (v === null || v === undefined) return false;
+    } else {
+      if (v === null || v === undefined || v === "" || v === 0) return false;
+    }
+    if ((key === "parking_2w" || key === "parking_4w") && v === "none") return false;
+    return true;
+  };
+  const visibleGridKeys = PUBLIC_DETAILS_GRID_KEYS.filter(shouldShowGridField);
 
   return (
     <Layout>
@@ -925,7 +955,8 @@ const PropertyDetail: React.FC = () => {
               <div className="flex flex-wrap items-center gap-2">
                 {property.property_type && (
                   <Badge variant="secondary" className="text-xs capitalize">
-                    {property.property_type}
+                    {/* Sync Prompt 1 (D-167) — map through PROPERTY_TYPE_OPTIONS so public shows label ("Apartment") not raw enum ("apartment"). Fallback to raw value for defensive resilience against new enum values that lag in the frontend constant. */}
+                    {PROPERTY_TYPE_OPTIONS.find(o => o.value === property.property_type)?.label ?? property.property_type}
                   </Badge>
                 )}
                 <span className="text-xs text-muted-foreground">
@@ -956,6 +987,10 @@ const PropertyDetail: React.FC = () => {
                 {property.locality ? `${property.locality}, ` : ""}
                 {property.city}
               </p>
+              {/* Prompt 8 (D-159) — bespoke landmark subtitle in the Location block. */}
+              {property.landmark && (
+                <p className="text-sm text-muted-foreground">Near {property.landmark}</p>
+              )}
               <div className="flex flex-wrap gap-2 pt-1">
                 <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
                   🟢 2 Month Deposit Only
@@ -1006,7 +1041,35 @@ const PropertyDetail: React.FC = () => {
               </div>
             )}
 
-            {/* 3. Rent & Fees */}
+            {/* 3. Prominent price block — Prompt 10b (D-162) dual-mode.
+                Rent branch preserved byte-identical; Sale branch mirrors visual weight. */}
+            {property.listing_type === "sale" ? (
+              <section className="px-4 lg:px-0">
+                <Card className="border-border">
+                  <CardContent className="p-4">
+                    <div className="mb-2 flex items-baseline gap-2 flex-wrap">
+                      <span className="text-3xl font-bold text-gray-900">
+                        {property.sale_price != null ? `₹${property.sale_price.toLocaleString("en-IN")}` : "—"}
+                      </span>
+                      {property.price_negotiable && (
+                        <span className="text-sm font-medium text-green-700">Negotiable</span>
+                      )}
+                    </div>
+                    {property.expected_price_per_sqft != null && (
+                      <p className="text-xs text-muted-foreground">
+                        Expected ₹{property.expected_price_per_sqft.toLocaleString("en-IN")}/sqft
+                      </p>
+                    )}
+                    {/* Phase 1.5 addendum (D-166) — sale brokerage. Hidden when null/0. */}
+                    {property.sale_brokerage_pct != null && property.sale_brokerage_pct > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Brokerage {property.sale_brokerage_pct}%
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </section>
+            ) : (
             <section className="px-4 lg:px-0">
               <Card className="border-border">
                 <CardContent className="p-4">
@@ -1045,9 +1108,31 @@ const PropertyDetail: React.FC = () => {
                     <div className="flex justify-between items-start text-sm">
                       <span className="text-gray-500">Security Deposit</span>
                       <span className="text-gray-700 text-right font-medium">
-                        ₹{(property.listed_rent * (property.security_deposit_months ?? 2)).toLocaleString('en-IN')}
+                        {depositDisplay}
                       </span>
                     </div>
+                    {/* Phase 1.5 addendum (D-166) — move-in charges. Row hidden when null/0. */}
+                    {property.move_in_charges_amount != null && property.move_in_charges_amount > 0 && (
+                      <div className="flex justify-between items-start text-sm">
+                        <span className="text-gray-500">Move-in charges</span>
+                        <span className="text-gray-700 text-right font-medium">
+                          ₹{property.move_in_charges_amount.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    )}
+                    {/* D-169: brokerage split into two typed columns. Read the matching column per type;
+                        skip when type is null/'none' or the matching column is null. */}
+                    {((property.rent_brokerage_type === "fixed" && property.rent_brokerage_fixed_amount != null) ||
+                      (property.rent_brokerage_type === "months" && property.rent_brokerage_months != null)) && (
+                      <div className="flex justify-between items-start text-sm">
+                        <span className="text-gray-500">Brokerage</span>
+                        <span className="text-gray-700 text-right font-medium">
+                          {property.rent_brokerage_type === "fixed"
+                            ? `₹${property.rent_brokerage_fixed_amount!.toLocaleString('en-IN')}`
+                            : `${property.rent_brokerage_months} month${property.rent_brokerage_months === 1 ? "" : "s"} rent`}
+                        </span>
+                      </div>
+                    )}
                     {property.society_maintenance_approx != null && (
                       <div className="flex justify-between items-start text-sm">
                         <span className="text-gray-500">Society Maintenance</span>
@@ -1063,6 +1148,7 @@ const PropertyDetail: React.FC = () => {
                 </CardContent>
               </Card>
             </section>
+            )}
 
             {/* 4. Utilities */}
             <section className="space-y-2 px-4 lg:px-0">
@@ -1089,22 +1175,49 @@ const PropertyDetail: React.FC = () => {
               </div>
             </section>
 
-            {/* 6. Property Details Grid */}
+            {/* 6. Property Details Grid — spec-driven via PROPERTY_FIELDS (D-128, D-157). */}
             <section className="space-y-3 px-4 lg:px-0">
               <h2 className="text-base font-semibold text-foreground">Property Details</h2>
               <div className="grid grid-cols-2 gap-3">
-                {detailItems.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-start gap-2.5 rounded-lg border border-border bg-card p-3"
-                  >
-                    <span className="mt-0.5 text-muted-foreground">{item.icon}</span>
-                    <div>
-                      <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                      <p className="text-sm font-medium text-foreground">{item.value}</p>
-                    </div>
-                  </div>
+                {visibleGridKeys.map((key) => (
+                  <SpecField
+                    key={key}
+                    fieldKey={key}
+                    surface="public_detail"
+                    value={propertyRow[key]}
+                    readOnly
+                    // Prompt 10b (D-162): pass the row so spec-declared visibleWhen
+                    // predicates evaluate (possession_date hidden unless under_construction).
+                    formValues={propertyRow}
+                  />
                 ))}
+                {/* Prompt 8 (D-159) — compound parking rows combining enum + count.
+                    Bespoke because SpecField renders one field per row; parking here
+                    needs "{Covered} · {2 slots}" from two columns. Row hides entirely
+                    when enum is 'none'/null AND count is 0/null. */}
+                {(() => {
+                  const rows: Array<{ label: string; icon: React.ReactNode; enumVal: string | null; count: number | null }> = [
+                    { label: "4-Wheeler Parking", icon: <Car className="h-4 w-4" />, enumVal: property.parking_4w, count: property.parking_4w_count },
+                    { label: "2-Wheeler Parking", icon: <Bike className="h-4 w-4" />, enumVal: property.parking_2w, count: property.parking_2w_count },
+                  ];
+                  return rows.map((r) => {
+                    const hasEnum = r.enumVal && r.enumVal !== "none";
+                    const hasCount = r.count != null && r.count > 0;
+                    if (!hasEnum && !hasCount) return null;
+                    const enumPart = hasEnum ? parkingLabel(r.enumVal as string) : "";
+                    const countPart = hasCount ? `${r.count} slot${r.count === 1 ? "" : "s"}` : "";
+                    const display = [enumPart, countPart].filter(Boolean).join(" · ");
+                    return (
+                      <div key={r.label} className="flex items-start gap-2.5 rounded-lg border border-border bg-card p-3">
+                        <span className="mt-0.5 text-muted-foreground">{r.icon}</span>
+                        <div>
+                          <p className="text-[11px] text-muted-foreground">{r.label}</p>
+                          <p className="text-sm font-medium text-foreground">{display}</p>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
 
               {/* Furnishing Included — new structured format */}
@@ -1261,7 +1374,7 @@ const PropertyDetail: React.FC = () => {
                     <span className="text-sm text-muted-foreground">/month</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Security Deposit: {formatIndianRupee(depositAmount)}
+                    Security Deposit: {depositDisplay}
                   </p>
                   {isOwnProperty ? (
                     <p className="text-sm text-muted-foreground text-center py-2">This is your listed property.</p>
