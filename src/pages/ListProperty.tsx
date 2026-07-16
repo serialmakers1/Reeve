@@ -19,6 +19,7 @@ import { CheckCircle2, Circle, AlertCircle, X, Eye, Trash2 } from "lucide-react"
 import { getStatusDisplay } from "@/lib/propertyStatus";
 
 import Layout from "@/components/Layout";
+import VerificationGate from "@/components/VerificationGate";
 import { SpecField } from "@/components/property/SpecField";
 import { ensurePrimaryPhoto } from "@/lib/property-images";
 import RejectionPanel from "@/components/property-management/RejectionPanel";
@@ -1212,6 +1213,7 @@ export default function ListProperty() {
   }
 
   return (
+    <VerificationGate returnTo="/list">
     <Layout>
       <div className="container mx-auto max-w-2xl px-4 py-6 pb-32">
         {/* Edit-mode status header */}
@@ -1792,6 +1794,7 @@ export default function ListProperty() {
         </DialogContent>
       </Dialog>
     </Layout>
+    </VerificationGate>
   );
 }
 

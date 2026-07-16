@@ -6,9 +6,37 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2, Circle } from "lucide-react";
+import { Loader2, CheckCircle2, Circle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import posthog from "posthog-js";
+
+// D-172: reason-banner copy shown when /profile is reached via VerificationGate.
+const REASON_COPY: Record<string, { headline: string; body: string[]; hint: string }> = {
+  phone: {
+    headline: "Verify your phone number to continue",
+    body: [
+      "Your phone number confirms you're a real person — not a bot or spam account. We will never call you, WhatsApp you, or share your number with anyone. It's used for one thing only: a one-time OTP to verify your identity.",
+    ],
+    hint: "Add and verify your phone number below.",
+  },
+  email: {
+    headline: "Verify your email address to continue",
+    body: [
+      "Your email is how we send you important updates — like when an owner responds to your contact request. We send transactional emails only. No marketing, no spam, ever.",
+    ],
+    hint: "Verify your email address below.",
+  },
+  both: {
+    headline: "Verify your phone and email to continue",
+    body: [
+      "Reeve is built on verified real identities. This keeps the platform honest and spam-free for everyone.",
+      "Phone — confirms you're a real person. One OTP, stays private forever.",
+      "Email — how we reach you when owners respond. Transactional only, no spam.",
+    ],
+    hint: "Complete both verifications below.",
+  },
+};
 
 const PENDING_RETURN_TTL = 30 * 60 * 1000; // 30 minutes
 
@@ -21,6 +49,8 @@ export default function Profile() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
+  const reason = searchParams.get('reason');
+  const reasonCopy = reason ? REASON_COPY[reason] : null;
   const [initialized, setInitialized] = useState(false);
 
   // ─── Section 1: Full Name ──────────────────────────────────────────────────
@@ -163,7 +193,9 @@ export default function Profile() {
         const linkReturnTo = sessionStorage.getItem('reeve-link-returnTo');
         if (linkReturnTo) {
           sessionStorage.removeItem('reeve-link-returnTo');
-          navigate(linkReturnTo, { replace: true });
+          // D-172: gate redirect — toast then delayed navigate.
+          sonnerToast("You're verified! Taking you back…");
+          setTimeout(() => navigate(linkReturnTo, { replace: true }), 2000);
         } else {
           const raw = localStorage.getItem("pendingReturnTo");
           if (raw) {
@@ -317,7 +349,9 @@ export default function Profile() {
 
       await refreshUser();
       if (returnTo && returnTo !== '/profile') {
-        navigate(returnTo, { replace: true });
+        // D-172: gate redirect — toast then delayed navigate so user sees confirmation.
+        sonnerToast("You're verified! Taking you back…");
+        setTimeout(() => navigate(returnTo, { replace: true }), 2000);
         return;
       }
       setPhoneStep("idle");
@@ -404,6 +438,22 @@ export default function Profile() {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-lg space-y-4">
+
+        {/* D-172: Reason banner — shown when arriving from VerificationGate */}
+        {reasonCopy && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-4 text-sm">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="h-5 w-5 shrink-0 text-amber-700 mt-0.5" />
+              <div className="space-y-2">
+                <p className="font-semibold text-amber-900">{reasonCopy.headline}</p>
+                {reasonCopy.body.map((line, i) => (
+                  <p key={i} className="text-amber-800 leading-relaxed">{line}</p>
+                ))}
+                <p className="text-amber-900 font-medium">{reasonCopy.hint}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Verification status banner */}
         {(!phoneVerified || !emailVerified) && (

@@ -52,6 +52,8 @@ const ApplicationsList       = React.lazy(() => import("./pages/ApplicationsList
 const NewApplication         = React.lazy(() => import("./pages/NewApplication"));
 const ApplicationDetail      = React.lazy(() => import("./pages/ApplicationDetail"));
 const VisitsList             = React.lazy(() => import("./pages/VisitsList"));
+const TenantPreferences      = React.lazy(() => import("./pages/TenantPreferences"));
+const TenantDashboard        = React.lazy(() => import("./pages/TenantDashboard"));
 
 // Admin
 const OwnerPipeline          = React.lazy(() => import("./pages/admin/OwnerPipeline"));
@@ -154,12 +156,14 @@ function AppInner() {
         <Route path="/owner/properties/new" element={<Navigate to="/my-properties/new" replace />} />
         <Route path="/owner/properties/:id" element={<Navigate to="/my-properties" replace />} />
         <Route path="/owner/applications/:id" element={<Navigate to="/dashboard/applications" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Navigate to="/tenant-dashboard" replace />} />
         <Route path="/dashboard/favourites" element={<DashboardFavourites />} />
         <Route path="/dashboard/applications" element={<ApplicationsList />} />
         <Route path="/dashboard/applications/new" element={<NewApplication />} />
         <Route path="/dashboard/visits" element={<VisitsList />} />
         <Route path="/dashboard/applications/:id" element={<ApplicationDetail />} />
+        <Route path="/tenant-dashboard" element={<TenantDashboard />} />
+        <Route path="/tenant-dashboard/preferences" element={<TenantPreferences />} />
         <Route path="/admin" element={<Navigate to="/admin/owners" replace />} />
         <Route path="/admin/tenants" element={<Navigate to="/admin/applications" replace />} />
         <Route path="/admin/owners" element={<OwnerPipeline />} />

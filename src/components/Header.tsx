@@ -85,14 +85,17 @@ const Header = () => {
                     </DropdownMenuItem>
                   ) : (
                     <>
-                      <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                      <DropdownMenuItem onClick={() => navigate("/tenant-dashboard")}>
                         Tenant Dashboard
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate("/my-properties")}>
                         Owner Dashboard
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate("/profile")}>
+                      <DropdownMenuItem onClick={() => navigate("/me")}>
                         My Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate("/profile")}>
+                        Account settings
                       </DropdownMenuItem>
                     </>
                   )}
@@ -149,11 +152,18 @@ const Header = () => {
                   Contact Us
                 </Link>
                 <Link
-                  to="/profile"
+                  to="/me"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   My Profile
+                </Link>
+                <Link
+                  to="/profile"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Account settings
                 </Link>
                 <button
                   onClick={() => {

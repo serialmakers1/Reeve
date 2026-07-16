@@ -547,3 +547,11 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-10] feat | Phase 1 Prompt 8 — admin listing review queue + commons memory audit [IST]
 ## [2026-07-10] feat | Phase 1 Prompt 9 — public timeline + session restore + archived notice + modify-edit polish [IST]
 ## [2026-07-10] fix | Phase 1 Prompt 10 — RLS gap, admin edit log, Path B guards, final commons sync [IST]
+
+## [2026-07-17] diagnosis | Phase 2 pre-build codebase investigation [19:42 IST]
+## [2026-07-17] feat | Phase 2 Prompt 1 — types regen, isFullyVerified, memory update (D-172–D-177) [20:17 IST]
+## [2026-07-17] feat | Phase 2 Prompt 2 — VerificationGate component, /profile banner + redirect, /list gate, CLAUDE.md trim [20:31 IST]
+## [2026-07-17] feat | Phase 2 Prompt 3 — /me and /u/:userId audit + gap fixes [20:35 IST]
+## [2026-07-17] feat | Phase 2 Prompt 4 — /tenant-dashboard/preferences page (TenantPreferences.tsx) [20:48 IST]
+## [2026-07-17] feat | Phase 2 Prompt 5 — /tenant-dashboard page (TenantDashboard.tsx) [20:53 IST]
+## [2026-07-17] feat | Phase 2 Prompt 6 — routing redirect, BottomNav + Header tenant nav update, orphan cleanup [20:58 IST]
