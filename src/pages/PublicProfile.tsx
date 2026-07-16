@@ -81,10 +81,14 @@ export default function PublicProfile() {
         setLoading(false);
         return;
       }
-      // If the profile row exists but is_public=false, the view filters it out.
-      // Distinguish "no row" from "hidden": if we got no view row but the user row exists,
-      // we could still show a minimal card. Simpler: treat as private profile.
+      // D-173: view now exposes is_public as a column (no longer filters server-side).
+      // Guard here: treat is_public=false the same as private profile.
       if (!pub && uRow) {
+        setPrivateProfile(true);
+        setLoading(false);
+        return;
+      }
+      if (pub && (pub as PublicProfileRow).is_public === false) {
         setPrivateProfile(true);
         setLoading(false);
         return;

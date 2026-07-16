@@ -1612,3 +1612,49 @@ Tests: no new tests (all changes are stateful rename + spec-driven input); regre
 reasoning: Small technical debt items compound; better to close them alongside memory consolidation than let them drift. The bridge and dead state are exactly the kind of "one-off ephemera" that stops being ephemera once someone else has to read past it. `security_deposit_months` owner input closes a latent bug — chips wrote amount but not months, so public detail's D-167 annotation logic ("₹70,000 (2 months)") only fired for rows the admin edited.
 supersedes: (closes D-167–D-170 sync series)
 files_affected: src/pages/ListProperty.tsx, src/pages/admin/PropertyEdit.tsx, CLAUDE.md, commons-schema.md, commons-forward-plan.md, commons-decisions.md, log.md
+
+---
+
+## Phase 2 Decisions (D-172–D-177)
+
+**D-172 — `rental_preferences` table created (Phase 2 Prompt 1)**
+New table, one row per user (UNIQUE on user_id). Fields: preferred_city,
+preferred_localities (text[]), move_in_by (date), number_of_occupants (int,
+default 1, 1–20), age (int, 16–100), gender (text CHECK), marital_status
+(text CHECK, includes 'live_in'), occupation (text CHECK) + occupation_other,
+diet_preference (text CHECK), has_pets (bool), pet_types (text[]),
+expected_stay_duration (text CHECK, 6 values), is_foreign_citizen (bool).
+RLS: SELECT/INSERT/UPDATE own row. No DELETE. updated_at trigger.
+Applied via MCP (not CC migration file).
+
+**D-173 — `public_profiles` view fixed (Phase 2 Prompt 1)**
+Added `display_name` (from profiles) and `is_public` (from profiles) to the view.
+Was a live bug — PublicProfile.tsx selected both columns; view only exposed 4.
+View now exposes: user_id, full_name (from users), profile_photo_url, bio,
+display_name, is_public (last 3 from profiles). Applied via MCP.
+
+**D-174 — Contact request snapshot rule (Phase 3 gate)**
+When tenant submits a contact request (Phase 3), freeze a JSON snapshot of their
+`rental_preferences` row at that moment into `contact_requests.tenant_profile_snapshot`.
+Owner always sees this frozen snapshot — not live preferences. Future edits to
+preferences never affect existing requests. Each new request re-snapshots.
+
+**D-175 — Tenant dashboard card order**
+Contact Requests (top) → Saved Properties → Rental Preferences.
+Reason: Contact Requests is the primary return-visit action once the platform
+has real usage. Preferences is set-and-forget. Favourites is passive browsing.
+
+**D-176 — `isFullyVerified` added to `useAuth`**
+`isFullyVerified: !!(user?.phone_verified && user?.email_verified)` added to
+useAuth return object. Phase 2+ code uses this. Three existing call sites
+(PropertyDetail, NewApplication, Eligibility) not refactored — left as-is.
+
+**D-177 — Preferences form UX decisions**
+Single scrolling page (not wizard). Route: `/tenant-dashboard/preferences`.
+Upsert on submit button (not auto-save). Mandatory (UI-only, not DB NOT NULL):
+age, gender, number_of_occupants, occupation, expected_stay_duration.
+Sticky footer with "X of 5 required fields complete" + Save button.
+Section-level explainers explaining why this data is collected.
+Design source: copy component patterns from `/eligibility` page.
+move_in_by: no past dates, max 90 days ahead.
+Localities: plain text input for now (Google Places deferred — D-forward-plan).

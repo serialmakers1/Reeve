@@ -24,10 +24,8 @@ Everything captured during Phase 1 planning that is NOT built in Phase 1. Groupe
 - Reasoning: Manual lat/lng entry is error-prone. No point adding the columns until we have an accurate source.
 - Consumers: distance-to-search-anchor, map view on property detail (also deferred).
 
-### Rental preferences form + `rental_preferences` table
-- Decision: Non-blocking form (unlike current `/eligibility` which blocks).
-- Scope: tenant-side counterpart of the owner listing. Feeds contact request UX.
-- Related: needed before contact request review can show meaningful data (Phase 3).
+### ✅ Rental preferences form + `rental_preferences` table (RESOLVED — Phase 2 Prompt 1)
+Table created (D-172). Form at /tenant-dashboard/preferences built in Phase 2 Prompt 4.
 
 ### Non-blocking replacement for `/eligibility`
 - Decision: Replace the current blocking form.
@@ -40,6 +38,15 @@ Everything captured during Phase 1 planning that is NOT built in Phase 1. Groupe
 ### Contact request build
 - URL, table (`contact_requests`), and RLS all designed during Phase 3.
 - UX pattern locked: Option F expand-in-place (see commons-decisions.md D-063 and commons-ux.md §3).
+
+### Contact requests build (confirmed Phase 3)
+- `contact_requests` table + RLS (Phase 3 Prompt 1)
+- Request Contact button on PropertyDetail (Phase 3 Prompt 2)
+- Owner request review on property management page (Phase 3 Prompt 3)
+- Phone/contact reveal via Edge Function + email (Phase 3 Prompt 4)
+- Snapshot rule: D-174 — freeze rental_preferences into tenant_profile_snapshot on submit
+- Verification gate on contact button reuses `<VerificationGate />` from Phase 2
+- No cooldown logic in Phase 3 — log re-request flag for empirical data first
 
 ### Tenant re-request cooldown
 - Decision: Cooldown period NOT yet decided — needs empirical data from early requests.

@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 const TABS = [
   { label: 'Home',              icon: Home,            route: '/'              },
   { label: 'Browse Properties', icon: Search,          route: '/search'        },
-  { label: 'Tenant Dashboard',  icon: LayoutDashboard, route: '/dashboard'     },
+  { label: 'Tenant Dashboard',  icon: LayoutDashboard, route: '/tenant-dashboard' },
   { label: 'Owner Dashboard',   icon: Building2,       route: '/owner-dashboard' },
 ];
 
@@ -22,6 +22,9 @@ export default function BottomNav() {
     // (redirect fires but the check runs before pathname rewrite on the first render).
     if (route === '/owner-dashboard') {
       return location.pathname.startsWith('/owner-dashboard') || location.pathname.startsWith('/my-properties');
+    }
+    if (route === '/tenant-dashboard') {
+      return location.pathname === '/tenant-dashboard' || location.pathname.startsWith('/tenant-dashboard/');
     }
     return location.pathname.startsWith(route);
   };

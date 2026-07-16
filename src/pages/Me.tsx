@@ -268,6 +268,24 @@ export default function Me() {
           </div>
         </section>
 
+        {/* Rental preferences (Phase 2 — D-177) */}
+        <section className="rounded-xl border bg-card p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold text-foreground">Rental preferences</h2>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                What you're looking for — city, occupants, move-in, and more.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => navigate("/tenant-dashboard/preferences")}>
+              Edit
+            </Button>
+          </div>
+        </section>
+
         {/* View as public */}
         <p className="text-center text-xs text-muted-foreground">
           This is how you see it.{" "}

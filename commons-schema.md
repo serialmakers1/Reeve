@@ -626,3 +626,34 @@ Five-prompt parity-audit cleanup after Phase 1.5 shipped. All frontend + one sch
 - **Sync P5 (D-171)** — `security_deposit_months` owner input added to Section 3 alongside chips (chips now write BOTH amount and months). `maintenance_included` FormState key renamed to `maintenance_included_in_rent` (matches DB column; bridge removed). Dead `furnishingItems` state removed from `PropertyEdit.tsx` (D-170 follow-up). `CLAUDE.md` trimmed from 438 → ~275 lines. Full history: `commons-decisions.md` D-001–D-171.
 
 **Not touched by any sync prompt:** RLS policies, RPCs, triggers, edge functions, `client.ts`, `config.toml`, any migration file (only schema change was via MCP in P3).
+
+## Phase 2 Schema (D-172–D-173)
+
+### `rental_preferences` table (D-172)
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | gen_random_uuid() |
+| user_id | uuid FK→users | UNIQUE — one row per user |
+| preferred_city | text | nullable |
+| preferred_localities | text[] | nullable |
+| move_in_by | date | nullable; UI enforces future-only, max 90d |
+| number_of_occupants | integer | default 1, CHECK 1–20 |
+| age | integer | nullable, CHECK 16–100 |
+| gender | text | nullable, CHECK (male/female/other) |
+| marital_status | text | nullable, CHECK (single/married/family/live_in) |
+| occupation | text | nullable, CHECK (salaried/self_employed/student/retired/other) |
+| occupation_other | text | nullable, free text when occupation='other' |
+| diet_preference | text | nullable, CHECK (veg/non_veg) |
+| has_pets | boolean | default false |
+| pet_types | text[] | nullable, populated when has_pets=true |
+| expected_stay_duration | text | nullable, CHECK (less_than_6_months/6_to_11_months/1_year/2_years/3_years_plus/flexible) |
+| is_foreign_citizen | boolean | default false |
+| created_at | timestamptz | default now() |
+| updated_at | timestamptz | auto-updated by trigger |
+
+RLS: SELECT/INSERT/UPDATE own row (user_id = auth.uid()). No DELETE policy.
+Phase 3 reads this table via service role to snapshot into contact_requests.
+
+### `public_profiles` view fix (D-173)
+View now exposes: user_id, full_name (from users), profile_photo_url, bio,
+display_name, is_public (last 4 from profiles LEFT JOIN).

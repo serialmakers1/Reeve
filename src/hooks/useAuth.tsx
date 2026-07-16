@@ -166,5 +166,7 @@ export function useAuth() {
     }
   }, [state.session, loadUser]);
 
-  return { ...state, signOut, refreshUser };
+  const isFullyVerified = !!(state.user?.phone_verified && state.user?.email_verified);
+
+  return { ...state, isFullyVerified, signOut, refreshUser };
 }

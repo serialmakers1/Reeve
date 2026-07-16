@@ -2930,6 +2930,84 @@ export type Database = {
           },
         ]
       }
+      rental_preferences: {
+        Row: {
+          age: number | null
+          created_at: string | null
+          diet_preference: string | null
+          expected_stay_duration: string | null
+          gender: string | null
+          has_pets: boolean | null
+          id: string
+          is_foreign_citizen: boolean | null
+          marital_status: string | null
+          move_in_by: string | null
+          number_of_occupants: number | null
+          occupation: string | null
+          occupation_other: string | null
+          pet_types: string[] | null
+          preferred_city: string | null
+          preferred_localities: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string | null
+          diet_preference?: string | null
+          expected_stay_duration?: string | null
+          gender?: string | null
+          has_pets?: boolean | null
+          id?: string
+          is_foreign_citizen?: boolean | null
+          marital_status?: string | null
+          move_in_by?: string | null
+          number_of_occupants?: number | null
+          occupation?: string | null
+          occupation_other?: string | null
+          pet_types?: string[] | null
+          preferred_city?: string | null
+          preferred_localities?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          age?: number | null
+          created_at?: string | null
+          diet_preference?: string | null
+          expected_stay_duration?: string | null
+          gender?: string | null
+          has_pets?: boolean | null
+          id?: string
+          is_foreign_citizen?: boolean | null
+          marital_status?: string | null
+          move_in_by?: string | null
+          number_of_occupants?: number | null
+          occupation?: string | null
+          occupation_other?: string | null
+          pet_types?: string[] | null
+          preferred_city?: string | null
+          preferred_localities?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rental_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rental_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           auth_provider: Database["public"]["Enums"]["auth_provider"]
@@ -3190,7 +3268,9 @@ export type Database = {
       public_profiles: {
         Row: {
           bio: string | null
+          display_name: string | null
           full_name: string | null
+          is_public: boolean | null
           profile_photo_url: string | null
           user_id: string | null
         }
