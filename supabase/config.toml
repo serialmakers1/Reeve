@@ -12,5 +12,14 @@ verify_jwt = false
 [functions.verify-razorpay-payment]
 verify_jwt = false
 
-[functions.send-sms-otp]
+[functions.submit-contact-request]
+verify_jwt = false
+
+[functions.reveal-contact]
+verify_jwt = false
+
+[functions.resend-reveal]
+verify_jwt = false
+
+[functions.resend-contact-webhook]
 verify_jwt = false

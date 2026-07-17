@@ -536,6 +536,115 @@ export type Database = {
           },
         ]
       }
+      contact_requests: {
+        Row: {
+          approved_at: string | null
+          attempt_number: number
+          auto_cancelled_at: string | null
+          consent_checked_at: string
+          consent_terms_version: number
+          created_at: string
+          decline_reason:
+            | Database["public"]["Enums"]["contact_request_decline_reason"]
+            | null
+          declined_at: string | null
+          id: string
+          owner_id: string
+          property_id: string
+          status: Database["public"]["Enums"]["contact_request_status"]
+          tenant_id: string
+          tenant_message: string | null
+          tenant_profile_snapshot: Json
+          updated_at: string
+          withdrawn_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          attempt_number?: number
+          auto_cancelled_at?: string | null
+          consent_checked_at: string
+          consent_terms_version?: number
+          created_at?: string
+          decline_reason?:
+            | Database["public"]["Enums"]["contact_request_decline_reason"]
+            | null
+          declined_at?: string | null
+          id?: string
+          owner_id: string
+          property_id: string
+          status?: Database["public"]["Enums"]["contact_request_status"]
+          tenant_id: string
+          tenant_message?: string | null
+          tenant_profile_snapshot: Json
+          updated_at?: string
+          withdrawn_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          attempt_number?: number
+          auto_cancelled_at?: string | null
+          consent_checked_at?: string
+          consent_terms_version?: number
+          created_at?: string
+          decline_reason?:
+            | Database["public"]["Enums"]["contact_request_decline_reason"]
+            | null
+          declined_at?: string | null
+          id?: string
+          owner_id?: string
+          property_id?: string
+          status?: Database["public"]["Enums"]["contact_request_status"]
+          tenant_id?: string
+          tenant_message?: string | null
+          tenant_profile_snapshot?: Json
+          updated_at?: string
+          withdrawn_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_requests_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "contact_requests_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "contact_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           application_id: string | null
@@ -754,6 +863,64 @@ export type Database = {
           {
             foreignKeyName: "eligibility_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_send_log: {
+        Row: {
+          contact_request_id: string | null
+          created_at: string
+          error_reason: string | null
+          event_type: string
+          id: string
+          raw_payload: Json | null
+          recipient_email: string | null
+          recipient_user_id: string | null
+          resend_message_id: string | null
+        }
+        Insert: {
+          contact_request_id?: string | null
+          created_at?: string
+          error_reason?: string | null
+          event_type: string
+          id?: string
+          raw_payload?: Json | null
+          recipient_email?: string | null
+          recipient_user_id?: string | null
+          resend_message_id?: string | null
+        }
+        Update: {
+          contact_request_id?: string | null
+          created_at?: string
+          error_reason?: string | null
+          event_type?: string
+          id?: string
+          raw_payload?: Json | null
+          recipient_email?: string | null
+          recipient_user_id?: string | null
+          resend_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_send_log_contact_request_id_fkey"
+            columns: ["contact_request_id"]
+            isOneToOne: false
+            referencedRelation: "contact_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_send_log_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "email_send_log_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -3300,6 +3467,17 @@ export type Database = {
       }
       earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
+      get_owner_response_rate: {
+        Args: { p_owner_id: string }
+        Returns: {
+          all_time_handled: number
+          all_time_rate: number
+          all_time_responded: number
+          last_7d_handled: number
+          last_7d_rate: number
+          last_7d_responded: number
+        }[]
+      }
       get_user_role: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_property_owner: { Args: { prop_id: string }; Returns: boolean }
@@ -3406,6 +3584,18 @@ export type Database = {
         | "no_credit_history"
         | "not_sure"
       condition_report_type: "move_in" | "move_out" | "periodic_inspection"
+      contact_request_decline_reason:
+        | "preferences_dont_fit"
+        | "property_currently_unavailable"
+        | "prefer_to_wait"
+        | "not_the_right_fit"
+        | "property_no_longer_available"
+      contact_request_status:
+        | "pending"
+        | "approved"
+        | "declined"
+        | "withdrawn"
+        | "auto_cancelled"
       damage_severity: "low" | "medium" | "high"
       diet_type: "vegetarian" | "non_vegetarian"
       document_category:
@@ -3785,6 +3975,20 @@ export const Constants = {
         "not_sure",
       ],
       condition_report_type: ["move_in", "move_out", "periodic_inspection"],
+      contact_request_decline_reason: [
+        "preferences_dont_fit",
+        "property_currently_unavailable",
+        "prefer_to_wait",
+        "not_the_right_fit",
+        "property_no_longer_available",
+      ],
+      contact_request_status: [
+        "pending",
+        "approved",
+        "declined",
+        "withdrawn",
+        "auto_cancelled",
+      ],
       damage_severity: ["low", "medium", "high"],
       diet_type: ["vegetarian", "non_vegetarian"],
       document_category: [

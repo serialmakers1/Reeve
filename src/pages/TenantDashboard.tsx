@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { CheckCircle2, Circle, Heart, MessageSquare, Settings2 } from "lucide-react";
 
 import Layout from "@/components/Layout";
+import ContactRequestsCard from "@/components/tenant-dashboard/ContactRequestsCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -90,17 +91,8 @@ export default function TenantDashboard() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {/* ── Card 1 — Contact Requests (Phase 3 placeholder) ── */}
-          {/* Phase 3: replace static content with live requests */}
-          <section className="rounded-xl border bg-card p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold text-foreground">Contact Requests</h2>
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              You haven't sent any contact requests yet. Find a property you like and tap Request Contact to get started.
-            </p>
-          </section>
+          {/* ── Card 1 — Contact Requests (Phase 3 Prompt 5 — live) ── */}
+          <ContactRequestsCard />
 
           {/* ── Card 2 — Saved Properties ── */}
           <section className="rounded-xl border bg-card p-5 space-y-3">

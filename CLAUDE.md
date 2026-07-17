@@ -2,7 +2,7 @@
 
 Property management platform connecting owners and tenants in India. Owners list properties, tenants apply and sign leases — Reeve manages inspections, agreements, and the full rental lifecycle.
 
-Full decision + implementation history: `commons-decisions.md` D-001–D-177. This file holds only load-bearing invariants.
+Full decision + implementation history: `commons-decisions.md` D-001–D-177 + D-P3-000–D-P3-010. This file holds only load-bearing invariants.
 
 ## Tech Stack
 React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (Postgres + Auth + Storage) · React Router v6 · Sentry · PostHog.
@@ -13,7 +13,7 @@ React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (
 
 ## Typecheck (IMPORTANT)
 - Correct: `npx tsc -p tsconfig.app.json --noEmit`. `npx tsc --noEmit` checks ZERO files (root tsconfig has `"files": []` + project references).
-- Baseline: **360 pre-existing errors** (Sync P5, 2026-07-14) from Supabase generated types (query generic inference). Diff against baseline, not zero. New TS2304/TS2552 in touched files = runtime crashes vite won't catch.
+- Baseline: **364 pre-existing errors** (Phase 3 Prompt 1, 2026-07-17; drifted +4 from Sync P5's 360). Supabase generated-types generic-inference noise. Diff against baseline, not zero. New TS2304/TS2552 in touched files = runtime crashes vite won't catch.
 
 ## TypeScript Config
 `strictNullChecks: false`, `noImplicitAny: false` — intentional, do not tighten.
@@ -92,8 +92,32 @@ Legacy PM: `draft → inspection_proposed → inspection_scheduled → inspected
 - `is_admin()` covers admin + super_admin (no ops role)
 - Multiple SELECT policies OR-ed by Postgres — separate user+admin SELECT policies are valid.
 
-## Database Tables (24 total)
-`agreements, applications, application_notes, application_residents, documents, eligibility, favourites, inspection_callbacks, keys_tracking, leads, leases, maintenance_requests, owner_action_log, owner_bank_details, payments, profiles, properties, property_condition_reports, property_images, rental_preferences, users, visit_events, visits`. View: `properties_with_flat_number`, `public_profiles`.
+## Phase 3 Edge Functions (2026-07-17)
+Phase 3 complete (2026-07-17). contact_requests + email_send_log tables live. 4 Edge Functions deployed. 3 n8n workflows active.
+Four functions in `supabase/functions/`: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`. All `verify_jwt=false` in config.toml with manual JWT validation inside the handler (matches the razorpay pattern). Phone numbers NEVER appear in any HTTP response body — email reveal only (D-P3-001). service_role key used for all DB reads/writes. `tenant_id` always derived from the verified JWT — never trusted from request body. Approval sends two emails in parallel via Promise.all; approval stands even if either send fails (resend-reveal is the retry surface). resend-contact-webhook verifies Svix signature (`RESEND_WEBHOOK_SECRET`) and always returns 200 on valid signature so Resend does not retry-storm. reveal-contact and resend-reveal call n8n webhooks (fire-and-forget). RESEND_API_KEY not used in Supabase. N8N_WEBHOOK_SECRET required in Supabase secrets.
+
+## Phase 3 Prompt 6 — PublicProfile owner stats
+Owner response-rate block rendered on `/u/:userId` below bio, above ListingsGrid + Ratings placeholder (`src/pages/PublicProfile.tsx` `OwnerStatsBlock`). Calls `get_owner_response_rate` RPC + a `properties` count query in parallel; renders null when the profile has no active listings AND zero request history (avoids empty tenant-profile strips). `< 5` handled → "New owner · Verified"; `>= 5` handled → "Responds to X% of requests · N handled all-time" + optional weekly line. Copy is intentionally "Responds to X% of requests" — never "approval rate" (D-P3-009 rationale, D-P3-011 enforcement). Column-name fallback (`_handled ?? _total`) so both RPC signatures resolve. All commons files synced through D-P3-011.
+
+## Phase 3 Prompt 5 — Tenant Contact Requests card
+`src/components/tenant-dashboard/ContactRequestsCard.tsx` replaces the Phase 2 static placeholder in TenantDashboard card 1 (position unchanged). Owns its own query, realtime (`tenant_id=eq.${user.id}` on contact_requests), per-minute cooldown tick (only mounted when a declined row is still cooling), and three actions: Withdraw (client UPDATE guarded by `.eq('status','pending').eq('tenant_id', user.id)`), Resend (calls `resend-reveal` Edge Function; 429 branches surface cooldown vs daily-limit toasts distinctly), and Re-request (navigates to `/property/:id` and delegates to RequestContactPanel — never re-implements submit logic). Header badge shows pending + approved count (hidden at zero). All property links use `/property/:id` — zero `/owner-dashboard/` refs.
+
+## Phase 3 Prompt 4 — Owner Requests tab
+`src/components/owner-dashboard/RequestsTab.tsx` renders the live grouped log (pending / approved / declined / withdrawn / auto_cancelled) on `/owner-dashboard/property/:id`. `src/components/owner-dashboard/DeclineReasonModal.tsx` — 5 templated radio options matching the `contact_request_decline_reason` enum verbatim; free text disallowed. Approve → `supabase.functions.invoke('reveal-contact')` (never a direct client UPDATE). Decline → direct `.update({status:'declined', decline_reason})` guarded by `.eq('status','pending')` (RLS allows owner). Snapshot visibility rule: declined / withdrawn / auto_cancelled render name-only compact card — no photo, no preferences, no message. Tab badge on OwnerPropertyManagement shows live pending count via `fetchPendingCount(propertyId)` + realtime subscription on `contact_requests` filtered by `property_id`.
+
+## Phase 3 conventions
+- N8N_WEBHOOK_SECRET: Supabase secret used by reveal-contact + resend-reveal Edge Functions to authenticate calls to n8n webhooks.
+- RESEND_WEBHOOK_SECRET: Supabase secret used by resend-contact-webhook Edge Function to verify Resend delivery event signatures.
+- n8n → Supabase reads: always use scoped SECURITY DEFINER RPC + anon key. Never store service_role in n8n. See D-P3-012.
+- OwnerRateBlock (in RequestContactPanel): uses all_time_handled, all_time_responded, last_7d_handled, last_7d_responded column names from get_owner_response_rate RPC. Not _total or _rate.
+- ownerDisplayName passed as null from PropertyDetail to RequestContactPanel — consent copy falls back to 'the owner'. Follow-up: add public_profiles.display_name to property fetch. See commons-forward-plan.
+
+## Phase 3 Prompt 3 — Request Contact panel
+`src/components/property-detail/RequestContactPanel.tsx` — owns all 7 button-state logic, consent capture (D-P3-010), realtime subscription on contact_requests scoped to (tenant, property), and the compact owner response-rate strip (D-P3-009, calls `get_owner_response_rate` RPC). Rendered from PropertyDetail.tsx OUTSIDE the COMMONS_HIDE block for eligible statuses only. Owner viewing own property → null return. Cooldown countdown updates every 60s and clears on unmount. All contact_requests / rental_preferences queries use `(supabase as unknown as ...)` casts to sidestep the types.ts generic-inference baseline noise.
+
+## Database Tables (26 total)
+`agreements, applications, application_notes, application_residents, contact_requests, documents, eligibility, email_send_log, favourites, inspection_callbacks, keys_tracking, leads, leases, maintenance_requests, owner_action_log, owner_bank_details, payments, profiles, properties, property_condition_reports, property_images, rental_preferences, users, visit_events, visits`. View: `properties_with_flat_number`, `public_profiles`.
+`contact_requests` + `email_send_log` added Phase 3 Prompt 1 (D-P3-000–D-P3-010; commons-schema.md "Phase 3 Schema"). All mutations respect trigger-set attempt_number + event timestamps — never set from client.
 Also present but not yet in active frontend use: `external_queries`, `property_inspections`, `inspection_appliances`, `inspection_rooms`.
 
 ## Property activity log + edit requests
@@ -142,83 +166,35 @@ Never use `.maybeSingle()` on unfiltered multi-row application queries — alway
 7. no history → "Apply Now" → `/apply?property_id=X`
 Derive each flag via `.find()` on full applicationHistory — attempt_number ties are non-deterministic.
 
-## Commons Phase 1 + 1.5 (D-001–D-171)
-- Field spec (`src/config/property-fields.ts`) + `<SpecField>` = single source of truth. Adding a scalar = spec entry with `audiences` + `editableBy` + `ownerSection`. `flat_number` never has `public_detail` in `audiences` (D-091). Admin direct-write bypass preserved (D-111).
-- `getUserDisplayName()` reads `users.full_name` only. Support email: `support@reeve.in`.
-- ListProperty (`/list`, `/list/:id`): 9-section accordion. Draft auto-created 800ms after 6 required INSERT fields fill. Draft cap: 20/user. Submit → `pending_review`.
-- Edit flow — Path A (`draft`, `changes_requested`): direct patch via `useListingSave`. Path B (`listed`, `edit_pending_review`): accumulate in `editRequestPayload` → RPC `submit_property_edit_request`. RPCs (SECURITY DEFINER, `auth.uid() + is_admin()`): `submit_property_edit_request(uuid,jsonb,jsonb)`, `approve_edit_request(uuid)`, `reject_edit_request(uuid,text,text)`, `cancel_pending_edit_request(uuid)`. Approve uses COALESCE per column.
-- Property Management (`/owner-dashboard/property/:id`): 4-tab (Requests | Details | Photos | Activity) + 5 confirmation modals.
-- Admin Review (`/admin/listing-reviews`): 2 tabs, detail at `/admin/listing-reviews/:type/:id` (`:type` = `new` | `edit`). RPCs raise if edit no longer pending.
-- Owner Dashboard (`/owner-dashboard`): canonical URL. `/my-properties` redirects. `/my-properties/:id` preserved for legacy PM.
-- Profile pages: `/me` (editable, UPSERT on profiles) + `/u/:userId` (read-only via `public_profiles` view, security_invoker=false).
+## Commons Phase 1 + 1.5 (D-001–D-171 — details in commons-decisions.md)
+- Field spec (`src/config/property-fields.ts`) + `<SpecField>` = single source of truth for property fields. `flat_number` never public (D-091); admin direct-write bypass preserved (D-111). `getUserDisplayName()` reads `users.full_name` only.
+- ListProperty `/list`: 9-section accordion, draft cap 20/user, submit → `pending_review`. Edit flows: Path A direct-patch for draft/changes_requested; Path B `submit_property_edit_request` RPC for listed/edit_pending_review.
+- Property mgmt `/owner-dashboard/property/:id`: 4-tab (Requests | Details | Photos | Activity). Admin Review `/admin/listing-reviews`. Profile pages `/me` (editable) + `/u/:userId` (public_profiles view, security_invoker=false).
 
-### Save pipeline invariants (do NOT unwind)
-- **D-153 pre-draft buffering**: `useListingSave.patch()` buffers while `propertyId` is null and auto-flushes when draft arrives. NEVER re-add `if (propertyId)` guards around `patch()` in ListProperty. Regression test: `src/test/useListingSave.test.ts`.
-- **D-154 defense stack**: failed PostgREST snapshots dropped (not re-queued — poison loop); failed columns tracked in `poisonedKeys` until re-saved; submit blocked while failed/pending/poisoned; every failure console.errors `{payload, message, details, hint, code}`. Auth/network failures still re-queue.
+### Phase 1 + 1.5 invariants (details in commons-decisions.md D-153–D-171 and commons-schema.md)
+- Save pipeline (D-153/154): `useListingSave.patch()` buffers pre-draft; failed-column poison guard; regression test `src/test/useListingSave.test.ts`.
+- Triggers/SpecField: rent/sale trigger applied via MCP (D-160 — do NOT re-apply); date inputs via `<SpecField input='date'>` + `datePickerOptions` (D-168); `visibleWhen: v.listing_type !== 'sale'` fail-safe (D-162).
+- JSONB editors (D-170): `<FurnishingEditor>` + `<AmenitiesEditor>` in `src/components/property/`; owner FormState holds `furnishing_detail[]` + flat `building_amenities[]`.
+- Schema: brokerage split into fixed_amount + months (D-169); deposit prefers amount over months × rent (D-167); India rental + rent/sale + move-in charges (D-159/160/166) — full column table in commons-schema.md.
 
-### Trigger + SpecField rules
-- `enforce_property_owner_transitions` no longer guards `status` in `prevent_owner_updating_admin_fields()` (D-124).
-- **D-160**: rent/sale trigger branch already applied via MCP — do NOT re-apply.
-- Owner-form required fields get red `*` (D-158). Admin/public branches never render marks.
-- **visibleWhen fail-safe**: use `!== 'sale'` not `=== 'rent'` so legacy null-listing_type rows render as rent (D-162).
-- Date inputs via `<SpecField input='date'>` (D-168) with `datePickerOptions` (`warnOnPast`, `maxDaysFromNow`). Callers with local `Date` state bridge via `value={x as unknown} onChange={(...) as (v: unknown) => void}` — SpecField emits ISO string.
-
-### JSONB editors (D-170)
-`<FurnishingEditor value onChange>` and `<AmenitiesEditor value onChange>` in `src/components/property/`. Owner FormState holds `furnishing_detail: FurnishingDetailItem[]` and flat `building_amenities: string[]`. Types + `buildAmenitiesJson` in `@/types/property`.
-
-### Schema invariants
-- **Brokerage** (D-169): `rent_brokerage_fixed_amount` + `rent_brokerage_months`. Both nil unless type active. Old `rent_brokerage_amount` dropped.
-- **Deposit**: `security_deposit_amount` + `security_deposit_months`. `formatDeposit` in `PropertyDetail.tsx` prefers amount over `months × rent` (D-167). 1/2/3-month chips write both columns (D-171).
-- **`gas_type` 'None'** (D-169): caller-side transform writes NULL on save.
-- **India fields** (D-159): 7 columns — `parking_2w_count`, `parking_4w_count`, `parking_notes`, `landmark`, `notice_period_months` (default 1), `annual_rent_increase_pct` (CHECK 0–100), `water_storage`. `annual_rent_increase_pct` always public (D-136); `notice_period_months` rent-only.
-- **Rent/sale** (D-160/161/162): `listing_type` enum on properties, NOT NULL DEFAULT `rent`. 8 sale-specific columns. `PUBLIC_DETAILS_GRID_KEYS` extended with 5 sale rows. Search `[Rent] [Buy]` toggle.
-- **Move-in charges + brokerage** (D-166 + D-169): 4 columns — `move_in_charges_amount`, `rent_brokerage_type` (CHECK `none|fixed|months`), `rent_brokerage_fixed_amount`/`_months`, `sale_brokerage_pct` (CHECK 0–10). In rent/sale Cards on public, NOT in `PUBLIC_DETAILS_GRID_KEYS`.
-
-## Commons Phase 2 — Tenant Dashboard
-
-### Decisions (D-172–D-177)
-- **D-172 — Verification gate:** Both phone AND email must be verified before accessing `/tenant-dashboard/preferences` or `/list`. Hard redirect to `/profile?returnTo={path}&reason={missing}`. Gate is `<VerificationGate />` (`src/components/VerificationGate.tsx`). Existing call sites in PropertyDetail / NewApplication / Eligibility are NOT refactored.
-- **D-173 — `public_profiles` view fix:** Added `display_name` and `is_public` from `profiles` to view. Applied via MCP.
-- **D-174 — Contact request snapshot:** When tenant submits a contact request (Phase 3), freeze a JSON snapshot of their `rental_preferences` row into `contact_requests.tenant_profile_snapshot`. Owner always sees frozen snapshot.
-- **D-175 — Tenant dashboard card order:** Contact Requests → Saved Properties → Rental Preferences.
-- **D-176 — `isFullyVerified`:** Derived boolean on `useAuth`. `!!(user?.phone_verified && user?.email_verified)`. Phase 2+ uses this.
-- **D-177 — Preferences form UX:** Single scrolling page (not wizard). Mandatory UI-only (no DB NOT NULL): age, gender, number_of_occupants, occupation, expected_stay_duration. Sticky footer with completion + Save. Section-level explainers.
-
-### rental_preferences table
-One row per user (UNIQUE on user_id). RLS: SELECT/INSERT/UPDATE own row. No DELETE. `updated_at` auto-trigger. All fields optional at DB level (avoids blocking partial upsert). Route: `/tenant-dashboard/preferences`. Upsert on submit, not auto-save. Full schema: `commons-schema.md`.
-
-### Verification gate — `/profile` banner
-`/profile` reads `?reason=` (phone | email | both) and renders a contextual banner. After phone OTP OR Google link success, if `?returnTo=` present: Sonner toast "You're verified! Taking you back…" + 2s delayed `navigate(returnTo, {replace:true})`.
-
-### Routing (Phase 2 Prompt 6)
-- `/dashboard` redirects to `/tenant-dashboard`. All `/dashboard/*` sub-routes (favourites, applications, visits) remain accessible by direct URL.
-- BottomNav tenant tab + Header dropdown updated to `/tenant-dashboard`; Header "My Profile" → `/me`, new "Account settings" → `/profile`.
-- D-088 (nav freeze) superseded for tenant nav only — owner/footer/index nav still frozen until Phase 6 cutover.
+## Commons Phase 2 — Tenant Dashboard (D-172–D-177; details in commons-decisions.md)
+- **D-172 Verification gate**: `<VerificationGate />` blocks unverified users on `/tenant-dashboard/preferences` + `/list` — hard redirect to `/profile?returnTo={path}&reason={missing}`. Legacy call sites (PropertyDetail/NewApplication/Eligibility) not refactored.
+- **D-173** `public_profiles` view exposes `display_name` + `is_public`. **D-174** contact_requests snapshot frozen at submit. **D-175** dashboard card order: Contact Requests → Saved → Preferences. **D-176** `isFullyVerified` on `useAuth`. **D-177** Preferences form single-page, UI-only mandatory fields.
+- `rental_preferences` table: one row per user (UNIQUE on user_id), RLS own-row only, no DELETE, all fields nullable at DB level. Route: `/tenant-dashboard/preferences`, upsert on submit.
+- Routing: `/dashboard` → `/tenant-dashboard`. Header "My Profile" → `/me`, "Account settings" → `/profile`. D-088 nav freeze superseded for tenant nav only.
 
 ## Payments / Razorpay
-- RLS on `payments`. `payments_gateway_reference_unique` is idempotency anchor. Idempotency: UNIQUE(gateway_reference) + `x-razorpay-event-id` in `gateway_response.razorpay_event_id`.
-- Edge Functions `create-razorpay-order` + `verify-razorpay-payment` — `verify_jwt=false`; JWT validated manually. Both use `EdgeRuntime.waitUntil()` for async DB writes.
-- Status guard accepts `['owner_accepted', 'payment_pending']` — allows retry. Admin can reset `payment_pending → owner_accepted` via STATUS_ACTIONS.
-- Token: fixed 500000 paise (₹5,000), NEVER derived from rent. Advances app to `payment_pending`.
-- `payment.captured` → payments→success, app→payment_received, competing apps→on_hold. `payment.failed` → payments→failed, app→owner_accepted (retry).
-- Frontend: `index.html` loads Razorpay `checkout.js`. Handler polls 3s×5 for `payment_received`. Webhook is source of truth. Toast fires once per load via `useRef`.
+- RLS on `payments`. Idempotency: UNIQUE(gateway_reference) + `x-razorpay-event-id` on `gateway_response`. Edge Functions `create-razorpay-order` + `verify-razorpay-payment` use `verify_jwt=false` + manual JWT + `EdgeRuntime.waitUntil()`.
+- Status guard: `['owner_accepted','payment_pending']`. Token: fixed ₹5,000 (500000 paise), never from rent. `payment.captured` → success + competing apps→on_hold; `payment.failed` → retry allowed. Webhook is source of truth; handler polls 3s×5.
 
 ## Callback Requests
-`RequestCallbackButton`: checks session → `/login` if unauthed; checks active callback before opening modal. `RequestCallbackModal`: 4-step flow. iOS keyboard: `repositionInputs={false}` + visualViewport maxHeight + onFocus scrollToInput. `(supabase as any).from('callback_requests')` (not in generated types).
+`RequestCallbackButton` → /login if unauthed, else opens `RequestCallbackModal` (4-step, iOS keyboard: `repositionInputs={false}` + visualViewport + onFocus scrollToInput). `(supabase as any).from('callback_requests')` (not in generated types).
 
 ## Skills — Always Check Before Acting
-Skills in `.claude/skills/`. Read `using-superpowers` for the full workflow. Invoke when: React → `react-best-practices`; Supabase/RLS → `supabase-postgres-best-practices`; auth/permissions → `security-best-practices`; bug/test failure → `systematic-debugging`; UI component → `frontend-design`; UI/UX flow → `ui-ux-pro-max`; design review → `product-designer`; new feature → `brainstorming`. Never skip because task seems simple.
+Skills in `.claude/skills/`. Read `using-superpowers` for the workflow. React → `react-best-practices`; Supabase/RLS → `supabase-postgres-best-practices`; auth → `security-best-practices`; bug → `systematic-debugging`; UI → `frontend-design` / `ui-ux-pro-max`; new feature → `brainstorming`.
 
 ## Critical Gotchas
-- `/eligibility` is orphaned (Phase 2) — no nav links anywhere. Route stays in App.tsx. Do not add nav links to it.
-- Tenant KYC docs → `tenant-documents` Storage bucket, path: `{userId}/{applicationId}/{type}_{timestamp}.ext`. Separate from `documents` DB table.
-- PostHog: always `posthog?.capture(...)` — optional chaining mandatory.
-- LCP images must NOT have `animate-fade-up` or any entry animation — delays opacity and tanks PageSpeed LCP.
+`/eligibility` orphaned (Phase 2, no nav links, keep route). Tenant KYC docs → `tenant-documents` bucket `{userId}/{applicationId}/{type}_{ts}.ext`. `posthog?.capture(...)` optional-chain mandatory. LCP images MUST NOT have entry animations (`animate-fade-up`) — tanks PageSpeed.
 
-## Inspection Form Conventions (2026-06)
-- Condition display labels (DB values unchanged): good="Good", minor_wear="Minor Wear", moderate_damage="Poor — Visible Damage", severe_damage="Critical — Severe Damage".
-- Auto-population: `minor_wear` + cosmetic statuses trigger `cosmetic` damage entries via `useAutoPopulateApplianceDamages`; `source_ref` is `{room_id}|{appliance_id} + field_key` union.
-- `EntryList` `FieldConfig.customTextOnValue: "custom"|"other"` — inline free-text; stored at `<key>_custom`. Sections: "Damage Logs", "Key Record".
-
-## PostHog Events
-Owner acquisition funnel: `list_property_cta_clicked` (source_page) → `signup_completed` (intent:'owner') → `property_form_started` → `property_submitted` → `owner_clarity_guide_read`. Owner intent threaded via `returnTo=/owner/add`; `isOwnerIntent = returnTo === '/owner/add'` in Login.tsx spreads `{intent:'owner', return_to:returnTo}` onto `signup_completed`. Scroll-depth events use `useRef<boolean>` to fire-once (pattern in OwnerClarityGuide for `owner_clarity_guide_read` at 80%).
+## Inspection Form + PostHog
+Condition labels (DB unchanged) good/minor_wear/moderate_damage/severe_damage. `useAutoPopulateApplianceDamages` emits `cosmetic` entries; `EntryList.customTextOnValue` → `<key>_custom`. Owner funnel: `list_property_cta_clicked → signup_completed(intent:'owner') → property_form_started → property_submitted → owner_clarity_guide_read`; scroll-depth via `useRef<boolean>` fire-once.

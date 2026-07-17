@@ -268,3 +268,37 @@ These decisions were made during Phase 1 planning but their effect extends into 
 
 - CLAUDE.md trimmed to ~275 lines in Sync Prompt 5; full history in `commons-decisions.md` D-001–D-171.
 - Sync series (P1–P5, D-167–D-171) closed the parity audit — no outstanding cleanup items from Phase 1.5 itself. Future scope goes above under Phase 2+.
+
+---
+
+## Phase 4+ deferred items surfaced during Phase 3 Prompt 1
+
+### Admin Requests UI (Phase 4)
+List view of all contact_requests with filters (status, owner, tenant, date), detail drawer showing full snapshot + email_send_log timeline. Phase 3 exposes admin RLS read but no UI.
+
+### WhatsApp deep-link reveal option (Phase 4+)
+On approve, offer `wa.me/91...` deep links alongside the email reveal. Phase 3 stays email-only (D-P3-001) — WhatsApp added only after we have delivery metrics to justify the extra surface.
+
+### Daily nudge email for owners with long-pending pile (Phase 4)
+Separate n8n workflow: if an owner has requests pending > 3 days, send a gentle nudge. Phase 3 does the daily digest only (D-P3-008); the nudge is a distinct cadence.
+
+### Consent audit trail — full DPDP compliance (Phase 4)
+Phase 3 stores `consent_checked_at` + `consent_terms_version` on every row (D-P3-010). Phase 4 adds: terms-version history table, per-row re-consent flow if terms version changes, admin export of consent trail per user. Columns already exist — this is UI + policy work.
+
+### Mass-approve fraud monitoring (later)
+Detect owners approving unusually high volumes (potential lead-scraping abuse). Listing review at publish time already gates the primary spam vector, so monitoring is lower priority. Metric candidates: approvals/day per owner, decline-then-approve-from-different-tenant patterns.
+
+### Response-rate window revisit — rolling 90d instead of all-time (revisit at 90-day production mark)
+D-P3-009 ships with all-time + last-7d. If all-time proves too stale (owner improves but old bad numbers drag them down), swap to rolling 90d. Revisit once we have 90 days of production request data.
+
+### Property list on owner public profile /u/:ownerId (Phase 4)
+Currently /u/:ownerId shows profile only. Phase 4 adds a "properties by this owner" section — useful once response-rate metrics (D-P3-009) draw tenants to owner profiles.
+
+### `contact_request_status` rate-limit config revisit (30-day check)
+The 10/day IST cap in D-P3-006 is a guess. Revisit after 30 days of production data — if legitimate tenants hit the cap, raise it; if spam patterns emerge below the cap, lower it or add secondary signals.
+
+### OwnerRateBlock lift-out from RequestContactPanel — if "About the owner" block ships on PropertyDetail
+Phase 3 Prompt 3 embedded the owner response-rate strip inside `RequestContactPanel.tsx` as a `<OwnerRateBlock>` sub-component because PropertyDetail has no dedicated owner section today (D-091-adjacent privacy). When a Phase 4+ "About the owner" mini-profile block is added to PropertyDetail (see commons-forward-plan §"About the owner mini-profile block"), lift `OwnerRateBlock` out to `src/components/property-detail/OwnerRateBlock.tsx` and reuse the same data source — `get_owner_response_rate` RPC. No RPC or migration change required. RequestContactPanel keeps calling it too so the pending-panel context still surfaces the metric.
+
+### `ownerDisplayName` currently passed as `null` from PropertyDetail to RequestContactPanel
+Prompt 3 wires `<RequestContactPanel ownerDisplayName={null} ... />` because PropertyDetail's property fetch does not select the owner's `display_name` today. Consent-checkbox 2 copy falls back to literal "the owner" as a result. Follow-up: extend the property SELECT chain in `src/pages/PropertyDetail.tsx` to include a `public_profiles(display_name)` join (or an extra fetch keyed on `owner_id`) so the consent line reads "…with {display_name}, owner of {building_name}." Small, self-contained change — out of scope for Prompt 3, worth doing when the owner mini-profile block above is built (both use the same data).

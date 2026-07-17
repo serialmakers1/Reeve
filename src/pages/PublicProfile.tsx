@@ -182,6 +182,13 @@ export default function PublicProfile() {
           </section>
         )}
 
+        {/* Owner response-rate stats (D-P3-009 + D-P3-011) */}
+        {userId && (
+          <section>
+            <OwnerStatsBlock userId={userId} />
+          </section>
+        )}
+
         {/* Listings */}
         {userId && (
           <section>
@@ -203,5 +210,85 @@ export default function PublicProfile() {
         </section>
       </div>
     </Layout>
+  );
+}
+
+// ── Phase 3 Prompt 6 — Owner response-rate stats block ────────────────────────
+// Calls get_owner_response_rate() (public grant) + a count of the userId's
+// active listings. Renders only when the profile is materially an owner:
+// either they have active listings (Condition A applies) OR they have >=5
+// handled requests. Tenant-only profiles with zero requests render nothing
+// to avoid a misleading empty state (D-P3-009 rationale).
+function OwnerStatsBlock({ userId }: { userId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [handled, setHandled] = useState(0);
+  const [responded, setResponded] = useState(0);
+  const [weekHandled, setWeekHandled] = useState(0);
+  const [weekResponded, setWeekResponded] = useState(0);
+  const [hasActiveListings, setHasActiveListings] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const sb = supabase as unknown as { from: (t: string) => any; rpc: (n: string, a?: unknown) => any };
+      const [rpcRes, propRes] = await Promise.all([
+        sb.rpc("get_owner_response_rate", { p_owner_id: userId }),
+        sb.from("properties")
+          .select("id", { count: "exact", head: true })
+          .eq("owner_id", userId)
+          .in("status", ["listed", "edit_pending_review"])
+          .eq("is_active", true),
+      ]);
+      if (cancelled) return;
+
+      const row = Array.isArray(rpcRes?.data) ? rpcRes.data[0] : rpcRes?.data;
+      // Prefer `_handled` per Prompt 6 spec; fall back to `_total` if the RPC
+      // was deployed with the earlier column names.
+      const h = Number(row?.all_time_handled ?? row?.all_time_total ?? 0);
+      const r = Number(row?.all_time_responded ?? 0);
+      const wh = Number(row?.last_7d_handled ?? row?.last_7d_total ?? 0);
+      const wr = Number(row?.last_7d_responded ?? 0);
+      setHandled(Number.isFinite(h) ? h : 0);
+      setResponded(Number.isFinite(r) ? r : 0);
+      setWeekHandled(Number.isFinite(wh) ? wh : 0);
+      setWeekResponded(Number.isFinite(wr) ? wr : 0);
+      setHasActiveListings((propRes?.count ?? 0) > 0);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  if (loading) return <Skeleton className="h-4 w-56" />;
+
+  // Hide entirely for pure tenant profiles: no active listings AND no request history.
+  if (!hasActiveListings && handled === 0) return null;
+
+  // Condition A: fewer than 5 handled → "New owner · Verified"
+  if (handled < 5) {
+    return (
+      <p className="text-sm text-muted-foreground inline-flex items-center gap-1.5">
+        <span className="inline-flex items-center gap-1 text-emerald-700">
+          <span aria-hidden>✓</span> Verified
+        </span>
+        <span>· New owner</span>
+      </p>
+    );
+  }
+
+  // Condition B: enough data to display rates
+  const allTimePct = Math.round((responded / handled) * 100);
+  const weekPct = weekHandled > 0 ? Math.round((weekResponded / weekHandled) * 100) : null;
+
+  return (
+    <div className="space-y-0.5">
+      <p className="text-sm text-muted-foreground">
+        Responds to {allTimePct}% of requests · {handled} handled all-time
+      </p>
+      {weekPct !== null && (
+        <p className="text-sm text-muted-foreground">
+          This week: {weekPct}% · {weekHandled} handled
+        </p>
+      )}
+    </div>
   );
 }
