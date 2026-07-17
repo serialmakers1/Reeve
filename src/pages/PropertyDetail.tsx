@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { WhyReeveFeeLink } from "@/components/WhyReeveFeeModal";
 import PublicTimeline, { type PublicTimelineRow } from "@/components/property-detail/PublicTimeline";
+import RequestContactPanel from "@/components/property-detail/RequestContactPanel";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import posthog from "posthog-js";
 import { format } from "date-fns";
@@ -876,6 +877,19 @@ const PropertyDetail: React.FC = () => {
             <ArrowLeft className="h-4 w-4" /> Back
           </button>
         </div>
+
+        {/* Phase 3 Prompt 3 — Request Contact panel (always rendered for eligible listings) */}
+        {property?.id && property?.owner_id && (
+          <div className="px-4">
+            <RequestContactPanel
+              propertyId={property.id}
+              ownerId={property.owner_id}
+              ownerDisplayName={null}
+              buildingName={property.building_name ?? "this property"}
+              propertyStatus={property.status}
+            />
+          </div>
+        )}
 
         <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6 lg:px-4">
           {/* ─── Main Column ────────────────────────────────────── */}

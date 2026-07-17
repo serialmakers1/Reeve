@@ -33,6 +33,8 @@ import { cn } from "@/lib/utils";
 
 import ConfirmDialog from "@/components/property-management/ConfirmDialog";
 import ActivityTimeline, { type TimelineRow } from "@/components/property-management/ActivityTimeline";
+import RequestsTab, { fetchPendingCount } from "@/components/owner-dashboard/RequestsTab";
+import { Badge } from "@/components/ui/badge";
 
 // Commons statuses eligible for owner actions.
 const COMMONS_STATUSES = new Set([
@@ -98,6 +100,7 @@ export default function OwnerPropertyManagement() {
   const [activity, setActivity] = useState<TimelineRow[]>([]);
   // Prompt 11: local banner/ack state removed — RejectionPanel owns fetch + ack (D-141).
   const [loading, setLoading] = useState(true);
+  const [pendingReqCount, setPendingReqCount] = useState<number>(0);
 
   const [confirmKind, setConfirmKind] = useState<null | "withdraw" | "archive" | "unlist" | "relist" | "cancel_edit">(null);
 
@@ -167,6 +170,28 @@ export default function OwnerPropertyManagement() {
   };
 
   const isCommons = !!property && COMMONS_STATUSES.has(property.status);
+
+  // Pending request count for the Requests tab badge. Refreshed on any
+  // contact_requests change for this property (realtime — same pattern as
+  // RequestsTab itself).
+  useEffect(() => {
+    if (!property?.id) return;
+    let cancelled = false;
+    const refresh = async () => {
+      const n = await fetchPendingCount(property.id);
+      if (!cancelled) setPendingReqCount(n);
+    };
+    refresh();
+    const channel = supabase
+      .channel(`contact_requests:badge:${property.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "contact_requests", filter: `property_id=eq.${property.id}` },
+        refresh,
+      )
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [property?.id]);
   const isLegacyPm = !!property && !isCommons;
 
   // Effective view values: merge pending edit changes over property for display
@@ -312,19 +337,20 @@ export default function OwnerPropertyManagement() {
         {/* Tabs */}
         <Tabs value={tab} onValueChange={(v) => changeTab(v as TabValue)}>
           <TabsList className="grid grid-cols-4 w-full mb-4">
-            <TabsTrigger value="requests">Requests</TabsTrigger>
+            <TabsTrigger value="requests" className="gap-2">
+              Requests
+              {pendingReqCount > 0 && (
+                <Badge className="h-5 min-w-[20px] rounded-full px-1.5 text-[10px]">{pendingReqCount}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="photos">Photos</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
-          {/* Requests placeholder */}
+          {/* Phase 3 Prompt 4 — live requests tab */}
           <TabsContent value="requests" className="space-y-4">
-            <div className="rounded-lg border border-dashed p-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                No tenant requests yet — this is where contact requests will appear once your listing is live and tenants start reaching out.
-              </p>
-            </div>
+            <RequestsTab propertyId={property.id} propertyStatus={property.status} />
           </TabsContent>
 
           {/* Details */}

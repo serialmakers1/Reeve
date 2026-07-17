@@ -1658,3 +1658,117 @@ Section-level explainers explaining why this data is collected.
 Design source: copy component patterns from `/eligibility` page.
 move_in_by: no past dates, max 90 days ahead.
 Localities: plain text input for now (Google Places deferred — D-forward-plan).
+
+---
+
+## Phase 3 — Contact Requests
+
+**D-P3-000 — State of world at Phase 3 kickoff**
+date: 2026-07-17
+phase: 3
+category: baseline
+- TypeScript baseline drift accepted: 360 (Phase 1.5 close) → 364 at Phase 3 start. Phase 3 must hold at the post-regen count (see log).
+- `supabase/migrations/` folder was out of sync at kickoff — several Phase 1.5 + Phase 2 changes had been applied via MCP with no local file. Phase 3 accepts this and creates its four migrations manually as documentation-only mirrors of the MCP-applied SQL.
+- `supabase/config.toml` audit deferred: `upload-property-image` / `delete-property-image` are missing entries and default to `verify_jwt=true`. Phase 3 does not touch this; Phase 3 Edge Functions will add their own `verify_jwt=false` entries when landed.
+reasoning: Recording these as decisions (not risks) so future prompts do not re-litigate the drift or attempt config cleanup as part of Phase 3.
+
+**D-P3-001 — Mutual reveal on approve**
+date: 2026-07-17
+phase: 3
+category: reveal
+Both parties receive the other party's phone via email only when the owner approves a request. No in-app reveal, no SMS, no WhatsApp in Phase 3. Approval is the single symmetric trigger — a tenant does not see anything until the owner clicks approve, and the owner sees the tenant's phone in the same moment the tenant sees theirs.
+reasoning: Symmetric mutual reveal removes the "owner peeks, then ghosts" failure mode and matches the DPDP consent shape. Email-only reveal keeps the audit trail centralised in `email_send_log` — one deliverability surface to monitor.
+
+**D-P3-002 — Fully-identified pre-approval snapshot**
+date: 2026-07-17
+phase: 3
+category: snapshot
+`contact_requests.tenant_profile_snapshot` (JSONB, frozen at INSERT) contains: display_name, full_name, profile_photo_url, bio, member_since, and every column of the tenant's `rental_preferences` row. Phone and email are NOT snapshotted — they are only revealed post-approve via the email flow (D-P3-001, D-P3-003).
+reasoning: Owner needs enough identity + preferences signal to make an informed accept/decline call. Freezing at submit means the owner always evaluates the tenant against the state the tenant asserted at that moment — later preference edits do not retroactively change what the owner reviewed.
+
+**D-P3-003 — Email-only reveal via Edge Function + Resend + audit log**
+date: 2026-07-17
+phase: 3
+category: delivery
+Approve flow calls an Edge Function that sends two emails via Resend (one to tenant with owner's phone, one to owner with tenant's phone). Every send + Resend webhook event (delivered / bounced / complained / failed) is logged to `email_send_log`. Resend button available to both parties for retry: rate-limited 1/hour and 5/day per contact_request.
+reasoning: Resend is already the platform's transactional email vendor (n8n workflows). Webhook-fed `email_send_log` gives admin a single place to diagnose non-delivery. The 1/hr + 5/day cap prevents accidental spam loops if the delivery pipeline is silently broken.
+
+**D-P3-004 — No pending-request expiry**
+date: 2026-07-17
+phase: 3
+category: lifecycle
+A pending contact_request has no automatic TTL. It stays pending until owner approves, owner declines, tenant withdraws, or property is archived (auto_cancel). Tenant-initiated withdraw is the sole closure mechanism from the tenant side.
+reasoning: An owner sitting on a request for two weeks is a UX signal about that owner, not a system fault to auto-resolve. Auto-expiring pending requests would hide the response-rate signal (D-P3-009) and let unresponsive owners escape accountability. Revisit if the pending-pile grows unmanageable in prod.
+
+**D-P3-005 — Property archive auto-cancels; other statuses keep requests alive**
+date: 2026-07-17
+phase: 3
+category: lifecycle
+The `trg_auto_cancel_requests_on_archive` trigger on `properties` fires only on transition INTO `archived`. It sets all `pending` requests for that property to `auto_cancelled` and logs an in-app event. NO email is sent for auto-cancel. Transitions into `unlisted`, `changes_requested`, or `edit_pending_review` do NOT trigger auto-cancel — pending requests remain and the tenant surface shows contextual UI ("owner is updating this listing").
+reasoning: Archive is a semantic teardown; the property is gone. Unlisted / changes_requested / edit_pending_review are transient owner states — the tenant's interest is still valid when the listing comes back. auto_cancel is a "free retry" (does not burn a per-property attempt — D-P3-006).
+
+**D-P3-006 — Rate limits, attempts, and cooldown semantics**
+date: 2026-07-17
+phase: 3
+category: rate-limits
+- Global daily cap: 10 requests / calendar day IST per tenant. Enforced in `check_contact_request_limits()`. UI shows a live counter with a spam-prevention tooltip.
+- Per-property attempt cap: 3 attempts max. `attempt_number` is auto-set by the trigger.
+- Attempt-burn rule: ONLY `declined` (owner declined) counts against the 3-cap. `withdrawn` and `auto_cancelled` are free retries and do not increment the declined_count.
+- Cooldown: flat 24h after each decline (not PM's escalating 2d/7d ladder).
+- 3/3 declined → the Request Contact button is hidden on PropertyDetail for that tenant/property pair.
+reasoning: PM's escalating cooldown made sense for full applications (higher owner cost per review). Contact requests are lightweight — a flat 24h prevents pestering without punishing legitimate re-engagement. Only owner-decline burning an attempt aligns tenant cost with tenant-visible fault: withdraw and auto-cancel are not the tenant's fault.
+
+**D-P3-007 — Required templated decline reason**
+date: 2026-07-17
+phase: 3
+category: comms
+Owner MUST pick one of 5 templated decline reasons (enum `contact_request_decline_reason`): preferences_dont_fit, property_currently_unavailable, prefer_to_wait, not_the_right_fit, property_no_longer_available. No free-text field. Tenant sees the templated reason in their dashboard log entry.
+reasoning: Free-text creates moderation surface and legal exposure (discriminatory language). Templated reasons give tenants closure signal without opening a comms channel. The 5 chosen options cover the observed real-world decline distribution from the PM applications data.
+
+**D-P3-008 — Notification cadence**
+date: 2026-07-17
+phase: 3
+category: notifications
+- Owner: 9AM IST daily digest via n8n workflow — ONLY if the owner has new pending requests received in the past 24h. No digest sent when the pile is empty.
+- Owner + tenant: instant email on approve (mutual reveal — D-P3-001).
+- Decline, withdraw, archive-auto-cancel: NO email. In-app dashboard log entries only.
+reasoning: Instant per-request email would train owners to ignore the inbox. A single morning digest respects the owner's attention. Silent decline / withdraw / auto_cancel avoids emotional emails and matches how the tenant dashboard log already carries these signals.
+
+**D-P3-009 — Owner response rate — two metrics**
+date: 2026-07-17
+phase: 3
+category: transparency
+The `get_owner_response_rate(p_owner_id uuid)` function returns two metrics: all-time and last-7-day. "Responded" = approved OR declined. `pending`, `withdrawn`, `auto_cancelled` are excluded from the denominator (they represent no owner action). Owners with `< 5` all-time contact requests display "New owner · verified" instead of a percentage. Metrics render per-property on PropertyDetail (using property's owner) and aggregate on `/u/:ownerId`.
+reasoning: All-time reflects long-term behaviour; 7-day catches recent responsiveness so a good owner is not punished by ancient bad numbers (and vice versa). Excluding withdrawn / auto_cancelled from the denominator is critical: those are not owner faults and would unfairly deflate the rate. Sub-5 threshold prevents "1/1 = 100%" and "0/1 = 0%" from misleading tenants.
+
+**D-P3-010 — Consent capture at submit**
+date: 2026-07-17
+phase: 3
+category: dpdp-compliance
+Two consent checkboxes at the submit step. Checkbox 1: platform terms. Checkbox 2: dynamically names the owner + property + purpose ("I consent to sharing my profile with {owner display_name} for the purpose of contact for {property building_name}"). Both must be checked. On INSERT, `consent_checked_at` = now() and `consent_terms_version = 1` are stored on the row.
+reasoning: DPDP requires specific, informed, current consent for personal-data sharing. Static generic checkbox does not meet "informed" for a per-owner personal-data disclosure. Storing timestamp + terms version means future consent-terms updates can be audited per-row without ambiguity about which version the tenant agreed to.
+
+**D-P3-011 — PublicProfile owner stats block**
+date: 2026-07-17
+phase: 3
+category: transparency
+Owner response-rate block on `/u/:userId` renders below bio, above the Listings + Ratings sections. Renders in one of three states:
+- **Condition A** (`< 5` handled requests): compact "New owner · Verified" line — no percentages.
+- **Condition B** (`>= 5` handled): "Responds to X% of requests · N handled all-time"; if `last_7d_handled > 0`, second line "This week: Y% · M handled".
+- **Condition C** (no active listings AND `handled === 0`): block returns null. Pure-tenant profiles show nothing.
+Data source: `get_owner_response_rate(p_owner_id)` RPC (public grant — anon + authenticated). "Materially an owner" is defined as either having at least one property with `status IN ('listed','edit_pending_review') AND is_active = true`, OR having any request history. Copy must say "Responds to X% of requests" — never "X% approval rate". Response rate deliberately includes declined + approved (an owner who declines fast is responsive; only pending / withdrawn / auto_cancelled don't count).
+reasoning: Prevents the "0/0" and "1/1" pathologies from misleading tenants, matches the transparency framing of D-P3-009, and avoids surfacing an empty stats strip on tenant-only profiles (which don't have any owner-side signal to display).
+
+**D-P3-012 — n8n → Supabase reads use scoped RPC + anon key**
+date: 2026-07-17
+phase: 3
+category: security
+n8n Contact Daily Digest workflow reads Supabase via `get_pending_requests_for_digest()` — a `SECURITY DEFINER` RPC with a fixed return shape — called with the anon key, NOT the service_role key. Service_role never lands in n8n or on the Hetzner box. Every future n8n → Supabase read follows the same pattern: author a scoped SECURITY DEFINER RPC, grant EXECUTE to `anon`, call from n8n with the anon key.
+reasoning: Blast radius. Storing service_role in n8n gives every n8n workflow the same god-mode access; a single compromised credential (Hetzner root-shell, misconfigured backup, sniffed export) leaks the entire DB. A scoped RPC exposes exactly the columns the workflow needs and nothing else. SECURITY DEFINER keeps RLS out of the way for the specific query without opening the table.
+
+**D-P3-013 — Migration 20260717000006 documents the digest RPC**
+date: 2026-07-17
+phase: 3
+category: docs
+`supabase/migrations/20260717000006_phase3_pending_digest_rpc.sql` is a documentation-only mirror of the `get_pending_requests_for_digest()` function + anon/authenticated grant applied via MCP on 2026-07-17. Header comment marks it not to be re-run against production. The Prompt 8 audit checklist expected migration 5 at `20260717000005_...sql`; the actual file landed at `20260717151137_phase3_rate_limit_functions.sql` — real file present under a different timestamp. Documented here so a future dev checking against the audit doesn't file a phantom "missing migration" ticket.
+reasoning: Keep the local migration folder converging so `supabase db reset` in dev environments reproduces production shape. Filename-drift noted so it doesn't get "corrected" by a well-meaning refactor.

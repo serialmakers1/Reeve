@@ -657,3 +657,107 @@ Phase 3 reads this table via service role to snapshot into contact_requests.
 ### `public_profiles` view fix (D-173)
 View now exposes: user_id, full_name (from users), profile_photo_url, bio,
 display_name, is_public (last 4 from profiles LEFT JOIN).
+
+## Phase 3 Schema
+
+### New enums
+
+**`public.contact_request_status`** — `pending | approved | declined | withdrawn | auto_cancelled`.
+
+**`public.contact_request_decline_reason`** — `preferences_dont_fit | property_currently_unavailable | prefer_to_wait | not_the_right_fit | property_no_longer_available`. Required when transitioning to `declined` (D-P3-007).
+
+### `contact_requests` (17 columns)
+
+| Column | Type | Nullable | Default | Notes |
+|---|---|---|---|---|
+| id | uuid | no | gen_random_uuid() | PK |
+| property_id | uuid | no | — | FK properties(id) ON DELETE CASCADE |
+| tenant_id | uuid | no | — | FK users(id) ON DELETE CASCADE |
+| owner_id | uuid | no | — | FK users(id) ON DELETE CASCADE. Denormalised for RLS + rate-limit perf; must match properties.owner_id at INSERT time (app-enforced, not DB-enforced). |
+| status | contact_request_status | no | 'pending' | |
+| attempt_number | integer | no | 1 | CHECK BETWEEN 1 AND 3. Auto-set by `check_contact_request_limits()` trigger — do NOT set from client. |
+| decline_reason | contact_request_decline_reason | yes | — | Required at UPDATE-to-declined time (app-enforced). |
+| tenant_message | text | yes | — | CHECK char_length ≤ 200. |
+| tenant_profile_snapshot | jsonb | no | '{}' | Frozen at INSERT (D-P3-002). |
+| consent_checked_at | timestamptz | no | now() | D-P3-010. |
+| consent_terms_version | integer | no | 1 | D-P3-010. |
+| withdrawn_at | timestamptz | yes | — | Set once by event-timestamp trigger. |
+| auto_cancelled_at | timestamptz | yes | — | Set once by event-timestamp trigger. |
+| declined_at | timestamptz | yes | — | Set once by event-timestamp trigger. Feeds cooldown calc. |
+| approved_at | timestamptz | yes | — | Set once by event-timestamp trigger. Triggers email flow (Phase 3 Prompt 4). |
+| created_at | timestamptz | no | now() | Feeds daily rate limit (IST calendar day). |
+| updated_at | timestamptz | no | now() | Auto-maintained by `set_contact_requests_updated_at`. |
+
+### Indexes on `contact_requests`
+
+- **`contact_requests_one_active_per_property`** — UNIQUE partial index on `(tenant_id, property_id)` WHERE `status IN ('pending','approved')`. Enforces "at most one live request per tenant/property pair". A declined/withdrawn/auto_cancelled row does not block a fresh INSERT — that is how re-attempts work.
+- Standard btree indexes on `property_id`, `tenant_id`, `owner_id`, `status`.
+
+### `email_send_log` (9 columns)
+
+| Column | Type | Nullable | Notes |
+|---|---|---|---|
+| id | uuid | no | PK |
+| contact_request_id | uuid | yes | FK contact_requests(id) ON DELETE CASCADE. Nullable to allow non-contact-request emails later. |
+| resend_message_id | text | yes | Resend's message id — populated on `sent`. Later webhook events keyed by this. |
+| event_type | text | no | `sent` / `delivered` / `bounced` / `complained` / `failed` etc. Free-text (not enum) to accept whatever Resend emits without a migration. |
+| recipient_user_id | uuid | yes | FK users(id) ON DELETE SET NULL. |
+| recipient_email | text | yes | Snapshotted address at send time — survives user email edits. |
+| error_reason | text | yes | Populated on failure webhook events. |
+| raw_payload | jsonb | yes | Full Resend webhook body for debugging. |
+| created_at | timestamptz | no | |
+
+### Triggers
+
+**`trg_contact_request_limits`** (BEFORE INSERT on contact_requests) → `check_contact_request_limits()`.
+
+Adapted from `check_application_limits()` with **4 documented divergences** (must never regress toward PM semantics):
+1. Only `declined` burns an attempt. `withdrawn` and `auto_cancelled` are free retries.
+2. Flat **24h** cooldown after each decline (not PM's escalating 2d / 7d / permanent ladder).
+3. **No `previous_request_id` FK.** Attempts linked by `(tenant_id, property_id, attempt_number)` alone.
+4. **No draft state**, so no draft guard clause.
+
+Additional Phase 3 rule: enforces global **10 requests / calendar day IST** per tenant.
+
+**`trg_auto_cancel_requests_on_archive`** (AFTER UPDATE OF status on properties) → `auto_cancel_requests_on_archive()`. Fires only on transition INTO `archived`. Sets pending contact_requests for the property to `auto_cancelled`. `unlisted`, `changes_requested`, `edit_pending_review` do NOT trigger this (D-P3-005).
+
+**`trg_contact_request_event_timestamps`** (BEFORE UPDATE on contact_requests) → `set_contact_request_event_timestamps()`. Writes declined_at / approved_at / withdrawn_at / auto_cancelled_at on the first transition into each state. Guarded by `OLD.status IS DISTINCT FROM NEW.status` — each timestamp set exactly once, never overwritten.
+
+**`trg_contact_requests_updated_at`** (BEFORE UPDATE on contact_requests) → `set_contact_requests_updated_at()`. Standard `updated_at = now()`.
+
+### RLS policies
+
+RLS enabled on both tables.
+
+- `contact_requests_select` — `tenant_id = auth.uid() OR owner_id = auth.uid() OR is_admin()`. **Deliberate deviation** from `applications_select`: no `status <> 'draft'` clause (no draft state exists).
+- `contact_requests_insert` — `authenticated` role, `tenant_id = auth.uid()` AND `owner_id <> auth.uid()` (blocks self-request).
+- `contact_requests_update` — tenant OR owner OR admin.
+- **No DELETE policy** on contact_requests — records are immutable audit history.
+- `email_send_log_admin_select` — `is_admin()` only. No INSERT/UPDATE/DELETE policies — service_role bypasses RLS for Resend webhook writes.
+
+### RPC / function
+
+```sql
+get_owner_response_rate(p_owner_id uuid) RETURNS TABLE (
+  all_time_total     integer,
+  all_time_responded integer,
+  all_time_rate      numeric,   -- percentage, one decimal
+  last_7d_total      integer,
+  last_7d_responded  integer,
+  last_7d_rate       numeric
+)
+```
+
+Responded = `status IN ('approved','declined')`. Excluded from denominator: `pending`, `withdrawn`, `auto_cancelled` (D-P3-009). SECURITY DEFINER, STABLE, granted to `authenticated` and `anon` (public profile page).
+
+### Local migration files (documentation-only mirrors)
+
+Applied via Supabase MCP on 2026-07-17. Local files written manually as documentation — will NOT be re-run against production:
+- `20260717000001_phase3_contact_requests_enums.sql`
+- `20260717000002_phase3_contact_requests_tables.sql`
+- `20260717000003_phase3_contact_requests_triggers.sql`
+- `20260717000004_phase3_contact_requests_rls.sql`
+
+### RPC — `get_pending_requests_for_digest()` (Migration 20260717000006)
+
+`get_pending_requests_for_digest()` — Returns `TABLE(owner_user_id uuid, owner_email varchar, owner_name varchar, new_request_count bigint, new_requests jsonb)`. `STABLE`, `SECURITY DEFINER`, `search_path=public`. Grouped by owner across all `contact_requests` in `pending` status with `created_at >= now() - interval '24 hours'`. `new_requests` is a JSONB array of `{building_name, locality, tenant_display, attempt_number, created_at}`, ordered by `created_at DESC` (COALESCE tenant_display = `profiles.display_name` else `users.full_name`). Granted to `anon` and `authenticated`. Called by n8n Contact Daily Digest workflow with the anon key — see D-P3-012 for the security pattern.

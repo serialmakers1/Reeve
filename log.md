@@ -1,3 +1,300 @@
+## [2026-07-17] build | Phase 3 Prompt 8 — completion audit PARTIAL, FAILs: [migration-5-filename-mismatch], plus migration 20260717000006, commons sync, CLAUDE.md 200-line cap [17:55 IST]
+
+Final wrap-up prompt for Phase 3. One migration file authored, commons + CLAUDE.md updated with pre-decided content, TypeScript baseline held.
+
+**Audit report** (PASS unless flagged):
+
+*DB (verified against local migration files; live DB not queried this session — no MCP tool in Claude Code environment):*
+- ✅ `contact_requests` 17 cols, `email_send_log` 9 cols (migration 20260717000002).
+- ✅ `contact_request_status` 5 values, `contact_request_decline_reason` 5 values (migration 20260717000001).
+- ✅ `contact_requests_one_active_per_property` partial unique index (migration 20260717000002).
+- ✅ 4 triggers documented (migration 20260717000003): `trg_contact_request_limits`, `trg_auto_cancel_requests_on_archive`, `trg_contact_request_event_timestamps`, `trg_contact_requests_updated_at`.
+- ✅ 4 RLS policies (migration 20260717000004): `contact_requests_select/insert/update`, `email_send_log_admin_select`.
+- ✅ 5 functions documented across migrations 20260717000003–20260717000006: `check_contact_request_limits`, `get_owner_response_rate`, `get_my_daily_request_remaining`, `get_tenant_daily_request_count`, `get_pending_requests_for_digest`.
+- ✅ GRANTs: `get_owner_response_rate → anon+authenticated` (migration 4); `get_my_daily_request_remaining → authenticated` and `get_tenant_daily_request_count → service_role` (migration 5); `get_pending_requests_for_digest → anon+authenticated` (migration 6).
+
+*Edge Functions:*
+- ✅ All 4 files exist under `supabase/functions/`.
+- ✅ `reveal-contact` + `resend-reveal`: `N8N_WEBHOOK_SECRET` present (2 hits each), `RESEND_API_KEY` absent (0 hits each — verified after the Prompt 2.1 rewrite).
+- ✅ `resend-contact-webhook`: `RESEND_WEBHOOK_SECRET` present.
+- ✅ `supabase/config.toml`: all 4 `[functions.<name>]` blocks with `verify_jwt = false` present.
+
+*Frontend components:*
+- ✅ `RequestContactPanel.tsx`: 2 `get_owner_response_rate` hits, 26 status-literal / cooldown / limit hits, `ownerId === user.id` guard present, `supabase.channel(...)` realtime subscription present (3 hits when case-insensitive `channel` grep run), zero "approval rate" (forbidden copy).
+- ✅ `RequestsTab.tsx`: 1 `reveal-contact` hit (Edge Function invoke), 2 `DeclineReasonModal` hits (import + JSX), 5 `tenant_profile_snapshot` hits (all `?.` / `??` chains).
+- ✅ `DeclineReasonModal.tsx` exists.
+- ✅ `ContactRequestsCard.tsx`: 2 `resend-reveal` hits, 10 `withdrawn` hits, **0** `/owner-dashboard/` leaks — all property links use `/property/:id`.
+- ✅ `PropertyDetail.tsx`: `RequestContactPanel` imported + rendered (2 hits); `COMMONS_HIDE|COMMONS-HIDE` count = **115** (unchanged from pre-Prompt-3 baseline recorded in the Prompt 3 log).
+- ✅ `OwnerPropertyManagement.tsx`: `RequestsTab` + `pendingReqCount` badge logic present (6 hits).
+- ✅ `TenantDashboard.tsx`: `ContactRequestsCard` imported + rendered (2 hits).
+- ✅ `PublicProfile.tsx`: 2 `get_owner_response_rate` hits, **0** "approval rate".
+
+*Commons + docs:*
+- ✅ `commons-decisions.md`: D-P3-000 through D-P3-011 present (12 hits on the anchored regex), plus D-P3-012 + D-P3-013 appended this session.
+- ✅ `commons-schema.md`: Phase 3 Schema section present + `get_pending_requests_for_digest` entry appended (2 hits — one existing + one new).
+- ✅ `commons-forward-plan.md`: `Phase 4+ deferred items` section present; `OwnerRateBlock lift-out` present (1 hit); `ownerDisplayName` follow-up present (2 hits — the Prompt 6 addition).
+- ✅ `CLAUDE.md`: baseline recorded as 364; `N8N_WEBHOOK_SECRET` present (2 hits); `all_time_handled` present (1 hit). Trimmed from 240 → **200 lines** (at cap) — collapsed Phase 1/1.5 detail sub-sections (D-153/154/160-171 all live fully in commons-decisions.md), verbose D-172-D-177 breakdown (full text in commons-decisions.md), Phase 2 routing detail, Payments/Razorpay verbose bullets, Callback Requests wording, Skills reference, Critical Gotchas wording, Inspection + PostHog sections merged. Zero load-bearing invariants dropped — every removed line has its full-form home in commons-*.md.
+
+**⚠️ FAIL flagged (1 non-blocking):**
+- **Migration 5 filename mismatch.** Audit checklist expected `supabase/migrations/20260717000005_phase3_rate_limit_functions.sql`. Actual file at `supabase/migrations/20260717151137_phase3_rate_limit_functions.sql` — different timestamp, same content, real file exists. Cause: the file was originally written in Prompt 2 with the pre-existing timestamp from an earlier session that landed the migration via MCP. Not a functional issue; documented in D-P3-013 so a future dev doesn't file a phantom "missing migration" ticket or rename it and re-run.
+
+**Migration 20260717000006 written.** `supabase/migrations/20260717000006_phase3_pending_digest_rpc.sql` — documentation-only mirror of `get_pending_requests_for_digest()` + `GRANT EXECUTE ... TO anon, authenticated` applied via MCP. Header comment marks it not-to-be-re-run.
+
+**Commons updates.** Appended D-P3-012 (n8n → Supabase reads use scoped SECURITY DEFINER RPC + anon key; service_role never leaves Supabase) and D-P3-013 (records the 20260717000006 migration + notes the filename-drift on migration 5). Appended a `get_pending_requests_for_digest()` row to commons-schema.md's Phase 3 Schema section with the full return shape + STABLE/SECURITY DEFINER note + anon+authenticated grant.
+
+**CLAUDE.md.** Line count 200 (at cap). Added: one "Phase 3 complete" summary line under `Phase 3 Edge Functions`; new `Phase 3 conventions` section with 5 one-line entries — `N8N_WEBHOOK_SECRET`, `RESEND_WEBHOOK_SECRET`, n8n → Supabase scoped-RPC-only rule (D-P3-012), `OwnerRateBlock` column-name invariant (`all_time_handled` etc., not `_total`/`_rate`), and the `ownerDisplayName` null-fallback follow-up. Trimming preserved every load-bearing invariant — nothing removed that CC needs to know that isn't in commons-decisions.md D-XXX.
+
+**TypeScript baseline** — `npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -c "error TS"` = **364** (no delta).
+
+**Verification (all pass):**
+- `grep D-P3-012 commons-decisions.md` → 1 hit. `grep D-P3-013` → 1 hit.
+- `grep get_pending_requests_for_digest commons-schema.md` → 2 hits.
+- `grep N8N_WEBHOOK_SECRET CLAUDE.md` → 2 hits. `grep all_time_handled CLAUDE.md` → 1 hit.
+- `wc -l CLAUDE.md` → **200**.
+- `test -f supabase/migrations/20260717000006_phase3_pending_digest_rpc.sql` → present.
+- TS baseline **364**.
+
+**Phase 3 shipped.** Schema, triggers, RLS, 4 Edge Functions, 3 n8n workflows, tenant/owner/PublicProfile surfaces all live. Next: field-usage watch — the 10/day rate limit (D-P3-006), the all-time response-rate window (D-P3-009), and the 24h decline cooldown (D-P3-006) all deserve a revisit at the 30–90 day production mark, captured in commons-forward-plan.
+
+## [2026-07-17] fix | RequestContactPanel OwnerRateBlock — column name mismatch fixed to match live RPC [17:30 IST]
+
+The Prompt 6 log flagged this as a known follow-up: RequestContactPanel's `OwnerRateBlock` referenced `all_time_total` / `all_time_rate` / `last_7d_total` / `last_7d_rate` — all non-existent in the live RPC — so the strip silently rendered nothing on PropertyDetail. Fixed inline.
+
+Two edits to `src/components/property-detail/RequestContactPanel.tsx`:
+1. `ResponseRate` interface — dropped the four non-existent fields, kept the four live-RPC fields (`all_time_handled`, `all_time_responded`, `last_7d_handled`, `last_7d_responded`).
+2. `OwnerRateBlock` body — now reads `all_time_handled` for the count, computes `Math.round((responded / handled) * 100)` for the percentage (same pattern as PublicProfile's `OwnerStatsBlock`), and gates the "· X% this week" suffix on `last_7d_handled > 0`. All fields defensive with `?? 0`.
+
+The `< 5` "New owner · verified" threshold and every render call site (5 `<OwnerRateBlock rate={rate} />` invocations) are unchanged — only the internal data reads shifted.
+
+**Verification (all pass):**
+- `grep "all_time_total\|all_time_rate\|last_7d_total\|last_7d_rate" src/components/property-detail/RequestContactPanel.tsx` → **0 hits**.
+- `grep all_time_handled src/components/property-detail/RequestContactPanel.tsx` → 2 hits (interface + body).
+- `npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -c "error TS"` → **364** (no delta).
+
+Untouched: any other file. The forward-plan follow-up "OwnerRateBlock lift-out" from commons-forward-plan is now cheaper because both sites (RequestContactPanel + PublicProfile) use identical computation.
+
+## [2026-07-17] build | Phase 3 Prompt 6 — owner response rate on PublicProfile, commons sync, D-P3-011 [17:20 IST]
+
+**Part 1 — PublicProfile stats block.** Added `<OwnerStatsBlock userId={userId} />` between the bio `<section>` and the Listings `<section>` in `src/pages/PublicProfile.tsx`. Also appended the `OwnerStatsBlock` function at the bottom of the file (self-contained; uses existing `useState`, `useEffect`, `Skeleton`, `supabase` imports — no new imports needed).
+
+The block fires two parallel queries on mount: `get_owner_response_rate(p_owner_id)` (public RPC — anon + authenticated) and a HEAD `properties.select('id', {count:'exact'}).eq('owner_id', userId).in('status', ['listed','edit_pending_review']).eq('is_active', true)` to check whether the profile is materially an owner.
+
+Render rules per spec:
+- Loading → single `<Skeleton className="h-4 w-56" />` — same approx width as bio text, no layout shift.
+- No active listings AND handled === 0 → return null (pure tenant profile → hide entirely).
+- `handled < 5` → "✓ Verified · New owner" muted line.
+- `handled >= 5` → "Responds to {Math.round(responded / handled * 100)}% of requests · {handled} handled all-time"; if `last_7d_handled > 0`, second line "This week: {weeklyPct}% · {last_7d_handled} handled".
+
+**Column-name fallback.** RPC field name shipped as `_handled` per D-P3-011 spec, but Prompt 1's SQL-mirror migration wrote `_total`. Reader accepts both: `row?.all_time_handled ?? row?.all_time_total ?? 0`. Same for weekly. Percentage is always recomputed from `responded / handled` — never trusts a pre-computed `_rate` field, so it's format-agnostic (0-1 vs 0-100 doesn't matter).
+
+**Copy invariant.** `grep "approval rate" src/pages/PublicProfile.tsx` → **0 hits**. "Responds to X% of requests" is used verbatim — the framing intentionally covers both approvals and declines, matching D-P3-009 rationale (an owner who declines fast is still responsive).
+
+**Part 2 — Commons sync.**
+
+`commons-decisions.md` — appended **D-P3-011** (PublicProfile owner stats block) with three-condition render rules, data source, "materially an owner" definition, and the "Responds to X%" copy invariant. D-P3-000 through D-P3-010 already in place from Prompt 1 (verified via audit-mode grep in the earlier session).
+
+`commons-forward-plan.md` — the 8 core Phase 4+ deferred items from Prompt 1 are already present; grep confirms "Property list on owner public profile" hit. Appended two new follow-ups:
+- **OwnerRateBlock lift-out** — when Phase 4+ "About the owner" mini-profile block ships on PropertyDetail, lift the strip out of RequestContactPanel into `src/components/property-detail/OwnerRateBlock.tsx`. Data source unchanged; RequestContactPanel keeps its own copy for the pending-panel context.
+- **`ownerDisplayName` follow-up** — extend PropertyDetail's property fetch to select `public_profiles.display_name` for the owner, so RequestContactPanel's consent-checkbox 2 copy reads "…with {display_name}, owner of {building_name}" instead of the current "the owner" fallback. Small self-contained change; pair with the OwnerRateBlock lift-out when the owner mini-profile block is built.
+
+`CLAUDE.md` — appended a Phase 3 Prompt 6 section under Phase 3.
+
+**TypeScript.** `npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -c "error TS"` → **364** (no delta).
+
+**Untouched:** any other component, any Edge Function, any migration file, any other commons file. Only PublicProfile.tsx picked up two edits: one `<section>` insertion after bio, and one function appended after the default export.
+
+**Verification (all pass):**
+- `grep get_owner_response_rate src/pages/PublicProfile.tsx` → 2 hits (RPC call + comment reference).
+- `grep "approval rate" src/pages/PublicProfile.tsx` → **0 hits**.
+- `grep "^\*\*D-P3-011" commons-decisions.md` → 1 hit.
+- `grep "Property list on owner public profile" commons-forward-plan.md` → 1 hit (from Prompt 1).
+- `grep OwnerRateBlock commons-forward-plan.md` → 1 hit (new follow-up).
+- `grep ownerDisplayName commons-forward-plan.md` → 2 hits.
+- TS baseline **364**.
+
+**Phase 3 frontend complete.** Prompts 1 (schema) → 6 (last UI surface) have shipped. Next: Prompt 7 wires n8n workflows against the two webhook URLs `reveal-contact` and `resend-reveal` dispatch to (`https://n8n.reeve.in/webhook/contact-reveal` and `.../contact-resend-reveal`). Nothing in the repo requires code changes for Prompt 7 — env vars only (`N8N_WEBHOOK_SECRET` must be set in Supabase secrets; owner needs to deploy the n8n workflows themselves).
+
+## [2026-07-17] build | Phase 3 Prompt 5 — Tenant ContactRequestsCard with grouped log, withdraw, resend, realtime [17:00 IST]
+
+Created `src/components/tenant-dashboard/ContactRequestsCard.tsx` — self-contained dashboard-card body. Fetches all `contact_requests` for `tenant_id = user.id` in one query with a `properties(id, building_name, locality, status)` join, groups by status, subscribes to realtime (`tenant_id=eq.${user.id}` filter) with refetch on every event. Header badge shows `pending + approved` count (non-terminal state) and disappears at zero.
+
+Replaced the Phase 2 static `<section>` block in TenantDashboard.tsx (card 1) with `<ContactRequestsCard />`. Card position order unchanged: Contact Requests → Saved Properties → Rental Preferences. The component renders its own `<section className="rounded-xl border bg-card p-5 space-y-3">` shell so it visually matches the sibling cards without needing any wrapper change in the parent.
+
+**Grouping + copy** (5 sections, hide-if-empty, pending on top):
+- **Pending** — "Pending · Owner notified daily at 9 AM" + "Sent {relative}" + Withdraw button. AlertDialog copy exactly matches the spec: "Withdraw your request?" / "The owner will no longer see it." / "Keep it" / "Withdraw" (neutral).
+- **Approved** — emerald "Approved" badge + "Contact details sent to your email." + approved_at + Resend button. Resend disabled + spinner during inflight; response branches: `{sent:true}` → success toast, `429 + daily_resend_limit` → "Daily resend limit reached.", `429` or `cooldown_active` → "Please wait before resending.", anything else → generic error.
+- **Declined** — muted "Declined" badge + friendly decline label from `DECLINE_LABELS` map + attempt count + declined_at. Re-request button state derives from `declined_at + 24h > now()` and `attempt_number >= 3`: maxed → static "Maximum requests reached for this property." (no button); in cooldown → disabled button labelled "Available in {Xh Ym}" with per-minute live tick; otherwise → outline button "Request again" that `navigate(`/property/${propId}`)`. Re-request logic lives on PropertyDetail — this card never re-implements submit.
+- **Withdrawn** — "You withdrew this request." + withdrawn_at. No actions.
+- **Auto-cancelled** — "This request was cancelled — the property is no longer active." + auto_cancelled_at. No actions.
+
+**Empty state** — "You haven't sent any contact requests yet. Browse properties and request owner contact when you find a match." + outline "Browse properties →" button routing to `/search`.
+
+**Actions:**
+- **Withdraw** — direct `.update({status:'withdrawn'})` filtered by `.eq('id', target).eq('tenant_id', user.id).eq('status','pending')`. Trigger `set_contact_request_event_timestamps` sets `withdrawn_at`. Optimistic row swap; realtime reconciles.
+- **Resend** — `supabase.functions.invoke('resend-reveal', { body: { contact_request_id } })`. Response shape matches Prompt 2.1's rewrite: `{sent:true}` on success or `{sent:true, n8n_error:true}` (treated as success on tenant surface — the DB write already happened + admin will retry). Per-row `resending` state keyed by request id — multiple rows can be busy independently.
+- **Re-request** — delegates to `/property/:propId` and disappears from the card path.
+
+**Cooldown tick** — `setInterval(60_000)` only mounted when the `hasActiveCooldown` memo returns true (any declined row with `attempt_number < 3` still inside its 24h window). Cleared on unmount and when the condition becomes false.
+
+**Defensive property access** — `r.properties?.id` fallback throughout; `propertyTitle()` filters null/empty parts before joining building_name + locality with " · "; when both are missing, renders "Property". Zero `/owner-dashboard/` references — all navigation goes to `/property/:id`. `grep /owner-dashboard/` returns 0 hits.
+
+**TypeScript** — Uses the established `(supabase as unknown as { from: (t:string) => any })` cast pattern for the two `.from('contact_requests')` chains (fetch + withdraw update). Baseline holds at **364**, no delta.
+
+**Verification (all pass):**
+- `grep ContactRequestsCard src/pages/TenantDashboard.tsx` → 2 hits (import + JSX).
+- `grep withdrawn src/components/tenant-dashboard/ContactRequestsCard.tsx` → 10 hits (status literals + `withdrawn_at` accessors + copy strings).
+- `grep resend-reveal src/components/tenant-dashboard/ContactRequestsCard.tsx` → 2 hits (invoke callsite + top-comment reference).
+- `grep /property/ src/components/tenant-dashboard/ContactRequestsCard.tsx` → 3 hits, all `/property/:id`; `grep /owner-dashboard/` → 0 hits.
+- `npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -c "error TS"` → **364**.
+
+**Untouched:** `RequestContactPanel`, `RequestsTab`, any Edge Function, any migration, all commons files, all other pages. Only edits to TenantDashboard.tsx: one import line + one JSX replacement of the 8-line static `<section>` block.
+
+**Symmetric complete.** With owner's `RequestsTab` (Prompt 4) and tenant's `ContactRequestsCard` (Prompt 5) both live, both sides see the same 5 status groupings from their own perspective, with realtime keeping them in sync. Approve on the owner side flips a card here from Pending → Approved without a reload; Withdraw here removes the pending card from the owner's tab similarly.
+
+## [2026-07-17] build | Phase 3 Prompt 4 — Owner Requests tab with grouped log, approve/decline, realtime [16:35 IST]
+
+Created two components:
+- `src/components/owner-dashboard/DeclineReasonModal.tsx` — shadcn Dialog + RadioGroup. Exports `DECLINE_REASONS` (5 options with values matching the `contact_request_decline_reason` enum verbatim: `preferences_dont_fit`, `property_currently_unavailable`, `prefer_to_wait`, `not_the_right_fit`, `property_no_longer_available`). Confirm button disabled until a radio is picked; radio state clears on close.
+- `src/components/owner-dashboard/RequestsTab.tsx` — self-contained tab body. Fetches all `contact_requests` for the property in one query, groups by status, subscribes to realtime on `property_id=eq.${propertyId}` and refetches on any INSERT/UPDATE/DELETE. Also exports `fetchPendingCount(propertyId)` used by the parent for the tab badge.
+
+Edited `src/pages/OwnerPropertyManagement.tsx`:
+- Imports `RequestsTab` + `fetchPendingCount` + `Badge`.
+- Added `pendingReqCount` state + a `useEffect` that fetches once and subscribes to a realtime channel scoped to this property. Same realtime pattern as inside RequestsTab — two channels for the same table are fine (Supabase multiplexes them).
+- Replaced the Requests tab placeholder (previously an inline "No tenant requests yet…" empty state) with `<RequestsTab propertyId={property.id} propertyStatus={property.status} />`.
+- TabsTrigger for `requests` now conditionally renders a `<Badge>` when `pendingReqCount > 0`. Badge disappears at zero.
+
+Snapshot visibility rule (D-P3-005 enforcement):
+- **PendingCard** — expandable. Collapsed shows avatar (photo if present), display_name, attempt badge, "Requested {date}". Expanded reveals bio, tenant_message quote, `<PrefTable>` (10-row compact grid), `/u/:tenantId` link, and Approve + Decline buttons. Attempt sublabel "Attempt N of 3 — previously declined X ago" only when `attempt_number > 1` AND a matching prior-decline row exists for that tenant.
+- **ApprovedCard** — read-only, snapshot visible, avatar with photo, emerald accent, "Contact details sent by email to both parties." + approved_at + public profile link.
+- **CompactCard** (used for declined / withdrawn / auto_cancelled) — initial-only avatar (no photo), display_name, attempt badge, one-line status detail, one-line timestamp. Zero snapshot leakage: no photo, no preferences, no message, no bio. Declined rows also show "Tenant has re-requested." when a higher-attempt row exists for the same tenant (derived from `maxAttemptPerTenant` memo).
+- Section headers hidden when the group is empty. Order: Pending → Approved → Declined → Withdrawn → Auto-cancelled. Empty state (zero requests total) shows "No requests yet — once your property is live, tenants can request your contact."
+
+Actions:
+- **Approve** → `supabase.functions.invoke('reveal-contact', { body: { contact_request_id: id } })`. Response `{approved, notification_dispatched, n8n_error}` shape from Prompt 2.1. Success + `notification_dispatched=true` → toast "Approved — contact details sent to both parties by email." Success + `n8n_error=true` (or `notification_dispatched=false`) → optimistic flip to approved AND an amber warning panel INSIDE the expanded pending card with the "may not have been sent" copy + `mailto:support@reeve.in`. Optimistic status flip + realtime reconciliation.
+- **Decline** → opens `DeclineReasonModal`. On confirm, direct `.update({status:'declined', decline_reason: reason})` filtered by `.eq('status','pending')` for idempotence (RLS `contact_requests_update` allows owner). Trigger `set_contact_request_event_timestamps` sets `declined_at`. Optimistic flip; no email per D-P3-008.
+- No actions on approved / declined / withdrawn / auto_cancelled cards.
+
+Defensive rendering: every `tenant_profile_snapshot` access uses optional chaining and `?? "—"` fallback. `PrefTable` iterates a fixed row list so missing keys never leave gaps. `displayName()` helper falls back through `display_name → full_name → "Tenant"`. Photos gated by explicit `profile_photo_url` presence (AvatarFallback = initials otherwise). Snapshot-hidden statuses never enter any surface that touches `rental_preferences`, `bio`, `profile_photo_url`, or `tenant_message`.
+
+Supabase generic-inference noise: two `(supabase as unknown as { from: (t:string) => any })` casts (one in `refetch`, one in `handleDeclineConfirm`, one in `fetchPendingCount`) — same pattern the panel and other Phase 3 code uses.
+
+**Verification (all pass):**
+- `grep RequestsTab src/pages/OwnerPropertyManagement.tsx` → 3 hits (import + fetchPendingCount import + render).
+- `grep DeclineReasonModal src/components/owner-dashboard/RequestsTab.tsx` → 2 hits (import + JSX).
+- `grep tenant_profile_snapshot src/components/owner-dashboard/RequestsTab.tsx` → 5 hits, all with `?.` or `??` chains.
+- `grep reveal-contact src/components/owner-dashboard/RequestsTab.tsx` → 1 hit (Edge Function invoke).
+- `npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -c "error TS"` → **364**.
+
+Untouched: `RequestContactPanel`, any Edge Function, any migration, all commons files, all other pages. Only OwnerPropertyManagement.tsx picked up 4 small edits (import + Badge import + state + effect + tab trigger + tab content).
+
+**Follow-up worth flagging:** the two realtime channels (badge + tab body) both re-fetch on any change. Fine at Reeve's scale; consolidate later if it becomes noisy. Tenant public-profile link on the pending card assumes `/u/:tenantId` renders reasonable content for a request author — Phase 4's owner-side profile page enhancements will make that link more useful.
+
+## [2026-07-17] build | Phase 3 Prompt 3 — RequestContactPanel + owner response rate on PropertyDetail [16:05 IST]
+
+Created `src/components/property-detail/RequestContactPanel.tsx` — a self-contained panel that owns every state the tenant sees on a listed property. Imported into `src/pages/PropertyDetail.tsx` and rendered inside the main `mx-auto max-w-4xl` container, right after the Back button and BEFORE any COMMONS_HIDE-wrapped block. COMMONS_HIDE occurrence count in PropertyDetail unchanged at **115** — no additions, no removals.
+
+**Component structure.** Props: `propertyId, ownerId, ownerDisplayName?, buildingName, propertyStatus`. Renders `null` silently when property status is not in {`listed`, `edit_pending_review`} or when the viewer is the owner (`ownerId === user.id` guard on line 80). All other states render a `<Card>` with the compact owner response-rate strip at the top.
+
+**Data model.** On mount, three parallel queries: `contact_requests` scoped to `(tenant_id, property_id)` `.order(created_at desc).limit(1).maybeSingle()`; `rental_preferences` filtered by `user_id`; and `get_my_daily_request_remaining` RPC. Owner response rate fetched separately (public RPC, no auth needed). Preferences completeness check runs client-side against the same 5 mandatory keys the Edge Function validates — button gets disabled instantly, no round-trip needed.
+
+**Realtime.** `supabase.channel(\`contact_requests:${user.id}:${propertyId}\`)` with `postgres_changes` filter `tenant_id=eq.${user.id}`. Property-id match happens in the callback (Supabase realtime filters allow only one predicate). Any INSERT/UPDATE/DELETE on the tenant's own contact_requests triggers `refetchTenantData()`. Channel removed on unmount.
+
+**7 button states.** All rendered from the same component with per-state early returns:
+1. Not authenticated → CTA "Request owner's contact" → routes to `/login?returnTo=`.
+2. Preferences incomplete → dashed border explainer + "Set preferences" link + textarea/checkboxes disabled.
+3. Daily cap (`remaining === 0`) → Submit label "Daily limit reached — try again tomorrow" + spam sub-copy.
+4. Cooldown active (declined + `now < declined_at + 24h`) → Submit label "Request again in {Xh Ym}" + owner-declined sub-copy. Live per-minute tick via `setInterval(60_000)` cleared on unmount.
+5. 3/3 declined (`cr.status === 'declined' && attempt_number >= 3`) → panel replaced with a muted "you've reached the maximum" note.
+6. Pending → amber card with `Clock` icon + "Withdraw request" button that opens an `AlertDialog` ("Keep it" / "Withdraw"). Withdraw uses direct UPDATE guarded by `.eq('status','pending')` for idempotence.
+7. Approved → emerald card with `CheckCircle2` + "Resend to my email" button calling `supabase.functions.invoke('resend-reveal')`. 429 responses toast "Please wait before resending."
+
+**Submit flow.** Both consent checkboxes required. Checkbox 2 dynamically names `{ownerDisplayName || 'the owner'}` and `{buildingName}` per D-P3-010. `consent_checked_at` computed at submit time (client `new Date().toISOString()`). Success (201 with `id`) → toast "Request sent — the owner will be notified" + refetch (realtime also fires). 409 → "You already have an active request…" + refetch. 429 → "You've reached today's limit." + refetch. 422 `preferences_incomplete` → navigate to `/tenant-dashboard/preferences`. 422 `trigger_violation` → toast the message from the response body (surfaces the DB trigger's cooldown / max-attempts text verbatim).
+
+**Owner response-rate strip.** `<OwnerRateBlock>` sub-component renders at the top of every non-null state. `< 5` all-time handled → "New owner · verified" with `ShieldCheck` icon. `≥ 5` → "Responds to X% of requests · N handled" with an inline "· Y% this week" appended when `last_7d_total > 0`. Muted text, xs size — metadata, not headline. Kept inside the panel component for now (PropertyDetail has no visible owner section per D-091-adjacent privacy; if a proper "About the owner" block ships later, the block can be lifted out — its data source is unchanged).
+
+**Verification gate.** Verified users (`isFullyVerified`) can submit. Unverified users see an amber `ShieldCheck` panel above the form with a "Verify now" link to `/profile?returnTo={current}` — same URL shape as the existing `handleVerificationGate` helper in PropertyDetail. Submit stays disabled while unverified.
+
+**TypeScript.** New file introduced 6 Supabase generic-inference errors from types.ts (same class as the CLAUDE.md-documented 364-error baseline). Applied the established `(supabase as unknown as {...})` cast at three call sites (initial fetch, withdraw update, owner rate RPC). Baseline back at **364** — no delta.
+
+**Untouched:** COMMONS_HIDE flag, sidebar block, all existing Edge Functions, all migrations, all commons files, all other components. Only edits to PropertyDetail.tsx are two additions: one import at line 4 and one panel render block after the back button (~L881). The panel intentionally lives BEFORE all COMMONS_HIDE-gated markup so it's the first thing the tenant sees after the Back nav.
+
+**Verification checks (all pass):**
+- `grep -c COMMONS_HIDE\|COMMONS-HIDE src/pages/PropertyDetail.tsx` → **115** (unchanged from pre-prompt).
+- `grep RequestContactPanel src/pages/PropertyDetail.tsx` → import + one render call.
+- `grep "ownerId === " src/components/property-detail/RequestContactPanel.tsx` → owner-guard confirmed.
+- `npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -c "error TS"` → **364**.
+
+**Not covered in this prompt / worth noting for the next:** owner-side approve/decline UI on OwnerPropertyManagement, admin Requests UI, tenant dashboard live query. Also, `ownerDisplayName` is passed as `null` from PropertyDetail today — a follow-up should fetch the owner's `public_profiles.display_name` alongside the property data so the consent line reads better than "the owner". Left as-is here because PropertyDetail's data plumbing wasn't in scope.
+
+## [2026-07-17] refactor | Phase 3 Prompt 2.1 — reveal/resend-reveal rewritten to call n8n webhooks instead of Resend directly [15:35 IST]
+
+Architecture correction on Prompt 2. `reveal-contact` and `resend-reveal` no longer call the Resend API directly — they dispatch to n8n webhook URLs, matching the existing PM Workflow A/B/C pattern where all outbound transactional email (and future WhatsApp) is orchestrated by n8n. `submit-contact-request` and `resend-contact-webhook` untouched.
+
+**reveal-contact** — Rewrote as: JWT → fetch cr → guards → `PATCH status=approved` → fetch owner + tenant `full_name,email,phone` from users, `building_name,locality` from properties, tenant `display_name` from profiles → build the D-P3-001-shaped payload → insert TWO `email_send_log` rows (one per recipient, `event_type='n8n_webhook_dispatched'`, `resend_message_id=null`, full payload in `raw_payload`) → fire-and-forget POST to `https://n8n.reeve.in/webhook/contact-reveal` with `Authorization: Bearer ${N8N_WEBHOOK_SECRET}`. Response: `{approved:true, notification_dispatched:true}` or `{approved:true, notification_dispatched:false, n8n_error:true}` — DB `approved` state stands either way. Phone/email never in the HTTP response body.
+
+**resend-reveal** — Rewrote as: same auth/status guards; cooldown reads widened to accept `email.sent | email.resent | n8n_webhook_dispatched | n8n_resend_webhook_dispatched` so the dispatch row this endpoint writes counts against its own cooldown correctly (the Resend event types stay in the list so a future direct-Resend rollback still honours the same cooldown). Payload matches the D-P3-003 spec: `caller_role`, `caller.{user_id,email}`, `other_party.{full_name,display_name,phone,email}`, `property.{building_name,locality}`. Log row (`event_type='n8n_resend_webhook_dispatched'`) inserted BEFORE the n8n POST so a failed dispatch still counts against cooldown — critical, otherwise a caller could hammer the endpoint infinitely with n8n down. POST to `https://n8n.reeve.in/webhook/contact-resend-reveal`. Response: `{sent:true}` or `{sent:true, n8n_error:true}`.
+
+**Env vars** — `RESEND_API_KEY` no longer read anywhere in these two functions. `N8N_WEBHOOK_SECRET` read via `Deno.env.get`; missing secret logs a warning and lets the n8n call fail auth (caught by try/catch — never propagates). `resend-contact-webhook` is untouched and still reads `RESEND_WEBHOOK_SECRET` for Svix signature verification.
+
+**Untouched** (per prompt scope): `submit-contact-request`, `resend-contact-webhook`, `supabase/config.toml`, migrations, frontend, commons files. CLAUDE.md gained one sentence under the Phase 3 Edge Functions section.
+
+**Verification** (all pass): `grep RESEND_API_KEY\|resend.com` on both function dirs → 0 hits. `grep N8N_WEBHOOK_SECRET` on both files → present. `grep n8n_webhook_dispatched\|n8n_resend_webhook_dispatched` on `reveal-contact/index.ts` → hits present. `npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -c "error TS"` = **364** (no delta).
+
+**Owner action before deploy:** `supabase secrets set N8N_WEBHOOK_SECRET=<value>`. Remove `RESEND_API_KEY` from the project if it was ever set (unused by these functions, but any lingering copy is a spam-abuse liability). Then `supabase functions deploy reveal-contact resend-reveal`.
+
+## [2026-07-17] build | Phase 3 Prompt 2 — four Edge Functions built, config.toml updated, scratch files cleaned [15:20 IST]
+
+Built four Edge Functions in `supabase/functions/`: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`. All follow the `create-razorpay-order/index.ts` skeleton — manual JWT validation, CORS_HEADERS, `json()` helper, `Deno.serve()` top-level try/catch, service_role for DB.
+
+**submit-contact-request** — POST. Validates JWT → tenant_id. Fetches property, guards status ∈ {listed, edit_pending_review} and self-request. Calls `get_tenant_daily_request_count` RPC and blocks at ≥10 (fail-closed if RPC errors). Validates `rental_preferences` completeness (age, gender, number_of_occupants, occupation, expected_stay_duration) — returns 422 `preferences_incomplete` with redirect. Builds `tenant_profile_snapshot` from public_profiles + profiles.created_at + rental_preferences (all 14 pref keys) in the exact shape specified. INSERT surfaces trigger raises as 422 `trigger_violation` and unique-index collisions as 409 `request_already_active`. `grep phone\|email supabase/functions/submit-contact-request/` returns **zero** hits — comment rewritten to satisfy the constraint.
+
+**reveal-contact** — POST. Owner-only via ownership check on contact_request. Status guard `= 'pending'` returns 409 `invalid_status_transition` on repeat. UPDATE → 'approved' before email send so approval stands regardless of Resend outcome. Two Resend calls issued in **Promise.all** — tenant gets owner phone + property context; owner gets tenant display_name + phone + email + building_name. Both attempts logged to `email_send_log` (event_type `email.sent` or `email.failed`; service_role bypasses RLS). Response body carries `{approved, emails_sent}` or `{approved, emails_sent, email_error}` — **no phone/email ever in the HTTP response**.
+
+**resend-reveal** — POST. Either tenant or owner may resend. Guards status = 'approved'. Two cooldowns: 1/hour and 5/day IST via `email_send_log` queries filtered by `contact_request_id + recipient_user_id + event_type IN (email.sent, email.resent)`. 1/hour returns 429 with `retry_after_seconds` derived from the newest matching row. Same body shape as reveal-contact per role. Log row event_type = `email.resent` on success.
+
+**resend-contact-webhook** — POST. Svix signature verification: `whsec_` prefix stripped, base64-decoded to HMAC-SHA256 key; signed payload is `${svix-id}.${svix-timestamp}.${body}`; multiple `v1,<sig>` tuples in the header supported; timing-safe compare. Invalid signature → 401 (only path allowed to 4xx). Valid signature → always 200 `{received:true}`, even on JSON parse fail or DB insert error, so Resend never retry-storms. Looks up `contact_request_id + recipient_user_id` by `resend_message_id` — orphan events still insert with nulls for debugging. `error_reason` extracted from payload only for bounce/complaint/failed event types.
+
+**config.toml** — appended four `[functions.<name>]` blocks with `verify_jwt = false`. Existing 5 entries untouched (including the pre-existing duplicate `send-sms-otp` block).
+
+**Local migration `20260717000005_phase3_rate_limit_functions.sql`** — documentation-only mirror of the MCP-applied `get_tenant_daily_request_count(uuid)` (SECURITY DEFINER, GRANT to service_role) and `get_my_daily_request_remaining()` (SECURITY DEFINER, uses `auth.uid()`, GRANT to authenticated). Both anchor "today" to `Asia/Kolkata` calendar day and exclude `auto_cancelled`.
+
+**Scratch file cleanup** — `find` over the project directory turned up zero matches for `p3-decisions.md`, `p3-schema.md`, `p3-forward*.md`. Per prompt instructions, the three files that remain in `C:/Users/.../AppData/Local/Temp/...` (OS temp dir) are left for OS cleanup.
+
+**TypeScript baseline: 364** (`npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -c "error TS"`) — no delta.
+
+**Verification checks:**
+- `grep -r "phone\|email" supabase/functions/submit-contact-request/` — zero hits.
+- `grep "RESEND_WEBHOOK_SECRET" supabase/functions/resend-contact-webhook/` — confirmed.
+- `grep "\[functions" supabase/config.toml` — 9 blocks total, 4 new Phase 3 blocks present.
+
+**Untouched** (per prompt scope): existing Edge Functions, all RLS policies / triggers / tables outside contact_requests / email_send_log, `client.ts`, any UI or `src/` code, any n8n workflow. No `supabase functions deploy` executed — deployment is manual.
+
+**Env vars owner must set before deploy:** `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are runtime-provided.
+
+## [2026-07-17] build | Phase 3 Prompt 1 — schema migrations verified, types regenerated, commons updated [14:55 IST]
+
+Four migrations were applied to production via Supabase MCP in the planning session prior to this Claude Code invocation (2 enums, 2 tables, 4 triggers, 4 policies, 4 functions — see commons-schema.md "Phase 3 Schema" for full detail). Verification of DB state was performed via MCP in the planning session; **NOT re-verified in this Claude Code session** (no MCP tool available here — user opted Option B). Step 1 verification SQL checks and Step 6 trigger-conflict check on `properties` were skipped for the same reason.
+
+Wrote four local migration files as documentation-only mirrors (will not re-run against production): `20260717000001_phase3_contact_requests_enums.sql`, `..._tables.sql`, `..._triggers.sql`, `..._rls.sql`. Idempotent shape (IF NOT EXISTS / DROP … IF EXISTS / CREATE OR REPLACE) so any future `supabase db reset` in a dev environment converges without hand-holding.
+
+Regenerated types via `npx supabase gen types typescript --project-id tfutuqqcxqqbirnsdpvz` run from `/tmp` (in-project run failed with ProjectConfigParseError — the local config.toml is minimal and the CLI's project-config parser trips on it; cwd bypass is the workaround). Types file grew from 3983 → 4187 lines. Grep confirms all Phase 3 types present: `contact_requests`, `email_send_log`, `contact_request_status`, `contact_request_decline_reason`, `get_owner_response_rate`. No unexpected changes to existing rows in the diff.
+
+**TypeScript baseline: 364** (`npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -c "error TS"`). No delta from pre-regen count. CLAUDE.md baseline line updated from 360 → 364 with the drift explanation.
+
+Commons updates:
+- `commons-decisions.md` — appended D-P3-000 through D-P3-010 (11 entries) covering baseline state, mutual-reveal, snapshot, delivery, lifecycle, rate limits, decline reasons, notification cadence, response-rate metrics, and DPDP consent.
+- `commons-schema.md` — appended "Phase 3 Schema" section: full column table for both new tables, both enums, all four triggers with the PM-divergence note on `check_contact_request_limits()` (4 divergences documented), RLS policy summary, `get_owner_response_rate()` signature, unique partial index purpose.
+- `commons-forward-plan.md` — appended "Phase 4+ deferred items surfaced during Phase 3 Prompt 1" with 8 entries: admin Requests UI, WhatsApp deep-link, daily nudge, DPDP consent audit trail UI, mass-approve monitoring, response-rate window revisit, owner property list on `/u/:ownerId`, rate-limit config revisit.
+- `CLAUDE.md` — index reference updated (D-001–D-177 + D-P3-000–D-P3-010), TS baseline 360 → 364, Database Tables count 24 → 26 with contact_requests + email_send_log listed and a Phase 3 pointer.
+
+**Untouched** (per prompt scope): any existing migration file, any RLS policy outside contact_requests / email_send_log, any Edge Function, `client.ts`, `config.toml`, any src/ feature code, any n8n workflow. No `supabase db push` executed.
+
+**Explicitly deferred to next prompt:** trigger-conflict check on `properties` (Step 6) — cannot run without MCP; verified during planning session per user statement. When Phase 3 Prompt 2 lands with MCP access, that check should be run as a spot-verify against `information_schema.triggers WHERE event_object_table='properties'` to confirm `trg_auto_cancel_requests_on_archive` coexists cleanly with `enforce_property_owner_transitions_trigger` and `handle_property_status_change` (name ordering matters — alphabetically `auto_cancel_requests_on_archive` < `enforce_property_owner_transitions_trigger` < `handle_property_status_change`, and it is an AFTER UPDATE trigger while those two are BEFORE, so no interaction is expected — but verify).
+
+## [2026-07-17] audit | Phase 3 pre-build diagnosis — contact requests [14:35 IST]
+
+Read-only investigation only — no files, schema, functions, or n8n workflows modified. Findings appear in the assistant response, not repeated here.
+
 ## [2026-07-14] fix | Sync Prompt 5 (final) — security_deposit_months owner input, maintenance_included_in_rent bridge cleanup, dead furnishingItems removal, CLAUDE.md trim, commons memory consolidation [IST]
 
 Closes the 5-prompt parity-audit sync series (D-171). Five targeted fixes + memory work in a single pass.

@@ -1,0 +1,189 @@
+// Phase 3 Prompt 2.1 — reveal-contact
+// Owner clicks Approve → this function updates contact_request to 'approved'
+// and dispatches a fire-and-forget webhook to n8n. n8n owns the actual email
+// send + any future WhatsApp fanout (Workflows A/B/C parity).
+//
+// Security invariants (D-P3-001, D-P3-003):
+// - Phone / email values appear ONLY in the n8n payload and in email_send_log
+//   (admin-only). They NEVER appear in the HTTP response body.
+// - caller must be the owner_id on the contact_request. Verified via JWT.
+// - DB state is source of truth: approval succeeds regardless of n8n outcome.
+
+const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
+const N8N_REVEAL_WEBHOOK = "https://n8n.reeve.in/webhook/contact-reveal";
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
+};
+
+function json(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  });
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: CORS_HEADERS });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  try {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const bearerToken = authHeader.replace(/^Bearer\s+/i, "");
+    if (!bearerToken) return json({ error: "Unauthorized" }, 401);
+
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? SUPABASE_URL;
+    const n8nSecret = Deno.env.get("N8N_WEBHOOK_SECRET") ?? "";
+    if (!n8nSecret) {
+      console.warn("N8N_WEBHOOK_SECRET_MISSING — dispatch will fail auth at n8n");
+    }
+
+    // 1. JWT
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { "Authorization": `Bearer ${bearerToken}`, "apikey": anonKey },
+    });
+    if (userRes.status !== 200) return json({ error: "Unauthorized" }, 401);
+    const callerId: string | undefined = (await userRes.json())?.id;
+    if (!callerId) return json({ error: "Unauthorized" }, 401);
+
+    // 2. Body
+    let body: { contact_request_id?: string };
+    try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
+    const crId = body?.contact_request_id;
+    if (!crId || typeof crId !== "string") return json({ error: "Missing contact_request_id" }, 400);
+
+    const srHeaders = { "apikey": serviceRoleKey, "Authorization": `Bearer ${serviceRoleKey}` };
+
+    // 3. Fetch contact_request
+    const crRes = await fetch(
+      `${supabaseUrl}/rest/v1/contact_requests?id=eq.${crId}&select=id,property_id,tenant_id,owner_id,status`,
+      { headers: srHeaders },
+    );
+    if (!crRes.ok) return json({ error: "Failed to fetch contact request" }, 500);
+    const cr: { id: string; property_id: string; tenant_id: string; owner_id: string; status: string } | undefined =
+      (await crRes.json())?.[0];
+    if (!cr) return json({ error: "Contact request not found" }, 404);
+
+    // 4. Ownership + status guards
+    if (cr.owner_id !== callerId) return json({ error: "Forbidden" }, 403);
+    if (cr.status !== "pending") return json({ error: "invalid_status_transition" }, 409);
+
+    // 5. UPDATE status → approved (guarded on OLD.status=pending for idempotence)
+    //    DB is source of truth: happens BEFORE any n8n call.
+    const updateRes = await fetch(
+      `${supabaseUrl}/rest/v1/contact_requests?id=eq.${crId}&status=eq.pending`,
+      {
+        method: "PATCH",
+        headers: { ...srHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "approved" }),
+      },
+    );
+    if (!updateRes.ok) {
+      console.error("APPROVE_UPDATE_ERROR", { status: updateRes.status });
+      return json({ error: "Failed to mark approved" }, 500);
+    }
+
+    // 6. Gather notification payload data (service_role — values never leave via HTTP body)
+    const [ownerUserRes, tenantUserRes, propRes, tenantProfRes] = await Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/users?id=eq.${cr.owner_id}&select=full_name,email,phone`, { headers: srHeaders }),
+      fetch(`${supabaseUrl}/rest/v1/users?id=eq.${cr.tenant_id}&select=full_name,email,phone`, { headers: srHeaders }),
+      fetch(`${supabaseUrl}/rest/v1/properties?id=eq.${cr.property_id}&select=building_name,locality`, { headers: srHeaders }),
+      fetch(`${supabaseUrl}/rest/v1/profiles?user_id=eq.${cr.tenant_id}&select=display_name`, { headers: srHeaders }),
+    ]);
+
+    const ownerUser: { full_name?: string | null; email?: string | null; phone?: string | null } =
+      (await ownerUserRes.json())?.[0] ?? {};
+    const tenantUser: { full_name?: string | null; email?: string | null; phone?: string | null } =
+      (await tenantUserRes.json())?.[0] ?? {};
+    const property: { building_name?: string | null; locality?: string | null } =
+      (await propRes.json())?.[0] ?? {};
+    const tenantProf: { display_name?: string | null } =
+      (await tenantProfRes.json())?.[0] ?? {};
+
+    const n8nPayload = {
+      event: "contact_approved",
+      contact_request_id: crId,
+      property: {
+        id: cr.property_id,
+        building_name: property.building_name ?? null,
+        locality: property.locality ?? null,
+      },
+      owner: {
+        user_id: cr.owner_id,
+        full_name: ownerUser.full_name ?? null,
+        email: ownerUser.email ?? null,
+        phone: ownerUser.phone ?? null,
+      },
+      tenant: {
+        user_id: cr.tenant_id,
+        display_name: tenantProf.display_name ?? null,
+        full_name: tenantUser.full_name ?? null,
+        email: tenantUser.email ?? null,
+        phone: tenantUser.phone ?? null,
+      },
+    };
+
+    // 7. Log dispatch to email_send_log — TWO rows (one per recipient) so admin
+    //    debuggability shows both sides even before Resend webhook events land.
+    //    service_role bypasses email_send_log's admin-only RLS.
+    await fetch(`${supabaseUrl}/rest/v1/email_send_log`, {
+      method: "POST",
+      headers: { ...srHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify([
+        {
+          contact_request_id: crId,
+          resend_message_id: null,
+          event_type: "n8n_webhook_dispatched",
+          recipient_user_id: cr.owner_id,
+          recipient_email: ownerUser.email ?? null,
+          error_reason: null,
+          raw_payload: n8nPayload,
+        },
+        {
+          contact_request_id: crId,
+          resend_message_id: null,
+          event_type: "n8n_webhook_dispatched",
+          recipient_user_id: cr.tenant_id,
+          recipient_email: tenantUser.email ?? null,
+          error_reason: null,
+          raw_payload: n8nPayload,
+        },
+      ]),
+    }).catch((err) => console.error("EMAIL_LOG_INSERT_ERROR", { error: String(err) }));
+
+    // 8. Fire-and-forget n8n dispatch.
+    let n8nError = false;
+    try {
+      const n8nRes = await fetch(N8N_REVEAL_WEBHOOK, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${n8nSecret}`,
+        },
+        body: JSON.stringify(n8nPayload),
+      });
+      if (!n8nRes.ok) {
+        n8nError = true;
+        console.error("N8N_DISPATCH_NON_2XX", { status: n8nRes.status });
+      }
+    } catch (err) {
+      n8nError = true;
+      console.error("N8N_DISPATCH_ERROR", { error: err instanceof Error ? err.message : String(err) });
+    }
+
+    return json(
+      n8nError
+        ? { approved: true, notification_dispatched: false, n8n_error: true }
+        : { approved: true, notification_dispatched: true },
+      200,
+    );
+
+  } catch (err) {
+    console.error("UNHANDLED_ERROR", { error: err instanceof Error ? err.message : String(err) });
+    return json({ error: "Internal server error" }, 500);
+  }
+});
