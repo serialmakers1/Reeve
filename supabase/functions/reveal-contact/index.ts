@@ -110,8 +110,44 @@ Deno.serve(async (req: Request) => {
     const ownerHasEmail = !!ownerEmail;
     const tenantHasEmail = !!tenantEmail;
 
-    // n8n payload — send "" (never null) for missing emails so downstream
-    // template rendering doesn't break on null. Phone reveal is unaffected.
+    // 6b. Phone fallback: if public.users.phone is null (e.g. phone linked as
+    //     second provider), read from auth.identities.identity_data via the
+    //     SECURITY DEFINER RPC get_phone_fallback (service_role only).
+    const ownerPhoneRaw = (ownerUser.phone ?? "").trim() || null;
+    const tenantPhoneRaw = (tenantUser.phone ?? "").trim() || null;
+
+    async function fetchPhoneFallback(userId: string): Promise<string | null> {
+      try {
+        const r = await fetch(`${supabaseUrl}/rest/v1/rpc/get_phone_fallback`, {
+          method: "POST",
+          headers: { ...srHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_user_id: userId }),
+        });
+        if (!r.ok) {
+          console.error("PHONE_FALLBACK_NON_2XX", { userId, status: r.status });
+          return null;
+        }
+        const val = await r.json();
+        if (typeof val === "string") {
+          const trimmed = val.trim();
+          return trimmed ? trimmed : null;
+        }
+        return null;
+      } catch (err) {
+        console.error("PHONE_FALLBACK_ERROR", { userId, error: err instanceof Error ? err.message : String(err) });
+        return null;
+      }
+    }
+
+    const [ownerPhone, tenantPhone] = await Promise.all([
+      ownerPhoneRaw ? Promise.resolve(ownerPhoneRaw) : fetchPhoneFallback(cr.owner_id),
+      tenantPhoneRaw ? Promise.resolve(tenantPhoneRaw) : fetchPhoneFallback(cr.tenant_id),
+    ]);
+    const ownerHasPhone = !!ownerPhone;
+    const tenantHasPhone = !!tenantPhone;
+
+    // n8n payload — send "" (never null) for missing email or phone so
+    // downstream template rendering doesn't break on null.
     const n8nPayload = {
       event: "contact_approved",
       contact_request_id: crId,
@@ -124,14 +160,14 @@ Deno.serve(async (req: Request) => {
         user_id: cr.owner_id,
         full_name: ownerUser.full_name ?? null,
         email: ownerEmail ?? "",
-        phone: ownerUser.phone ?? null,
+        phone: ownerPhone ?? "",
       },
       tenant: {
         user_id: cr.tenant_id,
         display_name: tenantProf.display_name ?? null,
         full_name: tenantUser.full_name ?? null,
         email: tenantEmail ?? "",
-        phone: tenantUser.phone ?? null,
+        phone: tenantPhone ?? "",
       },
     };
 
@@ -179,6 +215,29 @@ Deno.serve(async (req: Request) => {
             raw_payload: n8nPayload,
           },
     ];
+
+    if (!ownerHasPhone) {
+      logRows.push({
+        contact_request_id: crId,
+        resend_message_id: null,
+        event_type: "skipped_no_phone",
+        recipient_user_id: cr.owner_id,
+        recipient_email: null,
+        error_reason: "owner phone missing at reveal time (fallback exhausted)",
+        raw_payload: n8nPayload,
+      });
+    }
+    if (!tenantHasPhone) {
+      logRows.push({
+        contact_request_id: crId,
+        resend_message_id: null,
+        event_type: "skipped_no_phone",
+        recipient_user_id: cr.tenant_id,
+        recipient_email: null,
+        error_reason: "tenant phone missing at reveal time (fallback exhausted)",
+        raw_payload: n8nPayload,
+      });
+    }
 
     await fetch(`${supabaseUrl}/rest/v1/email_send_log`, {
       method: "POST",

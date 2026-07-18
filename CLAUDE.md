@@ -98,6 +98,7 @@ Legacy PM: `draft → inspection_proposed → inspection_scheduled → inspected
 ## Phase 3 Edge Functions (2026-07-17)
 Phase 3 complete (2026-07-17). contact_requests + email_send_log tables live. 4 Edge Functions deployed. 3 n8n workflows active.
 reveal-contact skips email dispatch and logs `skipped_no_email` to `email_send_log` when a party lacks an email; phone reveal still proceeds; webhook fires only when at least one party has email.
+reveal-contact falls back to `get_phone_fallback(user_id)` RPC when `public.users.phone` is null; `skipped_no_phone` logged to `email_send_log` when phone unavailable after fallback.
 Four functions in `supabase/functions/`: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`. All `verify_jwt=false` in config.toml with manual JWT validation inside the handler (matches the razorpay pattern). Phone numbers NEVER appear in any HTTP response body — email reveal only (D-P3-001). service_role key used for all DB reads/writes. `tenant_id` always derived from the verified JWT — never trusted from request body. Approval sends two emails in parallel via Promise.all; approval stands even if either send fails (resend-reveal is the retry surface). resend-contact-webhook verifies Svix signature (`RESEND_WEBHOOK_SECRET`) and always returns 200 on valid signature so Resend does not retry-storm. reveal-contact and resend-reveal call n8n webhooks (fire-and-forget). RESEND_API_KEY not used in Supabase. N8N_WEBHOOK_SECRET required in Supabase secrets.
 
 ## Phase 3 Prompt 6 — PublicProfile owner stats
