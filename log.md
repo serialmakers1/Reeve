@@ -852,3 +852,11 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-17] feat | Phase 2 Prompt 4 — /tenant-dashboard/preferences page (TenantPreferences.tsx) [20:48 IST]
 ## [2026-07-17] feat | Phase 2 Prompt 5 — /tenant-dashboard page (TenantDashboard.tsx) [20:53 IST]
 ## [2026-07-17] feat | Phase 2 Prompt 6 — routing redirect, BottomNav + Header tenant nav update, orphan cleanup [20:58 IST]
+
+## [2026-07-18] audit | Auth + profile system diagnostic — full flow map produced [13:38 IST]
+
+## [2026-07-18] audit | Auth findings verification — real bugs vs by-design triaged [14:15 IST]
+
+## [2026-07-18] refactor | Profile.tsx: Name read-only from Google; removed 2 redundant client .update() calls now owned by auth triggers [14:42 IST]
+
+## [2026-07-18] fix | reveal-contact null-email guard + isNewUser heuristic + last_login_at wired via RPC [14:51 IST]

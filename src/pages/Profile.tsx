@@ -5,7 +5,6 @@ import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle2, Circle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
@@ -51,11 +50,6 @@ export default function Profile() {
   const returnTo = searchParams.get('returnTo');
   const reason = searchParams.get('reason');
   const reasonCopy = reason ? REASON_COPY[reason] : null;
-  const [initialized, setInitialized] = useState(false);
-
-  // ─── Section 1: Full Name ──────────────────────────────────────────────────
-  const [fullName, setFullName] = useState("");
-  const [nameSaving, setNameSaving] = useState(false);
 
   // ─── Section 2: Phone Verification ────────────────────────────────────────
   const [phoneStep, setPhoneStep] = useState<"idle" | "enter" | "otp">("idle");
@@ -82,15 +76,9 @@ export default function Profile() {
   const [ecExpanded, setEcExpanded] = useState(false);
   const [ecSaved, setEcSaved] = useState(false);
 
-  // Pre-fill once user is loaded
-  if (user && !initialized) {
-    setFullName(user.full_name ?? "");
-    setInitialized(true);
-  }
-
   // Load identities and emergency contact
   useEffect(() => {
-    if (!initialized || !session?.user?.id) return;
+    if (!session?.user?.id) return;
 
     // Identities from session
     const rawIdentities = (session.user as any).identities ?? [];
@@ -130,7 +118,7 @@ export default function Profile() {
     };
 
     fetchProfile();
-  }, [initialized, session?.user?.id]);
+  }, [session?.user?.id]);
 
   // Cleanup cooldown timer on unmount
   useEffect(() => {
@@ -158,35 +146,10 @@ export default function Profile() {
     navigate("/profile", { replace: true });
   }, []);
 
-  // After Google OAuth return: write email_verified to public.users, refresh, consume pendingReturnTo
+  // After Google OAuth return: refresh user (triggers now own email/name sync), consume pendingReturnTo
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, authSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        // Extract email and name from Google identity — session.user.email is ""
-        // after linkIdentity returns, but identity_data has the correct values.
-        const uid = authSession?.user?.id;
-        const googleIdentity = (authSession?.user as any)?.identities?.find(
-          (i: any) => i.provider === "google"
-        );
-        const email = googleIdentity?.identity_data?.email ?? authSession?.user?.email ?? "";
-        const fullName = googleIdentity?.identity_data?.full_name ?? googleIdentity?.identity_data?.name ?? "";
-        const hasEmailIdentity = !!googleIdentity;
-
-        if (uid && email && hasEmailIdentity) {
-          const updateData: Record<string, unknown> = {
-            email,
-            email_verified: true,
-            updated_at: new Date().toISOString(),
-          };
-          if (fullName) {
-            updateData.full_name = fullName;
-          }
-          await supabase
-            .from("users")
-            .update(updateData)
-            .eq("id", uid);
-        }
-
         await refreshUser();
         // Single navigate — no /profile flash.
         // Priority: sessionStorage (Google link returnTo) > localStorage (legacy) > /profile
@@ -227,32 +190,6 @@ export default function Profile() {
       </div>
     );
   }
-
-  // ─── Handlers: Section 1 ──────────────────────────────────────────────────
-
-  const handleSaveName = async () => {
-    const trimmed = fullName.trim();
-    if (trimmed.length < 2) {
-      toast({ title: "Full name must be at least 2 characters.", variant: "destructive" });
-      return;
-    }
-    const userId = session?.user?.id;
-    if (!userId) return;
-
-    setNameSaving(true);
-    const { error } = await supabase
-      .from("users")
-      .update({ full_name: trimmed, updated_at: new Date().toISOString() })
-      .eq("id", userId);
-    setNameSaving(false);
-
-    if (error) {
-      toast({ title: "Could not save. Please try again.", variant: "destructive" });
-    } else {
-      await refreshUser();
-      toast({ title: "Name saved." });
-    }
-  };
 
   // ─── Handlers: Section 2 ──────────────────────────────────────────────────
 
@@ -334,19 +271,7 @@ export default function Profile() {
         return;
       }
 
-      // Update public.users with phone and mark phone_verified
-      const userId = session?.user?.id;
-      if (userId) {
-        await supabase
-          .from("users")
-          .update({
-            phone: "91" + digits,
-            phone_verified: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", userId);
-      }
-
+      // handle_user_updated Block 1 owns the public.users write; just refresh.
       await refreshUser();
       if (returnTo && returnTo !== '/profile') {
         // D-172: gate redirect — toast then delayed navigate so user sees confirmation.
@@ -476,28 +401,16 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ── Section 1: Full Name ── */}
-        <div className="rounded-xl border bg-card p-5 space-y-4">
+        {/* ── Section 1: Full Name (read-only, sourced from Google) ── */}
+        <div className="rounded-xl border bg-card p-5 space-y-2">
           <h2 className="text-base font-semibold text-foreground">Full Name</h2>
-          <div className="space-y-1.5">
-            <Label className="text-sm">
-              Full name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Your full name"
-              className="min-h-[44px]"
-            />
-          </div>
-          <Button
-            onClick={handleSaveName}
-            disabled={nameSaving}
-            className="w-full min-h-[44px]"
-          >
-            {nameSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Name
-          </Button>
+          {user?.full_name ? (
+            <p className="text-sm text-foreground">{user.full_name}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Link your Google account below to set your name.
+            </p>
+          )}
         </div>
 
         {/* ── Section 2: Phone Verification ── */}

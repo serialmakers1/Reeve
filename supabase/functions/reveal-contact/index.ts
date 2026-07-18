@@ -104,6 +104,14 @@ Deno.serve(async (req: Request) => {
     const tenantProf: { display_name?: string | null } =
       (await tenantProfRes.json())?.[0] ?? {};
 
+    // 6a. Normalise emails — treat empty strings and null identically.
+    const ownerEmail = (ownerUser.email ?? "").trim() || null;
+    const tenantEmail = (tenantUser.email ?? "").trim() || null;
+    const ownerHasEmail = !!ownerEmail;
+    const tenantHasEmail = !!tenantEmail;
+
+    // n8n payload — send "" (never null) for missing emails so downstream
+    // template rendering doesn't break on null. Phone reveal is unaffected.
     const n8nPayload = {
       event: "contact_approved",
       contact_request_id: crId,
@@ -115,70 +123,99 @@ Deno.serve(async (req: Request) => {
       owner: {
         user_id: cr.owner_id,
         full_name: ownerUser.full_name ?? null,
-        email: ownerUser.email ?? null,
+        email: ownerEmail ?? "",
         phone: ownerUser.phone ?? null,
       },
       tenant: {
         user_id: cr.tenant_id,
         display_name: tenantProf.display_name ?? null,
         full_name: tenantUser.full_name ?? null,
-        email: tenantUser.email ?? null,
+        email: tenantEmail ?? "",
         phone: tenantUser.phone ?? null,
       },
     };
 
-    // 7. Log dispatch to email_send_log — TWO rows (one per recipient) so admin
-    //    debuggability shows both sides even before Resend webhook events land.
-    //    service_role bypasses email_send_log's admin-only RLS.
+    const willDispatch = ownerHasEmail || tenantHasEmail;
+
+    // 7. Log per-recipient: dispatched vs skipped_no_email. Skipped rows still
+    //    log the intended payload so admin can retry manually if needed.
+    const logRows = [
+      ownerHasEmail
+        ? {
+            contact_request_id: crId,
+            resend_message_id: null,
+            event_type: "n8n_webhook_dispatched",
+            recipient_user_id: cr.owner_id,
+            recipient_email: ownerEmail,
+            error_reason: null,
+            raw_payload: n8nPayload,
+          }
+        : {
+            contact_request_id: crId,
+            resend_message_id: null,
+            event_type: "skipped_no_email",
+            recipient_user_id: cr.owner_id,
+            recipient_email: null,
+            error_reason: "owner email missing at reveal time",
+            raw_payload: n8nPayload,
+          },
+      tenantHasEmail
+        ? {
+            contact_request_id: crId,
+            resend_message_id: null,
+            event_type: "n8n_webhook_dispatched",
+            recipient_user_id: cr.tenant_id,
+            recipient_email: tenantEmail,
+            error_reason: null,
+            raw_payload: n8nPayload,
+          }
+        : {
+            contact_request_id: crId,
+            resend_message_id: null,
+            event_type: "skipped_no_email",
+            recipient_user_id: cr.tenant_id,
+            recipient_email: null,
+            error_reason: "tenant email missing at reveal time",
+            raw_payload: n8nPayload,
+          },
+    ];
+
     await fetch(`${supabaseUrl}/rest/v1/email_send_log`, {
       method: "POST",
       headers: { ...srHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify([
-        {
-          contact_request_id: crId,
-          resend_message_id: null,
-          event_type: "n8n_webhook_dispatched",
-          recipient_user_id: cr.owner_id,
-          recipient_email: ownerUser.email ?? null,
-          error_reason: null,
-          raw_payload: n8nPayload,
-        },
-        {
-          contact_request_id: crId,
-          resend_message_id: null,
-          event_type: "n8n_webhook_dispatched",
-          recipient_user_id: cr.tenant_id,
-          recipient_email: tenantUser.email ?? null,
-          error_reason: null,
-          raw_payload: n8nPayload,
-        },
-      ]),
+      body: JSON.stringify(logRows),
     }).catch((err) => console.error("EMAIL_LOG_INSERT_ERROR", { error: String(err) }));
 
-    // 8. Fire-and-forget n8n dispatch.
+    // 8. Fire-and-forget n8n dispatch — only if at least one party has email.
     let n8nError = false;
-    try {
-      const n8nRes = await fetch(N8N_REVEAL_WEBHOOK, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${n8nSecret}`,
-        },
-        body: JSON.stringify(n8nPayload),
-      });
-      if (!n8nRes.ok) {
+    if (willDispatch) {
+      try {
+        const n8nRes = await fetch(N8N_REVEAL_WEBHOOK, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${n8nSecret}`,
+          },
+          body: JSON.stringify(n8nPayload),
+        });
+        if (!n8nRes.ok) {
+          n8nError = true;
+          console.error("N8N_DISPATCH_NON_2XX", { status: n8nRes.status });
+        }
+      } catch (err) {
         n8nError = true;
-        console.error("N8N_DISPATCH_NON_2XX", { status: n8nRes.status });
+        console.error("N8N_DISPATCH_ERROR", { error: err instanceof Error ? err.message : String(err) });
       }
-    } catch (err) {
-      n8nError = true;
-      console.error("N8N_DISPATCH_ERROR", { error: err instanceof Error ? err.message : String(err) });
+    } else {
+      console.warn("N8N_DISPATCH_SKIPPED_NO_EMAILS", { crId });
     }
 
     return json(
-      n8nError
-        ? { approved: true, notification_dispatched: false, n8n_error: true }
-        : { approved: true, notification_dispatched: true },
+      !willDispatch
+        ? { approved: true, notification_dispatched: false, reason: "no_recipient_email" }
+        : n8nError
+          ? { approved: true, notification_dispatched: false, n8n_error: true }
+          : { approved: true, notification_dispatched: true },
       200,
     );
 

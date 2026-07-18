@@ -144,7 +144,12 @@ export default function LoginPage() {
       }
 
       if (data?.user) {
-        const isNewUser = !data.user?.user_metadata?.full_name;
+        // First-ever sign-in: Supabase sets last_sign_in_at on verify, so on
+        // the very first verify it equals created_at (within a couple seconds).
+        // Returning phone-OTP users have last_sign_in_at well after created_at.
+        const createdAt = data.user.created_at ? new Date(data.user.created_at).getTime() : 0;
+        const lastSignInAt = data.user.last_sign_in_at ? new Date(data.user.last_sign_in_at).getTime() : 0;
+        const isNewUser = !!createdAt && !!lastSignInAt && Math.abs(lastSignInAt - createdAt) < 2000;
         posthog?.capture(isNewUser ? "signup_completed" : "login_completed", {
           method: "phone_otp",
           ...(isOwnerIntent && { intent: "owner", return_to: returnTo }),
