@@ -119,6 +119,17 @@ export function useAuth() {
         setTimeout(async () => {
           if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
             loadUser(session);
+            // Fire-and-forget: SIGNED_IN only fires on genuine sign-in transitions
+            // (INITIAL_SESSION is skipped above; TOKEN_REFRESHED/USER_UPDATED are
+            // separate events). touch_last_login is a SECURITY DEFINER RPC that
+            // updates public.users.last_login_at for the caller.
+            if (event === "SIGNED_IN") {
+              (supabase.rpc as unknown as (fn: string) => Promise<{ error: unknown }>)("touch_last_login")
+                .then(({ error }) => {
+                  if (error) console.warn("touch_last_login failed", error);
+                })
+                .catch((err) => console.warn("touch_last_login threw", err));
+            }
           } else if (event === "SIGNED_OUT") {
             setState({ session: null, user: null, isLoading: false, isAuthenticated: false });
           }
