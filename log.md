@@ -860,3 +860,5 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-18] refactor | Profile.tsx: Name read-only from Google; removed 2 redundant client .update() calls now owned by auth triggers [14:42 IST]
 
 ## [2026-07-18] fix | reveal-contact null-email guard + isNewUser heuristic + last_login_at wired via RPC [14:51 IST]
+
+## [2026-07-18] fix | reveal-contact: phone fallback via get_phone_fallback RPC + skipped_no_phone guard [23:06 IST]
