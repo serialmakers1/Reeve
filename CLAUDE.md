@@ -2,7 +2,7 @@
 
 Property management platform connecting owners and tenants in India. Owners list properties, tenants apply and sign leases — Reeve manages inspections, agreements, and the full rental lifecycle.
 
-Full decision + implementation history: `commons-decisions.md` D-001–D-177 + D-P3-000–D-P3-010. This file holds only load-bearing invariants.
+Full decision + implementation history: `commons-decisions.md` D-001–D-177 + D-P3-000–D-P3-019. This file holds only load-bearing invariants.
 
 ## Tech Stack
 React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (Postgres + Auth + Storage) · React Router v6 · Sentry · PostHog.
@@ -13,7 +13,7 @@ React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (
 
 ## Typecheck (IMPORTANT)
 - Correct: `npx tsc -p tsconfig.app.json --noEmit`. `npx tsc --noEmit` checks ZERO files (root tsconfig has `"files": []` + project references).
-- Baseline: **364 pre-existing errors** (Phase 3 Prompt 1, 2026-07-17; drifted +4 from Sync P5's 360). Supabase generated-types generic-inference noise. Diff against baseline, not zero. New TS2304/TS2552 in touched files = runtime crashes vite won't catch.
+- Baseline: **358 pre-existing errors** (post-Phase 3 auth-hardening, 2026-07-19). Supabase generated-types noise. Diff against baseline, not zero. New TS2304/TS2552 in touched files = runtime crashes vite won't catch.
 
 ## TypeScript Config
 `strictNullChecks: false`, `noImplicitAny: false` — intentional, do not tighten.
@@ -32,9 +32,7 @@ React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (
 All schema in `scripts/prerender.mjs`. Do not add to JSX. `safeJsonLd()` Unicode-escapes `<`, `>`, `&` — never raw `JSON.stringify`. `aggregateRating` MUST NOT be added until 5+ Google reviews. BreadcrumbList on every non-homepage route; homepage does NOT get one. `areaServed` uses structured City objects via `AREA_SERVED` const.
 
 ### Do NOT
-- Use `vite-ssg`, `vite-plugin-ssr`, or any SSG framework (they render app tree in Node.js, conflict with Supabase/PostHog/Sentry browser-only modules).
-- Pre-render any auth/protected route.
-- Modify `src/integrations/supabase/client.ts` — the `noOpLock` must remain (Web Locks API deadlock fix for multi-provider auth).
+Use SSG frameworks (vite-ssg / vite-plugin-ssr — Node.js tree render breaks Supabase/PostHog/Sentry browser-only modules); pre-render any auth/protected route; modify `src/integrations/supabase/client.ts` (the `noOpLock` must remain — Web Locks API deadlock fix for multi-provider auth).
 
 ## Supabase
 - Project ref: `tfutuqqcxqqbirnsdpvz` (`https://tfutuqqcxqqbirnsdpvz.supabase.co`)
@@ -46,9 +44,11 @@ All schema in `scripts/prerender.mjs`. Do not add to JSX. `safeJsonLd()` Unicode
 
 ## Auth Architecture
 Phone OTP (MSG91) + Google OAuth. Email OTP removed. After verify success: `navigate(returnTo || '/')` — no onboarding check.
-Profile Name field is read-only; sourced from public.users.full_name which is populated by handle_user_updated Block 2 from auth.identities.identity_data on Google link.
-last_login_at written via touch_last_login() RPC on SIGNED_IN transitions only — never direct client update.
-Login isNewUser derived from `created_at ≈ last_sign_in_at` (within 2s), not `user_metadata.full_name`.
+Profile Name field is read-only; sourced from public.users.full_name populated by handle_user_updated Block 2 from auth.identities.identity_data on Google link. No client write to full_name (D-P3-019).
+last_login_at written via touch_last_login() RPC on SIGNED_IN transitions only — never direct client update. Login isNewUser = `|created_at − last_sign_in_at| < 2s`, not `user_metadata.full_name` (D-P3-018).
+**Auth trigger danger zone (D-P3-015):** never add triggers inside GoTrue's auth transaction to sync `public.*` — use post-login RPCs. MCP SQL runs as `postgres` and doesn't surface `supabase_auth_admin` search_path failures; only real login attempts do. All functions touching `public.*` must have `search_path = public` pinned. Trigger guards check `current_user` (NOT JWT claims role) — `current_user` changes under SECURITY DEFINER, JWT does not.
+**Privilege guard (D-P3-014):** `prevent_user_privilege_escalation` BEFORE UPDATE trigger on `public.users` blocks `authenticated`/`anon` from changing `role`/`email_verified`/`phone_verified`/`auth_provider`/`is_active`. Uses `IS DISTINCT FROM` (no-op writes pass silently). Admin + service_role bypass.
+**Phone source (D-P3-016):** `public.users.phone` may be null for Google-first users. Call `get_phone_fallback(user_id)` via service_role only (reads `auth.users.phone`, then `identity_data`). n8n never queries `auth.*` — always via scoped SECURITY DEFINER RPC.
 
 ### useAuth — single source of truth
 Returns `{ session, user, isLoading, isAuthenticated, isFullyVerified, signOut, refreshUser }`. `isFullyVerified = !!(user?.phone_verified && user?.email_verified)` (D-176). Critical patterns (do NOT remove):
@@ -97,19 +97,14 @@ Legacy PM: `draft → inspection_proposed → inspection_scheduled → inspected
 
 ## Phase 3 Edge Functions (2026-07-17)
 Phase 3 complete (2026-07-17). contact_requests + email_send_log tables live. 4 Edge Functions deployed. 3 n8n workflows active.
-reveal-contact skips email dispatch and logs `skipped_no_email` to `email_send_log` when a party lacks an email; phone reveal still proceeds; webhook fires only when at least one party has email.
-reveal-contact falls back to `get_phone_fallback(user_id)` RPC when `public.users.phone` is null; `skipped_no_phone` logged to `email_send_log` when phone unavailable after fallback.
-resend-reveal falls back to `get_phone_fallback(user_id)` RPC for the other party when `public.users.phone` is null; `skipped_no_phone` logged to `email_send_log` when phone unavailable after fallback. (`get_phone_fallback` reads `auth.users.phone` first, then `identity_data`.)
+reveal-contact + resend-reveal (v5): skip email dispatch and log `skipped_no_email` when a party lacks email (phone reveal still proceeds; webhook fires only if at least one party has email). Fall back to `get_phone_fallback` RPC when `public.users.phone` is null; log `skipped_no_phone` if unresolved.
 Four functions in `supabase/functions/`: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`. All `verify_jwt=false` in config.toml with manual JWT validation inside the handler (matches the razorpay pattern). Phone numbers NEVER appear in any HTTP response body — email reveal only (D-P3-001). service_role key used for all DB reads/writes. `tenant_id` always derived from the verified JWT — never trusted from request body. Approval sends two emails in parallel via Promise.all; approval stands even if either send fails (resend-reveal is the retry surface). resend-contact-webhook verifies Svix signature (`RESEND_WEBHOOK_SECRET`) and always returns 200 on valid signature so Resend does not retry-storm. reveal-contact and resend-reveal call n8n webhooks (fire-and-forget). RESEND_API_KEY not used in Supabase. N8N_WEBHOOK_SECRET required in Supabase secrets.
 
-## Phase 3 Prompt 6 — PublicProfile owner stats
-Owner response-rate block rendered on `/u/:userId` below bio, above ListingsGrid + Ratings placeholder (`src/pages/PublicProfile.tsx` `OwnerStatsBlock`). Calls `get_owner_response_rate` RPC + a `properties` count query in parallel; renders null when the profile has no active listings AND zero request history (avoids empty tenant-profile strips). `< 5` handled → "New owner · Verified"; `>= 5` handled → "Responds to X% of requests · N handled all-time" + optional weekly line. Copy is intentionally "Responds to X% of requests" — never "approval rate" (D-P3-009 rationale, D-P3-011 enforcement). Column-name fallback (`_handled ?? _total`) so both RPC signatures resolve. All commons files synced through D-P3-011.
-
-## Phase 3 Prompt 5 — Tenant Contact Requests card
-`src/components/tenant-dashboard/ContactRequestsCard.tsx` replaces the Phase 2 static placeholder in TenantDashboard card 1 (position unchanged). Owns its own query, realtime (`tenant_id=eq.${user.id}` on contact_requests), per-minute cooldown tick (only mounted when a declined row is still cooling), and three actions: Withdraw (client UPDATE guarded by `.eq('status','pending').eq('tenant_id', user.id)`), Resend (calls `resend-reveal` Edge Function; 429 branches surface cooldown vs daily-limit toasts distinctly), and Re-request (navigates to `/property/:id` and delegates to RequestContactPanel — never re-implements submit logic). Header badge shows pending + approved count (hidden at zero). All property links use `/property/:id` — zero `/owner-dashboard/` refs.
-
-## Phase 3 Prompt 4 — Owner Requests tab
-`src/components/owner-dashboard/RequestsTab.tsx` renders the live grouped log (pending / approved / declined / withdrawn / auto_cancelled) on `/owner-dashboard/property/:id`. `src/components/owner-dashboard/DeclineReasonModal.tsx` — 5 templated radio options matching the `contact_request_decline_reason` enum verbatim; free text disallowed. Approve → `supabase.functions.invoke('reveal-contact')` (never a direct client UPDATE). Decline → direct `.update({status:'declined', decline_reason})` guarded by `.eq('status','pending')` (RLS allows owner). Snapshot visibility rule: declined / withdrawn / auto_cancelled render name-only compact card — no photo, no preferences, no message. Tab badge on OwnerPropertyManagement shows live pending count via `fetchPendingCount(propertyId)` + realtime subscription on `contact_requests` filtered by `property_id`.
+## Phase 3 UI wiring (Prompts 3–6 — full details in commons-decisions.md + commons-ux.md)
+- **P3 (`RequestContactPanel.tsx`)**: 7-button state, consent (D-P3-010), realtime + `get_owner_response_rate` strip (D-P3-009). Owner-viewing-own → null. contact_requests / rental_preferences queries use `(supabase as unknown as ...)` casts to sidestep types.ts generic-inference noise.
+- **P4 (`RequestsTab.tsx` + `DeclineReasonModal.tsx`)**: grouped log on `/owner-dashboard/property/:id`. Approve → `functions.invoke('reveal-contact')` (never direct UPDATE). Decline → `.update({status:'declined', decline_reason})` guarded on `status=pending` (5 templated reasons matching `contact_request_decline_reason` enum; free text disallowed). Snapshot rule: declined/withdrawn/auto_cancelled render name-only compact card.
+- **P5 (`ContactRequestsCard.tsx`)**: TenantDashboard card 1, realtime on `contact_requests`, per-minute cooldown tick only when a declined row is cooling. Withdraw (RLS-guarded UPDATE), Resend (`resend-reveal`; 429 branches distinguish cooldown vs daily), Re-request (delegates to RequestContactPanel — never re-implements submit).
+- **P6 (`PublicProfile.tsx` `OwnerStatsBlock`)**: rendered on `/u/:userId` above ListingsGrid; `get_owner_response_rate` + properties count in parallel; null when no listings AND no history. `< 5` handled → "New owner · Verified"; `>= 5` → "Responds to X% of requests" (never "approval rate" — D-P3-009/011). Column fallback `_handled ?? _total`.
 
 ## Phase 3 conventions
 - N8N_WEBHOOK_SECRET: Supabase secret used by reveal-contact + resend-reveal Edge Functions to authenticate calls to n8n webhooks.
@@ -117,9 +112,6 @@ Owner response-rate block rendered on `/u/:userId` below bio, above ListingsGrid
 - n8n → Supabase reads: always use scoped SECURITY DEFINER RPC + anon key. Never store service_role in n8n. See D-P3-012.
 - OwnerRateBlock (in RequestContactPanel): uses all_time_handled, all_time_responded, last_7d_handled, last_7d_responded column names from get_owner_response_rate RPC. Not _total or _rate.
 - ownerDisplayName passed as null from PropertyDetail to RequestContactPanel — consent copy falls back to 'the owner'. Follow-up: add public_profiles.display_name to property fetch. See commons-forward-plan.
-
-## Phase 3 Prompt 3 — Request Contact panel
-`src/components/property-detail/RequestContactPanel.tsx` — owns all 7 button-state logic, consent capture (D-P3-010), realtime subscription on contact_requests scoped to (tenant, property), and the compact owner response-rate strip (D-P3-009, calls `get_owner_response_rate` RPC). Rendered from PropertyDetail.tsx OUTSIDE the COMMONS_HIDE block for eligible statuses only. Owner viewing own property → null return. Cooldown countdown updates every 60s and clears on unmount. All contact_requests / rental_preferences queries use `(supabase as unknown as ...)` casts to sidestep the types.ts generic-inference baseline noise.
 
 ## Database Tables (26 total)
 `agreements, applications, application_notes, application_residents, contact_requests, documents, eligibility, email_send_log, favourites, inspection_callbacks, keys_tracking, leads, leases, maintenance_requests, owner_action_log, owner_bank_details, payments, profiles, properties, property_condition_reports, property_images, rental_preferences, users, visit_events, visits`. View: `properties_with_flat_number`, `public_profiles`.
