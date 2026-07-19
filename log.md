@@ -862,3 +862,7 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-18] fix | reveal-contact null-email guard + isNewUser heuristic + last_login_at wired via RPC [14:51 IST]
 
 ## [2026-07-18] fix | reveal-contact: phone fallback via get_phone_fallback RPC + skipped_no_phone guard [23:06 IST]
+
+## [2026-07-18] fix | resend-reveal: phone fallback via get_phone_fallback RPC + skipped_no_phone guard [11:47 IST]
+
+## [2026-07-19] sync | Post-Phase-3 session commons + CLAUDE.md sync — security fix, phone fallback, auth outage lessons, TS baseline 364→358 [12:28 IST]

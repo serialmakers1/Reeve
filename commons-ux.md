@@ -284,3 +284,19 @@ Optional-only sections (Section 5 Amenities, Section 6 Rules) render ⚪ (not st
 
 - Past dates allowed. On selection, show an inline warning: `Available from is in the past — is this correct?`
 - Future dates limited to 90 days ahead of today.
+
+---
+
+## 11. `/profile` — Account settings (D-P3-019)
+
+The account-settings page (distinct from `/me`, which is the public-identity editor). Four sections in order: Full Name, Phone Number, Google Account, Emergency Contact.
+
+**Full Name (read-only).** Displays `useAuth().user.full_name`. No input, no Save button, no editable state. When empty, shows the hint "Link your Google account below to set your name." Populated exclusively by `handle_user_updated` Block 2 from `auth.identities.identity_data` when the user links Google (D-P3-017). Phone-OTP-only users see the empty-state hint until they link Google.
+
+**Phone Number.** Verify flow unchanged from Phase 3 Prompt 1. `googleTokenRef` capture before `signInWithOtp`, raw `fetch()` to `verify-phone-otp`, `refreshUser()` after 200. No client `.update()` on `public.users.phone` — the trigger owns it.
+
+**Google Account.** Link flow unchanged. `sessionStorage['reeve-link-returnTo']` used because Supabase strips query params from `linkIdentity.redirectTo`. No client `.update()` on `public.users.email` or `full_name` — the trigger owns them (D-P3-017).
+
+**Emergency Contact.** Writes to `public.profiles.emergency_contact_*`. Unchanged.
+
+**Post-Google-link nav priority:** `sessionStorage['reeve-link-returnTo']` (2s toast delay) → `localStorage['pendingReturnTo']` (30-min TTL) → `/profile`.

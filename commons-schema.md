@@ -761,3 +761,59 @@ Applied via Supabase MCP on 2026-07-17. Local files written manually as document
 ### RPC — `get_pending_requests_for_digest()` (Migration 20260717000006)
 
 `get_pending_requests_for_digest()` — Returns `TABLE(owner_user_id uuid, owner_email varchar, owner_name varchar, new_request_count bigint, new_requests jsonb)`. `STABLE`, `SECURITY DEFINER`, `search_path=public`. Grouped by owner across all `contact_requests` in `pending` status with `created_at >= now() - interval '24 hours'`. `new_requests` is a JSONB array of `{building_name, locality, tenant_display, attempt_number, created_at}`, ordered by `created_at DESC` (COALESCE tenant_display = `profiles.display_name` else `users.full_name`). Granted to `anon` and `authenticated`. Called by n8n Contact Daily Digest workflow with the anon key — see D-P3-012 for the security pattern.
+
+---
+
+## Phase 3 addendum — auth & security functions (2026-07-18/19; D-P3-014–D-P3-019)
+
+Applied via Supabase MCP; local files are documentation-only mirrors (same pattern as §"Local migration files"). Do NOT re-run against production.
+
+### Trigger — `prevent_user_privilege_escalation` (BEFORE UPDATE on `public.users`)
+
+```
+CREATE OR REPLACE FUNCTION public.prevent_user_privilege_escalation() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF current_user NOT IN ('authenticated','anon') OR public.is_admin() THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.role           IS DISTINCT FROM OLD.role
+  OR NEW.email_verified IS DISTINCT FROM OLD.email_verified
+  OR NEW.phone_verified IS DISTINCT FROM OLD.phone_verified
+  OR NEW.auth_provider  IS DISTINCT FROM OLD.auth_provider
+  OR NEW.is_active      IS DISTINCT FROM OLD.is_active THEN
+    RAISE EXCEPTION 'Not authorized to modify privileged user columns' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END; $$;
+```
+
+- Guard gates on `current_user`, NOT JWT claims role (D-P3-015).
+- `IS DISTINCT FROM` allows identical-value no-op writes silently (belt-and-braces during the D-P3-019 Profile.tsx transition).
+- `search_path = public` pinned. Same pin also added to `handle_new_user` and `handle_user_updated` in this session; `is_admin()` already had it.
+
+### RPC — `get_phone_fallback(p_user_id uuid) RETURNS text` (D-P3-016)
+
+- `SECURITY DEFINER`, `search_path = public, auth`.
+- Reads `auth.users.phone` (WHERE `phone_confirmed_at IS NOT NULL`) first; then `auth.identities.identity_data->>'phone'` as secondary fallback.
+- Granted to `service_role` ONLY. `anon` and `authenticated` explicitly revoked.
+- Called by `reveal-contact` v5 and `resend-reveal` v5 when `public.users.phone` is null. Both functions log a `skipped_no_phone` row to `email_send_log` if the fallback returns null.
+
+### RPC — `touch_last_login() RETURNS void` (D-P3-018)
+
+- `SECURITY DEFINER`, `search_path = public`.
+- Updates `public.users.last_login_at = now()` for `auth.uid()`.
+- Granted to `authenticated`. Called once per genuine `SIGNED_IN` event in `useAuth` (never on `INITIAL_SESSION`, `TOKEN_REFRESHED`, or cached-session reload).
+- Direct client `.update()` on `public.users.last_login_at` is blocked by D-P3-014 guard — the RPC is the only touch path.
+
+### `handle_user_updated` Block 2 fix (D-P3-017)
+
+Block 2 now sources email + full_name from `auth.identities.identity_data` for the Google identity (previously read `NEW.email` which is NULL after `linkIdentity`). `ON CONFLICT DO UPDATE` clause uses `COALESCE(EXCLUDED.email, public.users.email)` and `COALESCE(EXCLUDED.full_name, public.users.full_name)` — never overwrites a non-null value with NULL. Block 1 (phone_confirmed_at path) unchanged.
+
+### Migrations applied this session (2026-07-18/19)
+
+- `prevent_user_privilege_escalation` — BEFORE UPDATE trigger + function
+- `handle_user_updated_source_from_identities` — Block 2 rewrite
+- `create_get_phone_fallback_rpc` — v1 of the phone fallback RPC (read `identity_data` only)
+- `fix_get_phone_fallback_use_auth_users` — v2 reads `auth.users.phone` first, `identity_data` as fallback
+- `touch_last_login_rpc` — the SIGNED_IN wiring RPC

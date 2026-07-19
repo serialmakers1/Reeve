@@ -121,17 +121,51 @@ Deno.serve(async (req: Request) => {
     // Caller = the person we're resending TO. Other party = the details being resent.
     const callerEmail = isOwner ? (ownerUser.email ?? null) : (tenantUser.email ?? null);
 
+    // Phone fallback: if public.users.phone is null for the other party (e.g.
+    // phone linked as second provider), read from auth via SECURITY DEFINER
+    // RPC get_phone_fallback (service_role only). Pattern ported from
+    // reveal-contact/index.ts verbatim.
+    async function fetchPhoneFallback(userId: string): Promise<string | null> {
+      try {
+        const r = await fetch(`${supabaseUrl}/rest/v1/rpc/get_phone_fallback`, {
+          method: "POST",
+          headers: { ...srHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_user_id: userId }),
+        });
+        if (!r.ok) {
+          console.error("PHONE_FALLBACK_NON_2XX", { userId, status: r.status });
+          return null;
+        }
+        const val = await r.json();
+        if (typeof val === "string") {
+          const trimmed = val.trim();
+          return trimmed ? trimmed : null;
+        }
+        return null;
+      } catch (err) {
+        console.error("PHONE_FALLBACK_ERROR", { userId, error: err instanceof Error ? err.message : String(err) });
+        return null;
+      }
+    }
+
+    const otherPartyUserId = isOwner ? cr.tenant_id : cr.owner_id;
+    const otherPartyPhoneRaw = isOwner
+      ? ((tenantUser.phone ?? "").trim() || null)
+      : ((ownerUser.phone ?? "").trim() || null);
+    const otherPartyPhone = otherPartyPhoneRaw ?? (await fetchPhoneFallback(otherPartyUserId));
+    const otherPartyHasPhone = !!otherPartyPhone;
+
     const otherParty = isOwner
       ? {
           full_name: tenantUser.full_name ?? null,
           display_name: tenantProf.display_name ?? null,
-          phone: tenantUser.phone ?? null,
+          phone: otherPartyPhone ?? "",
           email: tenantUser.email ?? null,
         }
       : {
           full_name: ownerUser.full_name ?? null,
           display_name: null,          // owner has no profiles.display_name field in this flow
-          phone: ownerUser.phone ?? null,
+          phone: otherPartyPhone ?? "",
           email: ownerUser.email ?? null,
         };
 
@@ -163,6 +197,24 @@ Deno.serve(async (req: Request) => {
         raw_payload: n8nPayload,
       }),
     }).catch((err) => console.error("LOG_INSERT_ERROR", { error: String(err) }));
+
+    // 8a. Additive log for missing phone — does NOT replace the dispatch row
+    //     (cooldown reads that row) and does NOT affect the cooldown gate.
+    if (!otherPartyHasPhone) {
+      await fetch(`${supabaseUrl}/rest/v1/email_send_log`, {
+        method: "POST",
+        headers: { ...srHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contact_request_id: crId,
+          resend_message_id: null,
+          event_type: "skipped_no_phone",
+          recipient_user_id: otherPartyUserId,
+          recipient_email: null,
+          error_reason: "other party phone missing at resend time (fallback exhausted)",
+          raw_payload: n8nPayload,
+        }),
+      }).catch((err) => console.error("SKIPPED_NO_PHONE_LOG_ERROR", { error: String(err) }));
+    }
 
     // 9. Fire-and-forget n8n dispatch
     let n8nError = false;

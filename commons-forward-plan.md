@@ -302,3 +302,20 @@ Phase 3 Prompt 3 embedded the owner response-rate strip inside `RequestContactPa
 
 ### `ownerDisplayName` currently passed as `null` from PropertyDetail to RequestContactPanel
 Prompt 3 wires `<RequestContactPanel ownerDisplayName={null} ... />` because PropertyDetail's property fetch does not select the owner's `display_name` today. Consent-checkbox 2 copy falls back to literal "the owner" as a result. Follow-up: extend the property SELECT chain in `src/pages/PropertyDetail.tsx` to include a `public_profiles(display_name)` join (or an extra fetch keyed on `owner_id`) so the consent line reads "…with {display_name}, owner of {building_name}." Small, self-contained change — out of scope for Prompt 3, worth doing when the owner mini-profile block above is built (both use the same data).
+
+## Phase 4+ items surfaced during Phase 3 auth-hardening session (2026-07-18/19)
+
+### Block 1 (`handle_user_updated` phone-confirm path) — sync `public.users.phone` from auth
+For Google-first users who link phone as their second provider, `NEW.phone` inside Block 1 can be null at trigger-firing time — the number lands on `auth.users` later in the same GoTrue transaction. **Do not fix this with another auth-side trigger** — that class of change caused two outages this session (D-P3-015). Correct approach: a `sync_contact_fields()` RPC (or an extension of `touch_last_login()`) called from the frontend post-login that pulls `phone` from `auth.users` via SECURITY DEFINER and writes to `public.users`. Prerequisite for enabling WhatsApp/AiSensy n8n nodes (which read `public.users.phone` directly) — the current `get_phone_fallback` chain (D-P3-016) covers reveal/resend reads but n8n nodes read the column directly.
+
+### Privilege escalation guard — PostgREST end-to-end test
+D-P3-014's guard has been tested only via MCP as `postgres`, which bypasses the trigger. Confirm via browser console as a normal signed-in user: `await supabase.from('users').update({ role: 'super_admin' }).eq('id', <own uid>)` must return `42501 / Not authorized to modify privileged user columns`. Repeat for `email_verified`, `phone_verified`, `auth_provider`, `is_active`.
+
+### Google OAuth `last_login_at` verification
+Unverified whether Supabase fires `SIGNED_IN` (vs only `INITIAL_SESSION`) after a Google OAuth redirect back to the app. `useAuth` calls `touch_last_login()` only inside the `SIGNED_IN` branch (D-P3-018). Test: fresh Google login → check `public.users.last_login_at` immediately. If Google-return only fires `INITIAL_SESSION`, extend the wiring to detect that specific bootstrap case.
+
+### `resend-contact-webhook` `verify_jwt` confirmation
+Confirm `verify_jwt = false` still set in `supabase/functions/resend-contact-webhook/config.toml` after CLI deploys — Supabase resets this to `true` on some deploy paths. If reset, incoming Resend webhook signatures fail JWT validation before reaching the Svix-signature check.
+
+### WhatsApp / AiSensy enablement prerequisites
+Before removing the `false is true` IF gates on the WhatsApp branches in the Contact Reveal / Contact Resend Reveal n8n workflows: (a) AiSensy DLT template approval complete; (b) Block 1 phone sync fix landed (above) — n8n nodes read `public.users.phone` directly and don't call `get_phone_fallback`; (c) end-to-end reveal test with WhatsApp receipts for both phone-first and Google-first tenants.

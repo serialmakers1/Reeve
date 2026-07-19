@@ -1772,3 +1772,45 @@ phase: 3
 category: docs
 `supabase/migrations/20260717000006_phase3_pending_digest_rpc.sql` is a documentation-only mirror of the `get_pending_requests_for_digest()` function + anon/authenticated grant applied via MCP on 2026-07-17. Header comment marks it not to be re-run against production. The Prompt 8 audit checklist expected migration 5 at `20260717000005_...sql`; the actual file landed at `20260717151137_phase3_rate_limit_functions.sql` — real file present under a different timestamp. Documented here so a future dev checking against the audit doesn't file a phantom "missing migration" ticket.
 reasoning: Keep the local migration folder converging so `supabase db reset` in dev environments reproduces production shape. Filename-drift noted so it doesn't get "corrected" by a well-meaning refactor.
+
+**D-P3-014 — Privilege escalation guard on `public.users`**
+date: 2026-07-18
+phase: 3
+category: security
+`prevent_user_privilege_escalation` BEFORE UPDATE trigger on `public.users` raises exception when `role`, `email_verified`, `phone_verified`, `auth_provider`, or `is_active` change under `current_user IN ('authenticated','anon')` AND NOT `is_admin()`. `IS DISTINCT FROM` gates each column so no-op writes with identical values pass silently. `search_path = public` pinned on the function. Admin, `service_role`, `postgres`, `supabase_auth_admin` all bypass — trigger only fires when `current_user` is one of the two end-user roles.
+reasoning: Before this trigger, `users_update_own` RLS allowed any authenticated user to `.update({role:'super_admin'})` on their own row — `is_admin()` reads `public.users.role`, so self-elevation was one client call away. Column-level REVOKE alone doesn't cover `email_verified`/`phone_verified` because legitimate flows (guard trigger for identity-linked users) need those writable via the definer path. `IS DISTINCT FROM` lets the two legacy Profile.tsx client writes (removed in D-P3-019 but retained as belt-and-braces during rollout) no-op instead of erroring.
+
+**D-P3-015 — Auth trigger danger zone**
+date: 2026-07-18
+phase: 3
+category: architecture
+Never add or modify triggers that run inside GoTrue's auth transaction (i.e. on `auth.users`) as a way to sync `public.*` state. Two production outages proved the risk: (1) `prevent_user_privilege_escalation` v1 gated on JWT claims role (`anon`) instead of `current_user` — MCP tests as `postgres` didn't surface it, real Google logins broke; (2) same trigger missing `search_path = public` — `supabase_auth_admin`'s default search_path can't resolve `public.*` symbols. Future `public.users` sync logic goes in post-login RPCs called by the frontend (pattern: `touch_last_login()` — D-P3-017), not in auth-side triggers. `current_user` changes under `SECURITY DEFINER`; JWT claims role does not — always gate on `current_user`.
+reasoning: GoTrue's auth transaction runs as `supabase_auth_admin`, a role with narrow default search_path and different privileges than admin MCP sessions. Anything that fails inside that transaction breaks signup and login for every user simultaneously. MCP-based tests are a false-positive layer — they run as `postgres` and pass while the same code fails at real-login time. Frontend-triggered RPCs are self-contained: they can be rolled back with a single deploy, and their failure only affects the calling client.
+
+**D-P3-016 — `public.users.phone` is not authoritative; use `get_phone_fallback`**
+date: 2026-07-18
+phase: 3
+category: data-source
+`auth.users.phone` (where `phone_confirmed_at IS NOT NULL`) is the authoritative source for every phone-confirmed user. `public.users.phone` may be null for Google-first users who later linked phone as their second provider — `handle_user_updated` Block 1 reads `NEW.phone` which can be null at that trigger-firing moment. Any feature reading a user's phone MUST call `public.get_phone_fallback(p_user_id uuid) RETURNS text` (SECURITY DEFINER, `search_path = public, auth`, granted to `service_role` ONLY) when `public.users.phone` is null. The RPC reads `auth.users.phone` first, then `auth.identities.identity_data->>'phone'` as secondary fallback. Extends D-P3-012: n8n never queries `auth.*` directly — always via a scoped SECURITY DEFINER RPC.
+reasoning: The Google-first → phone-linked pattern is common. Fixing this via another auth-side trigger sits in the danger zone (D-P3-015). A service-role-only RPC at the read path is safer: it isolates the fallback to the exact features that need it (`reveal-contact` v5, `resend-reveal` v5), keeps `auth.*` off the anon/authenticated grant surface, and can be extended without redeploying auth triggers.
+
+**D-P3-017 — Email is reliable post-Google-link; no email fallback needed**
+date: 2026-07-18
+phase: 3
+category: data-source
+`handle_user_updated` Block 2 (email_confirmed_at NULL→non-null path) now sources email and full_name from `auth.identities.identity_data` for the Google identity, and the `ON CONFLICT DO UPDATE` clause uses `COALESCE(EXCLUDED.email, public.users.email)` so an existing good email is never overwritten with NULL. Combined with the D-P3-019 Profile.tsx read-only-name change, `public.users.email` and `public.users.full_name` are reliable for every verified user. Edge Functions and n8n workflows read `email` directly from `public.users`; no `get_email_fallback` RPC exists or is planned.
+reasoning: The original Block 2 wrote `email = NEW.email` unconditionally, and `NEW.email` is NULL after `linkIdentity('google')` (Supabase quirk: the email lives only in `identities[].identity_data`). This clobbered every phone-first user's `public.users.email` at Google link time, which is what surfaced as the Daksh case. Sourcing from `identity_data` + COALESCE-preserve fixes it at the trigger — no downstream fallback needed.
+
+**D-P3-018 — `isNewUser` derived from timestamps, not user_metadata**
+date: 2026-07-18
+phase: 3
+category: analytics
+Login.tsx `isNewUser = |last_sign_in_at − created_at| < 2000ms`. The old check `!data.user?.user_metadata?.full_name` was wrong for phone OTP: Supabase never populates `user_metadata.full_name` for phone-OTP verifies, so every returning phone-OTP login fired `signup_completed` instead of `login_completed` — corrupted PostHog owner-acquisition funnel `da7QttU9` for the entire pre-fix window. Also wired `touch_last_login()` RPC (SECURITY DEFINER, granted to `authenticated`) called once per genuine `SIGNED_IN` event in `useAuth` — never on `INITIAL_SESSION`, `TOKEN_REFRESHED`, or cached-session reload.
+reasoning: `created_at ≈ last_sign_in_at` is Supabase's own first-sign-in signal — the auth verify step sets `last_sign_in_at` to `now()`, and for a genuinely new user `created_at` was set in the same 1–2s window. Any margin under 2000ms is safe; over ~5s risks false negatives for slow verifies. `touch_last_login` uses an RPC not a direct `.update()` because D-P3-014's guard blocks direct writes to `public.users` from `authenticated`.
+
+**D-P3-019 — Profile Name read-only; no client writes to `full_name`**
+date: 2026-07-18
+phase: 3
+category: ux
+`/profile` Name section is read-only. Displays `useAuth().user.full_name` (populated by `handle_user_updated` Block 2 from `auth.identities.identity_data` on Google link). Empty state hints "Link your Google account below to set your name." No input, no Save button, no local editable state. Two legacy client `.update()` calls on `public.users` removed: the Google-link email/name write inside `onAuthStateChange`, and the phone/phone_verified write after `verify-phone-otp` succeeds. Both fields are now trigger-owned. `refreshUser()` retained as the only sync surface. `googleTokenRef` capture, raw `fetch()` to `verify-phone-otp`, `sessionStorage['reeve-link-returnTo']`, and `linkIdentity` flow all preserved.
+reasoning: A single authoritative writer for `full_name` (the trigger) prevents the class of race where a background `USER_UPDATED` event overwrites a name the user just typed. The D-P3-014 guard's `IS DISTINCT FROM` clause meant the redundant client writes were silently no-oping instead of erroring, so their removal is invisible to users. Removing them also makes the trigger the load-bearing path, which surfaces trigger bugs immediately instead of masking them behind client compensation.
