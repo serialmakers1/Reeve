@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
+const CommentSection = React.lazy(() => import("@/components/comments/CommentSection"));
 import { WhyReeveFeeLink } from "@/components/WhyReeveFeeModal";
 import PublicTimeline, { type PublicTimelineRow } from "@/components/property-detail/PublicTimeline";
 import RequestContactPanel from "@/components/property-detail/RequestContactPanel";
+import ManageListingCard from "@/components/property-detail/ManageListingCard";
+import type { CommentSectionHandle } from "@/components/comments/CommentSection";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import posthog from "posthog-js";
 import { format } from "date-fns";
@@ -9,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFavourites } from "@/hooks/useFavourites";
+import { useTrackPropertyView } from "@/hooks/useTrackPropertyView";
 import FavouriteHeart from "@/components/FavouriteHeart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -474,9 +478,21 @@ const PropertyDetail: React.FC = () => {
   // Own property detection
   const [isOwnProperty, setIsOwnProperty] = useState(false);
   const [publicTimeline, setPublicTimeline] = useState<PublicTimelineRow[]>([]);
+  // A2: owner display name via parallel public_profiles fetch — fed to
+  // RequestContactPanel so the consent checkbox names the real owner.
+  const [ownerDisplayName, setOwnerDisplayName] = useState<string | null>(null);
+  // B6: public stats (view_count + comment_count) for the stats line and CommentSection prop.
+  const [propertyStats, setPropertyStats] = useState<{ view_count: number; comment_count: number } | null>(null);
+  // C4: owner rating summary — parallel fetch, drives the "Listed by" sub-line.
+  const [ownerRatingSummary, setOwnerRatingSummary] = useState<{ status: "new" | "active"; as_owner?: { total: number; deal_again_pct: number } } | null>(null);
+  const commentSectionRef = useRef<CommentSectionHandle | null>(null);
+  const commentAnchorRef = useRef<HTMLDivElement | null>(null);
 
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
+
+  // B3: view tracking — fires once per propertyId, RPC handles owner exclusion + dedup.
+  useTrackPropertyView(property?.id, property?.owner_id);
 
   // COMMONS-HIDE: Check for existing visit
   // COMMONS-HIDE: const fetchExistingVisit = useCallback(async () => {
@@ -569,6 +585,58 @@ const PropertyDetail: React.FC = () => {
       const fetchedImages = (imgRes.data ?? []) as unknown as PropertyImage[];
       const sortedImages = [...fetchedImages].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
       setImages(sortedImages.length > 0 ? sortedImages : PLACEHOLDER_IMAGES);
+
+      // A2: owner display name — separate parallel query, does not touch the
+      // main select string / PropertyData cast. Fallback chain:
+      // display_name → full_name → null (RequestContactPanel renders "the owner").
+      if (raw.owner_id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: ownerRow } = await (supabase as any)
+          .from("public_profiles")
+          .select("display_name, full_name")
+          .eq("user_id", raw.owner_id)
+          .maybeSingle();
+        const dn = (ownerRow as { display_name?: string | null; full_name?: string | null } | null);
+        const resolved = dn?.display_name?.trim() || dn?.full_name?.trim() || null;
+        setOwnerDisplayName(resolved);
+        // A3 canary: submission gate (VerificationGate + Google-linked full_name)
+        // should make this unreachable on a live listed property. Warn if it happens.
+        if (!resolved && raw.status === "listed") {
+          console.warn("[A3] listed property has null ownerDisplayName", { property_id: raw.id, owner_id: raw.owner_id });
+        }
+      }
+
+      // C4: owner rating summary — parallel, fire-and-forget.
+      if (raw.owner_id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any)
+          .rpc("get_user_rating_summary", { p_user_id: raw.owner_id })
+          .then(({ data }: { data: unknown }) => {
+            const s = data as { status?: "new" | "active"; as_owner?: { total?: number; deal_again_pct?: number } } | null;
+            if (s?.status === "new") setOwnerRatingSummary({ status: "new" });
+            else if (s?.status === "active") setOwnerRatingSummary({
+              status: "active",
+              as_owner: s.as_owner ? { total: Number(s.as_owner.total ?? 0), deal_again_pct: Number(s.as_owner.deal_again_pct ?? 0) } : undefined,
+            });
+          })
+          .catch(() => { /* silent */ });
+      }
+
+      // B6: public stats — parallel to timeline fetch below.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any)
+        .rpc("get_property_public_stats", { p_property_id: raw.id })
+        .then(({ data }: { data: unknown }) => {
+          const row = Array.isArray(data) ? (data as unknown[])[0] : data;
+          const s = row as { view_count?: number; comment_count?: number } | null;
+          if (s) {
+            setPropertyStats({
+              view_count: Number(s.view_count ?? 0),
+              comment_count: Number(s.comment_count ?? 0),
+            });
+          }
+        })
+        .catch(() => { /* silent */ });
 
       // Public activity log timeline (curated events only — RLS enforces is_public=true).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -878,16 +946,20 @@ const PropertyDetail: React.FC = () => {
           </button>
         </div>
 
-        {/* Phase 3 Prompt 3 — Request Contact panel (always rendered for eligible listings) */}
+        {/* Phase 3 Prompt 3 — Request Contact panel. B6: swap to ManageListingCard for owner. */}
         {property?.id && property?.owner_id && (
           <div className="px-4">
-            <RequestContactPanel
-              propertyId={property.id}
-              ownerId={property.owner_id}
-              ownerDisplayName={null}
-              buildingName={property.building_name ?? "this property"}
-              propertyStatus={property.status}
-            />
+            {isOwnProperty ? (
+              <ManageListingCard propertyId={property.id} />
+            ) : (
+              <RequestContactPanel
+                propertyId={property.id}
+                ownerId={property.owner_id}
+                ownerDisplayName={ownerDisplayName}
+                buildingName={property.building_name ?? "this property"}
+                propertyStatus={property.status}
+              />
+            )}
           </div>
         )}
 
@@ -1005,6 +1077,45 @@ const PropertyDetail: React.FC = () => {
               {property.landmark && (
                 <p className="text-sm text-muted-foreground">Near {property.landmark}</p>
               )}
+              {/* A3: owner attribution — visible to logged-out visitors too. */}
+              <p className="text-xs text-muted-foreground">
+                Listed by {ownerDisplayName ?? "the owner"}
+              </p>
+              {/* C4: owner rating crisp line — links to owner's public profile. Silent while null. */}
+              {ownerRatingSummary && property?.owner_id && (
+                <Link to={`/u/${property.owner_id}`} className="text-sm text-muted-foreground hover:text-foreground">
+                  {ownerRatingSummary.status === "new"
+                    ? "New on Reeve"
+                    : ownerRatingSummary.as_owner
+                      ? `${ownerRatingSummary.as_owner.deal_again_pct}% would deal again · ${ownerRatingSummary.as_owner.total} ratings`
+                      : null}
+                </Link>
+              )}
+              {/* B6: stats line — thresholds 10 views / 1 comment, else omit segment. */}
+              {(() => {
+                const showViews = (propertyStats?.view_count ?? 0) >= 10;
+                const showComments = (propertyStats?.comment_count ?? 0) >= 1;
+                if (!showViews && !showComments) return null;
+                const scrollToComments = () => {
+                  commentSectionRef.current?.triggerLoad();
+                  commentAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                };
+                return (
+                  <p className="text-sm text-muted-foreground">
+                    {showViews && <span>👁 {propertyStats!.view_count} views</span>}
+                    {showViews && showComments && <span> · </span>}
+                    {showComments && (
+                      <button
+                        type="button"
+                        onClick={scrollToComments}
+                        className="hover:text-foreground"
+                      >
+                        💬 {propertyStats!.comment_count} comments
+                      </button>
+                    )}
+                  </p>
+                );
+              })()}
               <div className="flex flex-wrap gap-2 pt-1">
                 <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
                   🟢 2 Month Deposit Only
@@ -1360,6 +1471,19 @@ const PropertyDetail: React.FC = () => {
                   {property.description}
                 </p>
               </section>
+            )}
+
+            {/* B4/B6: Comments section — lazy loaded, ref for anchor-scroll from stats line. */}
+            {property?.id && (
+              <div ref={commentAnchorRef}>
+                <Suspense fallback={null}>
+                  <CommentSection
+                    ref={commentSectionRef}
+                    propertyId={property.id}
+                    commentCount={propertyStats?.comment_count ?? 0}
+                  />
+                </Suspense>
+              </div>
             )}
 
             {/* 10. No Contact Policy */}

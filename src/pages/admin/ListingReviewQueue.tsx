@@ -131,7 +131,7 @@ export default function ListingReviewQueue() {
       ownerIds.size
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ? (supabase as any).from("public_profiles")
-            .select("user_id, display_name").in("user_id", Array.from(ownerIds))
+            .select("user_id, full_name, display_name").in("user_id", Array.from(ownerIds))
         : Promise.resolve({ data: [] }),
       editRows.length
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -153,8 +153,8 @@ export default function ListingReviewQueue() {
       photoMap[p.property_id] = p.url;
     }
     const ownerMap: Record<string, string> = {};
-    for (const o of (ownersRes.data ?? []) as { user_id: string; display_name: string | null }[]) {
-      ownerMap[o.user_id] = getUserDisplayName(undefined, o) ?? "Owner";
+    for (const o of (ownersRes.data ?? []) as { user_id: string; full_name: string | null; display_name: string | null }[]) {
+      ownerMap[o.user_id] = getUserDisplayName({ full_name: o.full_name }, o) || "Owner";
     }
     const propMap: Record<string, EditRequestRow["property"]> = {};
     for (const p of (propertiesForEditsRes.data ?? []) as Array<NonNullable<EditRequestRow["property"]> & { id: string }>) {

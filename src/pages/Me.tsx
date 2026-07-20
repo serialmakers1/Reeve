@@ -9,10 +9,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import { getUserDisplayName } from "@/lib/user";
 
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
@@ -36,10 +36,11 @@ export default function Me() {
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  const [fullName, setFullName] = useState<string | null>(null);
+  const [pseudonym, setPseudonym] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [displayNameDraft, setDisplayNameDraft] = useState("");
   const [bioDraft, setBioDraft] = useState("");
   const posthogFiredRef = useRef(false);
 
@@ -62,7 +63,7 @@ export default function Me() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase as any)
           .from("users")
-          .select("full_name, email, created_at, phone_verified, email_verified")
+          .select("full_name, email, created_at, phone_verified, email_verified, pseudonym")
           .eq("id", user.id)
           .maybeSingle(),
       ]);
@@ -70,6 +71,8 @@ export default function Me() {
       setCreatedAt(uRow?.created_at ?? null);
       setPhoneVerified(!!uRow?.phone_verified);
       setEmailVerified(!!uRow?.email_verified);
+      setFullName(uRow?.full_name ?? null);
+      setPseudonym(uRow?.pseudonym ?? null);
       setLoading(false);
     })();
   }, [authLoading, user?.id]);
@@ -80,32 +83,25 @@ export default function Me() {
   );
 
   const openEdit = () => {
-    setDisplayNameDraft(profile?.display_name ?? "");
     setBioDraft(profile?.bio ?? "");
     setEditing(true);
   };
 
   const save = async () => {
     if (!user?.id) return;
-    const trimmedName = displayNameDraft.trim();
     const trimmedBio = bioDraft.trim();
-    if (trimmedName.length > 100) {
-      toast({ title: "Display name too long (max 100 chars)", variant: "destructive" });
-      return;
-    }
     if (trimmedBio.length > BIO_MAX) {
       toast({ title: `Bio too long (max ${BIO_MAX} chars)`, variant: "destructive" });
       return;
     }
     setSaving(true);
-    // UPSERT — INSERTs if row missing, UPDATEs if present.
+    // D-P4-003: display_name UI removed; only bio is user-editable now.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any)
       .from("profiles")
       .upsert(
         {
           user_id: user.id,
-          display_name: trimmedName || null,
           bio: trimmedBio || null,
         },
         { onConflict: "user_id" },
@@ -116,16 +112,13 @@ export default function Me() {
       return;
     }
     setProfile((p) => ({
-      display_name: trimmedName || null,
+      display_name: p?.display_name ?? null,
       bio: trimmedBio || null,
       is_public: p?.is_public ?? true,
       profile_photo_url: p?.profile_photo_url ?? null,
     }));
     posthog?.capture("commons_profile_edited", {
-      changed_fields: [
-        trimmedName !== (profile?.display_name ?? "") ? "display_name" : null,
-        trimmedBio !== (profile?.bio ?? "") ? "bio" : null,
-      ].filter(Boolean),
+      changed_fields: trimmedBio !== (profile?.bio ?? "") ? ["bio"] : [],
     });
     toast({ title: "Profile updated" });
     setEditing(false);
@@ -179,19 +172,36 @@ export default function Me() {
           </div>
         </section>
 
+        {/* Identity card — D-P4-001/002/004. Both fields non-editable. */}
+        <Card>
+          <CardContent className="p-5 sm:p-6">
+            <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Your name (from Google)
+                </p>
+                <p className="text-base font-medium text-foreground select-text">
+                  {fullName ?? "—"}
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Your comment name
+                </p>
+                <p className="inline-block rounded-md bg-muted px-2.5 py-1 font-mono text-sm text-foreground select-text">
+                  {pseudonym ?? "—"}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  This name keeps your comments anonymous and permanent. It's how you appear in all property discussions on Reeve — no one can identify you from it, and you can't change it. This protects everyone on the platform.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Edit mode */}
         {editing && (
           <section className="rounded-xl border bg-card p-5 sm:p-6 space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-sm">Display name</Label>
-              <Input
-                value={displayNameDraft}
-                onChange={(e) => setDisplayNameDraft(e.target.value)}
-                placeholder="Your name as shown to others"
-                maxLength={100}
-                className="min-h-[44px]"
-              />
-            </div>
             <div className="space-y-1.5">
               <Label className="text-sm">Bio</Label>
               <Textarea

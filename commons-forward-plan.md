@@ -319,3 +319,48 @@ Confirm `verify_jwt = false` still set in `supabase/functions/resend-contact-web
 
 ### WhatsApp / AiSensy enablement prerequisites
 Before removing the `false is true` IF gates on the WhatsApp branches in the Contact Reveal / Contact Resend Reveal n8n workflows: (a) AiSensy DLT template approval complete; (b) Block 1 phone sync fix landed (above) — n8n nodes read `public.users.phone` directly and don't call `get_phone_fallback`; (c) end-to-end reveal test with WhatsApp receipts for both phone-first and Google-first tenants.
+
+## Phase 7 — Deferred from Phase 4
+
+### From Phase 3 (cleanup)
+- End-to-end reveal test with fresh test accounts (post-Phase-3 fixes)
+- PostgREST privilege escalation guard verification (browser console test)
+- Google OAuth last_login_at fires on INITIAL_SESSION vs SIGNED_IN check
+- resend-contact-webhook verify_jwt = false config.toml verification
+- Admin Requests UI — list/filter all contact_requests
+- sync_contact_fields RPC — out-of-transaction phone sync (pre-WhatsApp)
+- Rate limit / response-rate window review (needs 30 days real data)
+
+### From Phase 4B (comments)
+- Thread collapse for threads with > 5 replies
+- Comment like toggle-spam rate limiting (currently idempotent, low risk)
+- Owner reply n8n email nudge ("someone asked a question on your listing")
+- property_views retention rollup: rows > 90 days → aggregate counter → delete raws (monthly n8n job, same slot as R2 cleanup)
+- OwnerRateBlock shared hook (currently duplicated in RequestContactPanel and PublicProfile — low risk, just fragile)
+- Week-wise stats breakdown on PropertyDetail
+
+### From Phase 4C (ratings)
+- Rating submission notification emails (n8n, Resend)
+- Owner public response to ratings (one reply per review — Airbnb pattern)
+- Ratings breakdown per property on /me (owner sees per-property stats)
+
+### From Phase 4 general
+- Pseudonym word bank review (Daksh to review before any regeneration or expansion of the word bank)
+- R2 orphaned image cleanup (already scheduled — monthly n8n job)
+
+## Later Phases — Feature extensions
+
+### Comments
+- "Verified Tenant Visited" badge on comments — when commenter has a completed reveal/visit for that property, badge shows "Visited this property". Requires joining contact_requests to get_property_comments RPC. badges[] array in RPC response is already schema-ready for this.
+- Comment counts on search cards (already batched via get_property_counts — just add the display threshold check and render)
+
+### Ratings
+- Double-blind rating response (owner/tenant can respond to a review, one reply each — Airbnb model)
+- Pseudonym reputation signals (top contributor style) — permanent pseudonyms mean reputation builds naturally across listings
+
+### Public profile
+- Tenant public profile visibility control (currently all profiles are public — consider making tenant profiles owner-dashboard-only for privacy, or opt-in public)
+
+### Infrastructure
+- WhatsApp/AiSensy n8n nodes — blocked on DLT approval + Block 1 phone sync (sync_contact_fields RPC above)
+- sync_contact_fields RPC must be built before WhatsApp nodes go live

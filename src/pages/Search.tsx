@@ -406,7 +406,20 @@ function SkeletonCardList() {
 
 // ─── Property Card ───────────────────────────────────────────────────────────
 
-function PropertyCardGrid({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: { p: Property; isFav: boolean; onToggleFav: (id: string) => void; isLoggedIn: boolean; onLoginPrompt: () => void }) {
+function CountsLine({ counts }: { counts?: { view_count: number; comment_count: number } }) {
+  const showViews = (counts?.view_count ?? 0) >= 10;
+  const showComments = (counts?.comment_count ?? 0) >= 1;
+  if (!showViews && !showComments) return null;
+  return (
+    <p className="text-xs text-muted-foreground pt-1">
+      {showViews && <span>👁 {counts!.view_count} views</span>}
+      {showViews && showComments && <span> · </span>}
+      {showComments && <span>💬 {counts!.comment_count} comments</span>}
+    </p>
+  );
+}
+
+function PropertyCardGrid({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt, counts }: { p: Property; isFav: boolean; onToggleFav: (id: string) => void; isLoggedIn: boolean; onLoginPrompt: () => void; counts?: { view_count: number; comment_count: number } }) {
   const pills = getHighlightPills(p);
   return (
     <Link to={`/property/${p.id}`} className="block cursor-pointer">
@@ -470,13 +483,14 @@ function PropertyCardGrid({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: 
             </span>
           )}
         </div>
+        <CountsLine counts={counts} />
       </div>
     </div>
     </Link>
   );
 }
 
-function PropertyCardList({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: { p: Property; isFav: boolean; onToggleFav: (id: string) => void; isLoggedIn: boolean; onLoginPrompt: () => void }) {
+function PropertyCardList({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt, counts }: { p: Property; isFav: boolean; onToggleFav: (id: string) => void; isLoggedIn: boolean; onLoginPrompt: () => void; counts?: { view_count: number; comment_count: number } }) {
   const pills = getHighlightPills(p);
   return (
     <Link to={`/property/${p.id}`} className="block cursor-pointer">
@@ -542,6 +556,7 @@ function PropertyCardList({ p, isFav, onToggleFav, isLoggedIn, onLoginPrompt }: 
               </span>
             )}
           </div>
+          <CountsLine counts={counts} />
         </div>
       </div>
     </div>
@@ -584,6 +599,8 @@ export default function SearchPage() {
   };
 
   const [properties, setProperties] = useState<Property[]>([]);
+  // B7: batched view/comment counts per property.
+  const [countsMap, setCountsMap] = useState<Record<string, { view_count: number; comment_count: number }>>({});
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -711,6 +728,30 @@ export default function SearchPage() {
           setProperties((prev) => [...prev, ...mapped]);
         } else {
           setProperties(mapped);
+        }
+
+        // B7: batched view+comment counts for visible cards. Fire-and-forget.
+        if (mapped.length > 0) {
+          const idsForCounts = mapped.map((m) => m.id);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any)
+            .rpc("get_property_counts", { p_property_ids: idsForCounts })
+            .then(({ data }: { data: unknown }) => {
+              const arr = Array.isArray(data)
+                ? (data as { property_id: string; view_count: number | string; comment_count: number | string }[])
+                : [];
+              setCountsMap((prev) => {
+                const next = append ? { ...prev } : {} as Record<string, { view_count: number; comment_count: number }>;
+                for (const row of arr) {
+                  next[row.property_id] = {
+                    view_count: Number(row.view_count ?? 0),
+                    comment_count: Number(row.comment_count ?? 0),
+                  };
+                }
+                return next;
+              });
+            })
+            .catch(() => { /* silent */ });
         }
 
         setHasMore(rows.length === PAGE_SIZE);
@@ -1072,9 +1113,9 @@ export default function SearchPage() {
               >
                 {properties.map((p) =>
                   viewMode === "grid" ? (
-                    <PropertyCardGrid key={p.id} p={p} isFav={isFavourited(p.id)} onToggleFav={toggleFavourite} isLoggedIn={isLoggedIn} onLoginPrompt={() => setLoginDrawerOpen(true)} />
+                    <PropertyCardGrid key={p.id} p={p} isFav={isFavourited(p.id)} onToggleFav={toggleFavourite} isLoggedIn={isLoggedIn} onLoginPrompt={() => setLoginDrawerOpen(true)} counts={countsMap[p.id]} />
                   ) : (
-                    <PropertyCardList key={p.id} p={p} isFav={isFavourited(p.id)} onToggleFav={toggleFavourite} isLoggedIn={isLoggedIn} onLoginPrompt={() => setLoginDrawerOpen(true)} />
+                    <PropertyCardList key={p.id} p={p} isFav={isFavourited(p.id)} onToggleFav={toggleFavourite} isLoggedIn={isLoggedIn} onLoginPrompt={() => setLoginDrawerOpen(true)} counts={countsMap[p.id]} />
                   )
                 )}
               </div>

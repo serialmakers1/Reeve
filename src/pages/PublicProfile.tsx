@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import posthog from "posthog-js";
 import { format } from "date-fns";
-import { CheckCircle2, Star } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,10 +12,10 @@ import { getUserDisplayName } from "@/lib/user";
 
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import ListingsGrid from "@/components/profile/ListingsGrid";
+import RatingsBlock, { type RatingSummaryResult } from "@/components/ratings/RatingsBlock";
 
 interface PublicProfileRow {
   user_id: string;
-  display_name: string | null;
   bio: string | null;
   profile_photo_url: string | null;
   is_public: boolean | null;
@@ -39,6 +39,8 @@ export default function PublicProfile() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [privateProfile, setPrivateProfile] = useState(false);
+  const [ratingSummary, setRatingSummary] = useState<RatingSummaryResult | null>(null);
+  const [ratingLoading, setRatingLoading] = useState(true);
   const posthogFiredRef = useRef(false);
 
   // F2 (D-151): no self-redirect. /u/:userId renders the public view regardless
@@ -61,7 +63,9 @@ export default function PublicProfile() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: pub } = await (supabase as any)
         .from("public_profiles")
-        .select("user_id, display_name, bio, profile_photo_url, is_public")
+        // D-P4-004: public profile shows real name only (from users.full_name via
+        // getUserDisplayName). display_name intentionally omitted from select.
+        .select("user_id, bio, profile_photo_url, is_public")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -98,6 +102,20 @@ export default function PublicProfile() {
       setLoading(false);
     })();
   }, [authLoading, userId, user?.id]);
+
+  // C4: rating summary — separate effect, silent on error.
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any).rpc("get_user_rating_summary", { p_user_id: userId });
+      if (cancelled) return;
+      if (!error && data) setRatingSummary(data as RatingSummaryResult);
+      setRatingLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
 
   if (authLoading || loading) {
     return (
@@ -143,7 +161,8 @@ export default function PublicProfile() {
     );
   }
 
-  const displayName = getUserDisplayName(userRow, publicProfile);
+  // D-P4-004: full_name (from users) only; display_name intentionally not consulted here.
+  const displayName = getUserDisplayName(userRow);
   const verified = !!userRow?.phone_verified || !!userRow?.email_verified;
 
   return (
@@ -158,12 +177,17 @@ export default function PublicProfile() {
               size="xl"
             />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
                   {displayName}
                 </h1>
                 {verified && (
                   <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" aria-label="Verified" />
+                )}
+                {ratingSummary?.status === "new" && (
+                  <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+                    ✓ New on Reeve
+                  </span>
                 )}
               </div>
               {userRow?.created_at && (
@@ -196,18 +220,8 @@ export default function PublicProfile() {
           </section>
         )}
 
-        {/* Ratings placeholder */}
-        <section>
-          <div className="flex items-center gap-2 mb-2">
-            <Star className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Ratings & Reviews</h2>
-          </div>
-          <div className="rounded-lg border border-dashed p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              No ratings yet.
-            </p>
-          </div>
-        </section>
+        {/* C4: Interaction ratings block (separate from OwnerStatsBlock contact response rate). */}
+        <RatingsBlock summary={ratingSummary} loading={ratingLoading} />
       </div>
     </Layout>
   );

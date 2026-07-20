@@ -157,9 +157,10 @@ export default function ListingReviewDetail() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: ownerProfile } = await (supabase as any)
       .from("public_profiles")
-      .select("user_id, display_name, profile_photo_url")
+      .select("user_id, full_name, display_name, profile_photo_url")
       .eq("user_id", (prop as PropertyRow).owner_id).maybeSingle();
-    setOwnerName(getUserDisplayName(undefined, ownerProfile));
+    const op = ownerProfile as { full_name?: string | null; display_name?: string | null } | null;
+    setOwnerName(getUserDisplayName({ full_name: op?.full_name ?? null }, op));
     setOwnerPhoto((ownerProfile as { profile_photo_url?: string | null } | null)?.profile_photo_url ?? null);
 
     // Photos

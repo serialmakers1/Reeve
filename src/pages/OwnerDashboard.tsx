@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 import TopRequestsStrip from "@/components/owner-dashboard/TopRequestsStrip";
 import PropertyCard from "@/components/owner-dashboard/PropertyCard";
+import PendingRatingsSection from "@/components/ratings/PendingRatingsSection";
 
 const DRAFT_LIMIT = 20;
 
@@ -46,6 +47,7 @@ export default function OwnerDashboard() {
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [properties, setProperties] = useState<OwnerProperty[]>([]);
   const [photoMap, setPhotoMap] = useState<Record<string, string>>({});
+  const [unansweredMap, setUnansweredMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [showDraftLimit, setShowDraftLimit] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
@@ -83,6 +85,18 @@ export default function OwnerDashboard() {
           map[img.property_id] = img.url;
         }
         setPhotoMap(map);
+
+        // B7: batched unanswered comment counts. Fire-and-forget; card badge appears when data lands.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any)
+          .rpc("get_unanswered_comment_counts", { p_property_ids: ids })
+          .then(({ data }: { data: unknown }) => {
+            const arr = Array.isArray(data) ? (data as { property_id: string; unanswered_count: number | string }[]) : [];
+            const m: Record<string, number> = {};
+            for (const row of arr) m[row.property_id] = Number(row.unanswered_count ?? 0);
+            setUnansweredMap(m);
+          })
+          .catch(() => { /* silent */ });
       }
       setLoading(false);
     })();
@@ -169,6 +183,11 @@ export default function OwnerDashboard() {
           <TopRequestsStrip count={0} />
         </div>
 
+        {/* C3: Pending ratings — renders nothing when empty. */}
+        <div className="mb-5">
+          <PendingRatingsSection />
+        </div>
+
         {/* Pending actions row */}
         {pendingActions.length > 0 && (
           <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-3">
@@ -224,6 +243,7 @@ export default function OwnerDashboard() {
                     key={p.id}
                     property={p}
                     primaryPhotoUrl={photoMap[p.id] ?? null}
+                    unansweredCount={unansweredMap[p.id]}
                     onClick={() => goToProperty(p)}
                   />
                 ))}
