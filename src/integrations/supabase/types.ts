@@ -3828,6 +3828,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      delete_own_comment: {
+        Args: { p_comment_id: string }
+        Returns: Json
+      }
       earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
       generate_pseudonym: { Args: never; Returns: string }
@@ -3959,7 +3963,7 @@ export type Database = {
         Returns: undefined
       }
       report_comment: {
-        Args: { p_comment_id: string; p_notes: string; p_reason: string }
+        Args: { p_comment_id: string; p_reason: string; p_notes?: string }
         Returns: Json
       }
       reschedule_visit: {

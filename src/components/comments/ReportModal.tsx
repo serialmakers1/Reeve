@@ -48,7 +48,7 @@ export default function ReportModal({ open, onOpenChange, commentId, onReported 
     const { error } = await (supabase as any).rpc("report_comment", {
       p_comment_id: commentId,
       p_reason: reason,
-      p_notes: notesTrim,
+      p_notes: notesTrim || undefined,
     });
     setSubmitting(false);
     if (error) {

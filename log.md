@@ -903,3 +903,5 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 
 ## [2026-07-19] audit | Phase 4D D2: anonymity leak audit — all checks pass [04:47 IST]
 ## [2026-07-19] feat | Phase 4 complete: 4A identity, 4B comments+views, 4C ratings, 4D public profile [04:47 IST]
+
+## [2026-07-19] fix | Phase 4B bug fixes: blocklist+normalization, delete RPC, report notes optional [08:19 IST]
