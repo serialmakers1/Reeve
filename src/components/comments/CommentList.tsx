@@ -7,7 +7,10 @@ interface Props {
   rows: CommentRow[];
   canInteract: boolean;
   propertyId: string;
+  propertyOwnerId: string;
   currentPseudonym: string | null;
+  currentUserId: string;
+  currentUserFullName: string | null;
   replyOpenId: string | null;
   reportedIds: Set<string>;
   onReplyToggle: (commentId: string) => void;
@@ -50,7 +53,10 @@ export default function CommentList(props: Props) {
           canInteract={props.canInteract}
           isMobile={isMobile}
           propertyId={props.propertyId}
+          propertyOwnerId={props.propertyOwnerId}
           currentPseudonym={props.currentPseudonym}
+          currentUserId={props.currentUserId}
+          currentUserFullName={props.currentUserFullName}
           replyOpenId={props.replyOpenId}
           reportedIds={props.reportedIds}
           onReplyToggle={props.onReplyToggle}

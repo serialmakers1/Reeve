@@ -9,7 +9,10 @@ interface Props {
   canInteract: boolean;
   isMobile: boolean;
   propertyId: string;
+  propertyOwnerId: string;
   currentPseudonym: string | null;
+  currentUserId: string;
+  currentUserFullName: string | null;
   replyOpenId: string | null;
   reportedIds: Set<string>;
   onReplyToggle: (commentId: string) => void;
@@ -38,7 +41,10 @@ export default function CommentThread(props: Props) {
         row={row}
         canInteract={props.canInteract}
         propertyId={props.propertyId}
+        propertyOwnerId={props.propertyOwnerId}
         currentPseudonym={props.currentPseudonym}
+        currentUserId={props.currentUserId}
+        currentUserFullName={props.currentUserFullName}
         replyOpenId={props.replyOpenId}
         reported={props.reportedIds.has(row.comment_id)}
         onReplyToggle={props.onReplyToggle}

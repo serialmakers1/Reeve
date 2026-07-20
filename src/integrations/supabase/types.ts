@@ -536,18 +536,36 @@ export type Database = {
           },
         ]
       }
+      comment_allowlist: {
+        Row: {
+          word: string
+          added_at: string
+        }
+        Insert: {
+          word: string
+          added_at?: string
+        }
+        Update: {
+          word?: string
+          added_at?: string
+        }
+        Relationships: []
+      }
       comment_blocklist: {
         Row: {
           added_at: string
           word: string
+          tier: string
         }
         Insert: {
           added_at?: string
           word: string
+          tier?: string
         }
         Update: {
           added_at?: string
           word?: string
+          tier?: string
         }
         Relationships: []
       }

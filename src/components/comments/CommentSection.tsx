@@ -12,6 +12,7 @@ import type { CommentRow } from "./types";
 
 interface Props {
   propertyId: string;
+  propertyOwnerId: string;
   commentCount: number;
 }
 
@@ -22,7 +23,7 @@ export interface CommentSectionHandle {
 const PAGE_SIZE = 20;
 
 const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentSection(
-  { propertyId, commentCount },
+  { propertyId, propertyOwnerId, commentCount },
   ref,
 ) {
   const { user, isAuthenticated, isFullyVerified } = useAuth();
@@ -180,8 +181,10 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
         user?.id && (
           <CommentComposer
             propertyId={propertyId}
+            propertyOwnerId={propertyOwnerId}
             pseudonym={pseudonym}
             currentUserId={user.id}
+            currentUserFullName={user.full_name ?? null}
             onPosted={(row) => setRows((prev) => [row, ...prev])}
           />
         )
@@ -212,7 +215,10 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
           rows={rows}
           canInteract={canInteract}
           propertyId={propertyId}
+          propertyOwnerId={propertyOwnerId}
           currentPseudonym={pseudonym}
+          currentUserId={user?.id ?? ""}
+          currentUserFullName={user?.full_name ?? null}
           replyOpenId={replyOpenId}
           reportedIds={reportedIds}
           onReplyToggle={handleReplyToggle}
