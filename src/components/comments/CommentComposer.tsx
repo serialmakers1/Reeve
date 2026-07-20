@@ -46,7 +46,9 @@ export default function CommentComposer({ propertyId, propertyOwnerId, pseudonym
       setErr(mapCommentError(error.message ?? ""));
       return;
     }
-    const newId = typeof data === "string" ? data : (data?.comment_id ?? crypto.randomUUID());
+    // RPC returns the inserted property_comments row — id field is `id`, not `comment_id`.
+    // Fake UUIDs break subsequent like/delete/reply RPCs (COMMENT_NOT_FOUND → 400).
+    const newId = typeof data === "string" ? data : (data?.id ?? data?.comment_id ?? crypto.randomUUID());
     onPosted({
       comment_id: newId,
       parent_comment_id: null,
