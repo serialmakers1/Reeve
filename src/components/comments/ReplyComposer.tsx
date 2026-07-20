@@ -58,7 +58,8 @@ export default function ReplyComposer({
       setErr(mapCommentError(error.message ?? ""));
       return;
     }
-    const newId = typeof data === "string" ? data : (data?.comment_id ?? crypto.randomUUID());
+    // See CommentComposer note: real DB id is on `data.id`.
+    const newId = typeof data === "string" ? data : (data?.id ?? data?.comment_id ?? crypto.randomUUID());
     onPosted({
       comment_id: newId,
       parent_comment_id: parentCommentId,

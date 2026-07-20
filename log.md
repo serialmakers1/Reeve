@@ -907,3 +907,5 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-19] fix | Phase 4B bug fixes: blocklist+normalization, delete RPC, report notes optional [08:19 IST]
 
 ## [2026-07-19] fix | Phase 4B bug fix R2: owner badge optimistic, report notes, blocklist tier system [10:05 IST]
+
+## [2026-07-19] fix | comments: replace temp UUID with real comment_id after post_comment resolves [13:39 IST]
