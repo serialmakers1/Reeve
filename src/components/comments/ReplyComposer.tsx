@@ -8,9 +8,12 @@ import { mapCommentError, type MappedError } from "./utils";
 
 interface Props {
   propertyId: string;
+  propertyOwnerId: string;
   parentCommentId: string;
   parentPseudonym: string;
   pseudonym: string | null;
+  currentUserId: string;
+  currentUserFullName: string | null;
   onCancel: () => void;
   onPosted: (row: CommentRow) => void;
 }
@@ -19,12 +22,16 @@ const MAX = 1000;
 
 export default function ReplyComposer({
   propertyId,
+  propertyOwnerId,
   parentCommentId,
   parentPseudonym,
   pseudonym,
+  currentUserId,
+  currentUserFullName,
   onCancel,
   onPosted,
 }: Props) {
+  const isOwner = currentUserId === propertyOwnerId;
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<MappedError | null>(null);
@@ -57,9 +64,9 @@ export default function ReplyComposer({
       parent_comment_id: parentCommentId,
       depth: 1,
       pseudonym: pseudonym ?? "you",
-      is_owner: false,
-      real_name: null,
-      badges: [],
+      is_owner: isOwner,
+      real_name: isOwner ? (currentUserFullName ?? null) : null,
+      badges: isOwner ? ["owner"] : [],
       text: trimmed,
       hidden_reason: null,
       like_count: 0,

@@ -1478,6 +1478,7 @@ const PropertyDetail: React.FC = () => {
                   <CommentSection
                     ref={commentSectionRef}
                     propertyId={property.id}
+                    propertyOwnerId={property.owner_id ?? ""}
                     commentCount={propertyStats?.comment_count ?? 0}
                   />
                 </Suspense>

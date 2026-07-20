@@ -8,14 +8,17 @@ import { mapCommentError, type MappedError } from "./utils";
 
 interface Props {
   propertyId: string;
+  propertyOwnerId: string;
   pseudonym: string | null;
   currentUserId: string;
+  currentUserFullName: string | null;
   onPosted: (row: CommentRow) => void;
 }
 
 const MAX = 1000;
 
-export default function CommentComposer({ propertyId, pseudonym, currentUserId, onPosted }: Props) {
+export default function CommentComposer({ propertyId, propertyOwnerId, pseudonym, currentUserId, currentUserFullName, onPosted }: Props) {
+  const isOwner = currentUserId === propertyOwnerId;
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<MappedError | null>(null);
@@ -49,9 +52,9 @@ export default function CommentComposer({ propertyId, pseudonym, currentUserId, 
       parent_comment_id: null,
       depth: 0,
       pseudonym: pseudonym ?? "you",
-      is_owner: false,
-      real_name: null,
-      badges: [],
+      is_owner: isOwner,
+      real_name: isOwner ? (currentUserFullName ?? null) : null,
+      badges: isOwner ? ["owner"] : [],
       text: trimmed,
       hidden_reason: null,
       like_count: 0,
@@ -90,8 +93,6 @@ export default function CommentComposer({ propertyId, pseudonym, currentUserId, 
           {submitting ? "Posting…" : "Post comment"}
         </Button>
       </div>
-      {/* touch to satisfy unused-var lint on currentUserId */}
-      <span className="hidden">{currentUserId}</span>
     </div>
   );
 }

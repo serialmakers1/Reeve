@@ -9,7 +9,10 @@ interface Props {
   row: CommentRow;
   canInteract: boolean;
   propertyId: string;
+  propertyOwnerId: string;
   currentPseudonym: string | null;
+  currentUserId: string;
+  currentUserFullName: string | null;
   replyOpenId: string | null;
   reported: boolean;
   onReplyToggle: (commentId: string) => void;
@@ -29,7 +32,10 @@ export default function CommentItem({
   row,
   canInteract,
   propertyId,
+  propertyOwnerId,
   currentPseudonym,
+  currentUserId,
+  currentUserFullName,
   replyOpenId,
   reported,
   onReplyToggle,
@@ -130,9 +136,12 @@ export default function CommentItem({
       {replyOpen && (
         <ReplyComposer
           propertyId={propertyId}
+          propertyOwnerId={propertyOwnerId}
           parentCommentId={row.comment_id}
           parentPseudonym={row.pseudonym}
           pseudonym={currentPseudonym}
+          currentUserId={currentUserId}
+          currentUserFullName={currentUserFullName}
           onCancel={() => onReplyToggle(row.comment_id)}
           onPosted={(newRow) => { onReplyPosted(newRow); onReplyToggle(row.comment_id); }}
         />
