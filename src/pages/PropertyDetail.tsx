@@ -586,24 +586,28 @@ const PropertyDetail: React.FC = () => {
       const sortedImages = [...fetchedImages].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
       setImages(sortedImages.length > 0 ? sortedImages : PLACEHOLDER_IMAGES);
 
-      // A2: owner display name — separate parallel query, does not touch the
-      // main select string / PropertyData cast. Fallback chain:
-      // display_name → full_name → null (RequestContactPanel renders "the owner").
-      if (raw.owner_id) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: ownerRow } = await (supabase as any)
-          .from("public_profiles")
-          .select("display_name, full_name")
-          .eq("user_id", raw.owner_id)
-          .maybeSingle();
-        const dn = (ownerRow as { display_name?: string | null; full_name?: string | null } | null);
-        const resolved = dn?.display_name?.trim() || dn?.full_name?.trim() || null;
-        setOwnerDisplayName(resolved);
-        // A3 canary: submission gate (VerificationGate + Google-linked full_name)
-        // should make this unreachable on a live listed property. Warn if it happens.
-        if (!resolved && raw.status === "listed") {
-          console.warn("[A3] listed property has null ownerDisplayName", { property_id: raw.id, owner_id: raw.owner_id });
-        }
+      // A2 + timeline: parallelised (bug-fix pass) — previously two serial awaits.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sb = supabase as any;
+      const [ownerRowRes, logRowsRes] = await Promise.all([
+        raw.owner_id
+          ? sb.from("public_profiles")
+              .select("display_name, full_name")
+              .eq("user_id", raw.owner_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        sb.from("property_activity_log")
+          .select("id, action, payload, is_public, created_at")
+          .eq("property_id", raw.id)
+          .eq("is_public", true)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      const dn = ownerRowRes.data as { display_name?: string | null; full_name?: string | null } | null;
+      const resolved = dn?.display_name?.trim() || dn?.full_name?.trim() || null;
+      setOwnerDisplayName(resolved);
+      if (!resolved && raw.owner_id && raw.status === "listed") {
+        console.warn("[A3] listed property has null ownerDisplayName", { property_id: raw.id, owner_id: raw.owner_id });
       }
 
       // C4: owner rating summary — parallel, fire-and-forget.
@@ -638,14 +642,8 @@ const PropertyDetail: React.FC = () => {
         })
         .catch(() => { /* silent */ });
 
-      // Public activity log timeline (curated events only — RLS enforces is_public=true).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: logRows } = await (supabase as any)
-        .from("property_activity_log")
-        .select("id, action, payload, is_public, created_at")
-        .eq("property_id", raw.id)
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
+      // Timeline result from the Promise.all above.
+      const logRows = logRowsRes.data;
       if (logRows) {
         setPublicTimeline(logRows as PublicTimelineRow[]);
         if ((logRows as PublicTimelineRow[]).length > 0) {

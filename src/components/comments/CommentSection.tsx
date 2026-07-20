@@ -129,13 +129,16 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
       return { ...r, text: "[deleted]", hidden_reason: "user_deleted" };
     }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
-      .from("property_comments")
-      .update({ is_deleted: true, hidden_reason: "user_deleted" })
-      .eq("id", commentId);
+    const { error } = await (supabase as any).rpc("delete_own_comment", {
+      p_comment_id: commentId,
+    });
     if (error) {
       setRows((rs) => rs.map((r) => (r.comment_id === commentId && prev ? prev : r)));
-      toast.error("Couldn't delete comment — try again");
+      const msg = error.message ?? "";
+      if (msg === "NOT_YOUR_COMMENT") toast.error("You can only delete your own comments");
+      else if (msg === "COMMENT_NOT_FOUND") toast.error("This comment no longer exists");
+      else if (msg === "ALREADY_DELETED") toast.error("This comment is already deleted");
+      else toast.error("Couldn't delete comment — try again");
     }
   }, []);
 
