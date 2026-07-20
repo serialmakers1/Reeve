@@ -74,7 +74,8 @@ function reasonLabel(v: string | null | undefined): string {
 }
 
 function displayName(s: TenantSnapshot | null | undefined): string {
-  return s?.display_name?.trim() || s?.full_name?.trim() || "Tenant";
+  // D-P4-002: full_name (Google) is primary; display_name kept as legacy fallback for historical snapshots.
+  return s?.full_name?.trim() || s?.display_name?.trim() || "Tenant";
 }
 
 function initials(name: string): string {

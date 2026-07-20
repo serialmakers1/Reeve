@@ -866,3 +866,40 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-18] fix | resend-reveal: phone fallback via get_phone_fallback RPC + skipped_no_phone guard [11:47 IST]
 
 ## [2026-07-19] sync | Post-Phase-3 session commons + CLAUDE.md sync — security fix, phone fallback, auth outage lessons, TS baseline 364→358 [12:28 IST]
+
+## [2026-07-19] audit | Phase 4 pre-build diagnostic [08:52 IST]
+
+## [2026-07-19] feat | Phase 4A: pseudonym identity card on /me, Display Name removed [14:13 IST]
+
+## [2026-07-19] fix | Phase 4A A2: display_name consumer audit + ownerDisplayName fix [14:30 IST]
+
+## [2026-07-19] audit | Phase 4A A3: listing submission gate + Listed by display confirmed/hardened [15:41 IST]
+
+## [2026-07-19] feat | Phase 4B B1: types regenerated, D-P4-005 through D-P4-010 written [16:00 IST]
+
+## [2026-07-19] feat | Phase 4B B2: RPCs live (7 functions), types regenerated, D-P4-011 through D-P4-015 written [16:07 IST]
+
+## [2026-07-19] feat | Phase 4B B3: useTrackPropertyView hook created and wired into PropertyDetail [16:11 IST]
+
+## [2026-07-19] feat | Phase 4B B4: CommentSection and full comments UI shell built and wired into PropertyDetail [16:21 IST]
+
+## [2026-07-19] feat | Phase 4B B5: like, reply, report, delete interactions wired in comments UI [16:29 IST]
+
+## [2026-07-19] feat | Phase 4B B6: stats line, ManageListingCard, anchor-scroll, commentCount wired in PropertyDetail [16:35 IST]
+
+## [2026-07-19] feat | Phase 4B B7: search card counts + owner dashboard unanswered badge [03:38 IST]
+
+## [2026-07-19] feat | Phase 4C C1: interaction_ratings schema live, types injected, D-P4-016 through D-P4-019 written [03:47 IST]
+
+## [2026-07-19] feat | Phase 4C C2: ratings RPCs live (3 functions), types injected, D-P4-020 through D-P4-022 written [03:53 IST]
+
+## [2026-07-19] feat | Phase 4C C3: PendingRatingCard + PendingRatingsSection built and wired into dashboards [04:03 IST]
+
+## [2026-07-19] feat | Phase 4C C4: owner rating crisp line on PropertyDetail + RatingsBlock on PublicProfile [04:08 IST]
+
+## [2026-07-19] test | Phase 4C C5: ratings end-to-end verification — partial (frontend logic + tsc PASS; DB steps skipped, Supabase MCP unavailable) [04:13 IST]
+
+## [2026-07-19] feat | Phase 4D D1: PublicProfile audit complete, ListingsGrid status filter + counts added [04:40 IST]
+
+## [2026-07-19] audit | Phase 4D D2: anonymity leak audit — all checks pass [04:47 IST]
+## [2026-07-19] feat | Phase 4 complete: 4A identity, 4B comments+views, 4C ratings, 4D public profile [04:47 IST]

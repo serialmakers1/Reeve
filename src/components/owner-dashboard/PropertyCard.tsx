@@ -18,6 +18,7 @@ interface Props {
     listing_type?: string | null;
   };
   primaryPhotoUrl: string | null;
+  unansweredCount?: number;
   onClick: () => void;
 }
 
@@ -27,7 +28,7 @@ const bhkLabel = (v: string | null): string =>
 const formatRupees = (n: number | null): string =>
   n && n > 0 ? "₹" + n.toLocaleString("en-IN") : "";
 
-export default function PropertyCard({ property, primaryPhotoUrl, onClick }: Props) {
+export default function PropertyCard({ property, primaryPhotoUrl, unansweredCount, onClick }: Props) {
   const status = getStatusDisplay(property.status);
   const bhk = bhkLabel(property.bhk);
   const title = [bhk, property.building_name].filter(Boolean).join(" · ") || "Property";
@@ -81,6 +82,11 @@ export default function PropertyCard({ property, primaryPhotoUrl, onClick }: Pro
           )}
         </div>
         <p className="text-[11px] text-muted-foreground italic truncate">{status.nextAction}</p>
+        {typeof unansweredCount === "number" && unansweredCount >= 1 && (
+          <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+            💬 {unansweredCount} unanswered
+          </span>
+        )}
       </div>
     </button>
   );

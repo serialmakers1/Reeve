@@ -536,6 +536,113 @@ export type Database = {
           },
         ]
       }
+      comment_blocklist: {
+        Row: {
+          added_at: string
+          word: string
+        }
+        Insert: {
+          added_at?: string
+          word: string
+        }
+        Update: {
+          added_at?: string
+          word?: string
+        }
+        Relationships: []
+      }
+      comment_likes: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_likes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "property_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "comment_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comment_reports: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          notes: string
+          reason: string
+          reporter_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          notes: string
+          reason: string
+          reporter_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          notes?: string
+          reason?: string
+          reporter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_reports_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "property_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "comment_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_requests: {
         Row: {
           approved_at: string | null
@@ -1369,6 +1476,101 @@ export type Database = {
             columns: ["inspection_id"]
             isOneToOne: false
             referencedRelation: "property_inspections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interaction_ratings: {
+        Row: {
+          id: string
+          contact_request_id: string
+          property_id: string
+          owner_id: string
+          tenant_id: string
+          window_opens_at: string
+          window_closes_at: string
+          t_submitted_at: string | null
+          t_q1_communication: string | null
+          t_q2_visit: string | null
+          t_q3_deal_again: string | null
+          t_review_text: string | null
+          o_submitted_at: string | null
+          o_q1_communication: string | null
+          o_q2_visit: string | null
+          o_q3_deal_again: string | null
+          o_review_text: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          contact_request_id: string
+          property_id: string
+          owner_id: string
+          tenant_id: string
+          window_opens_at: string
+          window_closes_at: string
+          t_submitted_at?: string | null
+          t_q1_communication?: string | null
+          t_q2_visit?: string | null
+          t_q3_deal_again?: string | null
+          t_review_text?: string | null
+          o_submitted_at?: string | null
+          o_q1_communication?: string | null
+          o_q2_visit?: string | null
+          o_q3_deal_again?: string | null
+          o_review_text?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          contact_request_id?: string
+          property_id?: string
+          owner_id?: string
+          tenant_id?: string
+          window_opens_at?: string
+          window_closes_at?: string
+          t_submitted_at?: string | null
+          t_q1_communication?: string | null
+          t_q2_visit?: string | null
+          t_q3_deal_again?: string | null
+          t_review_text?: string | null
+          o_submitted_at?: string | null
+          o_q1_communication?: string | null
+          o_q2_visit?: string | null
+          o_q3_deal_again?: string | null
+          o_review_text?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interaction_ratings_contact_request_id_fkey"
+            columns: ["contact_request_id"]
+            isOneToOne: true
+            referencedRelation: "contact_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interaction_ratings_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interaction_ratings_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interaction_ratings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -2759,6 +2961,84 @@ export type Database = {
           },
         ]
       }
+      property_comments: {
+        Row: {
+          created_at: string
+          depth: number
+          hidden_reason: string | null
+          id: string
+          is_deleted: boolean
+          like_count: number
+          parent_comment_id: string | null
+          property_id: string
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          depth?: number
+          hidden_reason?: string | null
+          id?: string
+          is_deleted?: boolean
+          like_count?: number
+          parent_comment_id?: string | null
+          property_id: string
+          text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          depth?: number
+          hidden_reason?: string | null
+          id?: string
+          is_deleted?: boolean
+          like_count?: number
+          parent_comment_id?: string | null
+          property_id?: string
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "property_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_comments_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_comments_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "property_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_condition_reports: {
         Row: {
           conducted_by: string
@@ -3097,6 +3377,86 @@ export type Database = {
           },
         ]
       }
+      property_views: {
+        Row: {
+          created_at: string
+          id: string
+          property_id: string
+          user_id: string | null
+          viewed_date: string
+          visitor_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          property_id: string
+          user_id?: string | null
+          viewed_date?: string
+          visitor_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          property_id?: string
+          user_id?: string | null
+          viewed_date?: string
+          visitor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_views_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_views_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "property_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pseudonym_adjectives: {
+        Row: {
+          word: string
+        }
+        Insert: {
+          word: string
+        }
+        Update: {
+          word?: string
+        }
+        Relationships: []
+      }
+      pseudonym_nouns: {
+        Row: {
+          word: string
+        }
+        Insert: {
+          word: string
+        }
+        Update: {
+          word?: string
+        }
+        Relationships: []
+      }
       rental_preferences: {
         Row: {
           age: number | null
@@ -3187,6 +3547,7 @@ export type Database = {
           last_login_at: string | null
           phone: string | null
           phone_verified: boolean
+          pseudonym: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
@@ -3201,6 +3562,7 @@ export type Database = {
           last_login_at?: string | null
           phone?: string | null
           phone_verified?: boolean
+          pseudonym?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
@@ -3215,6 +3577,7 @@ export type Database = {
           last_login_at?: string | null
           phone?: string | null
           phone_verified?: boolean
+          pseudonym?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
@@ -3467,6 +3830,8 @@ export type Database = {
       }
       earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
+      generate_pseudonym: { Args: never; Returns: string }
+      get_my_daily_request_remaining: { Args: never; Returns: number }
       get_owner_response_rate: {
         Args: { p_owner_id: string }
         Returns: {
@@ -3478,9 +3843,105 @@ export type Database = {
           last_7d_responded: number
         }[]
       }
+      get_pending_requests_for_digest: {
+        Args: never
+        Returns: {
+          new_request_count: number
+          new_requests: Json
+          owner_email: string
+          owner_name: string
+          owner_user_id: string
+        }[]
+      }
+      get_pending_ratings_for_me: {
+        Args: never
+        Returns: {
+          contact_request_id: string
+          property_id: string
+          building_name: string
+          locality: string
+          window_opens_at: string
+          window_closes_at: string
+          counterparty_name: string
+          i_am: string
+          other_submitted: boolean
+        }[]
+      }
+      get_phone_fallback: { Args: { p_user_id: string }; Returns: string }
+      get_property_comments: {
+        Args: { p_cursor?: string; p_limit?: number; p_property_id: string }
+        Returns: {
+          badges: string[]
+          comment_id: string
+          created_at: string
+          depth: number
+          hidden_reason: string
+          is_mine: boolean
+          is_owner: boolean
+          like_count: number
+          liked_by_me: boolean
+          parent_comment_id: string
+          pseudonym: string
+          real_name: string
+          text: string
+        }[]
+      }
+      get_property_counts: {
+        Args: { p_property_ids: string[] }
+        Returns: {
+          comment_count: number
+          property_id: string
+          view_count: number
+        }[]
+      }
+      get_property_public_stats: {
+        Args: { p_property_id: string }
+        Returns: Json
+      }
+      get_tenant_daily_request_count: {
+        Args: { p_tenant_id: string }
+        Returns: number
+      }
+      get_unanswered_comment_counts: {
+        Args: { p_property_ids: string[] }
+        Returns: {
+          property_id: string
+          unanswered_count: number
+        }[]
+      }
+      get_user_rating_summary: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       get_user_role: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_property_owner: { Args: { prop_id: string }; Returns: boolean }
+      post_comment: {
+        Args: {
+          p_parent_comment_id?: string
+          p_property_id: string
+          p_text: string
+        }
+        Returns: {
+          created_at: string
+          depth: number
+          hidden_reason: string | null
+          id: string
+          is_deleted: boolean
+          like_count: number
+          parent_comment_id: string | null
+          property_id: string
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "property_comments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       reject_edit_request: {
         Args: {
           p_edit_request_id: string
@@ -3497,6 +3958,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      report_comment: {
+        Args: { p_comment_id: string; p_notes: string; p_reason: string }
+        Returns: Json
+      }
       reschedule_visit: {
         Args: {
           p_actor: string
@@ -3512,6 +3977,22 @@ export type Database = {
           p_property_id: string
         }
         Returns: string
+      }
+      submit_rating: {
+        Args: {
+          p_contact_request_id: string
+          p_q1: string
+          p_q2: string
+          p_q3: string
+          p_review_text?: string
+        }
+        Returns: Json
+      }
+      toggle_comment_like: { Args: { p_comment_id: string }; Returns: Json }
+      touch_last_login: { Args: never; Returns: undefined }
+      track_property_view: {
+        Args: { p_property_id: string; p_visitor_id: string }
+        Returns: undefined
       }
     }
     Enums: {

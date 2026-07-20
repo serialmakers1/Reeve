@@ -27,6 +27,8 @@ const formatRupees = (n: number | null): string =>
 export default function ListingsGrid({ userId, heading = "Listings" }: Props) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  // D1: batched view+comment counts per property (D-P4-015 thresholds).
+  const [countsMap, setCountsMap] = useState<Record<string, { view_count: number; comment_count: number }>>({});
 
   useEffect(() => {
     (async () => {
@@ -35,6 +37,7 @@ export default function ListingsGrid({ userId, heading = "Listings" }: Props) {
         .from("properties")
         .select("id, building_name, locality, city, bhk, listed_rent")
         .eq("owner_id", userId)
+        // Codebase convention: edit_pending_review is still a live public listing.
         .in("status", ["listed", "edit_pending_review"])
         .eq("is_active", true)
         .order("listed_at", { ascending: false });
@@ -57,6 +60,25 @@ export default function ListingsGrid({ userId, heading = "Listings" }: Props) {
       }
       setListings(rows.map((r) => ({ ...r, primary_image_url: imgMap[r.id] ?? null })));
       setLoading(false);
+
+      // D1: fire-and-forget batched counts (same pattern as Search B7).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any)
+        .rpc("get_property_counts", { p_property_ids: ids })
+        .then(({ data }: { data: unknown }) => {
+          const arr = Array.isArray(data)
+            ? (data as { property_id: string; view_count: number | string; comment_count: number | string }[])
+            : [];
+          const m: Record<string, { view_count: number; comment_count: number }> = {};
+          for (const row of arr) {
+            m[row.property_id] = {
+              view_count: Number(row.view_count ?? 0),
+              comment_count: Number(row.comment_count ?? 0),
+            };
+          }
+          setCountsMap(m);
+        })
+        .catch(() => { /* silent */ });
     })();
   }, [userId]);
 
@@ -64,8 +86,8 @@ export default function ListingsGrid({ userId, heading = "Listings" }: Props) {
     return (
       <div>
         <h2 className="text-sm font-semibold text-foreground mb-3">{heading}</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {[0, 1, 2].map((i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[0, 1].map((i) => (
             <div key={i} className="rounded-lg border bg-muted animate-pulse aspect-[4/3]" />
           ))}
         </div>
@@ -73,49 +95,68 @@ export default function ListingsGrid({ userId, heading = "Listings" }: Props) {
     );
   }
 
-  if (listings.length === 0) return null;
+  if (listings.length === 0) {
+    return (
+      <div>
+        <h2 className="text-sm font-semibold text-foreground mb-3">{heading}</h2>
+        <p className="text-sm text-muted-foreground">No active listings.</p>
+      </div>
+    );
+  }
 
   return (
     <div>
       <h2 className="text-sm font-semibold text-foreground mb-3">
         {heading} <span className="text-muted-foreground font-normal">({listings.length})</span>
       </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {listings.map((p) => (
-          <Link
-            key={p.id}
-            to={`/property/${p.id}`}
-            className="rounded-lg border bg-card overflow-hidden hover:shadow-md transition-shadow"
-          >
-            <div className="aspect-[4/3] bg-muted">
-              {p.primary_image_url ? (
-                <img
-                  src={p.primary_image_url}
-                  alt={p.building_name ?? "Property"}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
-                  No photo
-                </div>
-              )}
-            </div>
-            <div className="p-3 space-y-0.5">
-              <p className="text-sm font-medium text-foreground truncate">
-                {p.building_name ?? "—"}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {[p.locality, p.city].filter(Boolean).join(", ") || "—"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {[bhkLabel(p.bhk), formatRupees(p.listed_rent) + (p.listed_rent ? "/mo" : "")]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            </div>
-          </Link>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {listings.map((p) => {
+          const c = countsMap[p.id];
+          const showViews = (c?.view_count ?? 0) >= 10;
+          const showComments = (c?.comment_count ?? 0) >= 1;
+          return (
+            <Link
+              key={p.id}
+              to={`/property/${p.id}`}
+              className="rounded-lg border bg-card overflow-hidden hover:shadow-md transition-shadow"
+            >
+              <div className="aspect-[4/3] bg-muted">
+                {p.primary_image_url ? (
+                  <img
+                    src={p.primary_image_url}
+                    alt={p.building_name ?? "Property"}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
+                    No photo
+                  </div>
+                )}
+              </div>
+              <div className="p-3 space-y-0.5">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {p.building_name ?? "—"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {[p.locality, p.city].filter(Boolean).join(", ") || "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {[bhkLabel(p.bhk), formatRupees(p.listed_rent) + (p.listed_rent ? "/mo" : "")]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                {(showViews || showComments) && (
+                  <p className="text-xs text-muted-foreground pt-1">
+                    {showViews && <span>👁 {c!.view_count} views</span>}
+                    {showViews && showComments && <span> · </span>}
+                    {showComments && <span>💬 {c!.comment_count} comments</span>}
+                  </p>
+                )}
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
