@@ -11,6 +11,8 @@ import PropertySidebar from "@/components/property-detail/PropertySidebar";
 import OwnerCard from "@/components/property-detail/OwnerCard";
 import OwnerPerformanceStrip from "@/components/property-detail/OwnerPerformanceStrip";
 import HowItWorksStrip from "@/components/property-detail/HowItWorksStrip";
+import ClampedText from "@/components/property-detail/ClampedText";
+import { useOwnerCard } from "@/hooks/useOwnerCard";
 import PageSection from "@/components/property-detail/PageSection";
 import NoSurprisesCard from "@/components/property-detail/NoSurprisesCard";
 import AtAGlance from "@/components/property-detail/AtAGlance";
@@ -50,8 +52,7 @@ import {
   DrawerFooter,
 } from "@/components/ui/drawer";
 import Layout from "@/components/Layout";
-import { SpecField } from "@/components/property/SpecField";
-import { PUBLIC_DETAILS_GRID_KEYS } from "@/config/property-fields";
+// F1-B3e: SpecField + PUBLIC_DETAILS_GRID_KEYS no longer used on this page.
 import { PROPERTY_TYPE_OPTIONS } from "@/config/property-form";
 import {
   ArrowLeft,
@@ -170,6 +171,8 @@ interface PropertyData {
   water_source: string[] | null;
   // P6: freshness chip in PublicTimeline.
   listed_at: string | null;
+  // F1-B2c: owner-authored "About the Property" copy (rendered in place of description).
+  building_notes: string | null;
 }
 
 interface PropertyImage {
@@ -459,6 +462,8 @@ const PropertyDetail: React.FC = () => {
   const isMobile = useIsMobile();
 
   const [property, setProperty] = useState<PropertyData | null>(null);
+  const ownerCard = useOwnerCard(property?.owner_id ?? null);
+  const ownerDisplayName = ownerCard.displayName;
   const [rawAmenities, setRawAmenities] = useState<{ furnishing_items?: string[]; building?: string[] } | null>(null);
   const [images, setImages] = useState<PropertyImage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -497,17 +502,20 @@ const PropertyDetail: React.FC = () => {
 
   // Own property detection
   const [isOwnProperty, setIsOwnProperty] = useState(false);
-  // P5: local expand toggles for Description + Building Rules.
-  const [descExpanded, setDescExpanded] = useState(false);
-  const [rulesExpanded, setRulesExpanded] = useState(false);
+  // F1-B6a: single source for owner display name (RCP consumer) — deduplicated
+  // via TanStack cache; other consumers (OwnerCard, PropertySidebar) hit the
+  // same key and share this fetch.
+  // F1-B1d: expand toggles moved into ClampedText.
   const [publicTimeline, setPublicTimeline] = useState<PublicTimelineRow[]>([]);
   // A2: owner display name via parallel public_profiles fetch — fed to
   // RequestContactPanel so the consent checkbox names the real owner.
-  const [ownerDisplayName, setOwnerDisplayName] = useState<string | null>(null);
+  // F1-B6a: ownerDisplayName + ownerRatingSummary now come from useOwnerCard
+  // (called after property loads). Old public_profiles + get_user_rating_summary
+  // fetches removed from the main effect — same data was already being fetched
+  // by useOwnerCard via OwnerCard / PropertySidebar.
   // B6: public stats (view_count + comment_count) for the stats line and CommentSection prop.
   const [propertyStats, setPropertyStats] = useState<{ view_count: number; comment_count: number } | null>(null);
   // C4: owner rating summary — parallel fetch, drives the "Listed by" sub-line.
-  const [ownerRatingSummary, setOwnerRatingSummary] = useState<{ status: "new" | "active"; as_owner?: { total: number; deal_again_pct: number } } | null>(null);
   const commentSectionRef = useRef<CommentSectionHandle | null>(null);
   const commentAnchorRef = useRef<HTMLDivElement | null>(null);
 
@@ -562,11 +570,16 @@ const PropertyDetail: React.FC = () => {
       setLoading(true);
       setNotFound(false);
 
-      const [propRes, imgRes] = await Promise.all([
+      // F1-B6a: single Promise.all — properties, images, activity log, stats
+      // all fire in parallel. public_profiles + get_user_rating_summary now
+      // handled by useOwnerCard (shared TanStack cache with OwnerCard/Sidebar).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sbAny = supabase as any;
+      const [propRes, imgRes, logRes, statsRes] = await Promise.all([
         supabase
           .from("properties")
           .select(
-            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url, landmark, notice_period_months, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_type, rent_brokerage_fixed_amount, rent_brokerage_months, sale_brokerage_pct, notice_period_days, lock_in_months, super_built_up_area, water_source, listed_at"
+            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url, landmark, notice_period_months, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_type, rent_brokerage_fixed_amount, rent_brokerage_months, sale_brokerage_pct, notice_period_days, lock_in_months, super_built_up_area, water_source, listed_at, building_notes"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -576,6 +589,13 @@ const PropertyDetail: React.FC = () => {
           .eq("property_id", id)
           .order("section", { ascending: true, nullsFirst: true })
           .order("sort_order", { ascending: true }),
+        sbAny
+          .from("property_activity_log")
+          .select("id, action, payload, is_public, created_at")
+          .eq("property_id", id)
+          .eq("is_public", true)
+          .order("created_at", { ascending: false }),
+        sbAny.rpc("get_property_public_stats", { p_property_id: id }),
       ]);
 
       if (!propRes.data) {
@@ -609,64 +629,20 @@ const PropertyDetail: React.FC = () => {
       const sortedImages = [...fetchedImages].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
       setImages(sortedImages.length > 0 ? sortedImages : PLACEHOLDER_IMAGES);
 
-      // A2 + timeline: parallelised (bug-fix pass) — previously two serial awaits.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any;
-      const [ownerRowRes, logRowsRes] = await Promise.all([
-        raw.owner_id
-          ? sb.from("public_profiles")
-              .select("display_name, full_name")
-              .eq("user_id", raw.owner_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
-        sb.from("property_activity_log")
-          .select("id, action, payload, is_public, created_at")
-          .eq("property_id", raw.id)
-          .eq("is_public", true)
-          .order("created_at", { ascending: false }),
-      ]);
-
-      const dn = ownerRowRes.data as { display_name?: string | null; full_name?: string | null } | null;
-      const resolved = dn?.display_name?.trim() || dn?.full_name?.trim() || null;
-      setOwnerDisplayName(resolved);
-      if (!resolved && raw.owner_id && raw.status === "listed") {
-        console.warn("[A3] listed property has null ownerDisplayName", { property_id: raw.id, owner_id: raw.owner_id });
+      // F1-B6a: stats consumed from the primary Promise.all result.
+      {
+        const row = Array.isArray(statsRes?.data) ? (statsRes.data as unknown[])[0] : statsRes?.data;
+        const s = row as { view_count?: number; comment_count?: number } | null;
+        if (s) {
+          setPropertyStats({
+            view_count: Number(s.view_count ?? 0),
+            comment_count: Number(s.comment_count ?? 0),
+          });
+        }
       }
 
-      // C4: owner rating summary — parallel, fire-and-forget.
-      if (raw.owner_id) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (supabase as any)
-          .rpc("get_user_rating_summary", { p_user_id: raw.owner_id })
-          .then(({ data }: { data: unknown }) => {
-            const s = data as { status?: "new" | "active"; as_owner?: { total?: number; deal_again_pct?: number } } | null;
-            if (s?.status === "new") setOwnerRatingSummary({ status: "new" });
-            else if (s?.status === "active") setOwnerRatingSummary({
-              status: "active",
-              as_owner: s.as_owner ? { total: Number(s.as_owner.total ?? 0), deal_again_pct: Number(s.as_owner.deal_again_pct ?? 0) } : undefined,
-            });
-          })
-          .catch(() => { /* silent */ });
-      }
-
-      // B6: public stats — parallel to timeline fetch below.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any)
-        .rpc("get_property_public_stats", { p_property_id: raw.id })
-        .then(({ data }: { data: unknown }) => {
-          const row = Array.isArray(data) ? (data as unknown[])[0] : data;
-          const s = row as { view_count?: number; comment_count?: number } | null;
-          if (s) {
-            setPropertyStats({
-              view_count: Number(s.view_count ?? 0),
-              comment_count: Number(s.comment_count ?? 0),
-            });
-          }
-        })
-        .catch(() => { /* silent */ });
-
-      // Timeline result from the Promise.all above.
-      const logRows = logRowsRes.data;
+      // Timeline result from the primary Promise.all above.
+      const logRows = logRes.data;
       if (logRows) {
         setPublicTimeline(logRows as PublicTimelineRow[]);
         if ((logRows as PublicTimelineRow[]).length > 0) {
@@ -907,24 +883,9 @@ const PropertyDetail: React.FC = () => {
   // COMMONS-HIDE: renderApplySection — Apply/Draft CTA hidden for Commons transition
   // COMMONS-HIDE: const renderApplySection = (mobile: boolean) => { ... };
 
-  // Details grid — spec-driven via PROPERTY_FIELDS (D-128, D-155, D-157).
-  // Membership + order comes from PUBLIC_DETAILS_GRID_KEYS; visibility guards
-  // stay here so semantics (parking !== "none", non-null vs truthy) match the
-  // pre-refactor page. To add/remove a scalar from the grid: edit
-  // src/config/property-fields.ts only — no changes to this file.
-  const propertyRow = property as unknown as Record<string, unknown>;
-  const shouldShowGridField = (key: string): boolean => {
-    const v = propertyRow[key];
-    // floor_number / total_floors: != null (keep 0). Others: truthy.
-    if (key === "floor_number" || key === "total_floors") {
-      if (v === null || v === undefined) return false;
-    } else {
-      if (v === null || v === undefined || v === "" || v === 0) return false;
-    }
-    if ((key === "parking_2w" || key === "parking_4w") && v === "none") return false;
-    return true;
-  };
-  const visibleGridKeys = PUBLIC_DETAILS_GRID_KEYS.filter(shouldShowGridField);
+  // F1-B3e: `shouldShowGridField` + `visibleGridKeys` removed — replaced by
+  // AtAGlance + AllDetailsAccordion (each with their own isFieldSet gates)
+  // and NoSurprisesCard. `PUBLIC_DETAILS_GRID_KEYS` is unused on this page.
 
   return (
     <Layout>
@@ -967,103 +928,179 @@ const PropertyDetail: React.FC = () => {
 
         {/* P6: contact panel moved into left column, above CommentSection. */}
 
+        {/* F1-B4a: gallery moved OUT of the left column so it spans the full
+            container width on desktop. Overlay (share + heart) sits above the
+            outer relative container and appears on both mobile carousel and
+            desktop collage. */}
+        <section className="relative mt-4">
+          <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Share this listing"
+              onClick={handleShare}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm"
+            >
+              <Share2 className="h-[18px] w-[18px]" strokeWidth={2} />
+            </button>
+            {!isOwnProperty && (
+              <FavouriteHeart
+                filled={id ? isFavourited(id) : false}
+                onClick={() => {
+                  if (!favLoggedIn) { setLoginDrawerOpen(true); return; }
+                  if (id) toggleFavourite(id);
+                }}
+                className="!bg-black/40 !text-white hover:!bg-black/60"
+              />
+            )}
+          </div>
+
+          {/* F1-B4b: mobile carousel — tabs + embla + counter, hidden on lg+. */}
+          <div className="lg:hidden">
+            {(hasFloorPlan || sections.length > 0) && (
+              <div className="flex gap-1 px-4 pb-2 overflow-x-auto">
+                <button
+                  onClick={() => setGalleryTab("all")}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    galleryTab === "all"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  All Photos
+                </button>
+                {sections.map(section => (
+                  <button
+                    key={section}
+                    onClick={() => setGalleryTab(section)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap ${
+                      galleryTab === section
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {section}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setGalleryTab("floorplan")}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    galleryTab === "floorplan"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  Floor Plan
+                </button>
+              </div>
+            )}
+            <div className="relative">
+              <Carousel setApi={setCarouselApi} className="w-full">
+                <CarouselContent className="-ml-0">
+                  {activeImages.map((img, idx) => (
+                    <CarouselItem key={img.id} className="pl-0">
+                      <button
+                        onClick={() => openLightbox(idx)}
+                        className="block w-full cursor-zoom-in"
+                      >
+                        <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
+                          <img
+                            src={img.url}
+                            alt={img.caption || `Property photo ${idx + 1}`}
+                            loading={idx === 0 ? "eager" : "lazy"}
+                            fetchPriority={idx === 0 ? "high" : "auto"}
+                            decoding="async"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      </button>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+              <div className="absolute bottom-3 right-3 rounded-full bg-foreground/60 px-2.5 py-0.5 text-xs font-medium text-background">
+                {currentSlide + 1} / {totalSlides || activeImages.length}
+              </div>
+            </div>
+          </div>
+
+          {/* F1-B4b: desktop collage — hero + up to 4 tiles, +N overlay on last. */}
+          <div className="hidden lg:block">
+            {(() => {
+              const imgs = activeImages;
+              if (imgs.length === 0) return null;
+              if (imgs.length === 1) {
+                return (
+                  <button
+                    type="button"
+                    onClick={() => openLightbox(0)}
+                    className="block h-[420px] w-full cursor-zoom-in overflow-hidden rounded-2xl bg-muted"
+                  >
+                    <img
+                      src={imgs[0].url}
+                      alt={imgs[0].caption || "Property photo 1"}
+                      loading="eager"
+                      fetchPriority="high"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                );
+              }
+              const tiles = imgs.slice(1, 5);
+              const extra = Math.max(0, imgs.length - 5);
+              const cols = imgs.length >= 5 ? "grid-cols-[2fr_1fr_1fr]" : "grid-cols-[2fr_1fr]";
+              const rows = imgs.length >= 5 || imgs.length === 3 ? "grid-rows-2" : imgs.length === 4 ? "grid-rows-3" : "grid-rows-1";
+              const heroSpan = imgs.length >= 5 || imgs.length === 3 ? "row-span-2" : imgs.length === 4 ? "row-span-3" : "row-span-1";
+              return (
+                <div className={`grid ${cols} ${rows} h-[420px] gap-2 overflow-hidden rounded-2xl`}>
+                  <button
+                    type="button"
+                    onClick={() => openLightbox(0)}
+                    className={`${heroSpan} cursor-zoom-in overflow-hidden bg-muted`}
+                  >
+                    <img
+                      src={imgs[0].url}
+                      alt={imgs[0].caption || "Property photo 1"}
+                      loading="eager"
+                      fetchPriority="high"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                  {tiles.map((img, idx) => {
+                    const abs = idx + 1;
+                    const isLastVisible = idx === tiles.length - 1 && extra > 0;
+                    return (
+                      <button
+                        type="button"
+                        key={img.id}
+                        onClick={() => openLightbox(abs)}
+                        className="relative cursor-zoom-in overflow-hidden bg-muted"
+                      >
+                        <img
+                          src={img.url}
+                          alt={img.caption || `Property photo ${abs + 1}`}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover"
+                        />
+                        {isLastVisible && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                            <span className="text-sm font-semibold text-white">+{extra} photos</span>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </section>
+
         <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-10 lg:items-start mt-4">
           {/* ─── Main Column ────────────────────────────────────── */}
           <div className="space-y-5 min-w-0">
-
-            {/* 1. Photo Gallery */}
-            <section className="min-w-0 overflow-hidden">
-              {(hasFloorPlan || sections.length > 0) && (
-                <div className="flex gap-1 px-4 pb-2 lg:px-0 overflow-x-auto">
-                  <button
-                    onClick={() => setGalleryTab("all")}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      galleryTab === "all"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    All Photos
-                  </button>
-                  {sections.map(section => (
-                    <button
-                      key={section}
-                      onClick={() => setGalleryTab(section)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap ${
-                        galleryTab === section
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {section}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setGalleryTab("floorplan")}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      galleryTab === "floorplan"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    Floor Plan
-                  </button>
-                </div>
-              )}
-              <div className="relative">
-                <Carousel setApi={setCarouselApi} className="w-full">
-                  <CarouselContent className="-ml-0">
-                    {activeImages.map((img, idx) => (
-                      <CarouselItem key={img.id} className="pl-0">
-                        <button
-                          onClick={() => openLightbox(idx)}
-                          className="block w-full cursor-zoom-in"
-                        >
-                          <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted lg:rounded-lg">
-                            <img
-                              src={img.url}
-                              alt={img.caption || `Property photo ${idx + 1}`}
-                              // P4 hero LCP: first slide is eager + high priority; rest lazy.
-                              loading={idx === 0 ? "eager" : "lazy"}
-                              fetchPriority={idx === 0 ? "high" : "auto"}
-                              decoding="async"
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        </button>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  <CarouselPrevious className="left-2 hidden lg:flex" />
-                  <CarouselNext className="right-2 hidden lg:flex" />
-                </Carousel>
-                {/* P4 gallery action overlay — share + heart. Absolute; sits above
-                    the carousel container. Does not interfere with Embla/tabs/pill. */}
-                <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
-                  <button
-                    type="button"
-                    aria-label="Share this listing"
-                    onClick={handleShare}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm"
-                  >
-                    <Share2 className="h-[18px] w-[18px]" strokeWidth={2} />
-                  </button>
-                  {!isOwnProperty && (
-                    <FavouriteHeart
-                      filled={id ? isFavourited(id) : false}
-                      onClick={() => {
-                        if (!favLoggedIn) { setLoginDrawerOpen(true); return; }
-                        if (id) toggleFavourite(id);
-                      }}
-                      className="!bg-black/40 !text-white hover:!bg-black/60"
-                    />
-                  )}
-                </div>
-                <div className="absolute bottom-3 right-3 rounded-full bg-foreground/60 px-2.5 py-0.5 text-xs font-medium text-background">
-                  {currentSlide + 1} / {totalSlides || activeImages.length}
-                </div>
-              </div>
-            </section>
 
             {/* P5 header — chips, title, location, action pills, stats.
                 Floor line, "Listed by", rating line, and promo pills removed
@@ -1088,14 +1125,11 @@ const PropertyDetail: React.FC = () => {
                 {property.locality ? `${property.locality}, ` : ""}
                 {property.city}
               </p>
+              {/* F1-B1c: landmark rendered as-is — owner placeholder already includes "Near". */}
               {property.landmark && (
-                <p className="text-sm text-muted-foreground">Near {property.landmark}</p>
+                <p className="text-sm text-muted-foreground">{property.landmark}</p>
               )}
-              {property.available_from && (
-                <p className="text-sm text-muted-foreground">
-                  Available from {formatAvailableFrom(property.available_from)}
-                </p>
-              )}
+              {/* F1-B1b: available_from removed from header — surfaces in AtAGlance. */}
               {(property.youtube_walkthrough_url || property.google_maps_url) && (
                 <div className="flex flex-wrap gap-2 pt-2">
                   {property.youtube_walkthrough_url && (
@@ -1151,9 +1185,10 @@ const PropertyDetail: React.FC = () => {
 
             {/* P5 new content sections. Order: No Surprises → At a Glance →
                 Monthly Costs → What's Included → Building Amenities → All details. */}
-            <NoSurprisesCard property={property} />
+            {/* F1-B3d: AtAGlance → MonthlyCosts → NoSurprisesCard order. */}
             <AtAGlance property={property} />
             <MonthlyCosts property={property} />
+            <NoSurprisesCard property={property} />
             <FurnishingDetails furnishing={property.furnishing} furnishingDetail={property.furnishing_detail} />
             <BuildingAmenities amenities={property.amenities} />
             <AllDetailsAccordion property={property} />
@@ -1163,33 +1198,17 @@ const PropertyDetail: React.FC = () => {
                 are all replaced by NoSurprisesCard / AtAGlance / MonthlyCosts /
                 FurnishingDetails / BuildingAmenities / AllDetailsAccordion above. */}
 
-            {/* P5: About + Building Rules — in-place, line-clamp with toggle. */}
-            {property.description && (
-              <PageSection title="About This Property" icon={AlignLeft}>
-                <p className={cn("whitespace-pre-line text-sm text-foreground", !descExpanded && "line-clamp-4")}>
-                  {property.description}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setDescExpanded((v) => !v)}
-                  className="mt-1 text-xs text-primary"
-                >
-                  {descExpanded ? "Show less" : "Read more"}
-                </button>
+            {/* F1-B2b/c: "About the Property" now reads building_notes (owner
+                copy from Rules & preferences). description column retained but
+                no longer surfaced. ClampedText gates Read-more on real overflow. */}
+            {property.building_notes && property.building_notes.trim() !== "" && (
+              <PageSection title="About the Property" icon={AlignLeft}>
+                <ClampedText text={property.building_notes} clamp="line-clamp-4" />
               </PageSection>
             )}
-            {property.building_rules && (
+            {property.building_rules && property.building_rules.trim() !== "" && (
               <PageSection title="Building Rules" icon={ScrollText}>
-                <p className={cn("whitespace-pre-line text-sm text-foreground", !rulesExpanded && "line-clamp-3")}>
-                  {property.building_rules}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setRulesExpanded((v) => !v)}
-                  className="mt-1 text-xs text-primary"
-                >
-                  {rulesExpanded ? "Show less" : "Read more"}
-                </button>
+                <ClampedText text={property.building_rules} clamp="line-clamp-3" />
               </PageSection>
             )}
 

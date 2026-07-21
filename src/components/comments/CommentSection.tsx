@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -196,16 +197,27 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
         )}
       </div>
 
-      {/* P6-G1: permanent guidance line above the composer. */}
-      <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-        <span>Public Q&amp;A — your question helps other tenants too. Property questions only.</span>
-        <span
-          title="Public + permanent · shown under your alias · 1000 char max · rate-limited to 3/hr, 10/day · no links or phone numbers · reported comments auto-hide"
-          className="cursor-help"
-        >
-          <Info className="h-3.5 w-3.5" />
-        </span>
-      </p>
+      {/* P6-G1 + F1-B5e: guidance line + shadcn Tooltip (works on touch via tap). */}
+      <TooltipProvider delayDuration={200}>
+        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <span>Public Q&amp;A — your question helps other tenants too. Property questions only.</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Comment rules"
+                className="inline-flex items-center text-muted-foreground hover:text-foreground"
+              >
+                <Info className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+              Public + permanent · shown under your alias · 1000 char max · rate-limited to 3/hr,
+              10/day · no links or phone numbers · reported comments auto-hide.
+            </TooltipContent>
+          </Tooltip>
+        </p>
+      </TooltipProvider>
 
       {gateState ? (
         <CommentGateCard state={gateState} />

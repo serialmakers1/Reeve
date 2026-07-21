@@ -25,6 +25,9 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   person_profiles: "identified_only",
   capture_pageview: true,
   capture_pageleave: true,
+  // F1-B6b: disable dead-click autocapture — the loader script is a common
+  // ad-blocker target (produces spurious ERR_BLOCKED_BY_CLIENT in console).
+  capture_dead_clicks: false,
   session_recording: {
     maskAllInputs: true,
   },

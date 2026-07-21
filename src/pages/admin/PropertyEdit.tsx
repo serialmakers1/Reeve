@@ -1001,7 +1001,7 @@ export default function PropertyEdit() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* D-169: gas_type spec-driven; 'none' option maps to NULL on save (handled in save payload L443). */}
-              <SpecField fieldKey="gas_type" surface="admin_form" value={gasType || "none"} onChange={(v: string) => setGasType(v)} />
+              <SpecField fieldKey="gas_type" surface="admin_form" value={gasType || "none"} onChange={(v: string) => setGasType(v)} formValues={{ listing_type: listingType }} />
             </div>
             {/* Prompt 8 (D-159): parking enum + count laid out in a 4-col grid so
                 each enum sits beside its count. Same visual grouping as owner S5. */}
@@ -1048,13 +1048,8 @@ export default function PropertyEdit() {
         </Section>
 
         {/* Section 6 — Description — scalar rendering driven by PROPERTY_FIELDS (D-128, D-155, D-156). */}
-        <Section title="Description">
-          <div className="space-y-4">
-            {/* TODO(spec): fold "Title (optional)" admin label into PROPERTY_FIELDS.title.adminLabel in Prompt 6 bundle */}
-            <SpecField fieldKey="title" surface="admin_form" value={title} onChange={(v: string) => setTitle(v)} />
-            <SpecField fieldKey="description" surface="admin_form" value={description} onChange={(v: string) => setDescription(v)} />
-          </div>
-        </Section>
+        {/* F1-B2a: Description section (title + description inputs) removed from
+            admin. State + payload writes retained so column data isn't dropped. */}
 
         {/* Added in Prompt 4 — read-only admin metadata (audit trail). */}
         {property && (

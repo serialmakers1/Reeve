@@ -2,6 +2,7 @@
  * P5 furnishing detail chips. Hidden entirely for unfurnished listings or
  * when the furnishing_detail array is empty.
  */
+import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Bed,
@@ -89,34 +90,84 @@ function labelFor(key: string): string {
 
 export default function FurnishingDetails({ furnishing, furnishingDetail }: Props) {
   if (furnishing === "unfurnished") return null;
-  const items = Array.isArray(furnishingDetail)
+  const raw = Array.isArray(furnishingDetail)
     ? (furnishingDetail as FurnishingDetailItem[])
     : [];
-  if (items.length === 0) return null;
+  if (raw.length === 0) return null;
+  // F1-B2f: alphabetical by label.
+  const items = [...raw].sort((a, b) => labelFor(a.item).localeCompare(labelFor(b.item)));
+  // F1-B5b: mobile first-4 collapse; desktop always shows all.
+  const MOBILE_INITIAL = 4;
+  const hiddenMobile = Math.max(0, items.length - MOBILE_INITIAL);
 
   return (
     <PageSection title="What's Included" icon={Sofa}>
-      <div className="flex flex-wrap gap-2">
-        {items.map((f, idx) => {
+      <FurnitureGrid items={items} mobileInitial={MOBILE_INITIAL} hiddenMobile={hiddenMobile} />
+    </PageSection>
+  );
+}
+
+function FurnitureGrid({
+  items,
+  mobileInitial,
+  hiddenMobile,
+}: {
+  items: FurnishingDetailItem[];
+  mobileInitial: number;
+  hiddenMobile: number;
+}) {
+  const [showAllMobile, setShowAllMobile] = useState(false);
+  const mobileItems = showAllMobile ? items : items.slice(0, mobileInitial);
+  const render = (list: FurnishingDetailItem[]) => (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {list.map((f, idx) => {
           const Icon = ICONS[f.item] ?? Check;
           const label = labelFor(f.item);
           const count = typeof f.count === "number" && f.count > 1 ? f.count : null;
+          // F1-B2e: surface owner-authored size/rooms as a subtitle.
+          const size = f.size?.trim() || null;
+          const rooms = f.rooms?.trim() && f.rooms.trim() !== size ? f.rooms.trim() : null;
+          const subtitle = [size, rooms].filter(Boolean).join(" · ");
           return (
             <div
               key={`${f.item}-${idx}`}
-              className="inline-flex items-center gap-2 rounded-xl border bg-background px-3 py-2 text-sm"
+              className="flex flex-col rounded-xl border bg-background px-3 py-2 text-sm"
             >
-              <Icon className="h-[14px] w-[14px] text-muted-foreground" />
-              <span className="text-foreground">{label}</span>
-              {count ? (
-                <span className="ml-1 text-xs font-medium text-muted-foreground">
-                  × {count}
-                </span>
+              <div className="flex items-center gap-2">
+                <Icon className="h-[14px] w-[14px] text-muted-foreground" />
+                <span className="text-foreground">{label}</span>
+                {count ? (
+                  <span className="ml-auto text-xs font-medium text-muted-foreground">
+                    × {count}
+                  </span>
+                ) : null}
+              </div>
+              {subtitle ? (
+                <p className="mt-0.5 pl-6 text-xs text-muted-foreground">{subtitle}</p>
               ) : null}
             </div>
           );
         })}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="lg:hidden">
+        {render(mobileItems)}
+        {hiddenMobile > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAllMobile((v) => !v)}
+            className="mt-3 text-sm font-medium text-primary"
+          >
+            {showAllMobile ? "Show less" : `Show more (${hiddenMobile} more)`}
+          </button>
+        )}
       </div>
-    </PageSection>
+      <div className="hidden lg:block">
+        {render(items)}
+      </div>
+    </>
   );
 }

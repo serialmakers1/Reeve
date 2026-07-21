@@ -654,11 +654,13 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     input: "select",
     // D-169: 'none' option maps to NULL on save (caller-side transform in onChange).
     // CHECK constraint on the DB stays pipeline | cylinder | NULL.
+    // F1-B3c: independent of utility_gas_included — describes property infrastructure,
+    // not billing arrangement. Rent-only (sale listings don't need this).
     options: [{ value: "none", label: "None" }, ...asOptions(GAS_TYPE_OPTIONS)],
     audiences: ["owner_form", "admin_form", "public_detail"],
     editableBy: ["owner", "admin"],
     ownerSection: "building_society",
-    visibleWhen: (v) => v.utility_gas_included === true,
+    visibleWhen: (v) => v.listing_type !== "sale",
   },
   {
     key: "utility_electricity_included",
@@ -753,8 +755,9 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
   },
   {
     key: "building_notes",
-    label: "About the building / neighborhood",
-    adminLabel: "Building notes",
+    label: "About the Property",
+    publicLabel: "About the Property",
+    adminLabel: "About the Property",
     input: "textarea",
     audiences: ["owner_form", "admin_form", "public_detail"],
     editableBy: ["owner", "admin"],

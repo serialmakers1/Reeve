@@ -4,6 +4,7 @@
  * ≥ 3 amenities → full PageSection.
  * Empty → returns null.
  */
+import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpDown,
@@ -87,7 +88,34 @@ export default function BuildingAmenities({ amenities }: Props) {
 
   return (
     <PageSection title="Building Amenities" icon={Building}>
-      <Chips values={values} />
+      <CollapsibleChips values={values} />
     </PageSection>
+  );
+}
+
+// F1-B5c: mobile first-4 collapse; desktop always shows all.
+function CollapsibleChips({ values }: { values: string[] }) {
+  const [showAllMobile, setShowAllMobile] = useState(false);
+  const MOBILE_INITIAL = 4;
+  const hiddenMobile = Math.max(0, values.length - MOBILE_INITIAL);
+  const mobileValues = showAllMobile ? values : values.slice(0, MOBILE_INITIAL);
+  return (
+    <>
+      <div className="lg:hidden">
+        <Chips values={mobileValues} />
+        {hiddenMobile > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAllMobile((v) => !v)}
+            className="mt-3 text-sm font-medium text-primary"
+          >
+            {showAllMobile ? "Show less" : `Show more (${hiddenMobile} more)`}
+          </button>
+        )}
+      </div>
+      <div className="hidden lg:block">
+        <Chips values={values} />
+      </div>
+    </>
   );
 }
