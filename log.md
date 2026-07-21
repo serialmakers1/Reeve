@@ -920,3 +920,5 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-21] feat | P5 main content sections — header, NoSurprises, AtAGlance, MonthlyCosts, Furnishing, Amenities, AllDetails, Description [17:00 IST]
 ## [2026-07-21] feat | P6 owner card, sidebar, how-it-works, listing history fix, comments redesign [17:25 IST]
 ## [2026-07-21] audit | P7B final verification pass — PropertyDetail redesign cycle complete [17:55 IST]
+## [2026-07-21] audit | Post-deployment diagnosis — 28 issues across 15 groups [21:38 IST]
+## [2026-07-21] fix | Post-deployment fixes — 28 issues (text bugs, field mapping, display logic, gallery collage, mobile collapse, performance) [02:59 IST]

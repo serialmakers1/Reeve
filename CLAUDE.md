@@ -51,6 +51,12 @@ last_login_at written via touch_last_login() RPC on SIGNED_IN transitions only �
 **Privilege guard (D-P3-014):** `prevent_user_privilege_escalation` BEFORE UPDATE trigger on `public.users` blocks `authenticated`/`anon` from changing `role`/`email_verified`/`phone_verified`/`auth_provider`/`is_active`. Uses `IS DISTINCT FROM` (no-op writes pass silently). Admin + service_role bypass.
 **Phone source (D-P3-016):** `public.users.phone` may be null for Google-first users. Call `get_phone_fallback(user_id)` via service_role only (reads `auth.users.phone`, then `identity_data`). n8n never queries `auth.*` — always via scoped SECURITY DEFINER RPC.
 
+### Gas fields — supply vs billing
+`gas_type` (pipeline / cylinder) describes the property's infrastructure and renders in the "All details" grid whenever set. `utility_gas_included` describes whether the gas bill is bundled into society maintenance and drives the Monthly-Costs "Gas" chip (icon-only, no supply-type suffix). Never gate `gas_type` on `utility_gas_included` — they are independent facts.
+
+### building_notes = "About the Property"
+`properties.building_notes` is the canonical owner-authored public description of the property; it renders in the "About the Property" `PageSection`. `properties.description` (legacy) is retained in the DB + writable via `mapFieldToDb` but no longer shown to tenants and no longer collected in the owner or admin forms. `properties.title` is likewise retained but not surfaced.
+
 ### PropertyDetail outer layout
 `/property/:id` uses a two-column grid on desktop only: `max-w-6xl mx-auto px-4 lg:px-6` container → gallery (full-width, outside grid) → `lg:grid lg:grid-cols-[1fr_360px] lg:gap-10 lg:items-start` → left col (`min-w-0`, all sections) / right col (`hidden lg:block` sticky `PropertySidebar`). Mobile CTA is `PropertyCTABar` (`lg:hidden`); the two together cover all viewport widths with no gap.
 

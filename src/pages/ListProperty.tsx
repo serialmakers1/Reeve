@@ -1601,15 +1601,15 @@ export default function ListProperty() {
                 <UtilityToggle label="Gas included" checked={form.gas_included} onChange={(v) => updateField("gas_included", v, { utility_gas_included: v })} />
                 <UtilityToggle label="Electricity included" checked={form.electricity_included} onChange={(v) => updateField("electricity_included", v, { utility_electricity_included: v })} />
               </div>
-              {form.gas_included && (
-                <SpecField
-                  fieldKey="gas_type"
-                  surface="owner_form"
-                  value={form.gas_type || "none"}
-                  onChange={(v: string) => updateField("gas_type", v === "none" ? "" : v, { gas_type: v === "none" ? null : v })}
-                  className="max-w-xs"
-                />
-              )}
+              {/* F1-B3c: gas_type decoupled from the "included in maintenance" toggle. */}
+              <SpecField
+                fieldKey="gas_type"
+                surface="owner_form"
+                value={form.gas_type || "none"}
+                onChange={(v: string) => updateField("gas_type", v === "none" ? "" : v, { gas_type: v === "none" ? null : v })}
+                formValues={{ listing_type: form.listing_type }}
+                className="max-w-xs"
+              />
             </div>
           </SectionShell>
 
@@ -1695,23 +1695,10 @@ export default function ListProperty() {
             {imagesLoading && <p className="text-xs text-muted-foreground">Loading photos...</p>}
           </SectionShell>
 
-          {/* Section 8 — scalar rendering driven by PROPERTY_FIELDS spec (D-128, D-155). Title stays bespoke: placeholder derives from live bhk+locality. */}
-          <SectionShell num={8} title="Description" status={sectionStatuses[8]} summary={sectionSummary(8, form, images)}>
-            <div className="space-y-4">
-              {/* Bespoke: title placeholder is dynamic (live-computed from bhk + locality) — spec placeholders are static. */}
-              <FormField label="Title" hint="Auto-generated if blank">
-                <Input value={form.title} onChange={(e) => updateField("title", e.target.value)} placeholder={`${BHK_OPTIONS.find((o) => o.value === form.bhk)?.label ?? ""} in ${form.locality || "..."}`.trim()} className="min-h-[44px]" />
-              </FormField>
-              {/* TODO(spec): fold helper into PROPERTY_FIELDS.description.helper in Prompt 6 bundle */}
-              <SpecField
-                fieldKey="description"
-                surface="owner_form"
-                value={form.description}
-                onChange={(v: string) => updateField("description", v)}
-                helperOverride="What makes this property special? Nearby landmarks? Metro? Schools? Best time to see it?"
-              />
-            </div>
-          </SectionShell>
+          {/* F1-B2a: Section 8 (title + description inputs) removed from the owner
+              form. Fields stay in FormState + mapFieldToDb so the column keeps
+              writing correctly and legacy data is not truncated. "About the
+              Property" now comes from building_notes in Section 6. */}
 
           {/* Section 9 */}
           <SectionShell num={9} title="Final checks" status={sectionStatuses[9]} summary={sectionSummary(9, form, images)} required>

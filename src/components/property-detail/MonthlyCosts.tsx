@@ -6,7 +6,6 @@ import { IndianRupee, Droplets, Zap, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PageSection from "./PageSection";
 import { computeBrokerageMonths } from "@/utils/property/financialConversions";
-import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
 import { isFieldSet } from "@/utils/property/isFieldSet";
 
 interface Property {
@@ -43,7 +42,8 @@ function Row({
   suffix?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    // F1-B5d: stack on narrow viewports so long chip suffixes don't overflow.
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
       <span
         className={cn(
           "font-semibold text-foreground",
@@ -52,7 +52,7 @@ function Row({
       >
         {amount}
       </span>
-      <span className="flex items-center gap-2 text-sm text-muted-foreground">
+      <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         {label}
         {suffix}
       </span>
@@ -170,12 +170,10 @@ export default function MonthlyCosts({ property }: { property: Property }) {
     );
   }
   if (property.utility_gas_included) {
-    const gasLabel = property.gas_type
-      ? `Gas (${formatEnumLabel("gas_type", property.gas_type)})`
-      : "Gas";
+    // F1-B3c: chip describes billing inclusion only. Supply type lives in All Details.
     utilityChips.push(
       <span key="g" className="inline-flex items-center gap-1.5 rounded-full border border-green-100 bg-green-50 px-3 py-1 text-sm text-green-800">
-        <Flame className="h-3.5 w-3.5" /> {gasLabel}
+        <Flame className="h-3.5 w-3.5" /> Gas
       </span>,
     );
   }

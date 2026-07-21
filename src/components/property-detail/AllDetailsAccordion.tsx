@@ -8,9 +8,6 @@ import {
   Wind,
   Compass,
   Clock,
-  Lock,
-  Bell,
-  TrendingUp,
   Droplets,
   KeyRound,
   Car,
@@ -19,6 +16,7 @@ import {
   Maximize2,
   FileCheck,
   FileText,
+  Flame,
   Receipt,
   CalendarCheck,
   ChevronDown,
@@ -34,9 +32,6 @@ interface Property {
   balconies: number | null;
   facing: string | null;
   building_age_years: number | null;
-  lock_in_months: number | null;
-  notice_period_days: number | null;
-  annual_rent_increase_pct: number | null;
   water_storage: string | null;
   water_source: string[] | null;
   main_door_lock_type: string | null;
@@ -44,7 +39,9 @@ interface Property {
   parking_4w_count: number | null;
   parking_2w: string | null;
   parking_2w_count: number | null;
+  parking_notes: string | null;
   pet_policy: string | null;
+  gas_type: string | null;
   super_built_up_area: number | null;
   rera_registration_number: string | null;
   khata_type: string | null;
@@ -128,35 +125,8 @@ function buildTiles(p: Property): TileConfig[] {
     });
   }
 
-  if (isFieldSet("lock_in_months", p.lock_in_months)) {
-    const n = p.lock_in_months!;
-    tiles.push({
-      key: "lock_in_months",
-      icon: Lock,
-      label: "Lock-in",
-      value: n === 0 ? "No lock-in" : `${n} months`,
-    });
-  }
-
-  if (isFieldSet("notice_period_days", p.notice_period_days)) {
-    const n = p.notice_period_days!;
-    tiles.push({
-      key: "notice_period_days",
-      icon: Bell,
-      label: "Notice period",
-      value: n === 0 ? "No notice" : `${n} days`,
-    });
-  }
-
-  if (isFieldSet("annual_rent_increase_pct", p.annual_rent_increase_pct)) {
-    const n = p.annual_rent_increase_pct!;
-    tiles.push({
-      key: "annual_rent_increase_pct",
-      icon: TrendingUp,
-      label: "Rent increase",
-      value: n === 0 ? "No annual hike" : `${n}% / year`,
-    });
-  }
+  // F1-B3e: lock_in_months / notice_period_days / annual_rent_increase_pct
+  // removed from All Details — they live in NoSurprisesCard now.
 
   if (isFieldSet("water_storage", p.water_storage)) {
     tiles.push({
@@ -189,6 +159,26 @@ function buildTiles(p: Property): TileConfig[] {
   if (car) tiles.push(car);
   const bike = parkingRow(p.parking_2w, p.parking_2w_count, "Bike parking", Bike, "bike");
   if (bike) tiles.push(bike);
+
+  // F1-B2d: owner-authored parking notes (e.g. "Reserved slot 12, near lift").
+  if (isFieldSet("parking_notes", p.parking_notes)) {
+    tiles.push({
+      key: "parking_notes",
+      icon: FileText,
+      label: "Parking notes",
+      value: p.parking_notes!,
+    });
+  }
+
+  // F1-B3c: gas_type shown independently of billing inclusion.
+  if (isFieldSet("gas_type", p.gas_type)) {
+    tiles.push({
+      key: "gas_type",
+      icon: Flame,
+      label: "Gas supply",
+      value: formatEnumLabel("gas_type", p.gas_type),
+    });
+  }
 
   if (isFieldSet("pet_policy", p.pet_policy)) {
     tiles.push({
@@ -256,6 +246,11 @@ export default function AllDetailsAccordion({ property }: { property: Property }
   const { toast } = useToast();
   // Collapsed on mobile, open on desktop.
   const [openMobile, setOpenMobile] = useState(false);
+  // F1-B5a: within the expanded mobile view, show first 4 tiles unless expanded.
+  const [showAllMobile, setShowAllMobile] = useState(false);
+  const MOBILE_INITIAL = 4;
+  const mobileTiles = showAllMobile ? tiles : tiles.slice(0, MOBILE_INITIAL);
+  const hiddenMobile = Math.max(0, tiles.length - MOBILE_INITIAL);
 
   if (tiles.length === 0) return null;
 
@@ -266,9 +261,9 @@ export default function AllDetailsAccordion({ property }: { property: Property }
       .catch(() => { /* clipboard blocked — silent */ });
   };
 
-  const Grid = (
+  const renderGrid = (list: typeof tiles) => (
     <div className="grid grid-cols-2 gap-3">
-      {tiles.map((t) => {
+      {list.map((t) => {
         const Icon = t.icon;
         return (
           <div
@@ -317,14 +312,27 @@ export default function AllDetailsAccordion({ property }: { property: Property }
             )}
           />
         </button>
-        {openMobile ? Grid : null}
+        {openMobile ? (
+          <>
+            {renderGrid(mobileTiles)}
+            {hiddenMobile > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAllMobile((v) => !v)}
+                className="mt-3 text-sm font-medium text-primary"
+              >
+                {showAllMobile ? "Show less" : `Show more (${hiddenMobile} more)`}
+              </button>
+            )}
+          </>
+        ) : null}
       </div>
-      {/* Desktop: always expanded */}
+      {/* Desktop: always expanded, all tiles shown. */}
       <div className="hidden lg:block">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           All details <span className="ml-1 text-muted-foreground/70">({tiles.length})</span>
         </h2>
-        {Grid}
+        {renderGrid(tiles)}
       </div>
     </section>
   );

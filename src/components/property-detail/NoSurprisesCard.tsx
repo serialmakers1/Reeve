@@ -3,8 +3,7 @@
  * set upfront. Null rows are omitted; zero is a valid explicit input and
  * renders with a green dot.
  */
-import { useState } from "react";
-import { CheckCircle2, ChevronDown } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   computeDepositMonths,
@@ -19,6 +18,7 @@ interface Property {
   listing_type: string | null;
   listed_rent: number | null;
   security_deposit_amount: number | null;
+  security_deposit_months: number | null;
   rent_brokerage_type: string | null;
   rent_brokerage_fixed_amount: number | null;
   rent_brokerage_months: number | null;
@@ -45,18 +45,39 @@ function fmtINR(v: number): string {
 function buildRentRows(p: Property): Row[] {
   const rows: Row[] = [];
 
-  // Security Deposit
-  const amt = p.security_deposit_amount;
-  if (amt === 0) {
+  // Security Deposit — prefer amount; fall back to months × rent when amount
+  // is null but months + rent are known (F1-B3a).
+  const explicitAmt = p.security_deposit_amount;
+  const rent = p.listed_rent;
+  let depositAmt: number | null = null;
+  let approx = false;
+  if (explicitAmt === 0) {
     rows.push({ label: "Security Deposit", value: "No deposit", dot: "green" });
-  } else if (isFieldSet("security_deposit_amount", amt)) {
-    const months = computeDepositMonths(amt, p.listed_rent);
-    let dot: Dot = "green";
-    if (months !== null) {
-      if (months > 5) dot = "red";
-      else if (months > 3) dot = "amber";
+  } else {
+    if (isFieldSet("security_deposit_amount", explicitAmt)) {
+      depositAmt = explicitAmt;
+    } else if (
+      typeof p.security_deposit_months === "number" &&
+      p.security_deposit_months > 0 &&
+      typeof rent === "number" &&
+      rent > 0
+    ) {
+      depositAmt = p.security_deposit_months * rent;
+      approx = true;
     }
-    rows.push({ label: "Security Deposit", value: fmtINR(amt!), dot });
+    if (depositAmt !== null) {
+      const months = computeDepositMonths(depositAmt, rent);
+      let dot: Dot = "green";
+      if (months !== null) {
+        if (months > 5) dot = "red";
+        else if (months > 3) dot = "amber";
+      }
+      rows.push({
+        label: "Security Deposit",
+        value: `${approx ? "~" : ""}${fmtINR(depositAmt)}`,
+        dot,
+      });
+    }
   }
 
   // Brokerage
@@ -158,7 +179,6 @@ const DOT_CLASS: Record<Dot, string> = {
 };
 
 export default function NoSurprisesCard({ property }: { property: Property }) {
-  const [open, setOpen] = useState(false);
   const rows =
     property.listing_type === "sale" ? buildSaleRows(property) : buildRentRows(property);
 
@@ -184,25 +204,7 @@ export default function NoSurprisesCard({ property }: { property: Property }) {
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="mt-3 flex w-full items-center justify-between text-xs text-muted-foreground"
-      >
-        <span>Why do these terms matter?</span>
-        <ChevronDown
-          className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
-        />
-      </button>
-      {open ? (
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Most Bangalore rentals ask for 4–10 months deposit, charge brokerage,
-          and lock you in for 11 months. Every term here was set by the owner
-          before the listing goes live. Green means tenant-friendly; amber is
-          standard; red means above-market — so you can decide with full
-          information.
-        </p>
-      ) : null}
+      {/* F1-B3f: "Why do these terms matter?" accordion removed — copy lives elsewhere. */}
     </section>
   );
 }

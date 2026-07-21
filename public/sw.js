@@ -30,20 +30,26 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        // F1-B6c: only cache successful basic responses. Skip cache writes for
+        // 4xx/5xx and opaque cross-origin responses to avoid caching errors.
+        if (response.ok && response.type === 'basic') {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
         return response;
       })
       .catch(async () => {
-        // respondWith must resolve to a Response — resolving undefined throws
-        // "Failed to convert value to 'Response'" and fails the request.
+        // F1-B6c: on network miss, prefer cache; for navigations fall back to
+        // the app shell; otherwise re-throw so the browser produces the natural
+        // failure UI instead of Response.error() (which spams the DevTools
+        // console with "FetchEvent … network error response").
         const cached = await caches.match(event.request);
         if (cached) return cached;
         if (event.request.mode === 'navigate') {
           const shell = await caches.match('/');
           if (shell) return shell;
         }
-        return Response.error();
+        throw new Error('Network request failed');
       })
   );
 });
