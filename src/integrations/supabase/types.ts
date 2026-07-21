@@ -538,34 +538,34 @@ export type Database = {
       }
       comment_allowlist: {
         Row: {
-          word: string
           added_at: string
+          word: string
         }
         Insert: {
-          word: string
           added_at?: string
+          word: string
         }
         Update: {
-          word?: string
           added_at?: string
+          word?: string
         }
         Relationships: []
       }
       comment_blocklist: {
         Row: {
           added_at: string
-          word: string
           tier: string
+          word: string
         }
         Insert: {
           added_at?: string
-          word: string
           tier?: string
+          word: string
         }
         Update: {
           added_at?: string
-          word?: string
           tier?: string
+          word?: string
         }
         Relationships: []
       }
@@ -617,7 +617,7 @@ export type Database = {
           comment_id: string
           created_at: string
           id: string
-          notes: string
+          notes: string | null
           reason: string
           reporter_id: string
         }
@@ -625,7 +625,7 @@ export type Database = {
           comment_id: string
           created_at?: string
           id?: string
-          notes: string
+          notes?: string | null
           reason: string
           reporter_id: string
         }
@@ -633,7 +633,7 @@ export type Database = {
           comment_id?: string
           created_at?: string
           id?: string
-          notes?: string
+          notes?: string | null
           reason?: string
           reporter_id?: string
         }
@@ -1500,67 +1500,67 @@ export type Database = {
       }
       interaction_ratings: {
         Row: {
-          id: string
           contact_request_id: string
-          property_id: string
-          owner_id: string
-          tenant_id: string
-          window_opens_at: string
-          window_closes_at: string
-          t_submitted_at: string | null
-          t_q1_communication: string | null
-          t_q2_visit: string | null
-          t_q3_deal_again: string | null
-          t_review_text: string | null
-          o_submitted_at: string | null
+          created_at: string
+          id: string
           o_q1_communication: string | null
           o_q2_visit: string | null
           o_q3_deal_again: string | null
           o_review_text: string | null
-          created_at: string
+          o_submitted_at: string | null
+          owner_id: string
+          property_id: string
+          t_q1_communication: string | null
+          t_q2_visit: string | null
+          t_q3_deal_again: string | null
+          t_review_text: string | null
+          t_submitted_at: string | null
+          tenant_id: string
           updated_at: string
+          window_closes_at: string
+          window_opens_at: string
         }
         Insert: {
-          id?: string
           contact_request_id: string
-          property_id: string
-          owner_id: string
-          tenant_id: string
-          window_opens_at: string
-          window_closes_at: string
-          t_submitted_at?: string | null
-          t_q1_communication?: string | null
-          t_q2_visit?: string | null
-          t_q3_deal_again?: string | null
-          t_review_text?: string | null
-          o_submitted_at?: string | null
+          created_at?: string
+          id?: string
           o_q1_communication?: string | null
           o_q2_visit?: string | null
           o_q3_deal_again?: string | null
           o_review_text?: string | null
-          created_at?: string
+          o_submitted_at?: string | null
+          owner_id: string
+          property_id: string
+          t_q1_communication?: string | null
+          t_q2_visit?: string | null
+          t_q3_deal_again?: string | null
+          t_review_text?: string | null
+          t_submitted_at?: string | null
+          tenant_id: string
           updated_at?: string
+          window_closes_at: string
+          window_opens_at: string
         }
         Update: {
-          id?: string
           contact_request_id?: string
-          property_id?: string
-          owner_id?: string
-          tenant_id?: string
-          window_opens_at?: string
-          window_closes_at?: string
-          t_submitted_at?: string | null
-          t_q1_communication?: string | null
-          t_q2_visit?: string | null
-          t_q3_deal_again?: string | null
-          t_review_text?: string | null
-          o_submitted_at?: string | null
+          created_at?: string
+          id?: string
           o_q1_communication?: string | null
           o_q2_visit?: string | null
           o_q3_deal_again?: string | null
           o_review_text?: string | null
-          created_at?: string
+          o_submitted_at?: string | null
+          owner_id?: string
+          property_id?: string
+          t_q1_communication?: string | null
+          t_q2_visit?: string | null
+          t_q3_deal_again?: string | null
+          t_review_text?: string | null
+          t_submitted_at?: string | null
+          tenant_id?: string
           updated_at?: string
+          window_closes_at?: string
+          window_opens_at?: string
         }
         Relationships: [
           {
@@ -1571,11 +1571,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "interaction_ratings_property_id_fkey"
-            columns: ["property_id"]
+            foreignKeyName: "interaction_ratings_owner_id_fkey"
+            columns: ["owner_id"]
             isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "interaction_ratings_owner_id_fkey"
@@ -1583,6 +1583,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interaction_ratings_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interaction_ratings_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interaction_ratings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "interaction_ratings_tenant_id_fkey"
@@ -2622,11 +2643,13 @@ export type Database = {
           listed_rent: number
           listing_type: Database["public"]["Enums"]["property_listing_type"]
           locality: string | null
+          lock_in_months: number | null
           longitude: number | null
           main_door_lock_type: string | null
           maintenance_included_in_rent: boolean
           map_pin_url: string | null
           move_in_charges_amount: number | null
+          notice_period_days: number | null
           notice_period_months: number | null
           occupied_at: string | null
           off_market_at: string | null
@@ -2668,6 +2691,7 @@ export type Database = {
           state: string
           status: Database["public"]["Enums"]["property_status"]
           street_address: string
+          super_built_up_area: number | null
           title: string | null
           total_floors: number | null
           updated_at: string
@@ -2676,6 +2700,7 @@ export type Database = {
           utility_water_included: boolean
           vacancy_review_day14_at: string | null
           vacancy_review_day21_at: string | null
+          water_source: string[] | null
           water_storage: string | null
           youtube_walkthrough_url: string | null
         }
@@ -2729,11 +2754,13 @@ export type Database = {
           listed_rent?: number
           listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
+          lock_in_months?: number | null
           longitude?: number | null
           main_door_lock_type?: string | null
           maintenance_included_in_rent?: boolean
           map_pin_url?: string | null
           move_in_charges_amount?: number | null
+          notice_period_days?: number | null
           notice_period_months?: number | null
           occupied_at?: string | null
           off_market_at?: string | null
@@ -2775,6 +2802,7 @@ export type Database = {
           state?: string
           status?: Database["public"]["Enums"]["property_status"]
           street_address: string
+          super_built_up_area?: number | null
           title?: string | null
           total_floors?: number | null
           updated_at?: string
@@ -2783,6 +2811,7 @@ export type Database = {
           utility_water_included?: boolean
           vacancy_review_day14_at?: string | null
           vacancy_review_day21_at?: string | null
+          water_source?: string[] | null
           water_storage?: string | null
           youtube_walkthrough_url?: string | null
         }
@@ -2836,11 +2865,13 @@ export type Database = {
           listed_rent?: number
           listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
+          lock_in_months?: number | null
           longitude?: number | null
           main_door_lock_type?: string | null
           maintenance_included_in_rent?: boolean
           map_pin_url?: string | null
           move_in_charges_amount?: number | null
+          notice_period_days?: number | null
           notice_period_months?: number | null
           occupied_at?: string | null
           off_market_at?: string | null
@@ -2882,6 +2913,7 @@ export type Database = {
           state?: string
           status?: Database["public"]["Enums"]["property_status"]
           street_address?: string
+          super_built_up_area?: number | null
           title?: string | null
           total_floors?: number | null
           updated_at?: string
@@ -2890,6 +2922,7 @@ export type Database = {
           utility_water_included?: boolean
           vacancy_review_day14_at?: string | null
           vacancy_review_day21_at?: string | null
+          water_source?: string[] | null
           water_storage?: string | null
           youtube_walkthrough_url?: string | null
         }
@@ -3846,10 +3879,7 @@ export type Database = {
         }
         Returns: undefined
       }
-      delete_own_comment: {
-        Args: { p_comment_id: string }
-        Returns: Json
-      }
+      delete_own_comment: { Args: { p_comment_id: string }; Returns: Json }
       earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
       generate_pseudonym: { Args: never; Returns: string }
@@ -3865,6 +3895,20 @@ export type Database = {
           last_7d_responded: number
         }[]
       }
+      get_pending_ratings_for_me: {
+        Args: never
+        Returns: {
+          building_name: string
+          contact_request_id: string
+          counterparty_name: string
+          i_am: string
+          locality: string
+          other_submitted: boolean
+          property_id: string
+          window_closes_at: string
+          window_opens_at: string
+        }[]
+      }
       get_pending_requests_for_digest: {
         Args: never
         Returns: {
@@ -3873,20 +3917,6 @@ export type Database = {
           owner_email: string
           owner_name: string
           owner_user_id: string
-        }[]
-      }
-      get_pending_ratings_for_me: {
-        Args: never
-        Returns: {
-          contact_request_id: string
-          property_id: string
-          building_name: string
-          locality: string
-          window_opens_at: string
-          window_closes_at: string
-          counterparty_name: string
-          i_am: string
-          other_submitted: boolean
         }[]
       }
       get_phone_fallback: { Args: { p_user_id: string }; Returns: string }
@@ -3931,10 +3961,7 @@ export type Database = {
           unanswered_count: number
         }[]
       }
-      get_user_rating_summary: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
+      get_user_rating_summary: { Args: { p_user_id: string }; Returns: Json }
       get_user_role: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_property_owner: { Args: { prop_id: string }; Returns: boolean }
@@ -3981,7 +4008,7 @@ export type Database = {
         Returns: undefined
       }
       report_comment: {
-        Args: { p_comment_id: string; p_reason: string; p_notes?: string }
+        Args: { p_comment_id: string; p_notes?: string; p_reason: string }
         Returns: Json
       }
       reschedule_visit: {

@@ -15,6 +15,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import { CheckCircle2, Circle, RefreshCcw, Archive } from "lucide-react";
 import type { ActivityLogPayload } from "@/types/activity-log";
 import { getStatusDisplay } from "@/lib/propertyStatus";
+import { cn } from "@/lib/utils";
 
 export interface PublicTimelineRow {
   id: string;
@@ -26,6 +27,8 @@ export interface PublicTimelineRow {
 
 interface Props {
   rows: PublicTimelineRow[];
+  /** P6: property.listed_at — powers the freshness chip in the section header. */
+  listed_at?: string | null;
 }
 
 const INITIAL_LIMIT = 10;
@@ -40,13 +43,15 @@ function summaryFor(row: PublicTimelineRow): string {
     const to = getStatusDisplay(p.to_status).label;
     return `${from} → ${to}`;
   }
+  // P6-F1: public-voice copy for edit_approved wins over the payload summary
+  // (which uses owner-facing wording "Your edit was approved").
+  if (row.action === "edit_approved") return "Property details updated";
   if (p.summary) return p.summary;
   switch (row.action) {
     case "listing_approved": return "Listed on Reeve";
     case "listed":           return "Listed on Reeve";
     case "unlisted":         return "Owner unlisted this property";
     case "relisted":         return "Owner re-listed this property";
-    case "edit_approved":    return "Property details updated";
     default:                 return "Listing update";
   }
 }
@@ -62,15 +67,36 @@ function iconFor(action: string) {
   }
 }
 
-export default function PublicTimeline({ rows }: Props) {
+export default function PublicTimeline({ rows, listed_at }: Props) {
   const [expanded, setExpanded] = useState(false);
-  if (rows.length === 0) return null;
+  if (rows.length === 0 && !listed_at) return null;
   const visible = expanded ? rows : rows.slice(0, INITIAL_LIMIT);
   const hasMore = rows.length > INITIAL_LIMIT;
 
+  // P6-F2: freshness chip derived from listed_at. Silent when listed_at null.
+  let chip: React.ReactNode = null;
+  if (listed_at) {
+    const listedAtDate = new Date(listed_at);
+    const daysOld = Math.floor((Date.now() - listedAtDate.getTime()) / 86_400_000);
+    const tone =
+      daysOld <= 14
+        ? "bg-green-50 text-green-700"
+        : daysOld <= 45
+          ? "bg-amber-50 text-amber-700"
+          : "bg-red-50 text-red-700";
+    chip = (
+      <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", tone)}>
+        Listed {formatDistanceToNow(listedAtDate, { addSuffix: false })} ago
+      </span>
+    );
+  }
+
   return (
     <section className="space-y-3 px-4 lg:px-0">
-      <h2 className="text-base font-semibold text-foreground">Listing history</h2>
+      <div className="flex items-center gap-2">
+        <h2 className="text-base font-semibold text-foreground">Listing history</h2>
+        {chip}
+      </div>
       <ol className="space-y-2">
         {visible.map((row) => (
           <li key={row.id} className="flex items-start gap-3 text-sm">

@@ -324,7 +324,7 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
     return (
       <Card className="my-6 border-primary/20">
         <CardContent className="p-4 sm:p-5 space-y-3">
-          <OwnerRateBlock rate={rate} />
+          {/* P6-H1: OwnerRateBlock removed — OwnerCard/PropertySidebar own this on the page. */}
           <div>
             <h3 className="text-base font-semibold">Request owner's contact</h3>
             <p className="text-sm text-muted-foreground mt-1">
@@ -354,7 +354,7 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
       <>
         <Card className="my-6 border-amber-300/60 bg-amber-50/40">
           <CardContent className="p-4 sm:p-5 space-y-3">
-            <OwnerRateBlock rate={rate} />
+            {/* P6-H1: OwnerRateBlock removed — OwnerCard/PropertySidebar own this on the page. */}
             <div className="flex items-start gap-3">
               <Clock className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <div>
@@ -390,7 +390,7 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
     return (
       <Card className="my-6 border-emerald-300/60 bg-emerald-50/40">
         <CardContent className="p-4 sm:p-5 space-y-3">
-          <OwnerRateBlock rate={rate} />
+          {/* P6-H1: OwnerRateBlock removed — OwnerCard/PropertySidebar own this on the page. */}
           <div className="flex items-start gap-3">
             <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
             <div>
@@ -412,7 +412,7 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
     return (
       <Card className="my-6">
         <CardContent className="p-4 sm:p-5 space-y-2">
-          <OwnerRateBlock rate={rate} />
+          {/* P6-H1: OwnerRateBlock removed — OwnerCard/PropertySidebar own this on the page. */}
           <div className="flex items-start gap-3">
             <XCircle className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
             <p className="text-sm text-muted-foreground">
@@ -450,7 +450,7 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
     <TooltipProvider>
       <Card className="my-6">
         <CardContent className="p-4 sm:p-5 space-y-4">
-          <OwnerRateBlock rate={rate} />
+          {/* P6-H1: OwnerRateBlock removed — OwnerCard/PropertySidebar own this on the page. */}
 
           <div>
             <h3 className="text-base font-semibold">Request owner's contact</h3>
@@ -546,27 +546,5 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
   );
 }
 
-// ── Compact owner response-rate strip (D-P3-009) ─────────────────────────────
-function OwnerRateBlock({ rate }: { rate: ResponseRate | null }) {
-  if (!rate) return null;
-  const handled = rate.all_time_handled ?? 0;
-  const responded = rate.all_time_responded ?? 0;
-  const weekHandled = rate.last_7d_handled ?? 0;
-  const weekResponded = rate.last_7d_responded ?? 0;
-  if (handled < 5) {
-    return (
-      <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
-        <ShieldCheck className="h-3.5 w-3.5" /> New owner · verified
-      </p>
-    );
-  }
-  const allTimePct = Math.round((responded / handled) * 100);
-  const weekly = weekHandled > 0
-    ? ` · ${Math.round((weekResponded / weekHandled) * 100)}% this week`
-    : "";
-  return (
-    <p className="text-xs text-muted-foreground">
-      Responds to {allTimePct}% of requests · {handled} handled{weekly}
-    </p>
-  );
-}
+// P6-H1: OwnerRateBlock component removed — logic lives in OwnerCard /
+// PropertySidebar / OwnerCard header via the useOwnerCard hook.

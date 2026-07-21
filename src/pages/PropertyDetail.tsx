@@ -4,6 +4,22 @@ import { WhyReeveFeeLink } from "@/components/WhyReeveFeeModal";
 import PublicTimeline, { type PublicTimelineRow } from "@/components/property-detail/PublicTimeline";
 import RequestContactPanel from "@/components/property-detail/RequestContactPanel";
 import ManageListingCard from "@/components/property-detail/ManageListingCard";
+import PropertyCTABar from "@/components/property-detail/PropertyCTABar";
+import BackToTopFAB from "@/components/property-detail/BackToTopFAB";
+import PropertyUnavailable from "@/components/property-detail/PropertyUnavailable";
+import PropertySidebar from "@/components/property-detail/PropertySidebar";
+import OwnerCard from "@/components/property-detail/OwnerCard";
+import OwnerPerformanceStrip from "@/components/property-detail/OwnerPerformanceStrip";
+import HowItWorksStrip from "@/components/property-detail/HowItWorksStrip";
+import PageSection from "@/components/property-detail/PageSection";
+import NoSurprisesCard from "@/components/property-detail/NoSurprisesCard";
+import AtAGlance from "@/components/property-detail/AtAGlance";
+import MonthlyCosts from "@/components/property-detail/MonthlyCosts";
+import FurnishingDetails from "@/components/property-detail/FurnishingDetails";
+import BuildingAmenities from "@/components/property-detail/BuildingAmenities";
+import AllDetailsAccordion from "@/components/property-detail/AllDetailsAccordion";
+import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
+import { cn } from "@/lib/utils";
 import type { CommentSectionHandle } from "@/components/comments/CommentSection";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import posthog from "posthog-js";
@@ -72,6 +88,12 @@ import {
   CalendarDays,
   Youtube,
   MapPin,
+  Share2,
+  AlignLeft,
+  ScrollText,
+  Play,
+  Eye,
+  MessageCircle,
 } from "lucide-react";
 // COMMONS-HIDE: import VisitSchedulerModal from "@/components/VisitSchedulerModal";
 import { useToast } from "@/hooks/use-toast";
@@ -141,6 +163,13 @@ interface PropertyData {
   rent_brokerage_fixed_amount: number | null;
   rent_brokerage_months: number | null;
   sale_brokerage_pct: number | null;
+  // P1 additions (2026-07-21).
+  lock_in_months: number | null;
+  notice_period_days: number | null;
+  super_built_up_area: number | null;
+  water_source: string[] | null;
+  // P6: freshness chip in PublicTimeline.
+  listed_at: string | null;
 }
 
 interface PropertyImage {
@@ -220,18 +249,9 @@ function formatAvailableFrom(date: string | null): string {
   return `Available from ${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
-const AMENITY_ICONS: Record<string, React.ReactNode> = {
-  gym: <Dumbbell className="h-3.5 w-3.5" />,
-  pool: <Waves className="h-3.5 w-3.5" />,
-  lift: <ArrowUpDown className="h-3.5 w-3.5" />,
-  power_backup: <BatteryCharging className="h-3.5 w-3.5" />,
-  security: <ShieldCheck className="h-3.5 w-3.5" />,
-  cctv: <Cctv className="h-3.5 w-3.5" />,
-  intercom: <Phone className="h-3.5 w-3.5" />,
-  play_area: <TreePine className="h-3.5 w-3.5" />,
-  clubhouse: <Users className="h-3.5 w-3.5" />,
-  jogging_track: <CircleDot className="h-3.5 w-3.5" />,
-};
+// P7B Fix B: AMENITY_ICONS removed — dead since P5 replaced the hard-coded
+// building amenities grid with <BuildingAmenities>. Icons now live in
+// src/components/property-detail/BuildingAmenities.tsx via ICON_MAP.
 
 const FURNISHING_LABELS: Record<string, string> = {
   ac: 'AC', bed: 'Bed', wardrobe: 'Wardrobe', sofa: 'Sofa',
@@ -477,6 +497,9 @@ const PropertyDetail: React.FC = () => {
 
   // Own property detection
   const [isOwnProperty, setIsOwnProperty] = useState(false);
+  // P5: local expand toggles for Description + Building Rules.
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [rulesExpanded, setRulesExpanded] = useState(false);
   const [publicTimeline, setPublicTimeline] = useState<PublicTimelineRow[]>([]);
   // A2: owner display name via parallel public_profiles fetch — fed to
   // RequestContactPanel so the consent checkbox names the real owner.
@@ -543,7 +566,7 @@ const PropertyDetail: React.FC = () => {
         supabase
           .from("properties")
           .select(
-            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url, landmark, notice_period_months, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_type, rent_brokerage_fixed_amount, rent_brokerage_months, sale_brokerage_pct"
+            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url, landmark, notice_period_months, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_type, rent_brokerage_fixed_amount, rent_brokerage_months, sale_brokerage_pct, notice_period_days, lock_in_months, super_built_up_area, water_source, listed_at"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -672,6 +695,20 @@ const PropertyDetail: React.FC = () => {
       setIsOwnProperty(!!(currentUserId && property.owner_id === currentUserId));
     }
 
+    // P4: fire archived/unlisted analytics from an effect (previously fired
+    // inline in render return — bad side-effect placement).
+    if (
+      property &&
+      currentUserId &&
+      property.owner_id === currentUserId &&
+      (property.status === "archived" || property.status === "unlisted")
+    ) {
+      posthog?.capture("commons_archived_property_notice_shown", {
+        property_id: property.id,
+        status: property.status,
+      });
+    }
+
     if (!currentUserId) {
       setApplicationHistory([]);
       return;
@@ -712,6 +749,29 @@ const PropertyDetail: React.FC = () => {
     setLightboxIndex(index);
     setLightboxOpen(true);
   };
+
+  // P4: Web Share (native sheet) with clipboard fallback. Canonical URL always
+  // https://reeve.in — never window.location.href (would leak localhost in dev).
+  const handleShare = useCallback(async () => {
+    if (!property) return;
+    const shareUrl = `https://reeve.in/property/${property.id}`;
+    const bhk = formatEnumLabel("bhk", property.bhk);
+    const priceBit = property.listing_type === "sale"
+      ? (typeof property.sale_price === "number" ? ` — ₹${property.sale_price.toLocaleString("en-IN")}` : "")
+      : (typeof property.listed_rent === "number" ? ` — ₹${property.listed_rent.toLocaleString("en-IN")}/mo` : "");
+    const title = `${bhk} in ${property.building_name ?? "property"}${priceBit} on Reeve`;
+    const shareData: ShareData = { title, url: shareUrl };
+    try {
+      if (typeof navigator !== "undefined" && navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        await navigator.share(shareData);
+        return;
+      }
+    } catch { /* user cancel — not an error */ }
+    try {
+      await navigator.clipboard?.writeText(shareUrl);
+      toast({ description: "Link copied" });
+    } catch { /* clipboard blocked — silent */ }
+  }, [property, toast]);
   const lightboxPrev = useCallback(() => {
     setLightboxIndex((i) => (i > 0 ? i - 1 : lightboxImages.length - 1));
   }, [lightboxImages.length]);
@@ -802,57 +862,18 @@ const PropertyDetail: React.FC = () => {
   if (notFound || !property) {
     return (
       <Layout>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-          <Home className="mb-4 h-16 w-16 text-muted-foreground/40" />
-          <h1 className="mb-2 text-xl font-bold text-foreground">
-            This property is no longer available
-          </h1>
-          <p className="mb-6 text-sm text-muted-foreground">
-            It may have been rented out or removed from listings.
-          </p>
-          <Button onClick={() => navigate("/search")} className="min-h-[44px]">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Search
-          </Button>
-        </div>
+        <PropertyUnavailable />
       </Layout>
     );
   }
 
-  // Owner viewing their own archived/unlisted property → friendly notice instead of the
-  // public detail layout. RLS lets them fetch these; non-owners are already blocked and
-  // fall through to the notFound branch above.
+  // Owner viewing their own archived/unlisted property → generic unavailable page.
+  // RLS lets the owner fetch these; non-owners are already blocked and fall
+  // through to the notFound branch above.
   if (isOwnProperty && (property.status === "archived" || property.status === "unlisted")) {
-    posthog?.capture("commons_archived_property_notice_shown", {
-      property_id: property.id, status: property.status,
-    });
-    const isArchived = property.status === "archived";
     return (
       <Layout>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-          <Home className="mb-4 h-16 w-16 text-muted-foreground/40" />
-          <h1 className="mb-2 text-xl font-bold text-foreground">
-            {isArchived ? "This property is archived" : "This property is unlisted"}
-          </h1>
-          <p className="mb-6 text-sm text-muted-foreground max-w-md">
-            {isArchived
-              ? "This listing is archived and no longer visible to tenants. Contact support to restore it."
-              : "This listing is unlisted and hidden from tenants. Re-list it from your dashboard to make it visible again."}
-          </p>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate("/owner-dashboard")} className="min-h-[44px]">
-              Go to my dashboard
-            </Button>
-            {!isArchived && (
-              <Button
-                variant="outline"
-                onClick={() => navigate(`/owner-dashboard/property/${property.id}`)}
-                className="min-h-[44px]"
-              >
-                Manage this property
-              </Button>
-            )}
-          </div>
-        </div>
+        <PropertyUnavailable />
       </Layout>
     );
   }
@@ -932,8 +953,8 @@ const PropertyDetail: React.FC = () => {
         />
       )}
 
-      {/* COMMONS-HIDE: was pb-36 lg:pb-8 — reduced after hiding mobile CTA bar */}
-      <div className="mx-auto max-w-4xl pb-8">
+      {/* P6: outer container widened to accommodate right sidebar. */}
+      <div className="mx-auto max-w-6xl px-4 lg:px-6 pb-8">
         {/* Back button */}
         <div className="px-4 py-3">
           <button
@@ -944,24 +965,9 @@ const PropertyDetail: React.FC = () => {
           </button>
         </div>
 
-        {/* Phase 3 Prompt 3 — Request Contact panel. B6: swap to ManageListingCard for owner. */}
-        {property?.id && property?.owner_id && (
-          <div className="px-4">
-            {isOwnProperty ? (
-              <ManageListingCard propertyId={property.id} />
-            ) : (
-              <RequestContactPanel
-                propertyId={property.id}
-                ownerId={property.owner_id}
-                ownerDisplayName={ownerDisplayName}
-                buildingName={property.building_name ?? "this property"}
-                propertyStatus={property.status}
-              />
-            )}
-          </div>
-        )}
+        {/* P6: contact panel moved into left column, above CommentSection. */}
 
-        <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6 lg:px-4">
+        <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-10 lg:items-start mt-4">
           {/* ─── Main Column ────────────────────────────────────── */}
           <div className="space-y-5 min-w-0">
 
@@ -1017,7 +1023,10 @@ const PropertyDetail: React.FC = () => {
                             <img
                               src={img.url}
                               alt={img.caption || `Property photo ${idx + 1}`}
-                              loading="lazy"
+                              // P4 hero LCP: first slide is eager + high priority; rest lazy.
+                              loading={idx === 0 ? "eager" : "lazy"}
+                              fetchPriority={idx === 0 ? "high" : "auto"}
+                              decoding="async"
                               className="h-full w-full object-cover"
                             />
                           </div>
@@ -1028,68 +1037,89 @@ const PropertyDetail: React.FC = () => {
                   <CarouselPrevious className="left-2 hidden lg:flex" />
                   <CarouselNext className="right-2 hidden lg:flex" />
                 </Carousel>
+                {/* P4 gallery action overlay — share + heart. Absolute; sits above
+                    the carousel container. Does not interfere with Embla/tabs/pill. */}
+                <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label="Share this listing"
+                    onClick={handleShare}
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm"
+                  >
+                    <Share2 className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </button>
+                  {!isOwnProperty && (
+                    <FavouriteHeart
+                      filled={id ? isFavourited(id) : false}
+                      onClick={() => {
+                        if (!favLoggedIn) { setLoginDrawerOpen(true); return; }
+                        if (id) toggleFavourite(id);
+                      }}
+                      className="!bg-black/40 !text-white hover:!bg-black/60"
+                    />
+                  )}
+                </div>
                 <div className="absolute bottom-3 right-3 rounded-full bg-foreground/60 px-2.5 py-0.5 text-xs font-medium text-background">
                   {currentSlide + 1} / {totalSlides || activeImages.length}
                 </div>
               </div>
             </section>
 
-            {/* 2. Header */}
+            {/* P5 header — chips, title, location, action pills, stats.
+                Floor line, "Listed by", rating line, and promo pills removed
+                (they moved to AtAGlance / OwnerCard [P6] / NoSurprisesCard). */}
             <section className="space-y-2 px-4 lg:px-0">
               <div className="flex flex-wrap items-center gap-2">
+                {property.listing_type && (
+                  <span className="inline-flex rounded-full border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                    {formatEnumLabel("listing_type", property.listing_type)}
+                  </span>
+                )}
                 {property.property_type && (
-                  <Badge variant="secondary" className="text-xs capitalize">
-                    {/* Sync Prompt 1 (D-167) — map through PROPERTY_TYPE_OPTIONS so public shows label ("Apartment") not raw enum ("apartment"). Fallback to raw value for defensive resilience against new enum values that lag in the frontend constant. */}
+                  <span className="inline-flex rounded-full border bg-muted px-2.5 py-0.5 text-xs font-medium capitalize text-muted-foreground">
                     {PROPERTY_TYPE_OPTIONS.find(o => o.value === property.property_type)?.label ?? property.property_type}
-                  </Badge>
-                )}
-                <span className="text-xs text-muted-foreground">
-                  {formatAvailableFrom(property.available_from)}
-                </span>
-              </div>
-              <div className="flex items-start justify-between gap-2">
-                <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-                  {bhkLabel(property.bhk)} in {property.building_name}
-                </h1>
-                {!isOwnProperty && (
-                  <FavouriteHeart
-                    filled={id ? isFavourited(id) : false}
-                    onClick={() => {
-                      if (!favLoggedIn) { setLoginDrawerOpen(true); return; }
-                      if (id) toggleFavourite(id);
-                    }}
-                  />
+                  </span>
                 )}
               </div>
-              {property.floor_number != null && (
-                <p className="text-sm text-muted-foreground">
-                  Floor {property.floor_number}
-                  {property.total_floors != null && ` of ${property.total_floors}`}
-                </p>
-              )}
+              <h1 className="mt-2 text-2xl font-bold leading-tight text-foreground">
+                {bhkLabel(property.bhk)} in {property.building_name}
+              </h1>
               <p className="text-sm text-muted-foreground">
                 {property.locality ? `${property.locality}, ` : ""}
                 {property.city}
               </p>
-              {/* Prompt 8 (D-159) — bespoke landmark subtitle in the Location block. */}
               {property.landmark && (
                 <p className="text-sm text-muted-foreground">Near {property.landmark}</p>
               )}
-              {/* A3: owner attribution — visible to logged-out visitors too. */}
-              <p className="text-xs text-muted-foreground">
-                Listed by {ownerDisplayName ?? "the owner"}
-              </p>
-              {/* C4: owner rating crisp line — links to owner's public profile. Silent while null. */}
-              {ownerRatingSummary && property?.owner_id && (
-                <Link to={`/u/${property.owner_id}`} className="text-sm text-muted-foreground hover:text-foreground">
-                  {ownerRatingSummary.status === "new"
-                    ? "New on Reeve"
-                    : ownerRatingSummary.as_owner
-                      ? `${ownerRatingSummary.as_owner.deal_again_pct}% would deal again · ${ownerRatingSummary.as_owner.total} ratings`
-                      : null}
-                </Link>
+              {property.available_from && (
+                <p className="text-sm text-muted-foreground">
+                  Available from {formatAvailableFrom(property.available_from)}
+                </p>
               )}
-              {/* B6: stats line — thresholds 10 views / 1 comment, else omit segment. */}
+              {(property.youtube_walkthrough_url || property.google_maps_url) && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {property.youtube_walkthrough_url && (
+                    <a
+                      href={property.youtube_walkthrough_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm text-foreground hover:bg-muted"
+                    >
+                      <Play className="h-3.5 w-3.5" /> Watch Walkthrough
+                    </a>
+                  )}
+                  {property.google_maps_url && (
+                    <a
+                      href={property.google_maps_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm text-foreground hover:bg-muted"
+                    >
+                      <MapPin className="h-3.5 w-3.5" /> View on Maps
+                    </a>
+                  )}
+                </div>
+              )}
               {(() => {
                 const showViews = (propertyStats?.view_count ?? 0) >= 10;
                 const showComments = (propertyStats?.comment_count ?? 0) >= 1;
@@ -1099,376 +1129,107 @@ const PropertyDetail: React.FC = () => {
                   commentAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                 };
                 return (
-                  <p className="text-sm text-muted-foreground">
-                    {showViews && <span>👁 {propertyStats!.view_count} views</span>}
-                    {showViews && showComments && <span> · </span>}
+                  <p className="flex items-center gap-3 pt-1 text-sm text-muted-foreground">
+                    {showViews && (
+                      <span className="inline-flex items-center gap-1">
+                        <Eye className="h-3.5 w-3.5" /> {propertyStats!.view_count} views
+                      </span>
+                    )}
                     {showComments && (
                       <button
                         type="button"
                         onClick={scrollToComments}
-                        className="hover:text-foreground"
+                        className="inline-flex items-center gap-1 hover:text-foreground"
                       >
-                        💬 {propertyStats!.comment_count} comments
+                        <MessageCircle className="h-3.5 w-3.5" /> {propertyStats!.comment_count} questions
                       </button>
                     )}
                   </p>
                 );
               })()}
-              <div className="flex flex-wrap gap-2 pt-1">
-                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                  🟢 2 Month Deposit Only
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                  🟢 Zero Brokerage
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                  🟢 8 Months Lock-in
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                  🟢 2 Month Notice
-               </span>
-               {property.maintenance_included_in_rent && (
-                 <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                   🟢 Zero Additional Maintenance
-                 </span>
-               )}
-              </div>
             </section>
 
-            {/* Action buttons — Video Walkthrough + Google Maps */}
-            {(property.youtube_walkthrough_url != null && property.youtube_walkthrough_url !== "" ||
-              property.google_maps_url != null && property.google_maps_url !== "") && (
-              <div className="flex flex-wrap gap-3 px-4 lg:px-0">
-                {property.youtube_walkthrough_url != null && property.youtube_walkthrough_url !== "" && (
-                  <a
-                    href={property.youtube_walkthrough_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-red-50 hover:border-red-200 hover:text-red-600 cursor-pointer"
-                  >
-                    <Youtube className="h-4 w-4 text-red-500" />
-                    Video Walkthrough
-                  </a>
-                )}
-                {property.google_maps_url != null && property.google_maps_url !== "" && (
-                  <a
-                    href={property.google_maps_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 cursor-pointer"
-                  >
-                    <MapPin className="h-4 w-4 text-blue-500" />
-                    View on Map
-                  </a>
-                )}
-              </div>
-            )}
+            {/* P5 new content sections. Order: No Surprises → At a Glance →
+                Monthly Costs → What's Included → Building Amenities → All details. */}
+            <NoSurprisesCard property={property} />
+            <AtAGlance property={property} />
+            <MonthlyCosts property={property} />
+            <FurnishingDetails furnishing={property.furnishing} furnishingDetail={property.furnishing_detail} />
+            <BuildingAmenities amenities={property.amenities} />
+            <AllDetailsAccordion property={property} />
 
-            {/* 3. Prominent price block — Prompt 10b (D-162) dual-mode.
-                Rent branch preserved byte-identical; Sale branch mirrors visual weight. */}
-            {property.listing_type === "sale" ? (
-              <section className="px-4 lg:px-0">
-                <Card className="border-border">
-                  <CardContent className="p-4">
-                    <div className="mb-2 flex items-baseline gap-2 flex-wrap">
-                      <span className="text-3xl font-bold text-gray-900">
-                        {property.sale_price != null ? `₹${property.sale_price.toLocaleString("en-IN")}` : "—"}
-                      </span>
-                      {property.price_negotiable && (
-                        <span className="text-sm font-medium text-green-700">Negotiable</span>
-                      )}
-                    </div>
-                    {property.expected_price_per_sqft != null && (
-                      <p className="text-xs text-muted-foreground">
-                        Expected ₹{property.expected_price_per_sqft.toLocaleString("en-IN")}/sqft
-                      </p>
-                    )}
-                    {/* Phase 1.5 addendum (D-166) — sale brokerage. Hidden when null/0. */}
-                    {property.sale_brokerage_pct != null && property.sale_brokerage_pct > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Brokerage {property.sale_brokerage_pct}%
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </section>
-            ) : (
-            <section className="px-4 lg:px-0">
-              <Card className="border-border">
-                <CardContent className="p-4">
-                  {/* Rent header */}
-                  <div className="mb-4">
-                    <span className="text-3xl font-bold text-gray-900">
-                      ₹{property.listed_rent.toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-gray-500 text-sm ml-1">/month</span>
-                  </div>
+            {/* P5: action pills now live inside the header; price card,
+                utility bills, property-details grid, and legacy amenity pills
+                are all replaced by NoSurprisesCard / AtAGlance / MonthlyCosts /
+                FurnishingDetails / BuildingAmenities / AllDetailsAccordion above. */}
 
-                  {/* Monthly costs table */}
-                  <div className="hidden border border-gray-100 rounded-lg overflow-hidden mb-4">
-                    <div className="flex justify-between items-center px-4 py-2.5 bg-gray-50">
-                      <span className="text-sm text-gray-600">Rent</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        ₹{property.listed_rent.toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 py-2.5 pb-3 border-t border-gray-100">
-                      <span className="text-sm text-gray-600 flex items-center gap-1.5">Reeve Fee (7%) <WhyReeveFeeLink /></span>
-                      <span className="text-sm font-medium text-gray-900">
-                        ₹{Math.round(property.listed_rent * 0.07).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 py-2.5 border-t border-gray-200 bg-blue-50">
-                      <span className="text-sm font-semibold text-gray-800">Monthly Total</span>
-                      <span className="text-sm font-bold text-blue-700">
-                        ₹{Math.round(property.listed_rent * 1.07).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* One-time and additional costs */}
-                  <div className="space-y-2 mt-4">
-                    <div className="flex justify-between items-start text-sm">
-                      <span className="text-gray-500">Security Deposit</span>
-                      <span className="text-gray-700 text-right font-medium">
-                        {depositDisplay}
-                      </span>
-                    </div>
-                    {/* Phase 1.5 addendum (D-166) — move-in charges. Row hidden when null/0. */}
-                    {property.move_in_charges_amount != null && property.move_in_charges_amount > 0 && (
-                      <div className="flex justify-between items-start text-sm">
-                        <span className="text-gray-500">Move-in charges</span>
-                        <span className="text-gray-700 text-right font-medium">
-                          ₹{property.move_in_charges_amount.toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                    )}
-                    {/* D-169: brokerage split into two typed columns. Read the matching column per type;
-                        skip when type is null/'none' or the matching column is null. */}
-                    {((property.rent_brokerage_type === "fixed" && property.rent_brokerage_fixed_amount != null) ||
-                      (property.rent_brokerage_type === "months" && property.rent_brokerage_months != null)) && (
-                      <div className="flex justify-between items-start text-sm">
-                        <span className="text-gray-500">Brokerage</span>
-                        <span className="text-gray-700 text-right font-medium">
-                          {property.rent_brokerage_type === "fixed"
-                            ? `₹${property.rent_brokerage_fixed_amount!.toLocaleString('en-IN')}`
-                            : `${property.rent_brokerage_months} month${property.rent_brokerage_months === 1 ? "" : "s"} rent`}
-                        </span>
-                      </div>
-                    )}
-                    {property.society_maintenance_approx != null && (
-                      <div className="flex justify-between items-start text-sm">
-                        <span className="text-gray-500">Society Maintenance</span>
-                        <span className="text-gray-700 text-right">
-                          {property.society_maintenance_approx === 0 || property.maintenance_included_in_rent
-                            ? "Included in Rent"
-                            : <>~₹{Number(property.society_maintenance_approx).toLocaleString('en-IN')}/mo{property.maintenance_included_in_rent && <span className="text-gray-400"> · Included in Rent</span>}</>
-                          }
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-            )}
-
-            {/* 4. Utilities */}
-            <section className="space-y-2 px-4 lg:px-0">
-              <h2 className="text-base font-semibold text-foreground">Utility Bills</h2>
-              <p className="text-xs text-muted-foreground">
-                All utility bills are paid by the tenant at actuals. The below indicates which bills are separate from society maintenance.
-              </p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                <UtilityPill
-                  icon={<Droplets className="h-3.5 w-3.5" />}
-                  label="Water"
-                  included={property.utility_water_included}
-                />
-                <UtilityPill
-                  icon={<Zap className="h-3.5 w-3.5" />}
-                  label="Electricity"
-                  included={property.utility_electricity_included}
-                />
-                <UtilityPill
-                  icon={<Flame className="h-3.5 w-3.5" />}
-                  label={property.gas_type === "pipeline" ? "Gas (Pipeline)" : property.gas_type === "cylinder" ? "Gas (Cylinder)" : "Gas"}
-                  included={property.utility_gas_included}
-                />
-              </div>
-            </section>
-
-            {/* 6. Property Details Grid — spec-driven via PROPERTY_FIELDS (D-128, D-157). */}
-            <section className="space-y-3 px-4 lg:px-0">
-              <h2 className="text-base font-semibold text-foreground">Property Details</h2>
-              <div className="grid grid-cols-2 gap-3">
-                {visibleGridKeys.map((key) => (
-                  <SpecField
-                    key={key}
-                    fieldKey={key}
-                    surface="public_detail"
-                    value={propertyRow[key]}
-                    readOnly
-                    // Prompt 10b (D-162): pass the row so spec-declared visibleWhen
-                    // predicates evaluate (possession_date hidden unless under_construction).
-                    formValues={propertyRow}
-                  />
-                ))}
-                {/* Prompt 8 (D-159) — compound parking rows combining enum + count.
-                    Bespoke because SpecField renders one field per row; parking here
-                    needs "{Covered} · {2 slots}" from two columns. Row hides entirely
-                    when enum is 'none'/null AND count is 0/null. */}
-                {(() => {
-                  const rows: Array<{ label: string; icon: React.ReactNode; enumVal: string | null; count: number | null }> = [
-                    { label: "4-Wheeler Parking", icon: <Car className="h-4 w-4" />, enumVal: property.parking_4w, count: property.parking_4w_count },
-                    { label: "2-Wheeler Parking", icon: <Bike className="h-4 w-4" />, enumVal: property.parking_2w, count: property.parking_2w_count },
-                  ];
-                  return rows.map((r) => {
-                    const hasEnum = r.enumVal && r.enumVal !== "none";
-                    const hasCount = r.count != null && r.count > 0;
-                    if (!hasEnum && !hasCount) return null;
-                    const enumPart = hasEnum ? parkingLabel(r.enumVal as string) : "";
-                    const countPart = hasCount ? `${r.count} slot${r.count === 1 ? "" : "s"}` : "";
-                    const display = [enumPart, countPart].filter(Boolean).join(" · ");
-                    return (
-                      <div key={r.label} className="flex items-start gap-2.5 rounded-lg border border-border bg-card p-3">
-                        <span className="mt-0.5 text-muted-foreground">{r.icon}</span>
-                        <div>
-                          <p className="text-[11px] text-muted-foreground">{r.label}</p>
-                          <p className="text-sm font-medium text-foreground">{display}</p>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-
-              {/* Furnishing Included — new structured format */}
-              {property.furnishing_detail && Array.isArray(property.furnishing_detail) && (property.furnishing_detail as FurnishingDetailItem[]).length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Furnishing Included</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {(property.furnishing_detail as FurnishingDetailItem[]).map((f, idx) => {
-                      const label = FURNISHING_DETAIL_LABELS[f.item] ?? f.item
-                      const detail = [
-                        f.count != null && f.count >= 1 ? `×${f.count}` : null,
-                        f.size ?? null,
-                        f.rooms ?? null,
-                      ].filter(Boolean).join(' · ')
-                      return (
-                        <div
-                          key={`${f.item}-${idx}`}
-                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-lg text-xs bg-white border border-gray-200 text-gray-700 text-center min-h-[52px] w-full"
-                        >
-                          <span className="font-medium">✓ {label}</span>
-                          {detail && <span className="text-gray-500 text-[10px]">{detail}</span>}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Legacy fallback — shown only if furnishing_detail is absent and old items exist */}
-              {!property.furnishing_detail && rawAmenities?.furnishing_items && rawAmenities.furnishing_items.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Furnishing Included</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {rawAmenities.furnishing_items.map((item: string) => (
-                      <div key={item} className="flex items-center gap-1.5 px-2 py-2 rounded-lg text-xs justify-center bg-white border border-gray-200 text-gray-700 text-center min-h-[52px] w-full">
-                        <span className="text-gray-500">✓</span>
-                        <span>{FURNISHING_LABELS[item] ?? item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Building Amenities — full inventory */}
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Building Amenities</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { key: 'lift', label: 'Lift' },
-                    { key: 'security_24hr', label: '24hr Security' },
-                    { key: 'power_backup', label: 'Power Backup' },
-                    { key: 'gym', label: 'Gym' },
-                    { key: 'swimming_pool', label: 'Swimming Pool' },
-                    { key: 'clubhouse', label: 'Clubhouse' },
-                    { key: 'visitor_parking', label: 'Visitor Parking' },
-                    { key: 'cctv', label: 'CCTV' },
-                    { key: 'children_play_area', label: "Children's Play Area" },
-                    { key: 'intercom', label: 'Intercom' },
-                    { key: 'park', label: 'Park' },
-                    { key: 'maintenance_staff', label: 'Maintenance Staff' },
-                    { key: 'gated_access', label: 'Gated Access' },
-                    { key: 'garden', label: 'Garden' },
-                    { key: 'sports_facility', label: 'Sports Facility' },
-                    { key: 'community_hall', label: 'Community Hall' },
-                    { key: 'water_supply_24hr', label: '24hr Water Supply' },
-                  ].map(({ key, label }) => {
-                    const present = rawAmenities?.building?.includes(key) ?? false;
-                    return (
-                      <div
-                        key={key}
-                        className={`flex items-center gap-1.5 px-2 py-2 rounded-lg text-xs text-center justify-center min-h-[52px] w-full ${
-                          present
-                            ? 'bg-green-50 border border-green-200 text-green-700'
-                            : 'bg-gray-50 border border-gray-100 text-gray-300'
-                        }`}
-                      >
-                        <span className={`text-base ${present ? '' : 'grayscale opacity-40'}`}>
-                          {present ? '✓' : '✗'}
-                        </span>
-                        <span className="leading-tight">{label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-
-            {/* 7. Amenities */}
-            {property.amenities && property.amenities.length > 0 && (
-              <section className="space-y-3 px-4 lg:px-0">
-                <h2 className="text-base font-semibold text-foreground">Amenities</h2>
-                <div className="flex flex-wrap gap-2">
-                  {property.amenities.map((a) => (
-                    <span
-                      key={a}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground"
-                    >
-                      {AMENITY_ICONS[a] || <CircleDot className="h-3.5 w-3.5" />}
-                      {amenityLabel(a)}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Public timeline — curated public activity events */}
-            {publicTimeline.length > 0 && (
-              <PublicTimeline rows={publicTimeline} />
-            )}
-
-            {/* 8. Building Rules */}
-            {property.building_rules && (
-              <section className="space-y-2 px-4 lg:px-0">
-                <h2 className="text-base font-semibold text-foreground">Building Rules</h2>
-                <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-                  {property.building_rules}
-                </p>
-              </section>
-            )}
-
-            {/* 9. Description */}
+            {/* P5: About + Building Rules — in-place, line-clamp with toggle. */}
             {property.description && (
-              <section className="space-y-2 px-4 lg:px-0">
-                <h2 className="text-base font-semibold text-foreground">Description</h2>
-                <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+              <PageSection title="About This Property" icon={AlignLeft}>
+                <p className={cn("whitespace-pre-line text-sm text-foreground", !descExpanded && "line-clamp-4")}>
                   {property.description}
                 </p>
-              </section>
+                <button
+                  type="button"
+                  onClick={() => setDescExpanded((v) => !v)}
+                  className="mt-1 text-xs text-primary"
+                >
+                  {descExpanded ? "Show less" : "Read more"}
+                </button>
+              </PageSection>
+            )}
+            {property.building_rules && (
+              <PageSection title="Building Rules" icon={ScrollText}>
+                <p className={cn("whitespace-pre-line text-sm text-foreground", !rulesExpanded && "line-clamp-3")}>
+                  {property.building_rules}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setRulesExpanded((v) => !v)}
+                  className="mt-1 text-xs text-primary"
+                >
+                  {rulesExpanded ? "Show less" : "Read more"}
+                </button>
+              </PageSection>
+            )}
+
+            {/* P6 reassurance strip — replaces the old No Contact Policy card. */}
+            <HowItWorksStrip />
+
+            {/* P6 owner slot — public sees OwnerCard, owner sees performance stats. */}
+            {property.owner_id && (
+              isOwnProperty ? (
+                <OwnerPerformanceStrip
+                  propertyId={property.id}
+                  isOwnProperty={isOwnProperty}
+                  viewCount={propertyStats?.view_count ?? 0}
+                  commentCount={propertyStats?.comment_count ?? 0}
+                />
+              ) : (
+                <OwnerCard ownerId={property.owner_id} isOwnProperty={isOwnProperty} />
+              )
+            )}
+
+            {/* Public listing history — freshness chip powered by listed_at. */}
+            {(publicTimeline.length > 0 || property.listed_at) && (
+              <PublicTimeline rows={publicTimeline} listed_at={property.listed_at} />
+            )}
+
+            {/* P6: contact panel — anchor for CTA smooth-scroll (#contact-panel). */}
+            {property?.id && property?.owner_id && (
+              <div id="contact-panel" className="scroll-mt-16">
+                {isOwnProperty ? (
+                  <ManageListingCard propertyId={property.id} />
+                ) : (
+                  <RequestContactPanel
+                    propertyId={property.id}
+                    ownerId={property.owner_id}
+                    ownerDisplayName={ownerDisplayName}
+                    buildingName={property.building_name ?? "this property"}
+                    propertyStatus={property.status}
+                  />
+                )}
+              </div>
             )}
 
             {/* B4/B6: Comments section — lazy loaded, ref for anchor-scroll from stats line. */}
@@ -1485,170 +1246,25 @@ const PropertyDetail: React.FC = () => {
               </div>
             )}
 
-            {/* 10. No Contact Policy */}
-            <section className="px-4 pb-4 lg:px-0">
-              <Card className="border-border bg-muted/50">
-                <CardContent className="flex items-start gap-3 p-4">
-                  <Shield className="h-5 w-5 flex-shrink-0 text-primary" />
-                  <p className="text-sm text-muted-foreground">
-                    All communication happens through the Reeve platform only. Owner contact details are never shared.
-                  </p>
-                </CardContent>
-              </Card>
-            </section>
+            {/* P6: No Contact Policy card removed — HowItWorksStrip covers it. */}
           </div>
 
-          {/* COMMONS-HIDE: Desktop Sidebar CTA — hidden for Commons transition */}
-          {COMMONS_HIDE && (
-          <aside className="hidden lg:block flex-shrink-0 w-[340px]">
-            <div className="sticky top-24 space-y-3">
-              <Card className="border-border">
-                <CardContent className="space-y-3 p-4">
-                  <div>
-                    <span className="text-2xl font-bold text-foreground">
-                      {formatIndianRupee(property.listed_rent)}
-                    </span>
-                    <span className="text-sm text-muted-foreground">/month</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Security Deposit: {depositDisplay}
-                  </p>
-                  {isOwnProperty ? (
-                    <p className="text-sm text-muted-foreground text-center py-2">This is your listed property.</p>
-                  ) : (
-                    <>
-                      {showVisitConfirmation ? (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-green-600 text-lg">✓</span>
-                            <p className="text-sm font-semibold text-green-800">Visit Scheduled!</p>
-                          </div>
-                          {existingVisit && (
-                            <p className="text-sm text-green-700">
-                              {format(new Date(existingVisit.scheduled_at), "EEE, d MMM yyyy · h:mm a")}
-                            </p>
-                          )}
-                          <div className="flex items-start gap-2 p-3 bg-white border border-green-100 rounded-lg">
-                            <span className="text-base mt-0.5">📋</span>
-                            <p className="text-xs text-gray-600">
-                              Please carry a valid government-issued photo ID for your visit — Aadhaar Card, Driving Licence, or Voter ID.
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => setShowVisitConfirmation(false)}
-                            className="w-full min-h-[44px] bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
-                          >
-                            Got it →
-                          </button>
-                        </div>
-                      ) : existingVisit ? (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <p className="text-sm text-blue-800 font-medium">
-                            Visit scheduled for {format(new Date(existingVisit.scheduled_at), "EEE, d MMM yyyy · h:mm a")}
-                          </p>
-                          <a
-                            href="/dashboard/visits"
-                            className="text-sm text-blue-600 underline mt-1 inline-block"
-                          >
-                            Manage your visit →
-                          </a>
-                        </div>
-                      ) : visitSchedulingBlocked ? (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 space-y-1">
-                          <p className="text-sm font-medium text-amber-800">Visit scheduling is blocked</p>
-                          <p className="text-xs text-amber-700">Your account has been flagged after 3 missed visits.</p>
-                          <p className="text-xs text-amber-700">Contact us at <a href="mailto:support@reeve.in" className="underline">support@reeve.in</a> to restore access.</p>
-                        </div>
-                      ) : (
-                        <>
-                          {isAuthenticated && (!user?.phone_verified || !user?.email_verified) && (
-                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2">
-                              <span className="text-amber-500 text-sm mt-0.5 shrink-0">⚠</span>
-                              <div>
-                                <p className="text-xs font-medium text-amber-800">Verify to schedule or apply</p>
-                                <button
-                                  onClick={() => window.open(`/profile?returnTo=${encodeURIComponent(window.location.pathname)}`, "_blank")}
-                                  className="text-xs text-amber-700 underline underline-offset-2"
-                                >
-                                  Complete verification →
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                          <Button
-                            onClick={() => {}}
-                            variant="outline"
-                            className="w-full min-h-[44px]"
-                            disabled={eligibilityChecking}
-                          >
-                            Schedule a Visit
-                          </Button>
-                        </>
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </aside>
-          )}
-        </div>
-      </div>
-
-      {/* COMMONS-HIDE: Mobile Sticky CTA Bar — hidden for Commons transition */}
-      {COMMONS_HIDE && !isOwnProperty && (
-        <div className={`fixed inset-x-0 z-40 border-t border-border bg-background px-4 py-3 pb-4 min-h-[72px] lg:hidden ${session ? 'bottom-16 pb-safe' : 'bottom-0'}`}>
-          <div className="mx-auto flex max-w-4xl items-center gap-2">
-            {showVisitConfirmation ? (
-              <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-2 min-h-[48px] flex flex-col justify-center">
-                <p className="text-xs text-green-800 font-semibold">✓ Visit Scheduled!</p>
-                <button
-                  onClick={() => setShowVisitConfirmation(false)}
-                  className="text-xs text-green-600 underline"
-                >
-                  Got it →
-                </button>
-              </div>
-            ) : existingVisit ? (
-              <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 min-h-[48px] flex flex-col justify-center">
-                <p className="text-xs text-blue-800 font-medium leading-tight">
-                  {format(new Date(existingVisit.scheduled_at), "EEE, d MMM · h:mm a")}
-                </p>
-                <a href="/dashboard/visits" className="text-xs text-blue-600 underline">
-                  Manage →
-                </a>
-              </div>
-            ) : visitSchedulingBlocked ? (
-              <div className="flex-1 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2 min-h-[48px] flex flex-col justify-center">
-                <p className="text-xs font-medium text-amber-800">Scheduling blocked</p>
-                <p className="text-xs text-amber-700">3 missed visits — contact support@reeve.in</p>
-              </div>
-            ) : isAuthenticated && (!user?.phone_verified || !user?.email_verified) ? (
-              <div className="flex-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 min-h-[48px] flex items-center gap-2">
-                <span className="text-amber-500 shrink-0">⚠</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-amber-800 leading-tight">Verify to schedule or apply</p>
-                  <button
-                    onClick={() => navigate(`/profile?returnTo=${encodeURIComponent(window.location.pathname)}`)}
-                    className="text-xs text-amber-700 underline"
-                  >
-                    Verify now →
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <Button
-                onClick={() => {}}
-                variant="outline"
-                className="min-h-[48px] flex-1 text-sm font-medium"
-                disabled={eligibilityChecking}
-              >
-                Schedule Visit
-              </Button>
+          {/* P6: right column — sticky sidebar on desktop, hidden on mobile
+              (PropertyCTABar handles mobile). */}
+          <div className="hidden lg:block">
+            {property?.owner_id && (
+              <PropertySidebar
+                property={property}
+                ownerId={property.owner_id}
+                isOwnProperty={isOwnProperty}
+                isAuthenticated={isAuthenticated}
+                viewCount={propertyStats?.view_count ?? 0}
+                commentCount={propertyStats?.comment_count ?? 0}
+              />
             )}
           </div>
         </div>
-      )}
+      </div>
 
       {/* COMMONS-HIDE: Eligibility Gate Modal — hidden for Commons transition */}
       {COMMONS_HIDE && (
@@ -1684,6 +1300,16 @@ const PropertyDetail: React.FC = () => {
         </DrawerContent>
       </Drawer>
       )}
+      {/* P4: sticky CTA bar + back-to-top FAB — mobile only. Not rendered on
+          the archived/unlisted/not-found branches (those return earlier). */}
+      <PropertyCTABar
+        isOwner={isOwnProperty}
+        isAuthenticated={!!user}
+        listingType={property.listing_type}
+        listedRent={property.listed_rent}
+        salePrice={property.sale_price}
+      />
+      <BackToTopFAB />
     </Layout>
   );
 };

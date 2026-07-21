@@ -1,0 +1,208 @@
+/**
+ * P5 "No Surprises" card. Renders coloured-dot rows for the terms the owner
+ * set upfront. Null rows are omitted; zero is a valid explicit input and
+ * renders with a green dot.
+ */
+import { useState } from "react";
+import { CheckCircle2, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  computeDepositMonths,
+  computeBrokerageMonths,
+} from "@/utils/property/financialConversions";
+import { isFieldSet } from "@/utils/property/isFieldSet";
+import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
+
+type Dot = "green" | "amber" | "red";
+
+interface Property {
+  listing_type: string | null;
+  listed_rent: number | null;
+  security_deposit_amount: number | null;
+  rent_brokerage_type: string | null;
+  rent_brokerage_fixed_amount: number | null;
+  rent_brokerage_months: number | null;
+  lock_in_months: number | null;
+  notice_period_days: number | null;
+  annual_rent_increase_pct: number | null;
+  price_negotiable: boolean | null;
+  sale_brokerage_pct: number | null;
+  rera_registration_number: string | null;
+  possession_status: string | null;
+  possession_date: string | null;
+}
+
+interface Row {
+  label: string;
+  value: string;
+  dot: Dot;
+}
+
+function fmtINR(v: number): string {
+  return `₹${v.toLocaleString("en-IN")}`;
+}
+
+function buildRentRows(p: Property): Row[] {
+  const rows: Row[] = [];
+
+  // Security Deposit
+  const amt = p.security_deposit_amount;
+  if (amt === 0) {
+    rows.push({ label: "Security Deposit", value: "No deposit", dot: "green" });
+  } else if (isFieldSet("security_deposit_amount", amt)) {
+    const months = computeDepositMonths(amt, p.listed_rent);
+    let dot: Dot = "green";
+    if (months !== null) {
+      if (months > 5) dot = "red";
+      else if (months > 3) dot = "amber";
+    }
+    rows.push({ label: "Security Deposit", value: fmtINR(amt!), dot });
+  }
+
+  // Brokerage
+  const brok = computeBrokerageMonths(
+    p.rent_brokerage_type,
+    p.rent_brokerage_fixed_amount,
+    p.rent_brokerage_months,
+    p.listed_rent,
+  );
+  if (brok.display !== null) {
+    let dot: Dot = "green";
+    if (brok.months !== null) {
+      if (brok.months > 1) dot = "red";
+      else if (brok.months > 0) dot = "amber";
+    }
+    rows.push({ label: "Brokerage", value: brok.display, dot });
+  }
+
+  // Lock-in
+  const lock = p.lock_in_months;
+  if (lock === 0) {
+    rows.push({ label: "Lock-in", value: "No lock-in", dot: "green" });
+  } else if (isFieldSet("lock_in_months", lock)) {
+    let dot: Dot = "green";
+    if (lock! > 8) dot = "red";
+    else if (lock! > 4) dot = "amber";
+    rows.push({ label: "Lock-in", value: `${lock} months`, dot });
+  }
+
+  // Notice period
+  const notice = p.notice_period_days;
+  if (notice === 0) {
+    rows.push({ label: "Notice Period", value: "No notice required", dot: "green" });
+  } else if (isFieldSet("notice_period_days", notice)) {
+    let dot: Dot = "green";
+    if (notice! > 60) dot = "red";
+    else if (notice! > 30) dot = "amber";
+    rows.push({ label: "Notice Period", value: `${notice} days`, dot });
+  }
+
+  // Annual rent increase
+  const hike = p.annual_rent_increase_pct;
+  if (hike === 0) {
+    rows.push({ label: "Annual Rent Increase", value: "No annual increase", dot: "green" });
+  } else if (isFieldSet("annual_rent_increase_pct", hike)) {
+    let dot: Dot = "green";
+    if (hike! > 10) dot = "red";
+    else if (hike! > 5) dot = "amber";
+    rows.push({ label: "Annual Rent Increase", value: `${hike}%`, dot });
+  }
+
+  return rows;
+}
+
+function buildSaleRows(p: Property): Row[] {
+  const rows: Row[] = [];
+
+  if (p.price_negotiable !== null && p.price_negotiable !== undefined) {
+    rows.push({
+      label: "Price Negotiable",
+      value: p.price_negotiable ? "Yes" : "No",
+      dot: p.price_negotiable ? "green" : "amber",
+    });
+  }
+
+  if (isFieldSet("sale_brokerage_pct", p.sale_brokerage_pct)) {
+    const pct = p.sale_brokerage_pct!;
+    let dot: Dot = "green";
+    if (pct > 2) dot = "red";
+    else if (pct > 0) dot = "amber";
+    rows.push({ label: "Brokerage", value: `${pct}%`, dot });
+  }
+
+  if (isFieldSet("rera_registration_number", p.rera_registration_number)) {
+    rows.push({
+      label: "RERA Registered",
+      value: p.rera_registration_number!,
+      dot: "green",
+    });
+  }
+
+  if (isFieldSet("possession_status", p.possession_status)) {
+    const label = formatEnumLabel("possession_status", p.possession_status);
+    const withDate = p.possession_date ? `${label} · ${p.possession_date}` : label;
+    rows.push({
+      label: "Possession",
+      value: withDate,
+      dot: p.possession_status === "ready_to_move" ? "green" : "amber",
+    });
+  }
+
+  return rows;
+}
+
+const DOT_CLASS: Record<Dot, string> = {
+  green: "bg-green-500",
+  amber: "bg-amber-500",
+  red: "bg-red-500",
+};
+
+export default function NoSurprisesCard({ property }: { property: Property }) {
+  const [open, setOpen] = useState(false);
+  const rows =
+    property.listing_type === "sale" ? buildSaleRows(property) : buildRentRows(property);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <section className="mx-4 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 lg:mx-0">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-primary" />
+          <h2 className="text-base font-semibold text-foreground">No Surprises</h2>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          All terms set by the owner
+        </span>
+      </div>
+      <ul className="space-y-2">
+        {rows.map((r) => (
+          <li key={r.label} className="flex items-center gap-3 text-sm">
+            <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", DOT_CLASS[r.dot])} />
+            <span className="min-w-0 flex-1 text-muted-foreground">{r.label}</span>
+            <span className="text-right font-medium text-foreground">{r.value}</span>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="mt-3 flex w-full items-center justify-between text-xs text-muted-foreground"
+      >
+        <span>Why do these terms matter?</span>
+        <ChevronDown
+          className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
+        />
+      </button>
+      {open ? (
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          Most Bangalore rentals ask for 4–10 months deposit, charge brokerage,
+          and lock you in for 11 months. Every term here was set by the owner
+          before the listing goes live. Green means tenant-friendly; amber is
+          standard; red means above-market — so you can decide with full
+          information.
+        </p>
+      ) : null}
+    </section>
+  );
+}

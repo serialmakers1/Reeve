@@ -48,25 +48,27 @@ export const FURNISHING_ITEM_OPTIONS = [
   { value: "exhaust_fan", label: "Exhaust Fan", yesNoOnly: false },
 ] as const;
 
+// P5: `icon` is the Lucide icon *name* (string). Consumers map to component.
 export const BUILDING_AMENITIES = [
-  { value: "lift", label: "Lift" },
-  { value: "security_24hr", label: "24hr Security" },
-  { value: "power_backup", label: "Power Backup" },
-  { value: "gym", label: "Gym" },
-  { value: "swimming_pool", label: "Swimming Pool" },
-  { value: "clubhouse", label: "Clubhouse" },
-  { value: "visitor_parking", label: "Visitor Parking" },
-  { value: "cctv", label: "CCTV" },
-  { value: "children_play_area", label: "Children's Play Area" },
-  { value: "intercom", label: "Intercom" },
-  { value: "park", label: "Park" },
-  { value: "maintenance_staff", label: "Maintenance Staff" },
-  { value: "gated_access", label: "Gated Access" },
-  { value: "garden", label: "Garden" },
-  { value: "sports_facility", label: "Sports Facility" },
-  { value: "community_hall", label: "Community Hall" },
-  { value: "water_supply_24hr", label: "24hr Water Supply" },
-  { value: "ev_charging", label: "EV Charging" }, // B2 (D-158): added Phase 1.5 Prompt 6
+  { value: "lift", label: "Lift", icon: "ArrowUpDown" },
+  { value: "security_24hr", label: "24hr Security", icon: "ShieldCheck" },
+  { value: "power_backup", label: "Power Backup", icon: "Battery" },
+  { value: "gym", label: "Gym", icon: "Dumbbell" },
+  { value: "swimming_pool", label: "Swimming Pool", icon: "Waves" },
+  { value: "clubhouse", label: "Clubhouse", icon: "Building" },
+  { value: "visitor_parking", label: "Visitor Parking", icon: "Car" },
+  { value: "cctv", label: "CCTV", icon: "Camera" },
+  { value: "children_play_area", label: "Children's Play Area", icon: "Gamepad2" },
+  { value: "intercom", label: "Intercom", icon: "Phone" },
+  { value: "park", label: "Park", icon: "Trees" },
+  { value: "maintenance_staff", label: "Maintenance Staff", icon: "Wrench" },
+  { value: "gated_access", label: "Gated Access", icon: "Lock" },
+  { value: "garden", label: "Garden", icon: "Flower2" },
+  { value: "sports_facility", label: "Sports Facility", icon: "Trophy" },
+  { value: "community_hall", label: "Community Hall", icon: "Users" },
+  { value: "water_supply_24hr", label: "24hr Water Supply", icon: "Droplets" },
+  { value: "ev_charging", label: "EV Charging", icon: "Zap" }, // B2 (D-158): added Phase 1.5 Prompt 6
+  { value: "garbage_collection", label: "Doorstep Garbage Collection", icon: "Trash2" },
 ] as const;
 
 export const PARKING_OPTIONS = [
@@ -74,6 +76,16 @@ export const PARKING_OPTIONS = [
   { value: "covered", label: "Covered" },
   { value: "uncovered", label: "Uncovered" },
   { value: "both", label: "Both" },
+] as const;
+
+// P3: water_source multi-select options. Column is text[] on properties.
+export const WATER_SOURCE_OPTIONS = [
+  { value: "municipal", label: "Municipal / Corporation supply" },
+  { value: "borewell", label: "Borewell" },
+  { value: "tanker", label: "Water tanker" },
+  { value: "rainwater_harvesting", label: "Rainwater harvesting" },
+  { value: "packaged", label: "Packaged / RO water supply" },
+  { value: "open_well", label: "Open well" },
 ] as const;
 
 export const FACING_OPTIONS = [

@@ -37,7 +37,7 @@ Use SSG frameworks (vite-ssg / vite-plugin-ssr — Node.js tree render breaks Su
 ## Supabase
 - Project ref: `tfutuqqcxqqbirnsdpvz` (`https://tfutuqqcxqqbirnsdpvz.supabase.co`)
 - Client: `import { supabase } from "@/integrations/supabase/client"`
-- Types: `src/integrations/supabase/types.ts` — auto-generated, do not edit
+- Types: `src/integrations/supabase/types.ts` — auto-generated, do not edit. Regen: `supabase gen types typescript --project-id tfutuqqcxqqbirnsdpvz --schema public 2>/dev/null > src/integrations/supabase/types.ts` (must suppress stderr — CLI update-notice will otherwise leak into the file and break parsing).
 - Auth storage key: `reeve-auth`
 - Always use `apply_migration` for DDL. Never raw SQL for schema changes.
 - Always use `.maybeSingle()` not `.single()` — `single()` throws on no rows.
@@ -50,6 +50,15 @@ last_login_at written via touch_last_login() RPC on SIGNED_IN transitions only �
 **Auth trigger danger zone (D-P3-015):** never add triggers inside GoTrue's auth transaction to sync `public.*` — use post-login RPCs. MCP SQL runs as `postgres` and doesn't surface `supabase_auth_admin` search_path failures; only real login attempts do. All functions touching `public.*` must have `search_path = public` pinned. Trigger guards check `current_user` (NOT JWT claims role) — `current_user` changes under SECURITY DEFINER, JWT does not.
 **Privilege guard (D-P3-014):** `prevent_user_privilege_escalation` BEFORE UPDATE trigger on `public.users` blocks `authenticated`/`anon` from changing `role`/`email_verified`/`phone_verified`/`auth_provider`/`is_active`. Uses `IS DISTINCT FROM` (no-op writes pass silently). Admin + service_role bypass.
 **Phone source (D-P3-016):** `public.users.phone` may be null for Google-first users. Call `get_phone_fallback(user_id)` via service_role only (reads `auth.users.phone`, then `identity_data`). n8n never queries `auth.*` — always via scoped SECURITY DEFINER RPC.
+
+### PropertyDetail outer layout
+`/property/:id` uses a two-column grid on desktop only: `max-w-6xl mx-auto px-4 lg:px-6` container → gallery (full-width, outside grid) → `lg:grid lg:grid-cols-[1fr_360px] lg:gap-10 lg:items-start` → left col (`min-w-0`, all sections) / right col (`hidden lg:block` sticky `PropertySidebar`). Mobile CTA is `PropertyCTABar` (`lg:hidden`); the two together cover all viewport widths with no gap.
+
+### PropertyDetail sections
+Every non-gallery/CTA content block on `/property/:id` renders through `<PageSection title icon background>` from `src/components/property-detail/PageSection.tsx` — no bespoke section wrappers. Sections themselves live one-per-file under `src/components/property-detail/` and receive `property` (or scoped fields) as props, never lift state. Bespoke Tailwind grays or hex values are forbidden inside; only shadcn tokens + `bg-muted/*`, `bg-primary/5`, and the fixed green/amber/red pair for status indicators.
+
+### Shared-state read pattern
+When a heavier component owns state via realtime/mutations (e.g. `RequestContactPanel` and `cr`) and another component needs read access, do NOT lift state — write a small read-only TanStack Query hook keyed the same way and let both consumers share the cache (`useContactRequestStatus` is the canonical example). Cheaper than prop-drilling, safer than mid-file refactors.
 
 ### useAuth — single source of truth
 Returns `{ session, user, isLoading, isAuthenticated, isFullyVerified, signOut, refreshUser }`. `isFullyVerified = !!(user?.phone_verified && user?.email_verified)` (D-176). Critical patterns (do NOT remove):
@@ -167,6 +176,7 @@ Derive each flag via `.find()` on full applicationHistory — attempt_number tie
 
 ## Commons Phase 1 + 1.5 (D-001–D-171 — details in commons-decisions.md)
 - Field spec (`src/config/property-fields.ts`) + `<SpecField>` = single source of truth for property fields. `flat_number` never public (D-091); admin direct-write bypass preserved (D-111). `getUserDisplayName()` reads `users.full_name` only.
+- **Adding a new `properties` column to the owner form** requires touching six sites in order: (1) spec entry in `src/config/property-fields.ts`; (2) `FormState` interface in `src/pages/ListProperty.tsx`; (3) `INITIAL_STATE` in same file; (4) `prefillFormFromRow`; (5) `mapFieldToDb` switch; (6) JSX call site (usually `<SpecField>`). Then mirror on `admin/PropertyEdit.tsx` (useState hook + hydration + payload + JSX). Also add to `approve_edit_request` COALESCE in a new migration replacing that RPC. SpecField does NOT check `audiences` — call sites control render.
 - ListProperty `/list`: 9-section accordion, draft cap 20/user, submit → `pending_review`. Edit flows: Path A direct-patch for draft/changes_requested; Path B `submit_property_edit_request` RPC for listed/edit_pending_review.
 - Property mgmt `/owner-dashboard/property/:id`: 4-tab (Requests | Details | Photos | Activity). Admin Review `/admin/listing-reviews`. Profile pages `/me` (editable) + `/u/:userId` (public_profiles view, security_invoker=false).
 
