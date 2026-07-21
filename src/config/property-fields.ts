@@ -342,6 +342,18 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     displayIcon: "maximize",
   },
   {
+    key: "super_built_up_area",
+    label: "Super built-up area (sqft)",
+    publicLabel: "Super built-up",
+    input: "number",
+    min: 1,
+    audiences: ["owner_form", "admin_form", "public_detail"],
+    editableBy: ["owner", "admin"],
+    ownerSection: "basics",
+    display: (v) => (typeof v === "number" ? `${v} sqft` : "—"),
+    displayIcon: "maximize",
+  },
+  {
     key: "facing",
     label: "Facing",
     input: "select",
@@ -426,16 +438,49 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
       maxDaysFromNow: 90,
     },
   },
-  // Added in Prompt 8 (D-159). Rent-only field; visibleWhen activated in
-  // Prompt 10a (D-161) now that listing_type is wired.
+  // P3: lock-in period. Rent-only. Optional. Placed before notice_period_days
+  // in the rent_deposit grid.
   {
-    key: "notice_period_months",
-    label: "Notice period (months)",
+    key: "lock_in_months",
+    label: "Lock-in period (months)",
+    publicLabel: "Lock-in",
     input: "number",
     min: 0,
     audiences: ["owner_form", "admin_form", "public_detail"],
     editableBy: ["owner", "admin"],
     ownerSection: "rent_deposit",
+    display: (v) => (typeof v === "number" ? `${v} month${v === 1 ? "" : "s"}` : "—"),
+    visibleWhen: (v) => v.listing_type !== "sale",
+  },
+  // P3: notice period in days. Rent-only. Replaces notice_period_months on
+  // owner-facing surfaces. `notice_period_months` retained admin-only for legacy.
+  {
+    key: "notice_period_days",
+    label: "Notice period",
+    publicLabel: "Notice period",
+    input: "select",
+    options: [
+      { value: "15", label: "15 days" },
+      { value: "30", label: "30 days" },
+      { value: "45", label: "45 days" },
+      { value: "60", label: "60 days" },
+      { value: "90", label: "90 days" },
+    ],
+    audiences: ["owner_form", "admin_form", "public_detail"],
+    editableBy: ["owner", "admin"],
+    ownerSection: "rent_deposit",
+    display: (v) => (typeof v === "number" ? `${v} days` : "—"),
+    visibleWhen: (v) => v.listing_type !== "sale",
+  },
+  // Legacy months field — retained admin-only. Owner-facing input replaced by
+  // `notice_period_days`. Column kept in DB per D-P3-*; not dropped.
+  {
+    key: "notice_period_months",
+    label: "Notice period (months, legacy)",
+    input: "number",
+    min: 0,
+    audiences: ["admin_form", "public_detail"],
+    editableBy: ["admin"],
     display: (v) => (typeof v === "number" ? `${v} month${v === 1 ? "" : "s"}` : "—"),
     visibleWhen: (v) => v.listing_type !== "sale",
   },
@@ -640,6 +685,18 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     editableBy: ["owner", "admin"],
     ownerSection: "building_society",
   },
+  // P3: multi-select array. Rendered by bespoke inline checkbox grid in both
+  // forms (SpecField does not support multi-select). Spec entry kept for
+  // audience metadata + potential future public-detail integration.
+  {
+    key: "water_source",
+    label: "Water source",
+    publicLabel: "Water source",
+    input: "text",
+    audiences: ["owner_form", "admin_form", "public_detail"],
+    editableBy: ["owner", "admin"],
+    ownerSection: "building_society",
+  },
   // Added in Prompt 8 (D-159). Public displays these via a bespoke compound
   // formatter in PropertyDetail — enum-availability + count on one row —
   // so they're intentionally excluded from public audiences.
@@ -734,16 +791,24 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     ownerSection: "description",
   },
 
-  // Added in Prompt 5 — main_door_lock_type surfaces on public details grid
-  // and admin form. Public display is verbatim (no enum).
+  // P3: converted from freetext to enum-select. CHECK constraint enforced in
+  // migration `20260721120000_property_detail_additions.sql`.
   {
     key: "main_door_lock_type",
     label: "Lock type",
     publicLabel: "Lock Type",
     adminLabel: "Main Door Lock Type",
-    input: "text",
-    audiences: ["admin_form", "public_detail"],
-    editableBy: ["admin"],
+    placeholder: "Select lock type",
+    input: "select",
+    options: [
+      { value: "standard", label: "Standard lock" },
+      { value: "godrej_manual", label: "Branded manual lock" },
+      { value: "digital_keypad", label: "Digital keypad" },
+      { value: "smart_lock", label: "Smart lock" },
+    ],
+    audiences: ["owner_form", "admin_form", "public_detail"],
+    editableBy: ["owner", "admin"],
+    ownerSection: "building_society",
     displayIcon: "key-round",
   },
 

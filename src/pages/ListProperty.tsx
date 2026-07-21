@@ -32,10 +32,11 @@ import { processPhotoForUpload } from "@/lib/photo";
 import { PHOTO_CONFIG } from "@/config/photo";
 import {
   BHK_OPTIONS, PROPERTY_TYPE_OPTIONS, FURNISHING_OPTIONS,
-  BUILDING_AMENITIES, PARKING_OPTIONS, FACING_OPTIONS, GAS_TYPE_OPTIONS,
+  BUILDING_AMENITIES, PARKING_OPTIONS, WATER_SOURCE_OPTIONS, FACING_OPTIONS, GAS_TYPE_OPTIONS,
   PET_POLICY_OPTIONS, INDIAN_STATES,
 } from "@/config/property-form";
 import { type FurnishingDetailItem, buildAmenitiesJson } from "@/types/property";
+import { computeDepositMonths } from "@/utils/property/financialConversions";
 import { FurnishingEditor } from "@/components/property/FurnishingEditor";
 import { AmenitiesEditor } from "@/components/property/AmenitiesEditor";
 
@@ -106,6 +107,7 @@ interface FormState {
   floor_number: string;
   total_floors: string;
   square_footage: string;
+  super_built_up_area: string;                // P3
   facing: string;
   building_age_years: string;
   // Section 3
@@ -115,7 +117,9 @@ interface FormState {
   society_maintenance_approx: string;
   maintenance_included_in_rent: boolean;
   available_from: Date | undefined;
-  notice_period_months: string;               // Prompt 8 — India field
+  notice_period_months: string;               // Prompt 8 — India field (legacy, admin-only from P3)
+  notice_period_days: string;                 // P3 — replaces months on owner form
+  lock_in_months: string;                     // P3
   annual_rent_increase_pct: string;           // Prompt 8 — India field
   // Phase 1.5 addendum (D-166) — move-in charges + rent brokerage.
   move_in_charges_amount: string;
@@ -146,6 +150,8 @@ interface FormState {
   parking_4w_count: string;                   // Prompt 8 — India field
   parking_notes: string;                      // Prompt 8 — India field
   water_storage: string;                      // Prompt 8 — India field
+  water_source: string[];                     // P3 — multi-select array
+  main_door_lock_type: string;                // P3 — enum select
   water_included: boolean;
   gas_included: boolean;
   gas_type: string;
@@ -174,15 +180,18 @@ const INITIAL_STATE: FormState = {
   building_name: "", street_address: "", locality: "", city: "", state: "Karnataka",
   pincode: "", google_maps_url: "", landmark: "",
   bhk: "", property_type: "", floor_number: "", total_floors: "", square_footage: "",
+  super_built_up_area: "",
   facing: "", building_age_years: "",
   listed_rent: "", security_deposit_amount: "", security_deposit_months: "", society_maintenance_approx: "",
   maintenance_included_in_rent: false, available_from: undefined,
-  notice_period_months: "", annual_rent_increase_pct: "",
+  notice_period_months: "", notice_period_days: "", lock_in_months: "",
+  annual_rent_increase_pct: "",
   move_in_charges_amount: "", rent_brokerage_type: "", rent_brokerage_fixed_amount: "", rent_brokerage_months: "",
   furnishing: "", furnishing_detail: [], bathrooms: "", balconies: "",
   building_amenities: [],
   parking_2w: "none", parking_4w: "none",
   parking_2w_count: "", parking_4w_count: "", parking_notes: "", water_storage: "",
+  water_source: [], main_door_lock_type: "",
   water_included: false, gas_included: false, gas_type: "", electricity_included: false,
   pet_policy: "", pet_policy_text: "", building_rules: "", building_notes: "",
   youtube_walkthrough_url: "",
@@ -235,6 +244,7 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     floor_number: d.floor_number != null ? String(d.floor_number) : "",
     total_floors: d.total_floors != null ? String(d.total_floors) : "",
     square_footage: d.square_footage != null ? String(d.square_footage) : "",
+    super_built_up_area: d.super_built_up_area != null ? String(d.super_built_up_area) : "",
     facing: (d.facing as string) ?? "",
     building_age_years: d.building_age_years != null ? String(d.building_age_years) : "",
     listed_rent: d.listed_rent != null ? String(d.listed_rent) : "",
@@ -244,6 +254,8 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     maintenance_included_in_rent: !!d.maintenance_included_in_rent,
     available_from: d.available_from ? new Date((d.available_from as string) + "T00:00:00") : undefined,
     notice_period_months: d.notice_period_months != null ? String(d.notice_period_months) : "",
+    notice_period_days: d.notice_period_days != null ? String(d.notice_period_days) : "",
+    lock_in_months: d.lock_in_months != null ? String(d.lock_in_months) : "",
     annual_rent_increase_pct: d.annual_rent_increase_pct != null ? String(d.annual_rent_increase_pct) : "",
     // Phase 1.5 addendum (D-166).
     move_in_charges_amount: d.move_in_charges_amount != null ? String(d.move_in_charges_amount) : "",
@@ -261,6 +273,8 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     parking_4w_count: d.parking_4w_count != null ? String(d.parking_4w_count) : "",
     parking_notes: (d.parking_notes as string) ?? "",
     water_storage: (d.water_storage as string) ?? "",
+    water_source: Array.isArray(d.water_source) ? (d.water_source as string[]) : [],
+    main_door_lock_type: (d.main_door_lock_type as string) ?? "",
     water_included: !!d.utility_water_included,
     gas_included: !!d.utility_gas_included,
     gas_type: (d.gas_type as string) ?? "",
@@ -1326,6 +1340,7 @@ export default function ListProperty() {
               <SpecField fieldKey="floor_number" surface="owner_form" value={form.floor_number} onChange={(v: string) => updateField("floor_number", v)} />
               <SpecField fieldKey="total_floors" surface="owner_form" value={form.total_floors} onChange={(v: string) => updateField("total_floors", v)} />
               <SpecField fieldKey="square_footage" surface="owner_form" value={form.square_footage} onChange={(v: string) => updateField("square_footage", v)} />
+              <SpecField fieldKey="super_built_up_area" surface="owner_form" value={form.super_built_up_area} onChange={(v: string) => updateField("super_built_up_area", v)} />
               {/* TODO(spec): fold helper into PROPERTY_FIELDS.facing.helper in Prompt 6 bundle */}
               <SpecField
                 fieldKey="facing"
@@ -1396,7 +1411,8 @@ export default function ListProperty() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <SpecField fieldKey="listed_rent" surface="owner_form" value={form.listed_rent} onChange={(v: string) => updateField("listed_rent", v)} />
               {/* Bespoke: security_deposit_amount input + 1/2/3-month convenience chips.
-                  D-171: chips now write BOTH the amount and security_deposit_months. */}
+                  P3: months input removed from owner UI; chips still write both
+                  amount and months so the column stays populated for legacy readers. */}
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">Security deposit (₹) *</Label>
                 <Input type="number" value={form.security_deposit_amount} onChange={(e) => updateField("security_deposit_amount", e.target.value)} placeholder="70000" className="min-h-[44px]" />
@@ -1415,15 +1431,20 @@ export default function ListProperty() {
                     ))}
                   </div>
                 ) : null}
+                {(() => {
+                  const months = computeDepositMonths(parseNum(form.security_deposit_amount), parseNum(form.listed_rent));
+                  if (months === null) return null;
+                  const rounded = Math.round(months * 10) / 10;
+                  return (
+                    <>
+                      <p className="text-xs text-muted-foreground pt-1">≈ {rounded} month{rounded === 1 ? "" : "s"} of rent</p>
+                      {rounded > 5 ? (
+                        <p className="text-xs text-amber-600 pt-0.5">Deposits above 5 months of rent may discourage tenants.</p>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </div>
-              {/* D-171: standalone months input; spec visibleWhen gates on listing_type !== 'sale'. */}
-              <SpecField
-                fieldKey="security_deposit_months"
-                surface="owner_form"
-                value={form.security_deposit_months}
-                onChange={(v: string) => updateField("security_deposit_months", v)}
-                formValues={{ listing_type: form.listing_type }}
-              />
               <SpecField fieldKey="society_maintenance_approx" surface="owner_form" value={form.society_maintenance_approx} onChange={(v: string) => updateField("society_maintenance_approx", v)} />
               {/* D-171: FormState key renamed to match DB column; bridge removed. */}
               <div className="sm:col-span-2">
@@ -1445,11 +1466,11 @@ export default function ListProperty() {
                     { available_from: iso ?? null },
                   )) as (v: unknown) => void}
               />
-              {/* Prompt 8 India fields — spec-driven scalars in the same Section-3 grid.
-                  Prompt 10a: both fields carry visibleWhen: (v) => v.listing_type !== 'sale';
-                  they're inside the rent branch anyway, but formValues is passed so the
-                  predicate is honored consistently if the branch guard changes later. */}
-              <SpecField fieldKey="notice_period_months" surface="owner_form" value={form.notice_period_months} onChange={(v: string) => updateField("notice_period_months", v)} formValues={form as unknown as Record<string, unknown>} />
+              {/* P3: replaced notice_period_months (legacy, admin-only) with:
+                    - lock_in_months (new, optional)
+                    - notice_period_days (new select, replaces months on owner UI) */}
+              <SpecField fieldKey="lock_in_months" surface="owner_form" value={form.lock_in_months} onChange={(v: string) => updateField("lock_in_months", v)} formValues={form as unknown as Record<string, unknown>} />
+              <SpecField fieldKey="notice_period_days" surface="owner_form" value={form.notice_period_days} onChange={(v: string) => updateField("notice_period_days", v)} formValues={form as unknown as Record<string, unknown>} />
               <SpecField fieldKey="annual_rent_increase_pct" surface="owner_form" value={form.annual_rent_increase_pct} onChange={(v: string) => updateField("annual_rent_increase_pct", v)} formValues={form as unknown as Record<string, unknown>} />
               {/* Phase 1.5 addendum (D-166) — One-time charges sub-heading + move-in +
                   brokerage. Section 3 hit 10 fields in rent mode; the divider prevents
@@ -1550,6 +1571,31 @@ export default function ListProperty() {
               </div>
               <SpecField fieldKey="parking_notes" surface="owner_form" value={form.parking_notes} onChange={(v: string) => updateField("parking_notes", v)} />
               <SpecField fieldKey="water_storage" surface="owner_form" value={form.water_storage} onChange={(v: string) => updateField("water_storage", v)} className="max-w-xs" />
+              {/* P3: water source multi-select (text[] column). */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Water source</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {WATER_SOURCE_OPTIONS.map((o) => {
+                    const checked = form.water_source.includes(o.value);
+                    return (
+                      <label key={o.value} className="flex items-center gap-2 min-h-[36px] cursor-pointer">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            const next = v
+                              ? [...form.water_source, o.value]
+                              : form.water_source.filter((x) => x !== o.value);
+                            updateField("water_source", next);
+                          }}
+                        />
+                        <span className="text-sm">{o.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* P3: main_door_lock_type as enum select. */}
+              <SpecField fieldKey="main_door_lock_type" surface="owner_form" value={form.main_door_lock_type} onChange={(v: string) => updateField("main_door_lock_type", v)} className="max-w-xs" />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <UtilityToggle label="Water included" checked={form.water_included} onChange={(v) => updateField("water_included", v, { utility_water_included: v })} />
                 <UtilityToggle label="Gas included" checked={form.gas_included} onChange={(v) => updateField("gas_included", v, { utility_gas_included: v })} />
@@ -1872,11 +1918,15 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "google_maps_url": return { google_maps_url: strVal.trim() || null };
     case "landmark": return { landmark: strVal.trim() || null };
     case "notice_period_months": return { notice_period_months: parseNum(strVal) };
+    case "notice_period_days": return { notice_period_days: parseNum(strVal) };
+    case "lock_in_months": return { lock_in_months: parseNum(strVal) };
     case "annual_rent_increase_pct": return { annual_rent_increase_pct: parseNum(strVal) };
     case "parking_2w_count": return { parking_2w_count: parseNum(strVal) ?? 0 };
     case "parking_4w_count": return { parking_4w_count: parseNum(strVal) ?? 0 };
     case "parking_notes": return { parking_notes: strVal.trim() || null };
     case "water_storage": return { water_storage: strVal || null };
+    case "water_source": return { water_source: Array.isArray(value) && (value as string[]).length ? (value as string[]) : null };
+    case "main_door_lock_type": return { main_door_lock_type: strVal || null };
     // Prompt 10a (D-161) — rent/sale. Date fields (possession_date, property_tax_paid_upto)
     // go through explicit dbPatch from the Calendar onSelect handler; not in this switch.
     case "listing_type": return { listing_type: strVal };
@@ -1897,6 +1947,7 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "floor_number": return { floor_number: parseNum(strVal) };
     case "total_floors": return { total_floors: parseNum(strVal) };
     case "square_footage": return { square_footage: parseNum(strVal) };
+    case "super_built_up_area": return { super_built_up_area: parseNum(strVal) };
     case "facing": return { facing: strVal || null };
     case "building_age_years": return { building_age_years: parseNum(strVal) };
     case "listed_rent": return { listed_rent: parseNum(strVal) ?? 0 };

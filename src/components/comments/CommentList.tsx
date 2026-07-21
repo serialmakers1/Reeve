@@ -18,6 +18,9 @@ interface Props {
   onReport: (commentId: string) => void;
   onDelete: (commentId: string) => void;
   onReplyPosted: (row: CommentRow) => void;
+  // P6-G1: optional additions. Defaults preserve prior behaviour.
+  sortMode?: "newest" | "liked";
+  topLevelLimit?: number;
 }
 
 export default function CommentList(props: Props) {
@@ -34,17 +37,28 @@ export default function CommentList(props: Props) {
         map.set(r.parent_comment_id, arr);
       }
     }
-    top.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    // P6-G1: honor sortMode prop; default "newest" preserves prior behaviour.
+    if (props.sortMode === "liked") {
+      top.sort((a, b) => b.like_count - a.like_count);
+    } else {
+      top.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    }
     for (const [k, v] of map) {
       v.sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
       map.set(k, v);
     }
     return { topLevel: top, childrenMap: map };
-  }, [props.rows]);
+  }, [props.rows, props.sortMode]);
+
+  // P6-G1: cap visible top-level threads. Children of visible parents render fully.
+  const visibleTop =
+    typeof props.topLevelLimit === "number" && Number.isFinite(props.topLevelLimit)
+      ? topLevel.slice(0, props.topLevelLimit)
+      : topLevel;
 
   return (
     <div className="space-y-3">
-      {topLevel.map((r) => (
+      {visibleTop.map((r) => (
         <CommentThread
           key={r.comment_id}
           row={r}

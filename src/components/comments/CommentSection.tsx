@@ -1,4 +1,5 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Info } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,6 +37,26 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
   const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
   const [reportOpenId, setReportOpenId] = useState<string | null>(null);
+  // P6-G1: sort mode + initial top-level cap. Reset cap when the property changes.
+  const [sortMode, setSortMode] = useState<"newest" | "liked">("newest");
+  const [visibleCount, setVisibleCount] = useState<number>(3);
+  useEffect(() => { setVisibleCount(3); }, [propertyId]);
+
+  // Client-side "Most liked" sort. `rows` is a flat array; we reorder top-level
+  // parents by like_count and keep children beside their parents so CommentList's
+  // childrenMap still groups correctly.
+  const sortedRows = useMemo(() => {
+    if (sortMode === "newest") return rows;
+    const tops = rows.filter((r) => r.parent_comment_id === null);
+    const children = rows.filter((r) => r.parent_comment_id !== null);
+    tops.sort((a, b) => b.like_count - a.like_count);
+    return [...tops, ...children];
+  }, [rows, sortMode]);
+
+  const topLevelCount = useMemo(
+    () => rows.filter((r) => r.parent_comment_id === null).length,
+    [rows],
+  );
 
   const fetchPage = useCallback(async (cursor?: string) => {
     setLoading(true);
@@ -175,6 +196,17 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
         )}
       </div>
 
+      {/* P6-G1: permanent guidance line above the composer. */}
+      <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+        <span>Public Q&amp;A — your question helps other tenants too. Property questions only.</span>
+        <span
+          title="Public + permanent · shown under your alias · 1000 char max · rate-limited to 3/hr, 10/day · no links or phone numbers · reported comments auto-hide"
+          className="cursor-help"
+        >
+          <Info className="h-3.5 w-3.5" />
+        </span>
+      </p>
+
       {gateState ? (
         <CommentGateCard state={gateState} />
       ) : (
@@ -188,6 +220,26 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
             onPosted={(row) => setRows((prev) => [row, ...prev])}
           />
         )
+      )}
+
+      {/* P6-G1: sort toggle — client-side reorder, no re-fetch. */}
+      {loaded && topLevelCount > 0 && (
+        <div className="flex gap-1.5">
+          {(["newest", "liked"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setSortMode(m)}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                sortMode === m
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {m === "newest" ? "Newest" : "Most liked"}
+            </button>
+          ))}
+        </div>
       )}
 
       <div ref={sentinelRef} aria-hidden className="h-1 w-full" />
@@ -211,22 +263,35 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
       )}
 
       {loaded && rows.length > 0 && (
-        <CommentList
-          rows={rows}
-          canInteract={canInteract}
-          propertyId={propertyId}
-          propertyOwnerId={propertyOwnerId}
-          currentPseudonym={pseudonym}
-          currentUserId={user?.id ?? ""}
-          currentUserFullName={user?.full_name ?? null}
-          replyOpenId={replyOpenId}
-          reportedIds={reportedIds}
-          onReplyToggle={handleReplyToggle}
-          onLike={handleLike}
-          onReport={handleReport}
-          onDelete={handleDelete}
-          onReplyPosted={handleReplyPosted}
-        />
+        <>
+          <CommentList
+            rows={sortedRows}
+            canInteract={canInteract}
+            propertyId={propertyId}
+            propertyOwnerId={propertyOwnerId}
+            currentPseudonym={pseudonym}
+            currentUserId={user?.id ?? ""}
+            currentUserFullName={user?.full_name ?? null}
+            replyOpenId={replyOpenId}
+            reportedIds={reportedIds}
+            onReplyToggle={handleReplyToggle}
+            onLike={handleLike}
+            onReport={handleReport}
+            onDelete={handleDelete}
+            onReplyPosted={handleReplyPosted}
+            sortMode={sortMode}
+            topLevelLimit={visibleCount}
+          />
+          {topLevelCount > visibleCount && (
+            <button
+              type="button"
+              onClick={() => setVisibleCount(Number.POSITIVE_INFINITY)}
+              className="text-sm font-medium text-primary"
+            >
+              View all {topLevelCount} questions
+            </button>
+          )}
+        </>
       )}
 
       {loaded && hasMore && (

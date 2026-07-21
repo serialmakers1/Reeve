@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Home } from "lucide-react";
 import CommentItem from "./CommentItem";
 import type { CommentRow } from "./types";
@@ -22,11 +23,13 @@ interface Props {
   onReplyPosted: (row: CommentRow) => void;
 }
 
+// P6-G2: pl-{n} + left border replaces prior ml-{n}. The left border IS the
+// connector line — clicking it collapses the thread's children.
 function indentClass(depth: number, isMobile: boolean): string {
   if (depth === 0) return "";
   const capped = isMobile ? Math.min(depth, 2) : Math.min(depth, 4);
-  const map: Record<number, string> = { 1: "ml-4", 2: "ml-8", 3: "ml-12", 4: "ml-16" };
-  return map[capped] ?? "ml-16";
+  const map: Record<number, string> = { 1: "pl-4", 2: "pl-8", 3: "pl-12", 4: "pl-16" };
+  return map[capped] ?? "pl-16";
 }
 
 export default function CommentThread(props: Props) {
@@ -34,9 +37,11 @@ export default function CommentThread(props: Props) {
   const kids = childrenMap.get(row.comment_id) ?? [];
   // Owner-replied indicator: only on top-level threads where a direct child is owner.
   const hasOwnerReply = depth === 0 && !row.is_owner && kids.some((c) => c.is_owner);
+  const [collapsed, setCollapsed] = useState(false);
+  const showConnector = depth > 0;
 
-  return (
-    <div className={indentClass(depth, isMobile)}>
+  const inner = (
+    <>
       <CommentItem
         row={row}
         canInteract={props.canInteract}
@@ -59,17 +64,69 @@ export default function CommentThread(props: Props) {
         </p>
       )}
       {kids.length > 0 && (
-        <div className="mt-2 space-y-2">
-          {kids.map((c) => (
-            <CommentThread
-              key={c.comment_id}
-              {...props}
-              row={c}
-              depth={depth + 1}
-            />
-          ))}
-        </div>
+        collapsed ? (
+          <button
+            type="button"
+            onClick={() => setCollapsed(false)}
+            className="mt-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:bg-primary/10"
+          >
+            — {kids.length} repl{kids.length === 1 ? "y" : "ies"} · tap to expand
+          </button>
+        ) : (
+          <div className="mt-2 space-y-2">
+            {kids.map((c) => (
+              <CommentThread
+                key={c.comment_id}
+                {...props}
+                row={c}
+                depth={depth + 1}
+              />
+            ))}
+          </div>
+        )
       )}
+    </>
+  );
+
+  if (!showConnector) {
+    // Depth 0 has no left border — but still supports collapse via the reply pill above.
+    // Provide a "collapse thread" affordance via a subtle button when there are children.
+    return (
+      <div>
+        {inner}
+        {kids.length > 0 && !collapsed && (
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            aria-label="Collapse replies"
+            className="mt-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            Collapse thread
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={collapsed ? "Expand replies" : "Collapse replies"}
+      onClick={(e) => {
+        // Only toggle when the click hits the container itself, not a descendant
+        // interactive element (like/reply/report/etc.).
+        if (e.target === e.currentTarget) setCollapsed((v) => !v);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setCollapsed((v) => !v);
+        }
+      }}
+      className={`relative border-l-2 border-muted transition-colors hover:border-primary/40 ${indentClass(depth, isMobile)}`}
+    >
+      {inner}
     </div>
   );
 }

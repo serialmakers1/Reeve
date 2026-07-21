@@ -15,6 +15,8 @@ export default function BottomNav() {
 
   if (isLoading) return null;
   if (!isAuthenticated) return null;
+  // P4: /property/:id owns the bottom slot with a sticky CTA bar; suppress the nav there.
+  if (/^\/property\/[^/]+$/.test(location.pathname)) return null;
 
   const isActive = (route: string) => {
     if (route === '/') return location.pathname === '/';

@@ -27,6 +27,8 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 
 // D-170: FurnishingDetailItem type + FURNISHING_ITEM_OPTIONS moved to shared modules.
 import { type FurnishingDetailItem, buildAmenitiesJson } from "@/types/property";
+import { WATER_SOURCE_OPTIONS } from "@/config/property-form";
+import { computeDepositMonths } from "@/utils/property/financialConversions";
 import { FurnishingEditor } from "@/components/property/FurnishingEditor";
 import { AmenitiesEditor } from "@/components/property/AmenitiesEditor";
 
@@ -166,6 +168,13 @@ export default function PropertyEdit() {
   const [parking4wCount, setParking4wCount] = useState<string>("");
   const [parkingNotes, setParkingNotes] = useState<string>("");
 
+  // P3 — new property columns.
+  const [lockInMonths, setLockInMonths] = useState<string>("");
+  const [noticePeriodDays, setNoticePeriodDays] = useState<string>("");
+  const [superBuiltUpArea, setSuperBuiltUpArea] = useState<string>("");
+  const [waterSource, setWaterSource] = useState<string[]>([]);
+  const [mainDoorLockType, setMainDoorLockType] = useState<string>("");
+
   // Prompt 10b — rent/sale (D-162). Admin can flip listing_type any time (no
   // Tier-1 lock on admin surface — D-111 bypass).
   const [listingType, setListingType] = useState<string>("rent");
@@ -275,6 +284,13 @@ export default function PropertyEdit() {
       setParking2wCount((data as unknown as Record<string, unknown>).parking_2w_count != null ? String((data as unknown as Record<string, unknown>).parking_2w_count) : "");
       setParking4wCount((data as unknown as Record<string, unknown>).parking_4w_count != null ? String((data as unknown as Record<string, unknown>).parking_4w_count) : "");
       setParkingNotes((data as unknown as Record<string, unknown>).parking_notes as string || "");
+      // P3 — new columns.
+      const row = data as unknown as Record<string, unknown>;
+      setLockInMonths(row.lock_in_months != null ? String(row.lock_in_months) : "");
+      setNoticePeriodDays(row.notice_period_days != null ? String(row.notice_period_days) : "");
+      setSuperBuiltUpArea(row.super_built_up_area != null ? String(row.super_built_up_area) : "");
+      setWaterSource(Array.isArray(row.water_source) ? (row.water_source as string[]) : []);
+      setMainDoorLockType((row.main_door_lock_type as string) ?? "");
       // Prompt 10b — rent/sale.
       setListingType((data as unknown as Record<string, unknown>).listing_type as string || "rent");
       setSalePrice((data as unknown as Record<string, unknown>).sale_price != null ? String((data as unknown as Record<string, unknown>).sale_price) : "");
@@ -419,6 +435,12 @@ export default function PropertyEdit() {
         notice_period_months: noticePeriodMonths ? parseInt(noticePeriodMonths) : null,
         annual_rent_increase_pct: annualRentIncreasePct ? parseFloat(annualRentIncreasePct) : null,
         water_storage: waterStorage || null,
+        // P3 — new columns.
+        lock_in_months: lockInMonths ? parseInt(lockInMonths) : null,
+        notice_period_days: noticePeriodDays ? parseInt(noticePeriodDays) : null,
+        super_built_up_area: superBuiltUpArea ? parseFloat(superBuiltUpArea) : null,
+        water_source: waterSource.length ? waterSource : null,
+        main_door_lock_type: mainDoorLockType || null,
         parking_2w_count: parking2wCount ? parseInt(parking2wCount) : 0,
         parking_4w_count: parking4wCount ? parseInt(parking4wCount) : 0,
         parking_notes: parkingNotes || null,
@@ -827,6 +849,8 @@ export default function PropertyEdit() {
             <SpecField fieldKey="total_floors" surface="admin_form" value={totalFloors} onChange={(v: string) => setTotalFloors(v)} />
             {/* TODO(spec): fold "Carpet Area (in sq ft)" admin label into PROPERTY_FIELDS.square_footage.adminLabel in Prompt 6 bundle */}
             <SpecField fieldKey="square_footage" surface="admin_form" value={squareFootage} onChange={(v: string) => setSquareFootage(v)} />
+            {/* P3: super_built_up_area — companion to carpet area. */}
+            <SpecField fieldKey="super_built_up_area" surface="admin_form" value={superBuiltUpArea} onChange={(v: string) => setSuperBuiltUpArea(v)} />
             <SpecField fieldKey="bathrooms" surface="admin_form" value={bathrooms} onChange={(v: string) => setBathrooms(v)} placeholderOverride="e.g. 2" />
             <SpecField fieldKey="balconies" surface="admin_form" value={balconies} onChange={(v: string) => setBalconies(v)} placeholderOverride="e.g. 1" />
             {/* TODO(spec): fold "Building Facing Direction" admin label into PROPERTY_FIELDS.facing.adminLabel in Prompt 6 bundle */}
@@ -854,7 +878,24 @@ export default function PropertyEdit() {
             {/* TODO(spec): fold "Listed Rent (₹)" admin label into PROPERTY_FIELDS.listed_rent.adminLabel in Prompt 6 bundle */}
             <SpecField fieldKey="listed_rent" surface="admin_form" value={listedRent} onChange={(v: string) => setListedRent(v)} />
             {/* Added in Prompt 4 — security_deposit_amount surfaced on admin (was owner-only rendering before). */}
-            <SpecField fieldKey="security_deposit_amount" surface="admin_form" value={securityDepositAmount} onChange={(v: string) => setSecurityDepositAmount(v)} />
+            <div className="space-y-1">
+              <SpecField fieldKey="security_deposit_amount" surface="admin_form" value={securityDepositAmount} onChange={(v: string) => setSecurityDepositAmount(v)} />
+              {(() => {
+                const amt = securityDepositAmount ? parseFloat(securityDepositAmount) : null;
+                const rent = listedRent ? parseFloat(listedRent) : null;
+                const months = computeDepositMonths(amt, rent);
+                if (months === null) return null;
+                const rounded = Math.round(months * 10) / 10;
+                return (
+                  <>
+                    <p className="text-xs text-muted-foreground">≈ {rounded} month{rounded === 1 ? "" : "s"} of rent</p>
+                    {rounded > 5 ? (
+                      <p className="text-xs text-amber-600">Deposits above 5 months of rent may discourage tenants.</p>
+                    ) : null}
+                  </>
+                );
+              })()}
+            </div>
             <SpecField fieldKey="society_maintenance_approx" surface="admin_form" value={societyMaintenance} onChange={(v: string) => setSocietyMaintenance(v)} />
             <div className="sm:col-span-2">
               {/* TODO(spec): fold "Society Maintenance Included in Rent" admin label into PROPERTY_FIELDS.maintenance_included_in_rent.adminLabel in Prompt 6 bundle */}
@@ -866,8 +907,8 @@ export default function PropertyEdit() {
                 helperOverride='When on, tenants see "Included in Rent" instead of a separate maintenance amount'
               />
             </div>
-            {/* Legacy PM control — kept alongside owner-facing security_deposit_amount. */}
-            <SpecField fieldKey="security_deposit_months" surface="admin_form" value={securityDepositMonths} onChange={(v: string) => setSecurityDepositMonths(v)} />
+            {/* P3: security_deposit_months input removed from admin UI. State + payload write retained
+                so column stays populated for legacy consumers; value taken from prior hydrated state. */}
             {/* D-168: spec-driven date field. Now shows amber past-date warning + 90-day future cap (parity with owner form). */}
             <SpecField
               fieldKey="available_from"
@@ -877,6 +918,10 @@ export default function PropertyEdit() {
             />
             {/* Prompt 8 (D-159) — India rent fields. `visibleWhen: v.listing_type !== 'sale'`
                 on both entries makes formValues gate them; passed here for defense in depth. */}
+            {/* P3: lock_in_months + notice_period_days added. notice_period_months
+                retained admin-only for legacy edits. */}
+            <SpecField fieldKey="lock_in_months" surface="admin_form" value={lockInMonths} onChange={(v: string) => setLockInMonths(v)} formValues={{ listing_type: listingType }} />
+            <SpecField fieldKey="notice_period_days" surface="admin_form" value={noticePeriodDays} onChange={(v: string) => setNoticePeriodDays(v)} formValues={{ listing_type: listingType }} />
             <SpecField fieldKey="notice_period_months" surface="admin_form" value={noticePeriodMonths} onChange={(v: string) => setNoticePeriodMonths(v)} formValues={{ listing_type: listingType }} />
             <SpecField fieldKey="annual_rent_increase_pct" surface="admin_form" value={annualRentIncreasePct} onChange={(v: string) => setAnnualRentIncreasePct(v)} formValues={{ listing_type: listingType }} />
             {/* Phase 1.5 addendum (D-166) — move-in charges + brokerage.
@@ -970,6 +1015,30 @@ export default function PropertyEdit() {
             </div>
             <SpecField fieldKey="parking_notes" surface="admin_form" value={parkingNotes} onChange={(v: string) => setParkingNotes(v)} />
             <SpecField fieldKey="water_storage" surface="admin_form" value={waterStorage} onChange={(v: string) => setWaterStorage(v)} className="max-w-xs" />
+            {/* P3: water_source multi-select (text[]). */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Water source</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {WATER_SOURCE_OPTIONS.map((o) => {
+                  const checked = waterSource.includes(o.value);
+                  return (
+                    <label key={o.value} className="flex items-center gap-2 min-h-[36px] cursor-pointer">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          setWaterSource((prev) =>
+                            v ? [...prev, o.value] : prev.filter((x) => x !== o.value)
+                          );
+                        }}
+                      />
+                      <span className="text-sm">{o.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            {/* P3: main_door_lock_type — freetext -> enum select. */}
+            <SpecField fieldKey="main_door_lock_type" surface="admin_form" value={mainDoorLockType} onChange={(v: string) => setMainDoorLockType(v)} className="max-w-xs" />
             {/* D-169: pet_policy migrated to spec-driven select. Legacy free-text values were normalized to canonical enum via MCP in Sync P1. */}
             <SpecField fieldKey="pet_policy" surface="admin_form" value={petPolicy} onChange={(v: string) => setPetPolicy(v)} />
             <SpecField fieldKey="building_rules" surface="admin_form" value={buildingRules} onChange={(v: string) => setBuildingRules(v)} />

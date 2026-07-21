@@ -5,6 +5,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import ReplyComposer from "./ReplyComposer";
 import type { CommentRow } from "./types";
 
+// P6-G3: deterministic colour from pseudonym for the avatar tile.
+// Pure — no imports. Palette is intentional and documented as the only
+// hard-coded hex block on the page.
+const PALETTE = ["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6","#ef4444","#14b8a6"];
+function pseudonymToColour(name = ""): string {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+  return PALETTE[h % PALETTE.length];
+}
+
 interface Props {
   row: CommentRow;
   canInteract: boolean;
@@ -49,14 +59,26 @@ export default function CommentItem({
   const nameCls = row.is_owner
     ? "text-sm font-medium text-foreground"
     : "text-sm font-medium text-muted-foreground";
+  // P6-G3: owner comments get a subtle brand tint (already applied prior; kept).
   const cardCls = row.is_owner
-    ? "rounded-lg bg-primary/5 border border-primary/10 p-3"
-    : "rounded-lg p-3";
+    ? "rounded-xl bg-primary/5 border border-primary/10 px-3 py-2"
+    : "rounded-xl px-3 py-2";
   const replyOpen = replyOpenId === row.comment_id;
+  // P6-G3: pseudonym-derived avatar. Owner keeps the Home icon in header.
+  const avatarBg = pseudonymToColour(row.pseudonym ?? "");
+  const avatarInitial = row.pseudonym?.[0]?.toUpperCase() ?? "?";
 
   return (
     <div className={cardCls}>
       <div className="flex items-center gap-2 flex-wrap">
+        {/* P6-G3: avatar tile. */}
+        <div
+          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+          style={{ backgroundColor: avatarBg }}
+          aria-hidden
+        >
+          {avatarInitial}
+        </div>
         {row.is_owner && <Home className="h-4 w-4 text-primary" aria-hidden />}
         <span className={nameCls}>
           {row.is_owner && row.real_name ? row.real_name : row.pseudonym}
