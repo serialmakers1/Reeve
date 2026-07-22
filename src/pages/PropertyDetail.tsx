@@ -954,45 +954,48 @@ const PropertyDetail: React.FC = () => {
             )}
           </div>
 
-          {/* F1-B4b: mobile carousel — tabs + embla + counter, hidden on lg+. */}
+          {/* F1F-1: section tabs pulled out of the mobile wrapper — they filter
+              activeImages for both mobile carousel AND desktop collage. */}
+          {(hasFloorPlan || sections.length > 0) && (
+            <div className="flex gap-1 pb-2 overflow-x-auto">
+              <button
+                onClick={() => setGalleryTab("all")}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  galleryTab === "all"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                All Photos
+              </button>
+              {sections.map(section => (
+                <button
+                  key={section}
+                  onClick={() => setGalleryTab(section)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap ${
+                    galleryTab === section
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {section}
+                </button>
+              ))}
+              <button
+                onClick={() => setGalleryTab("floorplan")}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  galleryTab === "floorplan"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                Floor Plan
+              </button>
+            </div>
+          )}
+
+          {/* F1-B4b: mobile carousel — embla + counter, hidden on lg+. */}
           <div className="lg:hidden">
-            {(hasFloorPlan || sections.length > 0) && (
-              <div className="flex gap-1 px-4 pb-2 overflow-x-auto">
-                <button
-                  onClick={() => setGalleryTab("all")}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                    galleryTab === "all"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  All Photos
-                </button>
-                {sections.map(section => (
-                  <button
-                    key={section}
-                    onClick={() => setGalleryTab(section)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap ${
-                      galleryTab === section
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {section}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setGalleryTab("floorplan")}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                    galleryTab === "floorplan"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  Floor Plan
-                </button>
-              </div>
-            )}
             <div className="relative">
               <Carousel setApi={setCarouselApi} className="w-full">
                 <CarouselContent className="-ml-0">
@@ -1269,8 +1272,10 @@ const PropertyDetail: React.FC = () => {
           </div>
 
           {/* P6: right column — sticky sidebar on desktop, hidden on mobile
-              (PropertyCTABar handles mobile). */}
-          <div className="hidden lg:block">
+              (PropertyCTABar handles mobile).
+              F1F-2: explicit `self-start` mirrors the grid's `items-start` so the
+              cell is intrinsic-height and the aside inside can scroll-stick. */}
+          <div className="hidden lg:block lg:self-start">
             {property?.owner_id && (
               <PropertySidebar
                 property={property}

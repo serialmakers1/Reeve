@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Info } from "lucide-react";
+import { Info, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +39,8 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
   const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
   const [reportOpenId, setReportOpenId] = useState<string | null>(null);
+  // F1F-7: whole section collapsed by default; user opens to load + view.
+  const [sectionOpen, setSectionOpen] = useState<boolean>(false);
   // P6-G1: sort mode + initial top-level cap. Reset cap when the property changes.
   const [sortMode, setSortMode] = useState<"newest" | "liked">("newest");
   const [visibleCount, setVisibleCount] = useState<number>(3);
@@ -77,6 +80,8 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
   }, [propertyId]);
 
   const triggerLoad = useCallback(() => {
+    // F1F-7: external trigger also opens the section so the loaded rows are visible.
+    setSectionOpen(true);
     if (loaded || loading) return;
     fetchPage();
   }, [loaded, loading, fetchPage]);
@@ -186,16 +191,39 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
 
   const canInteract = isFullyVerified;
 
+  const displayCount = loaded ? rows.filter((r) => r.parent_comment_id === null).length : commentCount;
+
   return (
     <section id="comments" className="space-y-3 px-4 lg:px-0">
-      <div className="flex items-center gap-2">
-        <h2 className="text-base font-semibold text-foreground">Comments</h2>
-        {commentCount > 0 && (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {commentCount}
-          </span>
-        )}
-      </div>
+      {/* F1F-7: section-level toggle; body loads on open (defers RPC + auto-load). */}
+      <button
+        type="button"
+        onClick={() => {
+          setSectionOpen((v) => {
+            const next = !v;
+            if (next) triggerLoad();
+            return next;
+          });
+        }}
+        aria-expanded={sectionOpen}
+        className="flex w-full items-center justify-between gap-2"
+      >
+        <span className="flex items-center gap-2">
+          <h2 className="text-base font-semibold text-foreground">Questions &amp; Answers</h2>
+          {displayCount > 0 && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {displayCount}
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 text-muted-foreground transition-transform",
+            sectionOpen && "rotate-180",
+          )}
+        />
+      </button>
+      {!sectionOpen ? null : (<>
 
       {/* P6-G1 + F1-B5e: guidance line + shadcn Tooltip (works on touch via tap). */}
       <TooltipProvider delayDuration={200}>
@@ -320,6 +348,7 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
         commentId={reportOpenId}
         onReported={(id) => setReportedIds((s) => new Set(s).add(id))}
       />
+      </>)}
     </section>
   );
 });
