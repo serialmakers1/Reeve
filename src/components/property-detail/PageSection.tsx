@@ -24,7 +24,11 @@ export default function PageSection({
   return (
     <section
       className={cn(
-        "px-4 py-5 lg:px-0",
+        // F1F-4: default sections use page padding (no card); muted/accent
+        // sections keep inner padding on desktop too so content is properly
+        // inset from the card edge (previously `lg:px-0` collapsed inner
+        // padding to zero for muted cards, making rows touch the edge).
+        rounded ? "px-5 py-5" : "px-4 py-5 lg:px-0",
         background === "muted" && "bg-muted/40",
         background === "accent" && "bg-primary/5 border border-primary/20",
         rounded && "rounded-2xl mx-4 lg:mx-0",

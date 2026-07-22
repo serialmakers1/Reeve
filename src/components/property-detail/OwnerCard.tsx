@@ -59,7 +59,8 @@ export default function OwnerCard({ ownerId, isOwnProperty }: Props) {
                   Responds to {allTimeRate}% · {allTimeHandled} handled
                 </p>
               ) : null}
-              {ratingSummary && ratingSummary.total > 0 ? (
+              {/* F1F-3: only show once there are 3+ ratings (statistical floor). */}
+              {ratingSummary && ratingSummary.total >= 3 ? (
                 <p className="mt-0.5 text-sm text-muted-foreground">
                   {ratingSummary.dealAgainPct}% would deal again · {ratingSummary.total} ratings
                 </p>
