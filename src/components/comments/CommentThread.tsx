@@ -37,7 +37,8 @@ export default function CommentThread(props: Props) {
   const kids = childrenMap.get(row.comment_id) ?? [];
   // Owner-replied indicator: only on top-level threads where a direct child is owner.
   const hasOwnerReply = depth === 0 && !row.is_owner && kids.some((c) => c.is_owner);
-  const [collapsed, setCollapsed] = useState(false);
+  // F2-A2: reply threads (depth > 0) start collapsed; root questions stay expanded.
+  const [collapsed, setCollapsed] = useState(depth > 0);
   const showConnector = depth > 0;
 
   const inner = (

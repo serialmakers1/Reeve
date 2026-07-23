@@ -189,9 +189,8 @@ export default function PropertyEdit() {
 
   // Phase 1.5 addendum (D-166) — move-in charges + brokerage.
   const [moveInChargesAmount, setMoveInChargesAmount] = useState<string>("");
-  const [rentBrokerageType, setRentBrokerageType] = useState<string>("");
+  // F2-D3: brokerage collapsed to a flat amount; type + months state removed.
   const [rentBrokerageFixedAmount, setRentBrokerageFixedAmount] = useState<string>("");
-  const [rentBrokerageMonths, setRentBrokerageMonths] = useState<string>("");
   const [saleBrokeragePct, setSaleBrokeragePct] = useState<string>("");
 
   // Section 7: Owner Profile
@@ -303,9 +302,7 @@ export default function PropertyEdit() {
       setPropertyTaxPaidUpto((data as unknown as Record<string, unknown>).property_tax_paid_upto ? new Date(((data as unknown as Record<string, unknown>).property_tax_paid_upto as string) + "T00:00:00") : undefined);
       // Phase 1.5 addendum (D-166).
       setMoveInChargesAmount((data as unknown as Record<string, unknown>).move_in_charges_amount != null ? String((data as unknown as Record<string, unknown>).move_in_charges_amount) : "");
-      setRentBrokerageType((data as unknown as Record<string, unknown>).rent_brokerage_type as string || "");
       setRentBrokerageFixedAmount((data as unknown as Record<string, unknown>).rent_brokerage_fixed_amount != null ? String((data as unknown as Record<string, unknown>).rent_brokerage_fixed_amount) : "");
-      setRentBrokerageMonths((data as unknown as Record<string, unknown>).rent_brokerage_months != null ? String((data as unknown as Record<string, unknown>).rent_brokerage_months) : "");
       setSaleBrokeragePct((data as unknown as Record<string, unknown>).sale_brokerage_pct != null ? String((data as unknown as Record<string, unknown>).sale_brokerage_pct) : "");
 
       // Owner profile fields
@@ -456,9 +453,7 @@ export default function PropertyEdit() {
         property_tax_paid_upto: propertyTaxPaidUpto ? format(propertyTaxPaidUpto, "yyyy-MM-dd") : null,
         // Phase 1.5 addendum (D-166). D-111 direct-write bypass.
         move_in_charges_amount: moveInChargesAmount ? parseFloat(moveInChargesAmount) : null,
-        rent_brokerage_type: rentBrokerageType || null,
         rent_brokerage_fixed_amount: rentBrokerageFixedAmount ? parseFloat(rentBrokerageFixedAmount) : null,
-        rent_brokerage_months: rentBrokerageMonths ? parseFloat(rentBrokerageMonths) : null,
         sale_brokerage_pct: saleBrokeragePct ? parseFloat(saleBrokeragePct) : null,
         updated_at: new Date().toISOString(),
       })
@@ -928,9 +923,8 @@ export default function PropertyEdit() {
                 Admin gets the static "Brokerage amount" label from spec (no dynamic
                 overload on this surface — admins know what "amount" means in context). */}
             <SpecField fieldKey="move_in_charges_amount" surface="admin_form" value={moveInChargesAmount} onChange={(v: string) => setMoveInChargesAmount(v)} formValues={{ listing_type: listingType }} />
-            <SpecField fieldKey="rent_brokerage_type" surface="admin_form" value={rentBrokerageType} onChange={(v: string) => setRentBrokerageType(v)} formValues={{ listing_type: listingType }} />
-            <SpecField fieldKey="rent_brokerage_fixed_amount" surface="admin_form" value={rentBrokerageFixedAmount} onChange={(v: string) => setRentBrokerageFixedAmount(v)} formValues={{ listing_type: listingType, rent_brokerage_type: rentBrokerageType }} />
-            <SpecField fieldKey="rent_brokerage_months" surface="admin_form" value={rentBrokerageMonths} onChange={(v: string) => setRentBrokerageMonths(v)} formValues={{ listing_type: listingType, rent_brokerage_type: rentBrokerageType }} />
+            {/* F2-D3: flat brokerage amount only. */}
+            <SpecField fieldKey="rent_brokerage_fixed_amount" surface="admin_form" value={rentBrokerageFixedAmount} onChange={(v: string) => setRentBrokerageFixedAmount(v)} formValues={{ listing_type: listingType }} />
             </>}
             {/* Prompt 10b (D-162) — sale-only fields. */}
             {listingType === "sale" && <>

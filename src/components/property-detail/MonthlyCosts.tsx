@@ -5,7 +5,6 @@
 import { IndianRupee, Droplets, Zap, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PageSection from "./PageSection";
-import { computeBrokerageMonths } from "@/utils/property/financialConversions";
 import { isFieldSet } from "@/utils/property/isFieldSet";
 
 interface Property {
@@ -13,10 +12,7 @@ interface Property {
   listed_rent: number | null;
   society_maintenance_approx: number | null;
   maintenance_included_in_rent: boolean | null;
-  move_in_charges_amount: number | null;
-  rent_brokerage_type: string | null;
-  rent_brokerage_fixed_amount: number | null;
-  rent_brokerage_months: number | null;
+  // F2-B2/B3: move-in charges + brokerage moved into NoSurprisesCard.
   sale_price: number | null;
   expected_price_per_sqft: number | null;
   sale_brokerage_pct: number | null;
@@ -42,8 +38,12 @@ function Row({
   suffix?: React.ReactNode;
 }) {
   return (
-    // F1-B5d: stack on narrow viewports so long chip suffixes don't overflow.
+    // F2-B1: label LEFT, amount RIGHT. Stack on <sm so long chip suffixes wrap cleanly.
     <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+      <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        {label}
+        {suffix}
+      </span>
       <span
         className={cn(
           "font-semibold text-foreground",
@@ -51,10 +51,6 @@ function Row({
         )}
       >
         {amount}
-      </span>
-      <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        {label}
-        {suffix}
       </span>
     </div>
   );
@@ -129,30 +125,7 @@ export default function MonthlyCosts({ property }: { property: Property }) {
     );
   }
 
-  // Move-in row (only if > 0).
-  if (
-    isFieldSet("move_in_charges_amount", property.move_in_charges_amount) &&
-    (property.move_in_charges_amount ?? 0) > 0
-  ) {
-    rows.push(
-      <Row
-        key="movein"
-        amount={fmtINR(property.move_in_charges_amount!)}
-        label="Move-in charge (one-time)"
-      />,
-    );
-  }
-
-  // Brokerage row.
-  const brok = computeBrokerageMonths(
-    property.rent_brokerage_type,
-    property.rent_brokerage_fixed_amount,
-    property.rent_brokerage_months,
-    property.listed_rent,
-  );
-  if (brok.display) {
-    rows.push(<Row key="brok" amount={brok.display} label="Brokerage" />);
-  }
+  // F2-B2/B3: brokerage and move-in charges removed — both live in NoSurprisesCard now.
 
   const utilityChips: React.ReactNode[] = [];
   if (property.utility_water_included) {

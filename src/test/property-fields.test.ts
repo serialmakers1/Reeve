@@ -196,9 +196,11 @@ describe("property-fields spec", () => {
     }
   });
 
-  // Phase 1.5 addendum (D-166) + Sync Prompt 3 (D-169) — move-in charges + brokerage split.
-  it("all addendum spec entries exist with expected shape (post D-169 brokerage split)", () => {
-    for (const key of ["move_in_charges_amount", "rent_brokerage_type", "rent_brokerage_fixed_amount", "rent_brokerage_months", "sale_brokerage_pct"]) {
+  // F2-D6: brokerage collapsed to a single flat amount. `rent_brokerage_type` and
+  // `rent_brokerage_months` spec entries removed; DB columns retained. `move_in_charges_amount`,
+  // `rent_brokerage_fixed_amount`, `sale_brokerage_pct` still surfaced.
+  it("all addendum spec entries exist with expected shape (post F2 brokerage flatten)", () => {
+    for (const key of ["move_in_charges_amount", "rent_brokerage_fixed_amount", "sale_brokerage_pct"]) {
       const f = PROPERTY_FIELDS.find((x) => x.key === key);
       expect(f, `missing spec entry for ${key}`).toBeDefined();
       expect(f!.audiences).toEqual(expect.arrayContaining(["owner_form", "admin_form", "public_detail"]));
@@ -211,22 +213,17 @@ describe("property-fields spec", () => {
     expect(PROPERTY_FIELDS.find((x) => x.key === "rent_brokerage_amount")).toBeUndefined();
   });
 
-  it("rent_brokerage_fixed_amount visibleWhen: rent listings + type=fixed only", () => {
-    const f = PROPERTY_FIELDS.find((x) => x.key === "rent_brokerage_fixed_amount")!;
-    expect(isFieldVisible(f, { listing_type: "sale", rent_brokerage_type: "fixed" })).toBe(false);
-    expect(isFieldVisible(f, { listing_type: "rent", rent_brokerage_type: "none" })).toBe(false);
-    expect(isFieldVisible(f, { listing_type: "rent", rent_brokerage_type: "months" })).toBe(false);
-    expect(isFieldVisible(f, { listing_type: "rent", rent_brokerage_type: "fixed" })).toBe(true);
-    // Legacy null listing_type counts as rent (fail-safe per D-161)
-    expect(isFieldVisible(f, { rent_brokerage_type: "fixed" })).toBe(true);
+  it("F2: rent_brokerage_type and rent_brokerage_months spec entries removed", () => {
+    expect(PROPERTY_FIELDS.find((x) => x.key === "rent_brokerage_type")).toBeUndefined();
+    expect(PROPERTY_FIELDS.find((x) => x.key === "rent_brokerage_months")).toBeUndefined();
   });
 
-  it("rent_brokerage_months visibleWhen: rent listings + type=months only", () => {
-    const f = PROPERTY_FIELDS.find((x) => x.key === "rent_brokerage_months")!;
-    expect(isFieldVisible(f, { listing_type: "sale", rent_brokerage_type: "months" })).toBe(false);
-    expect(isFieldVisible(f, { listing_type: "rent", rent_brokerage_type: "fixed" })).toBe(false);
-    expect(isFieldVisible(f, { listing_type: "rent", rent_brokerage_type: "months" })).toBe(true);
-    expect(isFieldVisible(f, { rent_brokerage_type: "months" })).toBe(true);
+  it("rent_brokerage_fixed_amount visibleWhen: rent listings only (F2 flatten)", () => {
+    const f = PROPERTY_FIELDS.find((x) => x.key === "rent_brokerage_fixed_amount")!;
+    expect(isFieldVisible(f, { listing_type: "sale" })).toBe(false);
+    expect(isFieldVisible(f, { listing_type: "rent" })).toBe(true);
+    // Legacy null listing_type counts as rent (fail-safe per D-161)
+    expect(isFieldVisible(f, {})).toBe(true);
   });
 
   it("sale_brokerage_pct is sale-only (strict equality — sale is opt-in)", () => {
@@ -242,7 +239,7 @@ describe("property-fields spec", () => {
   it("addendum fields are NOT in PUBLIC_DETAILS_GRID_KEYS (bespoke public rendering per D-166/D-169)", async () => {
     const mod = await import("@/config/property-fields");
     const keys = mod.PUBLIC_DETAILS_GRID_KEYS as readonly string[];
-    for (const key of ["move_in_charges_amount", "rent_brokerage_type", "rent_brokerage_fixed_amount", "rent_brokerage_months", "sale_brokerage_pct"]) {
+    for (const key of ["move_in_charges_amount", "rent_brokerage_fixed_amount", "sale_brokerage_pct"]) {
       expect(keys, `${key} must render bespoke in rent/sale Card, not the details grid`).not.toContain(key);
     }
   });
