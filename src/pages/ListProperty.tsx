@@ -77,7 +77,7 @@ const DB_COLUMN_TO_SECTION: Record<string, SectionNum> = {
   listing_type: 3, sale_price: 3, price_negotiable: 3, expected_price_per_sqft: 3,
   possession_status: 3, possession_date: 3, rera_registration_number: 3, khata_type: 3, property_tax_paid_upto: 3,
   // Phase 1.5 addendum (D-166).
-  move_in_charges_amount: 3, rent_brokerage_type: 3, rent_brokerage_fixed_amount: 3, rent_brokerage_months: 3, sale_brokerage_pct: 3,
+  move_in_charges_amount: 3, rent_brokerage_fixed_amount: 3, sale_brokerage_pct: 3,
   furnishing: 4, furnishing_detail: 4, bathrooms: 4, balconies: 4,
   amenities: 5, parking_2w: 5, parking_4w: 5,
   parking_2w_count: 5, parking_4w_count: 5, parking_notes: 5, water_storage: 5,
@@ -123,9 +123,7 @@ interface FormState {
   annual_rent_increase_pct: string;           // Prompt 8 — India field
   // Phase 1.5 addendum (D-166) — move-in charges + rent brokerage.
   move_in_charges_amount: string;
-  rent_brokerage_type: string;                // '' | 'none' | 'fixed' | 'months'
   rent_brokerage_fixed_amount: string;
-  rent_brokerage_months: string;
   // Prompt 10a — Sale-only fields (rendered when listing_type === 'sale').
   sale_price: string;
   price_negotiable: boolean;
@@ -186,7 +184,7 @@ const INITIAL_STATE: FormState = {
   maintenance_included_in_rent: false, available_from: undefined,
   notice_period_months: "", notice_period_days: "", lock_in_months: "",
   annual_rent_increase_pct: "",
-  move_in_charges_amount: "", rent_brokerage_type: "", rent_brokerage_fixed_amount: "", rent_brokerage_months: "",
+  move_in_charges_amount: "", rent_brokerage_fixed_amount: "",
   furnishing: "", furnishing_detail: [], bathrooms: "", balconies: "",
   building_amenities: [],
   parking_2w: "none", parking_4w: "none",
@@ -259,9 +257,7 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     annual_rent_increase_pct: d.annual_rent_increase_pct != null ? String(d.annual_rent_increase_pct) : "",
     // Phase 1.5 addendum (D-166).
     move_in_charges_amount: d.move_in_charges_amount != null ? String(d.move_in_charges_amount) : "",
-    rent_brokerage_type: (d.rent_brokerage_type as string) ?? "",
     rent_brokerage_fixed_amount: d.rent_brokerage_fixed_amount != null ? String(d.rent_brokerage_fixed_amount) : "",
-    rent_brokerage_months: d.rent_brokerage_months != null ? String(d.rent_brokerage_months) : "",
     furnishing: (d.furnishing as string) ?? "",
     furnishing_detail: furnDetail,
     bathrooms: d.bathrooms != null ? String(d.bathrooms) : "",
@@ -1485,28 +1481,13 @@ export default function ListProperty() {
                 onChange={(v: string) => updateField("move_in_charges_amount", v)}
                 formValues={{ listing_type: form.listing_type }}
               />
-              <SpecField
-                fieldKey="rent_brokerage_type"
-                surface="owner_form"
-                value={form.rent_brokerage_type}
-                onChange={(v: string) => updateField("rent_brokerage_type", v)}
-                formValues={{ listing_type: form.listing_type }}
-              />
-              {/* D-169: brokerage amount split into two typed columns.
-                  Spec visibleWhen gates each to the matching rent_brokerage_type value. */}
+              {/* F2-D2: brokerage collapsed to a single flat amount input. */}
               <SpecField
                 fieldKey="rent_brokerage_fixed_amount"
                 surface="owner_form"
                 value={form.rent_brokerage_fixed_amount}
                 onChange={(v: string) => updateField("rent_brokerage_fixed_amount", v)}
-                formValues={{ listing_type: form.listing_type, rent_brokerage_type: form.rent_brokerage_type }}
-              />
-              <SpecField
-                fieldKey="rent_brokerage_months"
-                surface="owner_form"
-                value={form.rent_brokerage_months}
-                onChange={(v: string) => updateField("rent_brokerage_months", v)}
-                formValues={{ listing_type: form.listing_type, rent_brokerage_type: form.rent_brokerage_type }}
+                formValues={{ listing_type: form.listing_type }}
               />
             </div>
             )}
@@ -1925,9 +1906,7 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "khata_type": return { khata_type: strVal || null };
     // Phase 1.5 addendum (D-166).
     case "move_in_charges_amount": return { move_in_charges_amount: parseNum(strVal) };
-    case "rent_brokerage_type": return { rent_brokerage_type: strVal || null };
     case "rent_brokerage_fixed_amount": return { rent_brokerage_fixed_amount: parseNum(strVal) };
-    case "rent_brokerage_months": return { rent_brokerage_months: parseNum(strVal) };
     case "sale_brokerage_pct": return { sale_brokerage_pct: parseNum(strVal) };
     case "bhk": return { bhk: strVal };
     case "property_type": return { property_type: strVal || null };

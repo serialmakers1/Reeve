@@ -511,23 +511,9 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     display: (v) => (typeof v === "number" ? `₹${v.toLocaleString("en-IN")}` : ""),
     visibleWhen: (v) => v.listing_type !== "sale",
   },
-  {
-    key: "rent_brokerage_type",
-    label: "Brokerage",
-    publicLabel: "Brokerage type",
-    input: "select",
-    options: [
-      { value: "none", label: "None" },
-      { value: "fixed", label: "Fixed amount" },
-      { value: "months", label: "Months of rent" },
-    ],
-    audiences: ["owner_form", "admin_form", "public_detail"],
-    editableBy: ["owner", "admin"],
-    ownerSection: "rent_deposit",
-    visibleWhen: (v) => v.listing_type !== "sale",
-  },
-  // D-169: brokerage amount split into two typed columns (was overloaded
-  // rent_brokerage_amount). Matches security_deposit_amount + _months precedent.
+  // F2-D1: collapsed to a single flat amount. `rent_brokerage_type` and
+  // `rent_brokerage_months` spec entries removed; DB columns retained but no
+  // longer surfaced. Owner enters an amount (0 = zero brokerage, null = unknown).
   {
     key: "rent_brokerage_fixed_amount",
     label: "Brokerage amount (₹)",
@@ -537,18 +523,7 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     editableBy: ["owner", "admin"],
     ownerSection: "rent_deposit",
     placeholder: "e.g. 25000",
-    visibleWhen: (v) => v.listing_type !== "sale" && v.rent_brokerage_type === "fixed",
-  },
-  {
-    key: "rent_brokerage_months",
-    label: "Brokerage (months of rent)",
-    input: "number",
-    min: 0,
-    audiences: ["owner_form", "admin_form", "public_detail"],
-    editableBy: ["owner", "admin"],
-    ownerSection: "rent_deposit",
-    placeholder: "e.g. 1",
-    visibleWhen: (v) => v.listing_type !== "sale" && v.rent_brokerage_type === "months",
+    visibleWhen: (v) => v.listing_type !== "sale",
   },
 
   // ── Inside the home ──────────────────────────────────────────────────

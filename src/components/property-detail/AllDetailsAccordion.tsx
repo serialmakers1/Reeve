@@ -18,12 +18,9 @@ import {
   FileText,
   Flame,
   Receipt,
-  CalendarCheck,
-  ChevronDown,
   Copy,
 } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
 import { isFieldSet } from "@/utils/property/isFieldSet";
@@ -180,7 +177,8 @@ function buildTiles(p: Property): TileConfig[] {
     });
   }
 
-  if (isFieldSet("pet_policy", p.pet_policy)) {
+  // F2-A4: pet_policy is a rental concern; hide for sale listings.
+  if (isFieldSet("pet_policy", p.pet_policy) && p.listing_type !== "sale") {
     tiles.push({
       key: "pet_policy",
       icon: PawPrint,
@@ -227,16 +225,7 @@ function buildTiles(p: Property): TileConfig[] {
     });
   }
 
-  if (p.listing_type === "sale" && isFieldSet("possession_status", p.possession_status)) {
-    const label = formatEnumLabel("possession_status", p.possession_status);
-    const dt = fmtDate(p.possession_date);
-    tiles.push({
-      key: "possession",
-      icon: CalendarCheck,
-      label: "Possession",
-      value: dt ? `${label} · ${dt}` : label,
-    });
-  }
+  // F2-E5: possession moved to PriceAndTerms card; no longer surfaced here.
 
   return tiles;
 }
@@ -244,9 +233,8 @@ function buildTiles(p: Property): TileConfig[] {
 export default function AllDetailsAccordion({ property }: { property: Property }) {
   const tiles = buildTiles(property);
   const { toast } = useToast();
-  // Collapsed on mobile, open on desktop.
-  const [openMobile, setOpenMobile] = useState(false);
-  // F1-B5a: within the expanded mobile view, show first 4 tiles unless expanded.
+  // F2-A6: outer mobile collapse removed — section header is a static label.
+  // Inner "Show more (N more)" tile-count toggle stays.
   const [showAllMobile, setShowAllMobile] = useState(false);
   const MOBILE_INITIAL = 4;
   const mobileTiles = showAllMobile ? tiles : tiles.slice(0, MOBILE_INITIAL);
@@ -295,37 +283,21 @@ export default function AllDetailsAccordion({ property }: { property: Property }
 
   return (
     <section className="px-4 py-5 lg:px-0">
-      {/* Mobile: collapsed toggle */}
+      {/* Mobile: always-open section header + inner "Show more" for tiles > 4. */}
       <div className="lg:hidden">
-        <button
-          type="button"
-          onClick={() => setOpenMobile((v) => !v)}
-          className="mb-3 flex w-full items-center justify-between"
-        >
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            All details <span className="ml-1 text-muted-foreground/70">({tiles.length})</span>
-          </h2>
-          <ChevronDown
-            className={cn(
-              "h-4 w-4 text-muted-foreground transition-transform",
-              openMobile && "rotate-180",
-            )}
-          />
-        </button>
-        {openMobile ? (
-          <>
-            {renderGrid(mobileTiles)}
-            {hiddenMobile > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowAllMobile((v) => !v)}
-                className="mt-3 text-sm font-medium text-primary"
-              >
-                {showAllMobile ? "Show less" : `Show more (${hiddenMobile} more)`}
-              </button>
-            )}
-          </>
-        ) : null}
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          All details <span className="ml-1 text-muted-foreground/70">({tiles.length})</span>
+        </h2>
+        {renderGrid(mobileTiles)}
+        {hiddenMobile > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAllMobile((v) => !v)}
+            className="mt-3 text-sm font-medium text-primary"
+          >
+            {showAllMobile ? "Show less" : `Show more (${hiddenMobile} more)`}
+          </button>
+        )}
       </div>
       {/* Desktop: always expanded, all tiles shown. */}
       <div className="hidden lg:block">

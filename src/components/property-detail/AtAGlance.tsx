@@ -10,7 +10,6 @@ import {
   Building2,
   CalendarDays,
   Bath,
-  CalendarCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 import PageSection from "./PageSection";
@@ -92,14 +91,7 @@ function buildTiles(p: Property): Tile[] {
   }
 
   if (isSale) {
-    if (isFieldSet("possession_status", p.possession_status)) {
-      tiles.push({
-        key: "possession_status",
-        icon: CalendarCheck,
-        value: formatEnumLabel("possession_status", p.possession_status),
-        label: "Possession",
-      });
-    }
+    // F2-E4: possession moved to PriceAndTerms card; no longer surfaced here.
     if (isFieldSet("super_built_up_area", p.super_built_up_area)) {
       tiles.push({
         key: "super_built_up_area",

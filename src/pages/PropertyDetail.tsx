@@ -11,6 +11,7 @@ import PropertySidebar from "@/components/property-detail/PropertySidebar";
 import OwnerCard from "@/components/property-detail/OwnerCard";
 import OwnerPerformanceStrip from "@/components/property-detail/OwnerPerformanceStrip";
 import HowItWorksStrip from "@/components/property-detail/HowItWorksStrip";
+import PriceAndTerms from "@/components/property-detail/PriceAndTerms";
 import ClampedText from "@/components/property-detail/ClampedText";
 import { useOwnerCard } from "@/hooks/useOwnerCard";
 import PageSection from "@/components/property-detail/PageSection";
@@ -160,9 +161,8 @@ interface PropertyData {
   property_tax_paid_upto: string | null;
   // Phase 1.5 addendum (D-166) — move-in charges + brokerage.
   move_in_charges_amount: number | null;
-  rent_brokerage_type: string | null;
+  // F2-D4: rent_brokerage_type + rent_brokerage_months removed from public surface.
   rent_brokerage_fixed_amount: number | null;
-  rent_brokerage_months: number | null;
   sale_brokerage_pct: number | null;
   // P1 additions (2026-07-21).
   lock_in_months: number | null;
@@ -579,7 +579,7 @@ const PropertyDetail: React.FC = () => {
         supabase
           .from("properties")
           .select(
-            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url, landmark, notice_period_months, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_type, rent_brokerage_fixed_amount, rent_brokerage_months, sale_brokerage_pct, notice_period_days, lock_in_months, super_built_up_area, water_source, listed_at, building_notes"
+            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url, landmark, notice_period_months, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_fixed_amount, sale_brokerage_pct, notice_period_days, lock_in_months, super_built_up_area, water_source, listed_at, building_notes"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -1188,12 +1188,21 @@ const PropertyDetail: React.FC = () => {
 
             {/* P5 new content sections. Order: No Surprises → At a Glance →
                 Monthly Costs → What's Included → Building Amenities → All details. */}
-            {/* F1-B3d: AtAGlance → MonthlyCosts → NoSurprisesCard order. */}
+            {/* F1-B3d: AtAGlance → MonthlyCosts → NoSurprisesCard for rent.
+                F2-E3: sale listings replace the two rent cards with PriceAndTerms. */}
             <AtAGlance property={property} />
-            <MonthlyCosts property={property} />
-            <NoSurprisesCard property={property} />
+            {property.listing_type === "sale" ? (
+              <PriceAndTerms property={property} />
+            ) : (
+              <>
+                <MonthlyCosts property={property} />
+                <NoSurprisesCard property={property} />
+              </>
+            )}
             <FurnishingDetails furnishing={property.furnishing} furnishingDetail={property.furnishing_detail} />
-            <BuildingAmenities amenities={property.amenities} />
+            {/* F2-A1: pass the raw JSONB `building` array — the coerced
+                `property.amenities` state is null for object-shaped rows. */}
+            <BuildingAmenities amenities={rawAmenities?.building ?? null} />
             <AllDetailsAccordion property={property} />
 
             {/* P5: action pills now live inside the header; price card,
@@ -1209,11 +1218,14 @@ const PropertyDetail: React.FC = () => {
                 <ClampedText text={property.building_notes} clamp="line-clamp-4" />
               </PageSection>
             )}
-            {property.building_rules && property.building_rules.trim() !== "" && (
-              <PageSection title="Building Rules" icon={ScrollText}>
-                <ClampedText text={property.building_rules} clamp="line-clamp-3" />
-              </PageSection>
-            )}
+            {/* F2-A5: Building Rules is a rental concern; hide for sale listings. */}
+            {property.listing_type !== "sale" &&
+              property.building_rules &&
+              property.building_rules.trim() !== "" && (
+                <PageSection title="Building Rules" icon={ScrollText}>
+                  <ClampedText text={property.building_rules} clamp="line-clamp-3" />
+                </PageSection>
+              )}
 
             {/* P6 reassurance strip — replaces the old No Contact Policy card. */}
             <HowItWorksStrip />
@@ -1273,9 +1285,9 @@ const PropertyDetail: React.FC = () => {
 
           {/* P6: right column — sticky sidebar on desktop, hidden on mobile
               (PropertyCTABar handles mobile).
-              F1F-2: explicit `self-start` mirrors the grid's `items-start` so the
-              cell is intrinsic-height and the aside inside can scroll-stick. */}
-          <div className="hidden lg:block lg:self-start">
+              F2-A3: `self-stretch` extends the right column to the height of the
+              left column so `sticky top-4` on the aside has runway to travel. */}
+          <div className="hidden lg:block lg:self-stretch">
             {property?.owner_id && (
               <PropertySidebar
                 property={property}

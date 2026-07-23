@@ -923,3 +923,5 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-21] audit | Post-deployment diagnosis — 28 issues across 15 groups [21:38 IST]
 ## [2026-07-21] fix | Post-deployment fixes — 28 issues (text bugs, field mapping, display logic, gallery collage, mobile collapse, performance) [02:59 IST]
 ## [2026-07-22] fix | F1 follow-up — 9 post-deploy bugs (gallery tabs, sidebar, ratings, monthly costs, amenities, comments collapse, brokerage months) + diagnosis for issues 6+8 [11:13 IST]
+## [2026-07-22] audit | Codebase diagnosis — amenities renderer, brokerage form, sale section, sidebar, comment threads, collapse [17:35 IST]
+## [2026-07-22] fix | 11 fixes: amenities bug, brokerage flat-amount, move-in→NoSurprises, sale PriceAndTerms, sidebar sticky, comments collapse, AllDetails mobile, pet/rules sale gate [18:38 IST]

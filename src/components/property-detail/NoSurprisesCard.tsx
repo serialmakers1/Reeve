@@ -5,10 +5,7 @@
  */
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  computeDepositMonths,
-  computeBrokerageMonths,
-} from "@/utils/property/financialConversions";
+import { computeDepositMonths } from "@/utils/property/financialConversions";
 import { isFieldSet } from "@/utils/property/isFieldSet";
 import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
 
@@ -19,9 +16,10 @@ interface Property {
   listed_rent: number | null;
   security_deposit_amount: number | null;
   security_deposit_months: number | null;
-  rent_brokerage_type: string | null;
+  // F2-C3: brokerage collapsed to a flat amount; type + months no longer surfaced.
   rent_brokerage_fixed_amount: number | null;
-  rent_brokerage_months: number | null;
+  // F2-C1: move-in charges relocated from MonthlyCosts.
+  move_in_charges_amount: number | null;
   lock_in_months: number | null;
   notice_period_days: number | null;
   annual_rent_increase_pct: number | null;
@@ -80,20 +78,36 @@ function buildRentRows(p: Property): Row[] {
     }
   }
 
-  // Brokerage
-  const brok = computeBrokerageMonths(
-    p.rent_brokerage_type,
-    p.rent_brokerage_fixed_amount,
-    p.rent_brokerage_months,
-    p.listed_rent,
-  );
-  if (brok.display !== null) {
-    let dot: Dot = "green";
-    if (brok.months !== null) {
-      if (brok.months > 1) dot = "red";
-      else if (brok.months > 0) dot = "amber";
+  // F2-C2: Move-in Charges (one-time). null / 0 → skip.
+  const movein = p.move_in_charges_amount;
+  if (movein !== null && movein !== undefined && movein > 0) {
+    let mDot: Dot = "green";
+    if (movein > 4000) mDot = "red";
+    else if (movein >= 2000) mDot = "amber";
+    rows.push({
+      label: "Move-in Charges (one-time)",
+      value: `₹${movein.toLocaleString("en-IN")}`,
+      dot: mDot,
+    });
+  }
+
+  // F2-C3: Brokerage — flat amount only. null → skip, 0 → "Zero brokerage" green,
+  // >0 → colour by amount ÷ listed_rent equivalent months.
+  const brokerageAmt = p.rent_brokerage_fixed_amount;
+  if (brokerageAmt === 0) {
+    rows.push({ label: "Brokerage", value: "Zero brokerage", dot: "green" });
+  } else if (brokerageAmt !== null && brokerageAmt !== undefined && brokerageAmt > 0) {
+    let bDot: Dot = "green";
+    if (typeof p.listed_rent === "number" && p.listed_rent > 0) {
+      const equivMonths = brokerageAmt / p.listed_rent;
+      if (equivMonths > 1) bDot = "red";
+      else if (equivMonths > 0) bDot = "amber";
     }
-    rows.push({ label: "Brokerage", value: brok.display, dot });
+    rows.push({
+      label: "Brokerage",
+      value: `₹${brokerageAmt.toLocaleString("en-IN")}`,
+      dot: bDot,
+    });
   }
 
   // Lock-in
