@@ -154,10 +154,10 @@ const routes = [
   // ── / (homepage) — patched in-place ────────────────────────────────────────
   {
     outFile: path.join(DIST, 'index.html'),
-    title: 'Reeve | Rentals in Bangalore',
-    description: " 2-month deposit. Reeve is Bangalore's fully managed rental platform — free for owners, fair for tenants.",
-    ogTitle: 'Reeve | Rentals in Bangalore',
-    ogDescription: '2-month deposit. Free property management for owners. No brokers. No hidden fees.',
+    title: 'Reeve — See More Before You Contact',
+    description: 'Reeve is a transparent property marketplace. See lister info, responsiveness, terms, and history before you make contact.',
+    ogTitle: 'Reeve — See More Before You Contact',
+    ogDescription: 'Reeve is a transparent property marketplace. See lister info, responsiveness, terms, and history before you make contact.',
     canonical: BASE + '/',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -216,33 +216,61 @@ const routes = [
           name: 'Reeve',
           url: WWW,
         },
+      ],
+    },
+    bodyHtml: `
+<div style="font-family:system-ui,sans-serif">
+  <header>
+    <a href="/">Reeve</a>
+    <nav>
+      <a href="/search">Search Properties</a>
+      <a href="/owners">For Owners</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section aria-label="Hero">
+      <h1>See More Before You Contact</h1>
+      <p>Reeve is a transparent property marketplace. See lister info, responsiveness, terms, and history before you make contact.</p>
+      <a href="/search">Search Properties</a>
+    </section>
+    <section aria-label="See What's Behind the Listing">
+      <h2>See What's Behind the Listing</h2>
+      <p>Every listing shows lister details, response rate, and verified terms before you reach out.</p>
+    </section>
+    <section aria-label="Contact Without Losing Control">
+      <h2>Contact Without Losing Control</h2>
+      <p>Send a contact request on your terms. No cold calls, no broker middlemen.</p>
+    </section>
+    <section aria-label="Different by Design">
+      <h2>Different by Design</h2>
+      <p>Built for transparency — zero brokerage, 2-month deposit, platform-managed.</p>
+    </section>
+    <section aria-label="Compact Closing Action">
+      <h2>Ready to find your next home?</h2>
+      <a href="/search">Search Properties</a>
+      <a href="/contact">Contact Us</a>
+    </section>
+  </main>
+</div>`,
+  },
+
+  // ── /pms (PMS homepage — previously at /) ───────────────────────────────────
+  {
+    outFile: path.join(DIST, 'pms', 'index.html'),
+    title: 'Reeve | Rentals in Bangalore',
+    description: "2-month deposit. Reeve is Bangalore's fully managed rental platform — free for owners, fair for tenants.",
+    ogTitle: 'Reeve | Rentals in Bangalore',
+    ogDescription: '2-month deposit. Free property management for owners. No brokers. No hidden fees.',
+    canonical: BASE + '/pms',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
         {
-          '@type': 'FAQPage',
-          mainEntity: [
-            {
-              '@type': 'Question',
-              name: 'Does the owner pay any fee to Reeve?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'No. Owners pay nothing to Reeve. The Reeve Service Fee of 7% (first term) or 4% (renewal) is charged to the tenant only.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'What is the security deposit cap on Reeve?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Reeve enforces a 2-month security deposit cap on all properties. No property on the platform can demand more.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'Which areas in Bengaluru does Reeve serve?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Reeve currently operates in HSR Layout, Koramangala, BTM Layout, Indiranagar, Whitefield, Marathahalli, Bellandur, Sarjapur Road, and Electronic City.',
-              },
-            },
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Managed Rentals', item: WWW + '/pms' },
           ],
         },
       ],
@@ -260,18 +288,18 @@ const routes = [
   <main>
     <section aria-label="Hero">
       <p>Now live in Bangalore</p>
-      <p>Reeve is Bangalore's fully managed rental platform — for tenants who want a fair deal, and owners who want their time back.</p>
-      <h1>Two month deposit. Free property management.</h1>
-      <p>Reeve manages everything between owners and tenants — at no cost to owners. No brokers. No hidden fees. Just a great home and a stress-free tenancy.</p>
+      <h1>Zero brokerage. Two month deposit. Free property management.</h1>
+      <p>Reeve manages everything between owners and tenants — at no cost to owners. No brokers. No hidden fees.</p>
       <a href="/search">Search Properties</a>
       <a href="/my-properties/new">List Your Property</a>
     </section>
     <section aria-label="For tenants and owners">
       <article>
         <h2>For Tenants — Save ₹1L+ on day one</h2>
-        <p>We charge a 7% Reeve Fee on each month's rent (dropping to 4% when you renew) — instead of a broker's 1–2 months. You save significantly on day one.</p>
+        <p>We charge a 7% Reeve Fee on each month's rent (dropping to 4% when you renew) — instead of a broker's 1–2 months.</p>
         <ul>
           <li>2 month deposit only — not 3</li>
+          <li>Zero brokerage, always</li>
           <li>Platform-managed home, no middlemen</li>
         </ul>
         <a href="/savings/tenant">Calculate My Savings</a>
@@ -289,10 +317,9 @@ const routes = [
     </section>
     <section aria-label="Call to action">
       <h2>Ready to rent smarter?</h2>
-      <p>Join Bangalore fully managed rental platform.</p>
+      <p>Join Bangalore's only zero-brokerage, fully managed rental platform.</p>
       <a href="/search">Search Properties</a>
       <a href="/my-properties/new">List Your Property</a>
-      <p>₹0 Brokerage · 2 Month Deposit · Fully Managed for Free</p>
     </section>
   </main>
 </div>`,
