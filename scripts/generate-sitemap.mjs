@@ -67,6 +67,11 @@ const ACTIVE_ROUTES = [
     priority:    '0.85',
   },
   {
+    path:        '/pms',
+    changefreq:  'weekly',
+    priority:    '0.80',
+  },
+  {
     path:        '/privacy',
     changefreq:  'yearly',
     priority:    '0.30',

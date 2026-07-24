@@ -15,6 +15,7 @@ import { Navigate } from "react-router-dom";
 
 // ── Eager imports (public cold-path — must load on first paint) ────────────────
 import Index from "./pages/Index";
+import PmsHome from "./pages/PmsHome";
 import Login from "./pages/Login";
 import Search from "./pages/Search";
 import OwnerLandingPage from "./pages/OwnerLandingPage";
@@ -126,6 +127,7 @@ function AppInner() {
     <Suspense fallback={<SuspenseFallback />}>
       <Routes>
         <Route path="/" element={<Index />} />
+        <Route path="/pms" element={<PmsHome />} />
         <Route path="/login" element={<Login />} />
         <Route path="/search" element={<Search />} />
         <Route path="/property/:id" element={<PropertyDetail />} />
