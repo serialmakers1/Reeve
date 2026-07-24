@@ -1,5 +1,24 @@
 # Reeve Development Log
 
+## [2026-07-24] fix | Homepage S1+S3 corrections — 9 fixes applied [IST]
+
+Files changed:
+- `src/pages/Index.tsx` — 9 targeted corrections:
+  - S1 eyebrow: "A transparent property marketplace for India" (was "Transparent property marketplace · India")
+  - S1 paragraph: promise-level copy (know who listed it, how responsive…) replacing S2-duplicate product proof
+  - S1 CTAs: removed filled-blue vs outlined-dark hierarchy; replaced with equal-weight text-link journey groups
+    (teal `#0F766E` group labels, `text-[#0F172A]` → hover `text-[#2563EB]`, arrow translate)
+  - S1 proof strip: replaced 3 bullet items with single compact `text-[13px] text-slate-400` strip
+    "Browse without login · We don't sell your enquiry · Organic results aren't for sale"
+  - S3 paragraph: "When Priya requests contact, her phone number isn't exposed publicly…" (accurate wording)
+  - S3 Card 01 badges: "✓ Phone Number Verified" / "✓ Google Account Connected" (was emoji badges)
+  - S3 Card 02: replaced Rahul Sharma person header with Priya's structured request (PM avatar, profession,
+    move-in/term, lock row); Approve button `bg-[#0F766E]` teal (was `bg-[#2563EB]` blue)
+  - S3 reputation panel: replaced 3 fabricated testimonials with structured experience block
+    (Priya Mehta · Connected through Reeve; 3 Yes ✓ rows)
+  - S1 image: `width={1254} height={1254}` (confirmed square); S2 image: `width={1448} height={1086}` (landscape)
+- TypeScript baseline: 358 (unchanged)
+
 ## [2026-07-24] feat | Homepage Section 5 — Compact Closing Action implemented [IST]
 
 Files changed:
