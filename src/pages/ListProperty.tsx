@@ -92,6 +92,7 @@ const DB_COLUMN_TO_SECTION: Record<string, SectionNum> = {
 interface FormState {
   // Prompt 10a (D-161) — listing_type at the top of the form; Rent vs Sale gate.
   listing_type: string; // 'rent' | 'sale'
+  lister_role: string;  // 'owner' | 'broker' | 'property_manager' | 'builder'
   // Section 1
   building_name: string;
   street_address: string;
@@ -171,6 +172,7 @@ interface FormState {
 
 const INITIAL_STATE: FormState = {
   listing_type: "rent",
+  lister_role: "owner",
   sale_price: "", price_negotiable: false, expected_price_per_sqft: "",
   possession_status: "", possession_date: undefined,
   rera_registration_number: "", khata_type: "", property_tax_paid_upto: undefined,
@@ -286,6 +288,7 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     terms_privacy_consent: false,
     // Prompt 10a — rent/sale.
     listing_type: (d.listing_type as string) ?? "rent",
+    lister_role: (d.lister_role as string) ?? "owner",
     sale_price: d.sale_price != null ? String(d.sale_price) : "",
     price_negotiable: !!d.price_negotiable,
     expected_price_per_sqft: d.expected_price_per_sqft != null ? String(d.expected_price_per_sqft) : "",
@@ -1295,6 +1298,19 @@ export default function ListProperty() {
             className="max-w-xs"
           />
         </div>
+        {/* F3-C14: lister_role — mandatory select, locked for owner after publish
+            (same readOnly rule as listing_type). Admin PropertyEdit path always
+            editable (see F3-C15). */}
+        <div className="mb-6">
+          <SpecField
+            fieldKey="lister_role"
+            surface="owner_form"
+            value={form.lister_role}
+            onChange={(v: string) => updateField("lister_role", v)}
+            readOnly={entryStatus !== "create" && entryStatus !== "draft" && entryStatus !== "changes_requested"}
+            className="max-w-xs"
+          />
+        </div>
 
         <Accordion type="single" collapsible value={openAccordion} onValueChange={(v) => {
           setOpenAccordion(v);
@@ -1898,6 +1914,7 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     // Prompt 10a (D-161) — rent/sale. Date fields (possession_date, property_tax_paid_upto)
     // go through explicit dbPatch from the Calendar onSelect handler; not in this switch.
     case "listing_type": return { listing_type: strVal };
+    case "lister_role": return { lister_role: strVal || "owner" };
     case "sale_price": return { sale_price: parseNum(strVal) };
     case "price_negotiable": return { price_negotiable: !!value };
     case "expected_price_per_sqft": return { expected_price_per_sqft: parseNum(strVal) };

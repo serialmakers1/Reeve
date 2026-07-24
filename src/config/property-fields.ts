@@ -185,6 +185,26 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     requiredOwner: true,
     tier: "locked",
   },
+  // F3-C9: lister_role — who is listing this property (owner / broker / property
+  // manager / builder). Applies to BOTH rent and sale. Locked for owner after
+  // publish (readOnly at call site); admin can always edit. Rendered as a
+  // colour-coded badge in the header chip row and OwnerCard.
+  {
+    key: "lister_role",
+    label: "Your role",
+    publicLabel: "Listed by",
+    input: "select",
+    options: [
+      { value: "owner",            label: "I am the owner" },
+      { value: "broker",           label: "I am a broker / agent" },
+      { value: "property_manager", label: "I manage this property" },
+      { value: "builder",          label: "I am the builder / developer" },
+    ],
+    audiences: ["owner_form", "admin_form", "public_detail"],
+    editableBy: ["owner", "admin"],
+    ownerSection: "location",
+    requiredOwner: true,
+  },
 
   // ── Location (Tier 1) ────────────────────────────────────────────────
   {
@@ -630,12 +650,12 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     // D-169: 'none' option maps to NULL on save (caller-side transform in onChange).
     // CHECK constraint on the DB stays pipeline | cylinder | NULL.
     // F1-B3c: independent of utility_gas_included — describes property infrastructure,
-    // not billing arrangement. Rent-only (sale listings don't need this).
+    // not billing arrangement.
+    // F3-C6: gas_type now applies to both rent and sale — visibleWhen removed.
     options: [{ value: "none", label: "None" }, ...asOptions(GAS_TYPE_OPTIONS)],
     audiences: ["owner_form", "admin_form", "public_detail"],
     editableBy: ["owner", "admin"],
     ownerSection: "building_society",
-    visibleWhen: (v) => v.listing_type !== "sale",
   },
   {
     key: "utility_electricity_included",

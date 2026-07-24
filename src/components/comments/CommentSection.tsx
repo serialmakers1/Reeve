@@ -39,8 +39,9 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
   const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
   const [reportOpenId, setReportOpenId] = useState<string | null>(null);
-  // F1F-7: whole section collapsed by default; user opens to load + view.
-  const [sectionOpen, setSectionOpen] = useState<boolean>(false);
+  // F3-C2: section open by default (was collapsed in F1F-7). The IO sentinel
+  // now mounts on first paint, so triggerLoad fires without a user click.
+  const [sectionOpen, setSectionOpen] = useState<boolean>(true);
   // P6-G1: sort mode + initial top-level cap. Reset cap when the property changes.
   const [sortMode, setSortMode] = useState<"newest" | "liked">("newest");
   const [visibleCount, setVisibleCount] = useState<number>(3);

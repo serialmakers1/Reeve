@@ -12,6 +12,7 @@ import OwnerCard from "@/components/property-detail/OwnerCard";
 import OwnerPerformanceStrip from "@/components/property-detail/OwnerPerformanceStrip";
 import HowItWorksStrip from "@/components/property-detail/HowItWorksStrip";
 import PriceAndTerms from "@/components/property-detail/PriceAndTerms";
+import { LISTER_ROLE_BADGE } from "@/components/property-detail/listerRoleBadge";
 import ClampedText from "@/components/property-detail/ClampedText";
 import { useOwnerCard } from "@/hooks/useOwnerCard";
 import PageSection from "@/components/property-detail/PageSection";
@@ -151,6 +152,8 @@ interface PropertyData {
   parking_notes: string | null;
   // Prompt 10b (D-162) — rent/sale.
   listing_type: string;
+  // F3-C16: lister_role — 'owner' | 'broker' | 'property_manager' | 'builder'
+  lister_role: string;
   sale_price: number | null;
   price_negotiable: boolean | null;
   expected_price_per_sqft: number | null;
@@ -579,7 +582,7 @@ const PropertyDetail: React.FC = () => {
         supabase
           .from("properties")
           .select(
-            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url, landmark, notice_period_months, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_fixed_amount, sale_brokerage_pct, notice_period_days, lock_in_months, super_built_up_area, water_source, listed_at, building_notes"
+            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url, landmark, notice_period_months, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_fixed_amount, sale_brokerage_pct, notice_period_days, lock_in_months, super_built_up_area, water_source, listed_at, building_notes, lister_role"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -1120,6 +1123,15 @@ const PropertyDetail: React.FC = () => {
                     {PROPERTY_TYPE_OPTIONS.find(o => o.value === property.property_type)?.label ?? property.property_type}
                   </span>
                 )}
+                {/* F3-C17: lister_role badge — colour-coded, null-safe. */}
+                {property.lister_role && LISTER_ROLE_BADGE[property.lister_role] && (
+                  <span className={cn(
+                    "inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                    LISTER_ROLE_BADGE[property.lister_role].className,
+                  )}>
+                    {LISTER_ROLE_BADGE[property.lister_role].label}
+                  </span>
+                )}
               </div>
               <h1 className="mt-2 text-2xl font-bold leading-tight text-foreground">
                 {bhkLabel(property.bhk)} in {property.building_name}
@@ -1240,7 +1252,7 @@ const PropertyDetail: React.FC = () => {
                   commentCount={propertyStats?.comment_count ?? 0}
                 />
               ) : (
-                <OwnerCard ownerId={property.owner_id} isOwnProperty={isOwnProperty} />
+                <OwnerCard ownerId={property.owner_id} isOwnProperty={isOwnProperty} listerRole={property.lister_role} />
               )
             )}
 

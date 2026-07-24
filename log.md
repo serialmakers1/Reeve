@@ -925,3 +925,5 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-22] fix | F1 follow-up — 9 post-deploy bugs (gallery tabs, sidebar, ratings, monthly costs, amenities, comments collapse, brokerage months) + diagnosis for issues 6+8 [11:13 IST]
 ## [2026-07-22] audit | Codebase diagnosis — amenities renderer, brokerage form, sale section, sidebar, comment threads, collapse [17:35 IST]
 ## [2026-07-22] fix | 11 fixes: amenities bug, brokerage flat-amount, move-in→NoSurprises, sale PriceAndTerms, sidebar sticky, comments collapse, AllDetails mobile, pet/rules sale gate [18:38 IST]
+## [2026-07-22] audit | Post-deploy diagnosis — header overlap, Q&A state, sale field placement, gas type, lister role [22:53 IST]
+## [2026-07-22] feat | lister_role field + 5 fixes (sidebar, Q&A, sale AtAGlance, gas type) [10:22 IST]
