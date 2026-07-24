@@ -23,7 +23,7 @@ export default function Index() {
                   className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600"
                   style={{ fontFamily: FONT_SANS }}
                 >
-                  Transparent property marketplace · India
+                  A transparent property marketplace for India
                 </span>
 
                 {/* Headline */}
@@ -41,84 +41,52 @@ export default function Index() {
                   className="mt-4 text-base sm:text-lg text-slate-500 leading-relaxed max-w-md"
                   style={{ fontFamily: FONT_SANS }}
                 >
-                  Reeve shows you who listed a property, how responsive they are, and what
-                  has happened to the listing — before you reach out.
+                  Know who listed it, how responsive they are, what changed, and what others experienced. Browse freely, then connect directly when you're ready.
                 </p>
 
-                {/* CTA groups */}
-                <div className="mt-8 flex flex-col sm:flex-row gap-6">
+                {/* CTA groups — equal-weight text links */}
+                <div className="mt-8 flex flex-col sm:flex-row gap-8 sm:gap-14">
 
                   {/* Find a home */}
-                  <div className="flex flex-col gap-2">
-                    <p
-                      className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#0F766E] mb-3" style={{ fontFamily: FONT_INTER }}>
                       Find a home
                     </p>
-                    <div className="flex gap-3">
-                      <Link
-                        to="/search?type=buy"
-                        className="px-5 py-3 rounded-lg border border-[#0F1C2E] text-[#0F1C2E] text-sm font-medium hover:bg-[#0F1C2E] hover:text-white transition-all duration-200 min-h-[44px] flex items-center justify-center"
-                        style={{ fontFamily: FONT_SANS }}
-                      >
-                        Buy
-                      </Link>
-                      <Link
-                        to="/search?type=rent"
-                        className="px-5 py-3 rounded-lg bg-[#2563EB] text-white text-sm font-medium hover:bg-blue-700 transition-all duration-200 min-h-[44px] flex items-center justify-center"
-                        style={{ fontFamily: FONT_SANS }}
-                      >
-                        Rent
-                      </Link>
+                    <div className="flex gap-8">
+                      {[{ label: "Buy", to: "/search?type=buy" }, { label: "Rent", to: "/search?type=rent" }].map(({ label, to }) => (
+                        <Link key={to} to={to}
+                          className="group inline-flex items-center text-[17px] font-semibold text-[#0F172A] hover:text-[#2563EB] transition-colors duration-150 min-h-[44px]"
+                          style={{ fontFamily: FONT_INTER }}>
+                          {label}
+                          <span className="inline-block group-hover:translate-x-[3px] motion-reduce:group-hover:translate-x-0 transition-transform duration-150"> →</span>
+                        </Link>
+                      ))}
                     </div>
                   </div>
 
                   {/* Offer a home */}
-                  <div className="flex flex-col gap-2">
-                    <p
-                      className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#0F766E] mb-3" style={{ fontFamily: FONT_INTER }}>
                       Offer a home
                     </p>
-                    <div className="flex gap-3">
-                      <Link
-                        to="/list?listing_type=sale"
-                        className="px-5 py-3 rounded-lg border border-[#0F1C2E] text-[#0F1C2E] text-sm font-medium hover:bg-[#0F1C2E] hover:text-white transition-all duration-200 min-h-[44px] flex items-center justify-center"
-                        style={{ fontFamily: FONT_SANS }}
-                      >
-                        Sell
-                      </Link>
-                      <Link
-                        to="/list"
-                        className="px-5 py-3 rounded-lg bg-[#2563EB] text-white text-sm font-medium hover:bg-blue-700 transition-all duration-200 min-h-[44px] flex items-center justify-center"
-                        style={{ fontFamily: FONT_SANS }}
-                      >
-                        Rent it out
-                      </Link>
+                    <div className="flex gap-8">
+                      {[{ label: "Sell", to: "/list?listing_type=sale" }, { label: "Rent it out", to: "/list" }].map(({ label, to }) => (
+                        <Link key={label} to={to}
+                          className="group inline-flex items-center text-[17px] font-semibold text-[#0F172A] hover:text-[#2563EB] transition-colors duration-150 min-h-[44px]"
+                          style={{ fontFamily: FONT_INTER }}>
+                          {label}
+                          <span className="inline-block group-hover:translate-x-[3px] motion-reduce:group-hover:translate-x-0 transition-transform duration-150"> →</span>
+                        </Link>
+                      ))}
                     </div>
                   </div>
 
                 </div>
 
-                {/* Proof points */}
-                <ul className="mt-8 flex flex-col gap-2.5">
-                  {[
-                    "See who is behind every listing — owner, broker, or manager",
-                    "Check response rate before you send a request",
-                    "Browse listing history and price changes while it is live",
-                  ].map((point) => (
-                    <li
-                      key={point}
-                      className="flex items-start gap-2.5 text-sm text-slate-500"
-                      style={{ fontFamily: FONT_SANS }}
-                    >
-                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                      {point}
-                    </li>
-                  ))}
-                </ul>
+                {/* Proof strip */}
+                <p className="mt-8 text-[13px] text-slate-400 leading-relaxed" style={{ fontFamily: FONT_SANS }}>
+                  Browse without login&nbsp;·&nbsp;We don't sell your enquiry&nbsp;·&nbsp;Organic results aren't for sale
+                </p>
 
               </div>
 
@@ -128,8 +96,8 @@ export default function Index() {
                   src="/images/commons_image_S1.webp"
                   alt="Reeve transparent property marketplace — see lister details, response rate, and listing history before contacting"
                   className="w-full h-auto object-contain rounded-2xl"
-                  width={600}
-                  height={500}
+                  width={1254}
+                  height={1254}
                   loading="eager"
                   fetchPriority="high"
                   decoding="async"
@@ -185,8 +153,8 @@ export default function Index() {
                   src="/images/commons_image_S2.webp"
                   alt="Reeve property listing example showing a property, lister responsiveness, rental terms, public discussion, and listing history."
                   className="w-full h-auto object-contain block"
-                  width={840}
-                  height={1080}
+                  width={1448}
+                  height={1086}
                   loading="lazy"
                   decoding="async"
                 />
@@ -225,7 +193,7 @@ export default function Index() {
                     className="mt-6 text-[17px] leading-[1.65] text-[#94A3B8] max-w-[380px]"
                     style={{ fontFamily: FONT_INTER }}
                   >
-                    When Priya requests contact through Reeve, she stays private until the owner decides to connect. No number shared. No spam. One clear approval step — and a reputation signal that holds both sides accountable.
+                    When Priya requests contact, her phone number isn't exposed publicly. Rahul sees her structured request first. If he approves, both receive each other's contact details privately and continue directly.
                   </p>
                 </div>
 
@@ -251,7 +219,7 @@ export default function Index() {
                       </div>
                       {/* Verification badges */}
                       <div className="flex gap-1.5 flex-wrap mb-3">
-                        {["📱 Phone verified", "🔗 Google verified"].map((badge) => (
+                        {["✓ Phone Number Verified", "✓ Google Account Connected"].map((badge) => (
                           <span
                             key={badge}
                             className="text-[10px] text-[#15803D] bg-[#F0FDF4] border border-[#BBF7D0] rounded-full px-2 py-0.5 leading-none"
@@ -275,29 +243,31 @@ export default function Index() {
 
                     {/* Card 2 — REVIEW */}
                     <div className="flex-1 bg-white rounded-[18px] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] motion-safe:hover:-translate-y-0.5 transition-transform duration-200">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 mb-3" style={{ fontFamily: FONT_INTER }}>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 mb-2" style={{ fontFamily: FONT_INTER }}>
                         02 · Review
                       </p>
-                      {/* Person header */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-full bg-[#FEF3C7] text-[#92400E] flex items-center justify-center text-[11px] font-bold shrink-0" style={{ fontFamily: FONT_INTER }}>
-                          RS
+                      <p className="text-[10px] font-medium text-slate-400 mb-2" style={{ fontFamily: FONT_INTER }}>Contact request</p>
+                      {/* Priya's request details */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-7 h-7 rounded-full bg-[#DBEAFE] text-[#1D4ED8] flex items-center justify-center text-[10px] font-bold shrink-0" style={{ fontFamily: FONT_INTER }}>
+                          PM
                         </div>
                         <div>
-                          <p className="text-[13px] font-medium text-[#0F172A] leading-none" style={{ fontFamily: FONT_INTER }}>Rahul Sharma</p>
-                          <p className="text-[10px] text-[#64748B] mt-0.5" style={{ fontFamily: FONT_INTER }}>Owner</p>
+                          <p className="text-[12px] font-medium text-[#0F172A]" style={{ fontFamily: FONT_INTER }}>Priya Mehta</p>
+                          <p className="text-[10px] text-[#64748B]" style={{ fontFamily: FONT_INTER }}>Tenant · Working professional · Married</p>
                         </div>
                       </div>
-                      {/* Still private */}
+                      <p className="text-[10px] text-slate-500 mb-3" style={{ fontFamily: FONT_INTER }}>Move-in 1 Aug · 12-month term</p>
+                      {/* Lock row */}
                       <div className="flex items-center gap-1.5 mb-3">
                         <Lock size={12} className="text-slate-400 shrink-0" />
-                        <span className="text-[11px] text-slate-400" style={{ fontFamily: FONT_INTER }}>Details still private</span>
+                        <span className="text-[11px] text-slate-400" style={{ fontFamily: FONT_INTER }}>Contact details hidden</span>
                       </div>
                       {/* Action buttons (non-functional) */}
                       <button type="button" className="border border-slate-200 text-slate-500 text-[12px] rounded-lg px-3 py-1.5 w-full min-h-[36px]" style={{ fontFamily: FONT_INTER }}>
                         Decline
                       </button>
-                      <button type="button" className="bg-[#2563EB] text-white text-[12px] rounded-lg px-3 py-1.5 w-full mt-1.5 font-medium min-h-[36px]" style={{ fontFamily: FONT_INTER }}>
+                      <button type="button" className="bg-[#0F766E] text-white text-[12px] rounded-lg px-3 py-1.5 w-full mt-1.5 font-medium min-h-[36px]" style={{ fontFamily: FONT_INTER }}>
                         Approve
                       </button>
                     </div>
@@ -362,19 +332,20 @@ export default function Index() {
                     </div>
                     {/* Divider */}
                     <div className="my-4 border-t border-[#E2E8F0]" />
-                    {/* 3 feedback items */}
-                    <div className="grid grid-cols-1 [@media(min-width:600px)]:grid-cols-3 gap-3">
-                      {[
-                        { name: "Ananya S.", text: "Transparent and responsive. No games." },
-                        { name: "Kiran M.", text: "Easy process. No middlemen involved." },
-                        { name: "Rohan T.", text: "My details stayed private until I agreed." },
-                      ].map(({ name, text }) => (
-                        <div key={name} className="bg-white border border-[#E2E8F0] rounded-xl px-3 py-2.5">
-                          <p className="text-[11px] font-semibold text-[#0F172A]" style={{ fontFamily: FONT_INTER }}>{name}</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5 leading-[1.5]" style={{ fontFamily: FONT_INTER }}>{text}</p>
-                        </div>
-                      ))}
-                    </div>
+                    {/* Structured experience block */}
+                    <p className="text-[12px] font-medium text-[#0F172A] mb-3" style={{ fontFamily: FONT_INTER }}>
+                      Priya Mehta · Connected through Reeve
+                    </p>
+                    {[
+                      "Listing information accurate",
+                      "Professional communication",
+                      "Would deal again",
+                    ].map((item) => (
+                      <div key={item} className="flex items-center justify-between py-1.5 border-t border-[#E2E8F0] first:border-t-0">
+                        <span className="text-[11px] text-slate-500" style={{ fontFamily: FONT_INTER }}>{item}</span>
+                        <span className="text-[11px] font-medium text-[#16A34A]" style={{ fontFamily: FONT_INTER }}>Yes ✓</span>
+                      </div>
+                    ))}
                   </div>
 
                 </div>{/* end right column */}
