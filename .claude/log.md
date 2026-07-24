@@ -1,5 +1,24 @@
 # Reeve Development Log
 
+## [2026-07-24] fix | Homepage visual/layout polish — S2 image box, S3 card alignment, S3 mobile overflow [IST]
+
+Files changed:
+- `public/images/commons_image_S2_cropped.webp` — new lossless WebP derivative: outer background
+  (86.4% of original canvas) flood-filled with exact `#EFEBE4` and cropped to 1192×972 from 1448×1086.
+  Outer background detected via 4-corner sampling + scipy binary_propagation from edges.
+  Saved lossless to prevent recompression reintroducing a colour rectangle.
+- `src/pages/Index.tsx`:
+  - S2 img: src → `commons_image_S2_cropped.webp`, width=1192, height=972
+  - S2 wrapper: `-mx-2` → `-mx-4` (−16px bleed on mobile < 640px for larger readable mockup)
+  - S3 cards container: `items-start` → `items-stretch` (equal-height cards)
+  - All 3 card shells: added `flex flex-col` (enables mt-auto + stretch)
+  - Card 02 buttons: wrapped in `<div className="mt-auto pt-2">` to anchor to card bottom
+  - ChevronRight connectors: `mt-10 shrink-0` → `self-center shrink-0` (vertically centred vs card height)
+  - Reputation panel top row: replaced `flex justify-between` with responsive layout —
+    `flex-col` on mobile (stacked: label / headline / metric), `sm:flex-row sm:justify-between` at ≥640px;
+    `sm:whitespace-nowrap` and `sm:text-right` applied only above breakpoint
+- TypeScript baseline: 358 (unchanged)
+
 ## [2026-07-24] fix | Homepage S1+S3 corrections — 9 fixes applied [IST]
 
 Files changed:

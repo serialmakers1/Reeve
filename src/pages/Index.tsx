@@ -148,13 +148,13 @@ export default function Index() {
               </div>
 
               {/* Right: product image — no animation on this element or its parent */}
-              <div className="mt-10 -mx-2 sm:mx-0 [@media(min-width:900px)]:mt-0">
+              <div className="mt-10 -mx-4 sm:mx-0 [@media(min-width:900px)]:mt-0">
                 <img
-                  src="/images/commons_image_S2.webp"
+                  src="/images/commons_image_S2_cropped.webp"
                   alt="Reeve property listing example showing a property, lister responsiveness, rental terms, public discussion, and listing history."
                   className="w-full h-auto object-contain block"
-                  width={1448}
-                  height={1086}
+                  width={1192}
+                  height={972}
                   loading="lazy"
                   decoding="async"
                 />
@@ -200,10 +200,10 @@ export default function Index() {
                 {/* RIGHT — cards + reputation */}
                 <div>
                   {/* 3-card row */}
-                  <div className="flex flex-col [@media(min-width:800px)]:flex-row [@media(min-width:800px)]:items-start gap-2">
+                  <div className="flex flex-col [@media(min-width:800px)]:flex-row [@media(min-width:800px)]:items-stretch gap-2">
 
                     {/* Card 1 — REQUEST PRIVATELY */}
-                    <div className="flex-1 bg-white rounded-[18px] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] motion-safe:hover:-translate-y-0.5 transition-transform duration-200">
+                    <div className="flex-1 flex flex-col bg-white rounded-[18px] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] motion-safe:hover:-translate-y-0.5 transition-transform duration-200">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 mb-3" style={{ fontFamily: FONT_INTER }}>
                         01 · Request privately
                       </p>
@@ -238,11 +238,11 @@ export default function Index() {
                     </div>
 
                     {/* Connector */}
-                    <ChevronRight className="hidden [@media(min-width:800px)]:block mt-10 shrink-0 text-[rgba(255,255,255,0.45)]" size={16} />
+                    <ChevronRight className="hidden [@media(min-width:800px)]:block self-center shrink-0 text-[rgba(255,255,255,0.45)]" size={16} />
                     <div className="block [@media(min-width:800px)]:hidden text-center text-[rgba(255,255,255,0.35)] text-sm py-1">↓</div>
 
                     {/* Card 2 — REVIEW */}
-                    <div className="flex-1 bg-white rounded-[18px] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] motion-safe:hover:-translate-y-0.5 transition-transform duration-200">
+                    <div className="flex-1 flex flex-col bg-white rounded-[18px] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] motion-safe:hover:-translate-y-0.5 transition-transform duration-200">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 mb-2" style={{ fontFamily: FONT_INTER }}>
                         02 · Review
                       </p>
@@ -263,21 +263,23 @@ export default function Index() {
                         <Lock size={12} className="text-slate-400 shrink-0" />
                         <span className="text-[11px] text-slate-400" style={{ fontFamily: FONT_INTER }}>Contact details hidden</span>
                       </div>
-                      {/* Action buttons (non-functional) */}
-                      <button type="button" className="border border-slate-200 text-slate-500 text-[12px] rounded-lg px-3 py-1.5 w-full min-h-[36px]" style={{ fontFamily: FONT_INTER }}>
-                        Decline
-                      </button>
-                      <button type="button" className="bg-[#0F766E] text-white text-[12px] rounded-lg px-3 py-1.5 w-full mt-1.5 font-medium min-h-[36px]" style={{ fontFamily: FONT_INTER }}>
-                        Approve
-                      </button>
+                      {/* Action buttons — mt-auto pushes to card bottom for equal-height alignment */}
+                      <div className="mt-auto pt-2">
+                        <button type="button" className="border border-slate-200 text-slate-500 text-[12px] rounded-lg px-3 py-1.5 w-full min-h-[36px]" style={{ fontFamily: FONT_INTER }}>
+                          Decline
+                        </button>
+                        <button type="button" className="bg-[#0F766E] text-white text-[12px] rounded-lg px-3 py-1.5 w-full mt-1.5 font-medium min-h-[36px]" style={{ fontFamily: FONT_INTER }}>
+                          Approve
+                        </button>
+                      </div>
                     </div>
 
                     {/* Connector */}
-                    <ChevronRight className="hidden [@media(min-width:800px)]:block mt-10 shrink-0 text-[rgba(255,255,255,0.45)]" size={16} />
+                    <ChevronRight className="hidden [@media(min-width:800px)]:block self-center shrink-0 text-[rgba(255,255,255,0.45)]" size={16} />
                     <div className="block [@media(min-width:800px)]:hidden text-center text-[rgba(255,255,255,0.35)] text-sm py-1">↓</div>
 
                     {/* Card 3 — CONNECT DIRECTLY */}
-                    <div className="flex-1 bg-white rounded-[18px] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] motion-safe:hover:-translate-y-0.5 transition-transform duration-200">
+                    <div className="flex-1 flex flex-col bg-white rounded-[18px] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] motion-safe:hover:-translate-y-0.5 transition-transform duration-200">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 mb-3" style={{ fontFamily: FONT_INTER }}>
                         03 · Connect directly
                       </p>
@@ -319,15 +321,15 @@ export default function Index() {
 
                   {/* Reputation panel */}
                   <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-[18px] p-5 mt-4">
-                    {/* Top: label + metric */}
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400" style={{ fontFamily: FONT_INTER }}>After the connection</p>
-                        <p className="mt-1 text-[15px] font-semibold text-[#0F172A] leading-snug" style={{ fontFamily: FONT_INTER }}>Real connections build reputation.</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-[28px] font-bold text-[#0F172A] leading-none" style={{ fontFamily: FONT_INTER }}>92%</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5" style={{ fontFamily: FONT_INTER }}>would deal again · 12 ratings</p>
+                    {/* Top: label + responsive metric — stacked on mobile, side-by-side at sm: */}
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400" style={{ fontFamily: FONT_INTER }}>After the connection</p>
+                      <div className="flex flex-col gap-2 mt-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+                        <p className="text-[15px] font-semibold text-[#0F172A] leading-snug" style={{ fontFamily: FONT_INTER }}>Real connections build reputation.</p>
+                        <div className="text-left sm:text-right shrink-0">
+                          <p className="text-[28px] font-bold text-[#0F172A] leading-none" style={{ fontFamily: FONT_INTER }}>92%</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5 sm:whitespace-nowrap" style={{ fontFamily: FONT_INTER }}>would deal again · 12 ratings</p>
+                        </div>
                       </div>
                     </div>
                     {/* Divider */}
