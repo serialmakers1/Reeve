@@ -5,15 +5,19 @@
 import { Link } from "react-router-dom";
 import { User, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import PageSection from "./PageSection";
 import { useOwnerCard } from "@/hooks/useOwnerCard";
+import { LISTER_ROLE_BADGE } from "./listerRoleBadge";
 
 interface Props {
   ownerId: string;
   isOwnProperty: boolean;
+  // F3-C18: colour-coded role badge alongside the display name.
+  listerRole?: string | null;
 }
 
-export default function OwnerCard({ ownerId, isOwnProperty }: Props) {
+export default function OwnerCard({ ownerId, isOwnProperty, listerRole }: Props) {
   const { displayName, profilePhotoUrl, isNew, allTimeHandled, allTimeRate, ratingSummary, isLoading } =
     useOwnerCard(ownerId);
 
@@ -47,6 +51,14 @@ export default function OwnerCard({ ownerId, isOwnProperty }: Props) {
             {isNew && !isLoading ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
                 <Sparkles className="h-3 w-3" /> New on Reeve
+              </span>
+            ) : null}
+            {listerRole && LISTER_ROLE_BADGE[listerRole] ? (
+              <span className={cn(
+                "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium",
+                LISTER_ROLE_BADGE[listerRole].className,
+              )}>
+                {LISTER_ROLE_BADGE[listerRole].label}
               </span>
             ) : null}
           </div>

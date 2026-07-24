@@ -85,12 +85,12 @@ describe("property-fields spec", () => {
   });
 
   it("respects visibleWhen predicates", () => {
-    // F1-B3c: gas_type is now gated on listing_type (rent-only) rather than
-    // utility_gas_included — the supply type describes property infrastructure
-    // regardless of who pays the bill.
+    // F3-C6: gas_type now applies to BOTH rent and sale — no visibleWhen.
+    // Every listing type sees the field.
     const gasType = PROPERTY_FIELDS.find((f) => f.key === "gas_type")!;
     expect(isFieldVisible(gasType, { listing_type: "rent" })).toBe(true);
-    expect(isFieldVisible(gasType, { listing_type: "sale" })).toBe(false);
+    expect(isFieldVisible(gasType, { listing_type: "sale" })).toBe(true);
+    expect(isFieldVisible(gasType, {})).toBe(true);
   });
 
   it("defines every owner form section including sale placeholder", () => {

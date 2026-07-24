@@ -2641,6 +2641,7 @@ export type Database = {
           legal_owner_name: string | null
           listed_at: string | null
           listed_rent: number
+          lister_role: string
           listing_type: Database["public"]["Enums"]["property_listing_type"]
           locality: string | null
           lock_in_months: number | null
@@ -2752,6 +2753,7 @@ export type Database = {
           legal_owner_name?: string | null
           listed_at?: string | null
           listed_rent?: number
+          lister_role: string
           listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
           lock_in_months?: number | null
@@ -2863,6 +2865,7 @@ export type Database = {
           legal_owner_name?: string | null
           listed_at?: string | null
           listed_rent?: number
+          lister_role?: string
           listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
           lock_in_months?: number | null

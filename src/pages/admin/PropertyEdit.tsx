@@ -164,6 +164,8 @@ export default function PropertyEdit() {
   const [noticePeriodMonths, setNoticePeriodMonths] = useState<string>("");
   const [annualRentIncreasePct, setAnnualRentIncreasePct] = useState<string>("");
   const [waterStorage, setWaterStorage] = useState<string>("");
+  // F3-C15: lister_role — admin always editable (no lock).
+  const [listerRole, setListerRole] = useState<string>("owner");
   const [parking2wCount, setParking2wCount] = useState<string>("");
   const [parking4wCount, setParking4wCount] = useState<string>("");
   const [parkingNotes, setParkingNotes] = useState<string>("");
@@ -280,6 +282,7 @@ export default function PropertyEdit() {
       setNoticePeriodMonths((data as unknown as Record<string, unknown>).notice_period_months != null ? String((data as unknown as Record<string, unknown>).notice_period_months) : "");
       setAnnualRentIncreasePct((data as unknown as Record<string, unknown>).annual_rent_increase_pct != null ? String((data as unknown as Record<string, unknown>).annual_rent_increase_pct) : "");
       setWaterStorage((data as unknown as Record<string, unknown>).water_storage as string || "");
+      setListerRole((data as unknown as Record<string, unknown>).lister_role as string || "owner");
       setParking2wCount((data as unknown as Record<string, unknown>).parking_2w_count != null ? String((data as unknown as Record<string, unknown>).parking_2w_count) : "");
       setParking4wCount((data as unknown as Record<string, unknown>).parking_4w_count != null ? String((data as unknown as Record<string, unknown>).parking_4w_count) : "");
       setParkingNotes((data as unknown as Record<string, unknown>).parking_notes as string || "");
@@ -432,6 +435,7 @@ export default function PropertyEdit() {
         notice_period_months: noticePeriodMonths ? parseInt(noticePeriodMonths) : null,
         annual_rent_increase_pct: annualRentIncreasePct ? parseFloat(annualRentIncreasePct) : null,
         water_storage: waterStorage || null,
+        lister_role: listerRole || "owner",
         // P3 — new columns.
         lock_in_months: lockInMonths ? parseInt(lockInMonths) : null,
         notice_period_days: noticePeriodDays ? parseInt(noticePeriodDays) : null,
@@ -1009,6 +1013,8 @@ export default function PropertyEdit() {
             </div>
             <SpecField fieldKey="parking_notes" surface="admin_form" value={parkingNotes} onChange={(v: string) => setParkingNotes(v)} />
             <SpecField fieldKey="water_storage" surface="admin_form" value={waterStorage} onChange={(v: string) => setWaterStorage(v)} className="max-w-xs" />
+            {/* F3-C15: lister_role — always editable for admin (owner is locked in edit mode). */}
+            <SpecField fieldKey="lister_role" surface="admin_form" value={listerRole} onChange={(v: string) => setListerRole(v)} className="max-w-xs" />
             {/* P3: water_source multi-select (text[]). */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Water source</Label>

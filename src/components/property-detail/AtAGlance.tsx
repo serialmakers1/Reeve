@@ -10,6 +10,7 @@ import {
   Building2,
   CalendarDays,
   Bath,
+  Clock,
 } from "lucide-react";
 import { format } from "date-fns";
 import PageSection from "./PageSection";
@@ -25,6 +26,7 @@ interface Property {
   total_floors: number | null;
   available_from: string | null;
   bathrooms: number | null;
+  building_age_years: number | null;
   possession_status: string | null;
   listing_type: string | null;
 }
@@ -98,6 +100,16 @@ function buildTiles(p: Property): Tile[] {
         icon: Maximize2,
         value: `${p.super_built_up_area} sq ft`,
         label: "Super built-up",
+      });
+    }
+    // F3-C4: building_age_years surfaced on sale (was AllDetails-only).
+    if (isFieldSet("building_age_years", p.building_age_years)) {
+      const n = p.building_age_years!;
+      tiles.push({
+        key: "building_age_years",
+        icon: Clock,
+        value: n === 0 ? "New construction" : `~${n} yr${n === 1 ? "" : "s"}`,
+        label: "Building age",
       });
     }
   } else {

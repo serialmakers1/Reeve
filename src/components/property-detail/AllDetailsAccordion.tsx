@@ -112,7 +112,8 @@ function buildTiles(p: Property): TileConfig[] {
     });
   }
 
-  if (isFieldSet("building_age_years", p.building_age_years)) {
+  // F3-C5: AtAGlance surfaces building_age_years for sale — gate here to avoid duplicate.
+  if (isFieldSet("building_age_years", p.building_age_years) && p.listing_type !== "sale") {
     const n = p.building_age_years!;
     tiles.push({
       key: "building_age_years",
@@ -187,7 +188,9 @@ function buildTiles(p: Property): TileConfig[] {
     });
   }
 
-  if (isFieldSet("super_built_up_area", p.super_built_up_area)) {
+  // F3-C3: AtAGlance already surfaces super_built_up_area for sale — gate to
+  // avoid a duplicate tile here.
+  if (isFieldSet("super_built_up_area", p.super_built_up_area) && p.listing_type !== "sale") {
     tiles.push({
       key: "super_built_up_area",
       icon: Maximize2,

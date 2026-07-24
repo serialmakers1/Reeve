@@ -141,7 +141,7 @@ export default function PropertySidebar({
     owner.displayName?.trim().charAt(0).toUpperCase() ?? "?";
 
   return (
-    <aside className="sticky top-4 overflow-hidden rounded-2xl border bg-background shadow-sm">
+    <aside className="sticky top-20 overflow-hidden rounded-2xl border bg-background shadow-sm">
       {/* Price */}
       <div className="px-5 pt-5 pb-4">
         {price ? (
