@@ -858,6 +858,7 @@ export default function ListProperty() {
       pincode: form.pincode.trim() || null,
       bhk: form.bhk || null,
       furnishing: form.furnishing || null,
+      lister_role: form.lister_role || 'owner',
       property_type: form.property_type || null,
       listed_rent: parseNum(form.listed_rent) ?? 0,
       draft_at: new Date().toISOString(),
