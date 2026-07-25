@@ -1,3 +1,5 @@
+## [2026-07-26] fix | Prompt 15: 5 post-deployment bugs — enum sanitization (bhk/furnishing/state mapFieldToDb + addressPatch.state fallback), Path B building name required + merge fix, Static Maps onError fallback, pincode gate (!pincode), pet_policy/building_rules hidden on Sale listings [IST]
+
 ## [2026-07-26] refactor | Prompt 13: Migrate Places API legacy → New API (AutocompleteSuggestion + Place.fetchFields); fix Bug 2 Path B building name; fix Bug 3 pet_policy/building_rules visibleWhen [IST]
 
 **Files changed:** `src/components/property-address/AddressParser.ts`, `src/components/property-address/PropertyAddressInput.tsx`, `src/pages/admin/PropertyEdit.tsx`, `src/config/property-fields.ts`.

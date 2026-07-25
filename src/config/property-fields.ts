@@ -776,7 +776,6 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     editableBy: ["owner", "admin"],
     ownerSection: "rules_preferences",
     displayIcon: "paw-print",
-    visibleWhen: (v) => v.listing_type !== "sale",
   },
   {
     key: "building_rules",
@@ -786,7 +785,6 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     audiences: ["owner_form", "admin_form", "public_detail"],
     editableBy: ["owner", "admin"],
     ownerSection: "rules_preferences",
-    visibleWhen: (v) => v.listing_type !== "sale",
   },
   {
     key: "building_notes",

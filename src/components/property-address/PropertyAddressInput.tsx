@@ -44,6 +44,8 @@ export function PropertyAddressInput({
   const [pincode, setPincode] = useState(initialData?.pincode ?? '');
   const [showListing, setShowListing] = useState(initialData?.streetview_show_in_listing ?? false);
   const [verified, setVerified] = useState(initialData?.location_verified_by_owner ?? false);
+  const [buildingNameTouched, setBuildingNameTouched] = useState(false);
+  const [mapImgError, setMapImgError] = useState(false);
 
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,6 +112,8 @@ export function PropertyAddressInput({
 
   async function handlePredictionSelect(suggestion: google.maps.places.AutocompleteSuggestion) {
     setPredictions([]);
+    setBuildingNameTouched(false);
+    setMapImgError(false);
     setPathState('resolving');
     if (activePath === 'A') setBuildingInput(suggestion.placePrediction.mainText.text);
     else setAreaInput(suggestion.placePrediction.text.text);
@@ -213,7 +217,9 @@ export function PropertyAddressInput({
       defaults,
       resolvedData as AddressData,
       {
-        building_name: activePath === 'A' ? (buildingInput || resolvedData.building_name || null) : null,
+        building_name: activePath === 'A'
+          ? (buildingInput || resolvedData.building_name || null)
+          : (buildingInput.trim() || null),
         pincode: pincode || resolvedData.pincode || null,
         streetview_show_in_listing: showListing,
         location_verified_by_owner: verified,
@@ -280,15 +286,21 @@ export function PropertyAddressInput({
         <div className="space-y-4 relative">
           {/* Building name — free text in manual mode */}
           <div className="space-y-1">
-            <Label htmlFor="building_name_manual">Building name</Label>
+            <Label htmlFor="building_name_manual">
+              Building name <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="building_name_manual"
               value={buildingInput}
               onChange={(e) => setBuildingInput(e.target.value)}
-              placeholder="e.g. Prestige Lakeside (optional)"
+              onBlur={() => setBuildingNameTouched(true)}
+              placeholder="e.g. Prestige Lakeside"
               className="min-h-[44px]"
               autoComplete="off"
             />
+            {buildingNameTouched && !buildingInput.trim() && (
+              <p className="text-sm text-destructive mt-1">Building name is required</p>
+            )}
           </div>
           <div className="space-y-1 relative">
             <Label htmlFor="area_search">Street / Area</Label>
@@ -377,18 +389,20 @@ export function PropertyAddressInput({
             </div>
           )}
 
-          {/* Pincode — editable if not auto-filled */}
-          <div className="space-y-1">
-            <Label htmlFor="pincode_input">Pincode</Label>
-            <Input
-              id="pincode_input"
-              value={pincode}
-              onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="6-digit pincode"
-              maxLength={6}
-              className="max-w-[180px] min-h-[44px]"
-            />
-          </div>
+          {/* Pincode — editable fallback only when Google did not return one */}
+          {!pincode && (
+            <div className="space-y-1">
+              <Label htmlFor="pincode_input">Pincode</Label>
+              <Input
+                id="pincode_input"
+                value={pincode}
+                onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="6-digit pincode"
+                maxLength={6}
+                className="max-w-[180px] min-h-[44px]"
+              />
+            </div>
+          )}
 
           {/* Static Maps thumbnail */}
           {lat != null && lng != null && mapsKey && (
@@ -397,12 +411,19 @@ export function PropertyAddressInput({
               target="_blank"
               rel="noopener noreferrer"
             >
-              <img
-                src={buildStaticMapUrl(lat, lng, mapsKey)}
-                alt="Location map"
-                className="rounded-lg border w-full object-cover"
-                loading="lazy"
-              />
+              {mapImgError ? (
+                <div className="rounded-lg border bg-muted/40 h-[110px] flex items-center justify-center">
+                  <p className="text-sm text-muted-foreground">Map preview unavailable</p>
+                </div>
+              ) : (
+                <img
+                  src={buildStaticMapUrl(lat, lng, mapsKey)}
+                  alt="Location map"
+                  className="rounded-lg border w-full object-cover"
+                  loading="lazy"
+                  onError={() => setMapImgError(true)}
+                />
+              )}
             </a>
           )}
 

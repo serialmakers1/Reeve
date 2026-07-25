@@ -386,7 +386,7 @@ function isSectionComplete(
   openedSections: Set<SectionNum>,
 ): boolean {
   switch (section) {
-    case 1: return !!(f.building_name.trim() && f.locality.trim() && f.city.trim() && f.state && f.location_verified_by_owner);
+    case 1: return !!(f.building_name.trim().length >= 2 && f.locality.trim() && f.city.trim() && f.state && f.location_verified_by_owner);
     case 2: return !!(f.bhk && f.property_type);
     case 3: {
       // Prompt 10a (D-161): Section-3 slot flips between Rent & Deposit and
@@ -809,7 +809,7 @@ export default function ListProperty() {
       street_address: data.street_address ?? '',
       locality: data.locality ?? '',
       city: data.city ?? '',
-      state: data.state ?? '',
+      state: data.state ?? form.state,
       pincode: data.pincode ?? '',
       place_id: data.place_id,
       formatted_address: data.formatted_address,
@@ -1800,15 +1800,19 @@ export default function ListProperty() {
           {/* Section 6 — scalar rendering driven by PROPERTY_FIELDS spec (D-128, D-155). */}
           <SectionShell num={6} title="Rules & preferences" status={sectionStatuses[6]} summary={sectionSummary(6, form, images)}>
             <div className="space-y-4">
-              <SpecField fieldKey="pet_policy" surface="owner_form" value={form.pet_policy} onChange={(v: string) => updateField("pet_policy", v)} />
+              {form.listing_type !== 'sale' && (
+                <SpecField fieldKey="pet_policy" surface="owner_form" value={form.pet_policy} onChange={(v: string) => updateField("pet_policy", v)} />
+              )}
               {/* TODO(spec): fold helper into PROPERTY_FIELDS.building_rules.helper in Prompt 6 bundle */}
-              <SpecField
-                fieldKey="building_rules"
-                surface="owner_form"
-                value={form.building_rules}
-                onChange={(v: string) => updateField("building_rules", v)}
-                helperOverride="Vegetarian only? No smoking? Curfew? Anything tenants should know."
-              />
+              {form.listing_type !== 'sale' && (
+                <SpecField
+                  fieldKey="building_rules"
+                  surface="owner_form"
+                  value={form.building_rules}
+                  onChange={(v: string) => updateField("building_rules", v)}
+                  helperOverride="Vegetarian only? No smoking? Curfew? Anything tenants should know."
+                />
+              )}
               {/* TODO(spec): fold helper into PROPERTY_FIELDS.building_notes.helper in Prompt 6 bundle */}
               <SpecField
                 fieldKey="building_notes"
@@ -2089,7 +2093,7 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "street_address": return { street_address: strVal.trim() || null };
     case "locality": return { locality: strVal.trim() || null };
     case "city": return { city: strVal.trim() || null };
-    case "state": return { state: strVal };
+    case "state": return strVal ? { state: strVal } : {};
     case "pincode": return { pincode: strVal.trim() || null };
     case "landmark": return { landmark: strVal.trim() || null };
     case "notice_period_months": return { notice_period_months: parseNum(strVal) };
@@ -2116,7 +2120,7 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "move_in_charges_amount": return { move_in_charges_amount: parseNum(strVal) };
     case "rent_brokerage_fixed_amount": return { rent_brokerage_fixed_amount: parseNum(strVal) };
     case "sale_brokerage_pct": return { sale_brokerage_pct: parseNum(strVal) };
-    case "bhk": return { bhk: strVal };
+    case "bhk": return strVal ? { bhk: strVal } : {};
     case "property_type": return { property_type: strVal || null };
     case "floor_number": return { floor_number: parseNum(strVal) };
     case "total_floors": return { total_floors: parseNum(strVal) };
@@ -2129,7 +2133,7 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "security_deposit_months": return { security_deposit_months: parseNum(strVal) };
     case "society_maintenance_approx": return { society_maintenance_approx: parseNum(strVal) };
     case "maintenance_included_in_rent": return { maintenance_included_in_rent: !!value };
-    case "furnishing": return { furnishing: strVal };
+    case "furnishing": return strVal ? { furnishing: strVal } : {};
     case "bathrooms": return { bathrooms: parseNum(strVal) };
     case "balconies": return { balconies: parseNum(strVal) };
     case "parking_2w": return { parking_2w: strVal };
