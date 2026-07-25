@@ -48,7 +48,7 @@ interface PropertyRow {
   id: string; owner_id: string; status: string; is_active: boolean;
   building_name: string | null; street_address: string | null;
   locality: string | null; city: string | null; state: string | null; pincode: string | null;
-  google_maps_url: string | null; youtube_walkthrough_url: string | null;
+  youtube_walkthrough_url: string | null;
   bhk: string | null; property_type: string | null;
   floor_number: number | null; total_floors: number | null;
   square_footage: number | null; facing: string | null;
@@ -367,9 +367,6 @@ export default function OwnerPropertyManagement() {
               <FieldRow k="City" v={view.city} pending={pendingFieldKeys.has("city")} live={property.city} />
               <FieldRow k="State" v={view.state} />
               <FieldRow k="Pincode" v={view.pincode} pending={pendingFieldKeys.has("pincode")} live={property.pincode} />
-              {view.google_maps_url && (
-                <FieldRow k="Google Maps" v={<a href={view.google_maps_url} className="text-primary underline" target="_blank" rel="noopener noreferrer">Open →</a>} />
-              )}
             </DetailsSection>
 
             <DetailsSection title="Basics">

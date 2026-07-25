@@ -2594,6 +2594,7 @@ export type Database = {
       }
       properties: {
         Row: {
+          address_mode: string | null
           agreement_pending_at: string | null
           amenities: Json | null
           annual_rent_increase_pct: number | null
@@ -2610,9 +2611,11 @@ export type Database = {
           building_name: string
           building_notes: string | null
           building_rules: string | null
-          city: string
+          city: string | null
+          country: string | null
           created_at: string
           description: string | null
+          district: string | null
           draft_at: string | null
           expected_price_per_sqft: number | null
           facing: string | null
@@ -2620,6 +2623,7 @@ export type Database = {
           flat_number_revealed: boolean
           floor_number: number | null
           floor_plan_url: string | null
+          formatted_address: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"]
           furnishing_detail: Json | null
           gas_type: string | null
@@ -2641,15 +2645,19 @@ export type Database = {
           legal_owner_name: string | null
           listed_at: string | null
           listed_rent: number
+          lister_flat_number: string | null
           lister_role: string
           listing_type: Database["public"]["Enums"]["property_listing_type"]
           locality: string | null
+          location_verified_at: string | null
+          location_verified_by_owner: boolean
           lock_in_months: number | null
           longitude: number | null
           main_door_lock_type: string | null
           maintenance_included_in_rent: boolean
           map_pin_url: string | null
           move_in_charges_amount: number | null
+          neighborhood: string | null
           notice_period_days: number | null
           notice_period_months: number | null
           occupied_at: string | null
@@ -2673,6 +2681,8 @@ export type Database = {
           parking_notes: string | null
           pet_policy: string | null
           pincode: string | null
+          place_id: string | null
+          plus_code: string | null
           possession_date: string | null
           possession_status: string | null
           price_negotiable: boolean | null
@@ -2682,6 +2692,7 @@ export type Database = {
           rent_brokerage_months: number | null
           rent_brokerage_type: string | null
           rera_registration_number: string | null
+          route: string | null
           sale_brokerage_pct: number | null
           sale_price: number | null
           security_deposit_amount: number | null
@@ -2691,7 +2702,14 @@ export type Database = {
           square_footage: number | null
           state: string
           status: Database["public"]["Enums"]["property_status"]
-          street_address: string
+          street_address: string | null
+          street_number: string | null
+          streetview_available: boolean | null
+          streetview_checked_at: string | null
+          streetview_pano_id: string | null
+          streetview_show_in_listing: boolean
+          sublocality_1: string | null
+          sublocality_2: string | null
           super_built_up_area: number | null
           title: string | null
           total_floors: number | null
@@ -2701,11 +2719,16 @@ export type Database = {
           utility_water_included: boolean
           vacancy_review_day14_at: string | null
           vacancy_review_day21_at: string | null
+          viewport_ne_lat: number | null
+          viewport_ne_lng: number | null
+          viewport_sw_lat: number | null
+          viewport_sw_lng: number | null
           water_source: string[] | null
           water_storage: string | null
           youtube_walkthrough_url: string | null
         }
         Insert: {
+          address_mode?: string | null
           agreement_pending_at?: string | null
           amenities?: Json | null
           annual_rent_increase_pct?: number | null
@@ -2722,9 +2745,11 @@ export type Database = {
           building_name: string
           building_notes?: string | null
           building_rules?: string | null
-          city: string
+          city?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
+          district?: string | null
           draft_at?: string | null
           expected_price_per_sqft?: number | null
           facing?: string | null
@@ -2732,6 +2757,7 @@ export type Database = {
           flat_number_revealed?: boolean
           floor_number?: number | null
           floor_plan_url?: string | null
+          formatted_address?: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"]
           furnishing_detail?: Json | null
           gas_type?: string | null
@@ -2753,15 +2779,19 @@ export type Database = {
           legal_owner_name?: string | null
           listed_at?: string | null
           listed_rent?: number
+          lister_flat_number?: string | null
           lister_role: string
           listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
+          location_verified_at?: string | null
+          location_verified_by_owner?: boolean
           lock_in_months?: number | null
           longitude?: number | null
           main_door_lock_type?: string | null
           maintenance_included_in_rent?: boolean
           map_pin_url?: string | null
           move_in_charges_amount?: number | null
+          neighborhood?: string | null
           notice_period_days?: number | null
           notice_period_months?: number | null
           occupied_at?: string | null
@@ -2785,6 +2815,8 @@ export type Database = {
           parking_notes?: string | null
           pet_policy?: string | null
           pincode?: string | null
+          place_id?: string | null
+          plus_code?: string | null
           possession_date?: string | null
           possession_status?: string | null
           price_negotiable?: boolean | null
@@ -2794,6 +2826,7 @@ export type Database = {
           rent_brokerage_months?: number | null
           rent_brokerage_type?: string | null
           rera_registration_number?: string | null
+          route?: string | null
           sale_brokerage_pct?: number | null
           sale_price?: number | null
           security_deposit_amount?: number | null
@@ -2801,9 +2834,16 @@ export type Database = {
           service_agreement_id?: string | null
           society_maintenance_approx?: number | null
           square_footage?: number | null
-          state?: string
+          state: string
           status?: Database["public"]["Enums"]["property_status"]
-          street_address: string
+          street_address?: string | null
+          street_number?: string | null
+          streetview_available?: boolean | null
+          streetview_checked_at?: string | null
+          streetview_pano_id?: string | null
+          streetview_show_in_listing?: boolean
+          sublocality_1?: string | null
+          sublocality_2?: string | null
           super_built_up_area?: number | null
           title?: string | null
           total_floors?: number | null
@@ -2813,11 +2853,16 @@ export type Database = {
           utility_water_included?: boolean
           vacancy_review_day14_at?: string | null
           vacancy_review_day21_at?: string | null
+          viewport_ne_lat?: number | null
+          viewport_ne_lng?: number | null
+          viewport_sw_lat?: number | null
+          viewport_sw_lng?: number | null
           water_source?: string[] | null
           water_storage?: string | null
           youtube_walkthrough_url?: string | null
         }
         Update: {
+          address_mode?: string | null
           agreement_pending_at?: string | null
           amenities?: Json | null
           annual_rent_increase_pct?: number | null
@@ -2834,9 +2879,11 @@ export type Database = {
           building_name?: string
           building_notes?: string | null
           building_rules?: string | null
-          city?: string
+          city?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
+          district?: string | null
           draft_at?: string | null
           expected_price_per_sqft?: number | null
           facing?: string | null
@@ -2844,6 +2891,7 @@ export type Database = {
           flat_number_revealed?: boolean
           floor_number?: number | null
           floor_plan_url?: string | null
+          formatted_address?: string | null
           furnishing?: Database["public"]["Enums"]["furnishing_type"]
           furnishing_detail?: Json | null
           gas_type?: string | null
@@ -2865,15 +2913,19 @@ export type Database = {
           legal_owner_name?: string | null
           listed_at?: string | null
           listed_rent?: number
+          lister_flat_number?: string | null
           lister_role?: string
           listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
+          location_verified_at?: string | null
+          location_verified_by_owner?: boolean
           lock_in_months?: number | null
           longitude?: number | null
           main_door_lock_type?: string | null
           maintenance_included_in_rent?: boolean
           map_pin_url?: string | null
           move_in_charges_amount?: number | null
+          neighborhood?: string | null
           notice_period_days?: number | null
           notice_period_months?: number | null
           occupied_at?: string | null
@@ -2897,6 +2949,8 @@ export type Database = {
           parking_notes?: string | null
           pet_policy?: string | null
           pincode?: string | null
+          place_id?: string | null
+          plus_code?: string | null
           possession_date?: string | null
           possession_status?: string | null
           price_negotiable?: boolean | null
@@ -2906,6 +2960,7 @@ export type Database = {
           rent_brokerage_months?: number | null
           rent_brokerage_type?: string | null
           rera_registration_number?: string | null
+          route?: string | null
           sale_brokerage_pct?: number | null
           sale_price?: number | null
           security_deposit_amount?: number | null
@@ -2915,7 +2970,14 @@ export type Database = {
           square_footage?: number | null
           state?: string
           status?: Database["public"]["Enums"]["property_status"]
-          street_address?: string
+          street_address?: string | null
+          street_number?: string | null
+          streetview_available?: boolean | null
+          streetview_checked_at?: string | null
+          streetview_pano_id?: string | null
+          streetview_show_in_listing?: boolean
+          sublocality_1?: string | null
+          sublocality_2?: string | null
           super_built_up_area?: number | null
           title?: string | null
           total_floors?: number | null
@@ -2925,6 +2987,10 @@ export type Database = {
           utility_water_included?: boolean
           vacancy_review_day14_at?: string | null
           vacancy_review_day21_at?: string | null
+          viewport_ne_lat?: number | null
+          viewport_ne_lng?: number | null
+          viewport_sw_lat?: number | null
+          viewport_sw_lng?: number | null
           water_source?: string[] | null
           water_storage?: string | null
           youtube_walkthrough_url?: string | null

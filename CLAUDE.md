@@ -2,7 +2,7 @@
 
 Property management platform connecting owners and tenants in India. Owners list properties, tenants apply and sign leases — Reeve manages inspections, agreements, and the full rental lifecycle.
 
-Full decision + implementation history: `commons-decisions.md` D-001–D-177 + D-P3-000–D-P3-019. This file holds only load-bearing invariants.
+Full decision + implementation history: `commons-decisions.md` D-001–D-177 + D-P3-000–D-P3-019 + D-GM-001–D-GM-005. This file holds only load-bearing invariants.
 
 ## Tech Stack
 React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (Postgres + Auth + Storage) · React Router v6 · Sentry · PostHog.
@@ -111,23 +111,14 @@ Legacy PM: `draft → inspection_proposed → inspection_scheduled → inspected
 - `is_admin()` covers admin + super_admin (no ops role)
 - Multiple SELECT policies OR-ed by Postgres — separate user+admin SELECT policies are valid.
 
-## Phase 3 Edge Functions (2026-07-17)
-Phase 3 complete (2026-07-17). contact_requests + email_send_log tables live. 4 Edge Functions deployed. 3 n8n workflows active.
-reveal-contact + resend-reveal (v5): skip email dispatch and log `skipped_no_email` when a party lacks email (phone reveal still proceeds; webhook fires only if at least one party has email). Fall back to `get_phone_fallback` RPC when `public.users.phone` is null; log `skipped_no_phone` if unresolved.
-Four functions in `supabase/functions/`: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`. All `verify_jwt=false` in config.toml with manual JWT validation inside the handler (matches the razorpay pattern). Phone numbers NEVER appear in any HTTP response body — email reveal only (D-P3-001). service_role key used for all DB reads/writes. `tenant_id` always derived from the verified JWT — never trusted from request body. Approval sends two emails in parallel via Promise.all; approval stands even if either send fails (resend-reveal is the retry surface). resend-contact-webhook verifies Svix signature (`RESEND_WEBHOOK_SECRET`) and always returns 200 on valid signature so Resend does not retry-storm. reveal-contact and resend-reveal call n8n webhooks (fire-and-forget). RESEND_API_KEY not used in Supabase. N8N_WEBHOOK_SECRET required in Supabase secrets.
+## Phase 3 Edge Functions
+Phase 3 complete (2026-07-17). Functions: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`. All `verify_jwt=false` + manual JWT. **Phone never in response body** (D-P3-001). `tenant_id` from JWT only. service_role for all DB writes. `resend-contact-webhook` returns 200 on valid Svix signature.
+Skip email if no email (`skipped_no_email`); fall back to `get_phone_fallback` if phone null (`skipped_no_phone`). Approval: 2 emails in parallel; stands if either fails.
 
-## Phase 3 UI wiring (Prompts 3–6 — full details in commons-decisions.md + commons-ux.md)
-- **P3 (`RequestContactPanel.tsx`)**: 7-button state, consent (D-P3-010), realtime + `get_owner_response_rate` strip (D-P3-009). Owner-viewing-own → null. contact_requests / rental_preferences queries use `(supabase as unknown as ...)` casts to sidestep types.ts generic-inference noise.
-- **P4 (`RequestsTab.tsx` + `DeclineReasonModal.tsx`)**: grouped log on `/owner-dashboard/property/:id`. Approve → `functions.invoke('reveal-contact')` (never direct UPDATE). Decline → `.update({status:'declined', decline_reason})` guarded on `status=pending` (5 templated reasons matching `contact_request_decline_reason` enum; free text disallowed). Snapshot rule: declined/withdrawn/auto_cancelled render name-only compact card.
-- **P5 (`ContactRequestsCard.tsx`)**: TenantDashboard card 1, realtime on `contact_requests`, per-minute cooldown tick only when a declined row is cooling. Withdraw (RLS-guarded UPDATE), Resend (`resend-reveal`; 429 branches distinguish cooldown vs daily), Re-request (delegates to RequestContactPanel — never re-implements submit).
-- **P6 (`PublicProfile.tsx` `OwnerStatsBlock`)**: rendered on `/u/:userId` above ListingsGrid; `get_owner_response_rate` + properties count in parallel; null when no listings AND no history. `< 5` handled → "New owner · Verified"; `>= 5` → "Responds to X% of requests" (never "approval rate" — D-P3-009/011). Column fallback `_handled ?? _total`.
+## Phase 3 UI wiring — See D-P3-001–D-P3-019. **Key**: Approve → `functions.invoke('reveal-contact')` (never direct UPDATE); Decline on `status=pending`; Re-request delegates to RequestContactPanel. OwnerRateBlock: `< 5` → "New owner · Verified"; `>= 5` → "Responds to X%".
 
 ## Phase 3 conventions
-- N8N_WEBHOOK_SECRET: Supabase secret used by reveal-contact + resend-reveal Edge Functions to authenticate calls to n8n webhooks.
-- RESEND_WEBHOOK_SECRET: Supabase secret used by resend-contact-webhook Edge Function to verify Resend delivery event signatures.
-- n8n → Supabase reads: always use scoped SECURITY DEFINER RPC + anon key. Never store service_role in n8n. See D-P3-012.
-- OwnerRateBlock (in RequestContactPanel): uses all_time_handled, all_time_responded, last_7d_handled, last_7d_responded column names from get_owner_response_rate RPC. Not _total or _rate.
-- ownerDisplayName passed as null from PropertyDetail to RequestContactPanel — consent copy falls back to 'the owner'. Follow-up: add public_profiles.display_name to property fetch. See commons-forward-plan.
+- `N8N_WEBHOOK_SECRET`: n8n auth. `RESEND_WEBHOOK_SECRET`: Svix sig verification. n8n → Supabase: SECURITY DEFINER RPC + anon key only; never service_role in n8n (D-P3-012). OwnerRateBlock columns: `all_time_handled/responded`, `last_7d_handled/responded` — not `_total` or `_rate`.
 
 ## Database Tables (26 total)
 `agreements, applications, application_notes, application_residents, contact_requests, documents, eligibility, email_send_log, favourites, inspection_callbacks, keys_tracking, leads, leases, maintenance_requests, owner_action_log, owner_bank_details, payments, profiles, properties, property_condition_reports, property_images, rental_preferences, users, visit_events, visits`. View: `properties_with_flat_number`, `public_profiles`.
@@ -170,33 +161,16 @@ Render guard order — strict, must never change:
 Every Supabase query in `initPage()` gating a critical flow must destructure `error` and handle explicitly.
 Never use `.maybeSingle()` on unfiltered multi-row application queries — always use targeted single-status or `.in()`-list queries.
 
-### PropertyDetail CTA button states (priority order)
-1. draft → "Continue Draft" → `/apply?resume=<id>`
-2. active blocking app (ACTIVE_STATUSES) → "Application in progress"
-3. on_hold → "Another applicant has secured this property"
-4. maxReached (decided_count >= 3) → "You've reached the maximum"
-5. withinCooldown → cooldown date text
-6. non-draft history → "Apply Again" → `/apply?property_id=X`
-7. no history → "Apply Now" → `/apply?property_id=X`
-Derive each flag via `.find()` on full applicationHistory — attempt_number ties are non-deterministic.
+### PropertyDetail CTA states (priority): 1=draft→"Continue Draft" (/apply?resume=<id>)  2=ACTIVE_STATUSES→"in progress"  3=on_hold→"secured"  4=maxReached(≥3)→"maximum"  5=withinCooldown→date  6=non-draft history→"Apply Again"  7=no history→"Apply Now"
+Derive via `.find()` on full applicationHistory — attempt_number ties are non-deterministic.
 
-## Commons Phase 1 + 1.5 (D-001–D-171 — details in commons-decisions.md)
-- Field spec (`src/config/property-fields.ts`) + `<SpecField>` = single source of truth for property fields. `flat_number` never public (D-091); admin direct-write bypass preserved (D-111). `getUserDisplayName()` reads `users.full_name` only.
-- **Adding a new `properties` column to the owner form** requires touching six sites in order: (1) spec entry in `src/config/property-fields.ts`; (2) `FormState` interface in `src/pages/ListProperty.tsx`; (3) `INITIAL_STATE` in same file; (4) `prefillFormFromRow`; (5) `mapFieldToDb` switch; (6) JSX call site (usually `<SpecField>`). Then mirror on `admin/PropertyEdit.tsx` (useState hook + hydration + payload + JSX). Also add to `approve_edit_request` COALESCE in a new migration replacing that RPC. SpecField does NOT check `audiences` — call sites control render.
-- ListProperty `/list`: 9-section accordion, draft cap 20/user, submit → `pending_review`. Edit flows: Path A direct-patch for draft/changes_requested; Path B `submit_property_edit_request` RPC for listed/edit_pending_review.
-- Property mgmt `/owner-dashboard/property/:id`: 4-tab (Requests | Details | Photos | Activity). Admin Review `/admin/listing-reviews`. Profile pages `/me` (editable) + `/u/:userId` (public_profiles view, security_invoker=false).
+## Commons Phase 1 + 1.5 (D-001–D-171)
+- `property-fields.ts` + `<SpecField>` = single source of truth. `flat_number` never public (D-091). **Adding a new properties column**: spec → `FormState` → `INITIAL_STATE` → `prefillFormFromRow` → `mapFieldToDb` → JSX → mirror on `PropertyEdit.tsx` → `approve_edit_request` COALESCE migration.
+- ListProperty: 9-section accordion, draft cap 20/user, submit → `pending_review`. Path A (draft/changes_requested direct-patch), Path B (`submit_property_edit_request` RPC for listed/edit_pending_review).
+- DO NOT re-apply rent/sale trigger (D-160 — via MCP). `useListingSave.patch()` buffers pre-draft (D-153/154). JSONB: `<FurnishingEditor>` + `<AmenitiesEditor>` in `src/components/property/`.
 
-### Phase 1 + 1.5 invariants (details in commons-decisions.md D-153–D-171 and commons-schema.md)
-- Save pipeline (D-153/154): `useListingSave.patch()` buffers pre-draft; failed-column poison guard; regression test `src/test/useListingSave.test.ts`.
-- Triggers/SpecField: rent/sale trigger applied via MCP (D-160 — do NOT re-apply); date inputs via `<SpecField input='date'>` + `datePickerOptions` (D-168); `visibleWhen: v.listing_type !== 'sale'` fail-safe (D-162).
-- JSONB editors (D-170): `<FurnishingEditor>` + `<AmenitiesEditor>` in `src/components/property/`; owner FormState holds `furnishing_detail[]` + flat `building_amenities[]`.
-- Schema: brokerage split into fixed_amount + months (D-169); deposit prefers amount over months × rent (D-167); India rental + rent/sale + move-in charges (D-159/160/166) — full column table in commons-schema.md.
-
-## Commons Phase 2 — Tenant Dashboard (D-172–D-177; details in commons-decisions.md)
-- **D-172 Verification gate**: `<VerificationGate />` blocks unverified users on `/tenant-dashboard/preferences` + `/list` — hard redirect to `/profile?returnTo={path}&reason={missing}`. Legacy call sites (PropertyDetail/NewApplication/Eligibility) not refactored.
-- **D-173** `public_profiles` view exposes `display_name` + `is_public`. **D-174** contact_requests snapshot frozen at submit. **D-175** dashboard card order: Contact Requests → Saved → Preferences. **D-176** `isFullyVerified` on `useAuth`. **D-177** Preferences form single-page, UI-only mandatory fields.
-- `rental_preferences` table: one row per user (UNIQUE on user_id), RLS own-row only, no DELETE, all fields nullable at DB level. Route: `/tenant-dashboard/preferences`, upsert on submit.
-- Routing: `/dashboard` → `/tenant-dashboard`. Header "My Profile" → `/me`, "Account settings" → `/profile`. D-088 nav freeze superseded for tenant nav only.
+## Commons Phase 2 — Tenant Dashboard (D-172–D-177)
+- `<VerificationGate />` on `/list` + `/tenant-dashboard/preferences` (D-172). `rental_preferences` table: one-row-per-user, upsert-only, no DELETE. Routing: `/dashboard` → `/tenant-dashboard`. `isFullyVerified = !!(phone_verified && email_verified)` on `useAuth` (D-176).
 
 ## Payments / Razorpay
 - RLS on `payments`. Idempotency: UNIQUE(gateway_reference) + `x-razorpay-event-id` on `gateway_response`. Edge Functions `create-razorpay-order` + `verify-razorpay-payment` use `verify_jwt=false` + manual JWT + `EdgeRuntime.waitUntil()`.
@@ -213,3 +187,14 @@ Skills in `.claude/skills/`. Read `using-superpowers` for the workflow. React �
 
 ## Inspection Form + PostHog
 Condition labels (DB unchanged) good/minor_wear/moderate_damage/severe_damage. `useAutoPopulateApplianceDamages` emits `cosmetic` entries; `EntryList.customTextOnValue` → `<key>_custom`. Owner funnel: `list_property_cta_clicked → signup_completed(intent:'owner') → property_form_started → property_submitted → owner_clarity_guide_read`; scroll-depth via `useRef<boolean>` fire-once.
+
+## Google Maps Phase 1 (2026-07-26)
+- `@vis.gl/react-google-maps` v1.x; `APIProvider` in `App.tsx` inside `QueryClientProvider`, outside `BrowserRouter`.
+- `PropertyAddressInput` at `src/components/property-address/` — `mode='owner'|'admin'`; Path A (building autocomplete) + Path B (area geocode).
+- Session tokens: one per session, terminated by Place Details call (zero billing for Place Details).
+- India-only: `componentRestrictions: { country: 'in' }` on all calls.
+- `lister_flat_number`: new column (10 char, CHECK). Old `flat_number` (admin-only, never public) untouched.
+- `address_mode`: `'google_place'` (Path A) | `'manual'` (Path B).
+- `location_verified_by_owner`: DB boolean, `<Checkbox>` in PropertyAddressInput, required for submission.
+- `streetview_show_in_listing`: defaults true when SV available.
+- Owner can edit address only in `draft` / `changes_requested` (Tier 1 lock).

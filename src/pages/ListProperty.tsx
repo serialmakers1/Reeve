@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import posthog from "posthog-js";
 import { format } from "date-fns";
-import { CheckCircle2, Circle, AlertCircle, X, Eye, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, AlertCircle, X, Eye, Trash2, Lock } from "lucide-react";
 import { getStatusDisplay } from "@/lib/propertyStatus";
 
 import Layout from "@/components/Layout";
@@ -53,6 +53,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 import PropertyPreview, { type PropertyPreviewData, type PreviewImage } from "@/components/listing/PropertyPreview";
+import { PropertyAddressInput } from '@/components/property-address';
+import type { AddressData } from '@/components/property-address';
 
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const DRAFT_LIMIT = 20;
@@ -67,8 +69,14 @@ type SectionStatus = "not_started" | "in_progress" | "complete" | "error";
 // Columns unknown here (e.g. amenities JSONB) fall through to no highlight —
 // still surfaces in the block toast + console.error.
 const DB_COLUMN_TO_SECTION: Record<string, SectionNum> = {
-  building_name: 1, street_address: 1, locality: 1, city: 1, state: 1, pincode: 1, google_maps_url: 1,
+  building_name: 1, street_address: 1, locality: 1, city: 1, state: 1, pincode: 1,
   landmark: 1,
+  place_id: 1, formatted_address: 1, address_mode: 1, street_number: 1, route: 1,
+  sublocality_1: 1, sublocality_2: 1, neighborhood: 1, district: 1, country: 1, plus_code: 1,
+  viewport_ne_lat: 1, viewport_ne_lng: 1, viewport_sw_lat: 1, viewport_sw_lng: 1,
+  latitude: 1, longitude: 1, streetview_available: 1, streetview_pano_id: 1,
+  streetview_checked_at: 1, streetview_show_in_listing: 1,
+  location_verified_by_owner: 1, location_verified_at: 1, lister_flat_number: 1,
   bhk: 2, property_type: 2, floor_number: 2, total_floors: 2, square_footage: 2, facing: 2, building_age_years: 2,
   listed_rent: 3, security_deposit_amount: 3, security_deposit_months: 3, society_maintenance_approx: 3,
   maintenance_included_in_rent: 3, available_from: 3,
@@ -84,7 +92,6 @@ const DB_COLUMN_TO_SECTION: Record<string, SectionNum> = {
   utility_water_included: 5, utility_gas_included: 5, utility_electricity_included: 5, gas_type: 5,
   pet_policy: 6, building_rules: 6, building_notes: 6,
   youtube_walkthrough_url: 7,
-  title: 8, description: 8,
 };
 
 // D-170: CustomItem removed — customs now live inside furnishing_detail with `custom: true`.
@@ -100,8 +107,32 @@ interface FormState {
   city: string;
   state: string;
   pincode: string;
-  google_maps_url: string;
   landmark: string;                           // Prompt 8 — India field
+  // Google Maps Phase 1 — address enrichment fields
+  place_id: string | null;
+  formatted_address: string | null;
+  address_mode: 'google_place' | 'manual' | null;
+  street_number: string | null;
+  route: string | null;
+  sublocality_1: string | null;
+  sublocality_2: string | null;
+  neighborhood: string | null;
+  district: string | null;
+  country: string | null;
+  plus_code: string | null;
+  viewport_ne_lat: number | null;
+  viewport_ne_lng: number | null;
+  viewport_sw_lat: number | null;
+  viewport_sw_lng: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  streetview_available: boolean | null;
+  streetview_pano_id: string | null;
+  streetview_checked_at: string | null;
+  streetview_show_in_listing: boolean;
+  location_verified_by_owner: boolean;
+  location_verified_at: string | null;
+  lister_flat_number: string | null;
   // Section 2
   bhk: string;
   property_type: string;
@@ -162,9 +193,6 @@ interface FormState {
   building_notes: string;
   // Section 7
   youtube_walkthrough_url: string;
-  // Section 8
-  title: string;
-  description: string;
   // Section 9
   consent: boolean;
   terms_privacy_consent: boolean;
@@ -178,7 +206,15 @@ const INITIAL_STATE: FormState = {
   rera_registration_number: "", khata_type: "", property_tax_paid_upto: undefined,
   sale_brokerage_pct: "",
   building_name: "", street_address: "", locality: "", city: "", state: "Karnataka",
-  pincode: "", google_maps_url: "", landmark: "",
+  pincode: "", landmark: "",
+  place_id: null, formatted_address: null, address_mode: null,
+  street_number: null, route: null, sublocality_1: null, sublocality_2: null,
+  neighborhood: null, district: null, country: null, plus_code: null,
+  viewport_ne_lat: null, viewport_ne_lng: null, viewport_sw_lat: null, viewport_sw_lng: null,
+  latitude: null, longitude: null,
+  streetview_available: null, streetview_pano_id: null, streetview_checked_at: null,
+  streetview_show_in_listing: false, location_verified_by_owner: false, location_verified_at: null,
+  lister_flat_number: null,
   bhk: "", property_type: "", floor_number: "", total_floors: "", square_footage: "",
   super_built_up_area: "",
   facing: "", building_age_years: "",
@@ -195,7 +231,6 @@ const INITIAL_STATE: FormState = {
   water_included: false, gas_included: false, gas_type: "", electricity_included: false,
   pet_policy: "", pet_policy_text: "", building_rules: "", building_notes: "",
   youtube_walkthrough_url: "",
-  title: "", description: "",
   consent: false,
   terms_privacy_consent: false,
 };
@@ -237,8 +272,31 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     city: (d.city as string) ?? "",
     state: (d.state as string) ?? "Karnataka",
     pincode: (d.pincode as string) ?? "",
-    google_maps_url: (d.google_maps_url as string) ?? "",
     landmark: (d.landmark as string) ?? "",
+    place_id: (d.place_id as string) ?? null,
+    formatted_address: (d.formatted_address as string) ?? null,
+    address_mode: (d.address_mode as 'google_place' | 'manual' | null) ?? null,
+    street_number: (d.street_number as string) ?? null,
+    route: (d.route as string) ?? null,
+    sublocality_1: (d.sublocality_1 as string) ?? null,
+    sublocality_2: (d.sublocality_2 as string) ?? null,
+    neighborhood: (d.neighborhood as string) ?? null,
+    district: (d.district as string) ?? null,
+    country: (d.country as string) ?? null,
+    plus_code: (d.plus_code as string) ?? null,
+    viewport_ne_lat: d.viewport_ne_lat != null ? Number(d.viewport_ne_lat) : null,
+    viewport_ne_lng: d.viewport_ne_lng != null ? Number(d.viewport_ne_lng) : null,
+    viewport_sw_lat: d.viewport_sw_lat != null ? Number(d.viewport_sw_lat) : null,
+    viewport_sw_lng: d.viewport_sw_lng != null ? Number(d.viewport_sw_lng) : null,
+    latitude: d.latitude != null ? Number(d.latitude) : null,
+    longitude: d.longitude != null ? Number(d.longitude) : null,
+    streetview_available: d.streetview_available != null ? (d.streetview_available as boolean) : null,
+    streetview_pano_id: (d.streetview_pano_id as string) ?? null,
+    streetview_checked_at: (d.streetview_checked_at as string) ?? null,
+    streetview_show_in_listing: (d.streetview_show_in_listing as boolean) ?? false,
+    location_verified_by_owner: (d.location_verified_by_owner as boolean) ?? false,
+    location_verified_at: (d.location_verified_at as string) ?? null,
+    lister_flat_number: (d.lister_flat_number as string) ?? null,
     bhk: (d.bhk as string) ?? "",
     property_type: (d.property_type as string) ?? "",
     floor_number: d.floor_number != null ? String(d.floor_number) : "",
@@ -282,8 +340,6 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     building_rules: (d.building_rules as string) ?? "",
     building_notes: (d.building_notes as string) ?? "",
     youtube_walkthrough_url: (d.youtube_walkthrough_url as string) ?? "",
-    title: (d.title as string) ?? "",
-    description: (d.description as string) ?? "",
     consent: false,
     terms_privacy_consent: false,
     // Prompt 10a — rent/sale.
@@ -330,7 +386,7 @@ function isSectionComplete(
   openedSections: Set<SectionNum>,
 ): boolean {
   switch (section) {
-    case 1: return !!(f.building_name.trim() && f.street_address.trim() && f.locality.trim() && f.city.trim() && f.state);
+    case 1: return !!(f.building_name.trim() && f.locality.trim() && f.city.trim() && f.state && f.location_verified_by_owner);
     case 2: return !!(f.bhk && f.property_type);
     case 3: {
       // Prompt 10a (D-161): Section-3 slot flips between Rent & Deposit and
@@ -352,7 +408,7 @@ function isSectionComplete(
 
 function isSectionTouched(section: SectionNum, f: FormState, imageCount: number): boolean {
   switch (section) {
-    case 1: return !!(f.building_name || f.street_address || f.locality || f.city || f.pincode || f.google_maps_url);
+    case 1: return !!(f.building_name || f.place_id || f.locality || f.city);
     case 2: return !!(f.bhk || f.property_type || f.floor_number || f.total_floors || f.square_footage || f.facing || f.building_age_years);
     case 3: {
       if (f.listing_type === "sale") {
@@ -364,7 +420,6 @@ function isSectionTouched(section: SectionNum, f: FormState, imageCount: number)
     case 5: return !!(f.building_amenities.length || f.parking_2w !== "none" || f.parking_4w !== "none" || f.water_included || f.gas_included || f.electricity_included);
     case 6: return !!(f.pet_policy || f.building_rules || f.building_notes);
     case 7: return imageCount > 0 || !!f.youtube_walkthrough_url;
-    case 8: return !!(f.title || f.description);
     case 9: return f.consent || f.terms_privacy_consent;
   }
 }
@@ -487,6 +542,8 @@ export default function ListProperty() {
     entryStatus === "create" ? "A" : null;
 
   const readOnly = entryStatus === "edit_pending_review" && !modifyingEdit;
+  const tierOneLocked = entryStatus !== "create" && entryStatus !== "draft" && entryStatus !== "changes_requested";
+  const addressEditable = !tierOneLocked;
 
   const { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges, poisonedKeys } =
     useListingSave(propertyId);
@@ -713,10 +770,7 @@ export default function ListProperty() {
   }, [sectionStatuses, erroredSections]);
 
   // ─── Minimum required INSERT fields ──────────────────────────────────────
-  const canInsertDraft = !!(
-    form.building_name.trim() && form.street_address.trim() &&
-    form.city.trim() && form.bhk && form.furnishing && user?.id
-  );
+  const canInsertDraft = !!(form.building_name.trim() && form.city.trim() && user?.id);
 
   // ─── Field patcher ───────────────────────────────────────────────────────
   // Path A (draft/changes_requested/create): patches DB directly via useListingSave.
@@ -747,6 +801,46 @@ export default function ListProperty() {
       patch(payload);
     }
   }, [patch, path, readOnly]);
+
+  // ─── Address resolved callback (PropertyAddressInput → form + DB) ────────
+  const handleAddressResolved = useCallback((data: AddressData) => {
+    const addressPatch = {
+      building_name: data.building_name ?? '',
+      street_address: data.street_address ?? '',
+      locality: data.locality ?? '',
+      city: data.city ?? '',
+      state: data.state ?? '',
+      pincode: data.pincode ?? '',
+      place_id: data.place_id,
+      formatted_address: data.formatted_address,
+      address_mode: data.address_mode,
+      street_number: data.street_number,
+      route: data.route,
+      sublocality_1: data.sublocality_1,
+      sublocality_2: data.sublocality_2,
+      neighborhood: data.neighborhood,
+      district: data.district,
+      country: data.country,
+      plus_code: data.plus_code,
+      viewport_ne_lat: data.viewport_ne_lat,
+      viewport_ne_lng: data.viewport_ne_lng,
+      viewport_sw_lat: data.viewport_sw_lat,
+      viewport_sw_lng: data.viewport_sw_lng,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      streetview_available: data.streetview_available,
+      streetview_pano_id: data.streetview_pano_id,
+      streetview_checked_at: data.streetview_checked_at,
+      streetview_show_in_listing: data.streetview_show_in_listing,
+      location_verified_by_owner: data.location_verified_by_owner,
+      location_verified_at: data.location_verified_at,
+      lister_flat_number: data.lister_flat_number,
+    };
+    setForm((prev) => ({ ...prev, ...addressPatch }));
+    if (!readOnly) {
+      patch(addressPatch);
+    }
+  }, [setForm, patch, readOnly]);
 
   // ─── First-save (create draft) ───────────────────────────────────────────
   const createDraft = useCallback(async () => {
@@ -1068,7 +1162,7 @@ export default function ListProperty() {
     posthog?.capture("commons_listing_submitted", {
       property_id: propertyId,
       photo_count: images.length,
-      has_optional_sections_filled: !!(form.description || form.building_notes || form.building_rules),
+      has_optional_sections_filled: !!(form.building_notes || form.building_rules),
     });
     toast({ title: "Submitted for review!", description: "We'll review your listing within 48 hours." });
     navigate("/my-properties", { replace: true });
@@ -1094,7 +1188,6 @@ export default function ListProperty() {
     electricity_included: form.electricity_included,
     pet_policy: PET_POLICY_OPTIONS.find((o) => o.value === form.pet_policy)?.label ?? form.pet_policy_text,
     house_rules: form.building_rules, building_notes: form.building_notes,
-    title: form.title, description: form.description,
     // Preview should reflect what the property will look like AFTER admin approval
     // in Path B: hide photos marked for deletion, include pending adds.
     // In Path A: images is already the live state.
@@ -1113,7 +1206,35 @@ export default function ListProperty() {
         ]
       : images) as unknown as PreviewImage[],
     youtube_walkthrough_url: form.youtube_walkthrough_url,
-    google_maps_url: form.google_maps_url,
+    // Prompt 9 additions
+    listing_type: form.listing_type,
+    lister_role: form.lister_role || undefined,
+    landmark: form.landmark || undefined,
+    floor_number: form.floor_number || undefined,
+    total_floors: form.total_floors || undefined,
+    super_built_up_area: form.super_built_up_area || undefined,
+    building_age_years: form.building_age_years || undefined,
+    lock_in_months: form.lock_in_months || undefined,
+    notice_period_days: form.notice_period_days || undefined,
+    notice_period_months: form.notice_period_months || undefined,
+    annual_rent_increase_pct: form.annual_rent_increase_pct || undefined,
+    move_in_charges_amount: form.move_in_charges_amount || undefined,
+    rent_brokerage_fixed_amount: form.rent_brokerage_fixed_amount || undefined,
+    sale_price: form.sale_price || undefined,
+    price_negotiable: form.price_negotiable,
+    expected_price_per_sqft: form.expected_price_per_sqft || undefined,
+    possession_status: form.possession_status || undefined,
+    possession_date: form.possession_date ? format(form.possession_date, "PP") : undefined,
+    rera_registration_number: form.rera_registration_number || undefined,
+    sale_brokerage_pct: form.sale_brokerage_pct || undefined,
+    khata_type: form.khata_type || undefined,
+    parking_2w_count: form.parking_2w_count || undefined,
+    parking_4w_count: form.parking_4w_count || undefined,
+    parking_notes: form.parking_notes || undefined,
+    water_storage: form.water_storage || undefined,
+    water_source: form.water_source.length > 0 ? form.water_source : undefined,
+    main_door_lock_type: form.main_door_lock_type || undefined,
+    pet_policy_text: form.pet_policy_text || undefined,
   }), [form, images]);
 
   // ─── Session storage restore prompt (Prompt 9) ───────────────────────────
@@ -1294,9 +1415,14 @@ export default function ListProperty() {
             surface="owner_form"
             value={form.listing_type}
             onChange={(v: string) => updateField("listing_type", v)}
-            readOnly={entryStatus !== "create" && entryStatus !== "draft" && entryStatus !== "changes_requested"}
+            readOnly={tierOneLocked}
             className="max-w-xs"
           />
+          {tierOneLocked && (
+            <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+              <Lock className="h-3 w-3" /> Locked after submission
+            </p>
+          )}
         </div>
         {/* F3-C14: lister_role — mandatory select, locked for owner after publish
             (same readOnly rule as listing_type). Admin PropertyEdit path always
@@ -1307,9 +1433,14 @@ export default function ListProperty() {
             surface="owner_form"
             value={form.lister_role}
             onChange={(v: string) => updateField("lister_role", v)}
-            readOnly={entryStatus !== "create" && entryStatus !== "draft" && entryStatus !== "changes_requested"}
+            readOnly={tierOneLocked}
             className="max-w-xs"
           />
+          {tierOneLocked && (
+            <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+              <Lock className="h-3 w-3" /> Locked after submission
+            </p>
+          )}
         </div>
 
         <Accordion type="single" collapsible value={openAccordion} onValueChange={(v) => {
@@ -1322,24 +1453,66 @@ export default function ListProperty() {
             setOpenedSections((prev) => (prev.has(sec) ? prev : new Set(prev).add(sec)));
           }
         }} className={cn("w-full", readOnly && "opacity-70 pointer-events-none select-none")}>
-          {/* Section 1 — scalar rendering driven by PROPERTY_FIELDS spec (D-128, D-155). JSONB sections remain bespoke. */}
+          {/* Section 1 — address via PropertyAddressInput (Google Maps Phase 1). */}
           <SectionShell num={1} title="Where is your property?" status={sectionStatuses[1]} summary={sectionSummary(1, form, images)} required>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <SpecField fieldKey="building_name" surface="owner_form" value={form.building_name} onChange={(v: string) => updateField("building_name", v)} />
-              <SpecField fieldKey="street_address" surface="owner_form" value={form.street_address} onChange={(v: string) => updateField("street_address", v)} />
-              <SpecField fieldKey="locality" surface="owner_form" value={form.locality} onChange={(v: string) => updateField("locality", v)} />
-              <SpecField fieldKey="city" surface="owner_form" value={form.city} onChange={(v: string) => updateField("city", v)} />
-              <SpecField fieldKey="state" surface="owner_form" value={form.state} onChange={(v: string) => updateField("state", v)} />
-              {/* Country — hardcoded UI element, not a DB column. Not in PROPERTY_FIELDS. */}
-              <FormField label="Country"><Input value="India" disabled className="min-h-[44px]" /></FormField>
-              {/* pincode: caller owns the digit-only transform; spec has pattern but no transformer. */}
+            <div className="space-y-4">
+              {addressEditable ? (
+                <PropertyAddressInput
+                  mode="owner"
+                  initialData={form.place_id ? {
+                    building_name: form.building_name || null,
+                    place_id: form.place_id,
+                    formatted_address: form.formatted_address,
+                    address_mode: form.address_mode ?? 'google_place',
+                    street_address: form.street_address || null,
+                    locality: form.locality || null,
+                    city: form.city || null,
+                    state: form.state || null,
+                    pincode: form.pincode || null,
+                    latitude: form.latitude,
+                    longitude: form.longitude,
+                    sublocality_1: form.sublocality_1,
+                    sublocality_2: form.sublocality_2,
+                    neighborhood: form.neighborhood,
+                    district: form.district,
+                    country: form.country,
+                    route: form.route,
+                    street_number: form.street_number,
+                    plus_code: form.plus_code,
+                    viewport_ne_lat: form.viewport_ne_lat,
+                    viewport_ne_lng: form.viewport_ne_lng,
+                    viewport_sw_lat: form.viewport_sw_lat,
+                    viewport_sw_lng: form.viewport_sw_lng,
+                    streetview_available: form.streetview_available,
+                    streetview_pano_id: form.streetview_pano_id,
+                    streetview_checked_at: form.streetview_checked_at,
+                    streetview_show_in_listing: form.streetview_show_in_listing,
+                    location_verified_by_owner: form.location_verified_by_owner,
+                    location_verified_at: form.location_verified_at,
+                    lister_flat_number: null,
+                  } : undefined}
+                  canRecheck={addressEditable}
+                  onAddressResolved={handleAddressResolved}
+                />
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">
+                    {form.formatted_address || [form.building_name, form.locality, form.city].filter(Boolean).join(', ')}
+                  </p>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Lock className="h-3 w-3" />
+                    Address cannot be changed after submission.{' '}
+                    <a href="/contact" className="underline">Contact support →</a>
+                  </p>
+                </div>
+              )}
               <SpecField
-                fieldKey="pincode"
+                fieldKey="lister_flat_number"
                 surface="owner_form"
-                value={form.pincode}
-                onChange={(v: string) => updateField("pincode", v.replace(/\D/g, "").slice(0, 6))}
+                value={form.lister_flat_number ?? ''}
+                onChange={(v: string) => updateField("lister_flat_number", v)}
+                readOnly={tierOneLocked}
               />
-              <SpecField fieldKey="google_maps_url" surface="owner_form" value={form.google_maps_url} onChange={(v: string) => updateField("google_maps_url", v)} />
               <SpecField fieldKey="landmark" surface="owner_form" value={form.landmark} onChange={(v: string) => updateField("landmark", v)} />
             </div>
           </SectionShell>
@@ -1347,8 +1520,22 @@ export default function ListProperty() {
           {/* Section 2 — scalar rendering driven by PROPERTY_FIELDS spec (D-128, D-155). */}
           <SectionShell num={2} title="The basics" status={sectionStatuses[2]} summary={sectionSummary(2, form, images)} required>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <SpecField fieldKey="bhk" surface="owner_form" value={form.bhk} onChange={(v: string) => updateField("bhk", v)} />
-              <SpecField fieldKey="property_type" surface="owner_form" value={form.property_type} onChange={(v: string) => updateField("property_type", v)} />
+              <div>
+                <SpecField fieldKey="bhk" surface="owner_form" value={form.bhk} onChange={(v: string) => updateField("bhk", v)} readOnly={tierOneLocked} />
+                {tierOneLocked && (
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                    <Lock className="h-3 w-3" /> Locked after submission
+                  </p>
+                )}
+              </div>
+              <div>
+                <SpecField fieldKey="property_type" surface="owner_form" value={form.property_type} onChange={(v: string) => updateField("property_type", v)} readOnly={tierOneLocked} />
+                {tierOneLocked && (
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                    <Lock className="h-3 w-3" /> Locked after submission
+                  </p>
+                )}
+              </div>
               <SpecField fieldKey="floor_number" surface="owner_form" value={form.floor_number} onChange={(v: string) => updateField("floor_number", v)} />
               <SpecField fieldKey="total_floors" surface="owner_form" value={form.total_floors} onChange={(v: string) => updateField("total_floors", v)} />
               <SpecField fieldKey="square_footage" surface="owner_form" value={form.square_footage} onChange={(v: string) => updateField("square_footage", v)} />
@@ -1751,7 +1938,12 @@ export default function ListProperty() {
       </div>
 
       {/* Preview modal */}
-      <PropertyPreview open={showPreview} onOpenChange={setShowPreview} data={previewData} />
+      <PropertyPreview
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        data={previewData}
+        isFirstSubmit={entryStatus === "create" || entryStatus === "draft" || entryStatus === "changes_requested"}
+      />
 
       {/* Draft-limit modal */}
       <Dialog open={showDraftLimit} onOpenChange={() => {}}>
@@ -1899,7 +2091,6 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "city": return { city: strVal.trim() || null };
     case "state": return { state: strVal };
     case "pincode": return { pincode: strVal.trim() || null };
-    case "google_maps_url": return { google_maps_url: strVal.trim() || null };
     case "landmark": return { landmark: strVal.trim() || null };
     case "notice_period_months": return { notice_period_months: parseNum(strVal) };
     case "notice_period_days": return { notice_period_days: parseNum(strVal) };
@@ -1948,8 +2139,31 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "building_rules": return { building_rules: strVal || null };
     case "building_notes": return { building_notes: strVal || null };
     case "youtube_walkthrough_url": return { youtube_walkthrough_url: strVal.trim() || null };
-    case "title": return { title: strVal.trim() || null };
-    case "description": return { description: strVal || null };
+    // Google Maps Phase 1 — address enrichment fields
+    case "place_id": return { place_id: strVal?.trim() || null };
+    case "formatted_address": return { formatted_address: strVal?.trim() || null };
+    case "address_mode": return { address_mode: strVal || null };
+    case "street_number": return { street_number: strVal?.trim() || null };
+    case "route": return { route: strVal?.trim() || null };
+    case "sublocality_1": return { sublocality_1: strVal?.trim() || null };
+    case "sublocality_2": return { sublocality_2: strVal?.trim() || null };
+    case "neighborhood": return { neighborhood: strVal?.trim() || null };
+    case "district": return { district: strVal?.trim() || null };
+    case "country": return { country: strVal?.trim() || null };
+    case "plus_code": return { plus_code: strVal?.trim() || null };
+    case "viewport_ne_lat": return { viewport_ne_lat: value != null ? Number(value) : null };
+    case "viewport_ne_lng": return { viewport_ne_lng: value != null ? Number(value) : null };
+    case "viewport_sw_lat": return { viewport_sw_lat: value != null ? Number(value) : null };
+    case "viewport_sw_lng": return { viewport_sw_lng: value != null ? Number(value) : null };
+    case "latitude": return { latitude: value != null ? Number(value) : null };
+    case "longitude": return { longitude: value != null ? Number(value) : null };
+    case "streetview_available": return { streetview_available: value != null ? Boolean(value) : null };
+    case "streetview_pano_id": return { streetview_pano_id: strVal?.trim() || null };
+    case "streetview_checked_at": return { streetview_checked_at: strVal || null };
+    case "streetview_show_in_listing": return { streetview_show_in_listing: Boolean(value) };
+    case "location_verified_by_owner": return { location_verified_by_owner: Boolean(value) };
+    case "location_verified_at": return { location_verified_at: strVal || null };
+    case "lister_flat_number": return { lister_flat_number: strVal?.trim() || null };
     // Local-only: consent, pet_policy_text, and JSONB-composed fields patched separately
     case "consent": case "pet_policy_text": return null;
     // Values handled through explicit dbPatch in updateField call

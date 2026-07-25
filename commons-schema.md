@@ -817,3 +817,76 @@ Block 2 now sources email + full_name from `auth.identities.identity_data` for t
 - `create_get_phone_fallback_rpc` — v1 of the phone fallback RPC (read `identity_data` only)
 - `fix_get_phone_fallback_use_auth_users` — v2 reads `auth.users.phone` first, `identity_data` as fallback
 - `touch_last_login_rpc` — the SIGNED_IN wiring RPC
+
+---
+
+## Google Maps Phase 1 — Address Schema (2026-07-25)
+
+Migration: `20260725150706_google_maps_phase1_address_schema`
+Applied via Supabase MCP to production. All changes are on `public.properties`.
+
+### New columns (22)
+
+#### Section 1: Google Places address components (15)
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| `place_id` | TEXT | yes | — | Google place ID (Path A only) |
+| `formatted_address` | TEXT | yes | — | Full human-readable address from Google |
+| `address_mode` | VARCHAR | yes | — | `'google_place'` \| `'manual'`; CHECK constraint |
+| `street_number` | VARCHAR | yes | — | e.g. `"14"` |
+| `route` | TEXT | yes | — | Street/road name e.g. `"CMH Road"` |
+| `sublocality_1` | VARCHAR | yes | — | Primary neighbourhood e.g. `"Indiranagar"` |
+| `sublocality_2` | VARCHAR | yes | — | Finer grain e.g. `"Domlur Division"` |
+| `neighborhood` | VARCHAR | yes | — | Google neighborhood component |
+| `district` | VARCHAR | yes | — | administrative_area_level_2 |
+| `country` | VARCHAR | yes | `'India'` | |
+| `plus_code` | VARCHAR | yes | — | Google Plus Code / DIGIPIN |
+| `viewport_ne_lat` | FLOAT8 | yes | — | Map zoom fitting — NE corner latitude |
+| `viewport_ne_lng` | FLOAT8 | yes | — | Map zoom fitting — NE corner longitude |
+| `viewport_sw_lat` | FLOAT8 | yes | — | Map zoom fitting — SW corner latitude |
+| `viewport_sw_lng` | FLOAT8 | yes | — | Map zoom fitting — SW corner longitude |
+
+#### Section 2: Street View (4)
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| `streetview_available` | BOOLEAN | yes | — | null = not yet checked |
+| `streetview_pano_id` | TEXT | yes | — | Panorama ID from Google |
+| `streetview_checked_at` | TIMESTAMPTZ | yes | — | When last checked |
+| `streetview_show_in_listing` | BOOLEAN | no | `FALSE` | Owner toggle to show/hide Street View in listing |
+
+#### Section 3: Location verification (2)
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| `location_verified_by_owner` | BOOLEAN | no | `FALSE` | Owner ticked confirmation checkbox |
+| `location_verified_at` | TIMESTAMPTZ | yes | — | Timestamp when owner verified |
+
+#### Section 4: Owner-facing flat number (1)
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| `lister_flat_number` | VARCHAR(10) | yes | — | CHECK: `^[A-Za-z0-9/-]{1,10}$`. Distinct from `flat_number` (admin-only, revealed on lease) |
+
+### Modified columns (3)
+
+| Column | Change | Reason |
+|--------|--------|--------|
+| `state` | `DEFAULT 'Karnataka'` removed | Reeve now serves all India |
+| `city` | `NOT NULL` removed (now nullable) | Path B area-only selections may not return a city component |
+| `street_address` | `NOT NULL` removed (now nullable) | Path A establishment selections may not have a route component |
+
+### Untouched legacy columns (7)
+
+These columns existed before Phase 1 and are unchanged:
+
+| Column | Notes |
+|--------|-------|
+| `flat_number` | Admin-only; never public (D-091); revealed on lease signing |
+| `flat_number_revealed` | Tracks whether flat_number has been disclosed |
+| `google_maps_url` | Legacy free-text URL field; still writable via mapFieldToDb |
+| `map_pin_url` | Legacy pin image URL |
+| `notice_period_months` | Tenant notice period |
+| `latitude` | Legacy coordinate (pre-Places API) |
+| `longitude` | Legacy coordinate (pre-Places API) |
