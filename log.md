@@ -1,3 +1,5 @@
+## [2026-07-26] fix | lister_role NOT NULL bug in createDraft — default to owner, mapFieldToDb skip-when-empty guard already present [IST]
+
 ## [2026-07-26] migrate | Make bhk/furnishing/state nullable — fix createDraft INSERT failure, regen types.ts, tracked migration file [IST]
 
 ## [2026-07-26] fix | Prompt 15: 5 post-deployment bugs — enum sanitization (bhk/furnishing/state mapFieldToDb + addressPatch.state fallback), Path B building name required + merge fix, Static Maps onError fallback, pincode gate (!pincode), pet_policy/building_rules hidden on Sale listings [IST]
