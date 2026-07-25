@@ -2602,7 +2602,7 @@ export type Database = {
           available_from: string | null
           balconies: number | null
           bathrooms: number | null
-          bhk: Database["public"]["Enums"]["bhk_type"]
+          bhk: Database["public"]["Enums"]["bhk_type"] | null
           board_installed_at: string | null
           board_qr_code: string | null
           board_removed_at: string | null
@@ -2624,7 +2624,7 @@ export type Database = {
           floor_number: number | null
           floor_plan_url: string | null
           formatted_address: string | null
-          furnishing: Database["public"]["Enums"]["furnishing_type"]
+          furnishing: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail: Json | null
           gas_type: string | null
           google_maps_url: string | null
@@ -2700,7 +2700,7 @@ export type Database = {
           service_agreement_id: string | null
           society_maintenance_approx: number | null
           square_footage: number | null
-          state: string
+          state: string | null
           status: Database["public"]["Enums"]["property_status"]
           street_address: string | null
           street_number: string | null
@@ -2736,7 +2736,7 @@ export type Database = {
           available_from?: string | null
           balconies?: number | null
           bathrooms?: number | null
-          bhk: Database["public"]["Enums"]["bhk_type"]
+          bhk?: Database["public"]["Enums"]["bhk_type"] | null
           board_installed_at?: string | null
           board_qr_code?: string | null
           board_removed_at?: string | null
@@ -2758,7 +2758,7 @@ export type Database = {
           floor_number?: number | null
           floor_plan_url?: string | null
           formatted_address?: string | null
-          furnishing: Database["public"]["Enums"]["furnishing_type"]
+          furnishing?: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail?: Json | null
           gas_type?: string | null
           google_maps_url?: string | null
@@ -2834,7 +2834,7 @@ export type Database = {
           service_agreement_id?: string | null
           society_maintenance_approx?: number | null
           square_footage?: number | null
-          state: string
+          state?: string | null
           status?: Database["public"]["Enums"]["property_status"]
           street_address?: string | null
           street_number?: string | null
@@ -2870,7 +2870,7 @@ export type Database = {
           available_from?: string | null
           balconies?: number | null
           bathrooms?: number | null
-          bhk?: Database["public"]["Enums"]["bhk_type"]
+          bhk?: Database["public"]["Enums"]["bhk_type"] | null
           board_installed_at?: string | null
           board_qr_code?: string | null
           board_removed_at?: string | null
@@ -2892,7 +2892,7 @@ export type Database = {
           floor_number?: number | null
           floor_plan_url?: string | null
           formatted_address?: string | null
-          furnishing?: Database["public"]["Enums"]["furnishing_type"]
+          furnishing?: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail?: Json | null
           gas_type?: string | null
           google_maps_url?: string | null
@@ -2968,7 +2968,7 @@ export type Database = {
           service_agreement_id?: string | null
           society_maintenance_approx?: number | null
           square_footage?: number | null
-          state?: string
+          state?: string | null
           status?: Database["public"]["Enums"]["property_status"]
           street_address?: string | null
           street_number?: string | null
