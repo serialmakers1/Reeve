@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
 import { parseAddressComponents } from './AddressParser';
 import type { AddressData, PropertyAddressInputProps } from './types';
 
@@ -31,12 +32,13 @@ export function PropertyAddressInput({
   const isAdmin = mode === 'admin';
   const placesLib = useMapsLibrary('places');
   const streetViewLib = useMapsLibrary('streetView');
+  const { toast } = useToast();
 
   const [activePath, setActivePath] = useState<ActivePath>('A');
   const [pathState, setPathState] = useState<PathState>('idle');
   const [buildingInput, setBuildingInput] = useState('');
   const [areaInput, setAreaInput] = useState('');
-  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+  const [predictions, setPredictions] = useState<google.maps.places.AutocompleteSuggestion[]>([]);
   const [resolvedData, setResolvedData] = useState<Partial<AddressData>>(initialData ?? {});
   const [svChecking, setSvChecking] = useState(false);
   const [pincode, setPincode] = useState(initialData?.pincode ?? '');
@@ -44,9 +46,6 @@ export function PropertyAddressInput({
   const [verified, setVerified] = useState(initialData?.location_verified_by_owner ?? false);
 
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
-  const dummyDivRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Pre-populate from initialData on mount
@@ -62,22 +61,6 @@ export function PropertyAddressInput({
     }
   }, []); // only on mount
 
-  // Initialise Places services once library loads
-  useEffect(() => {
-    if (!placesLib) return;
-    autocompleteServiceRef.current = new placesLib.AutocompleteService();
-    if (dummyDivRef.current) {
-      placesServiceRef.current = new placesLib.PlacesService(dummyDivRef.current);
-    }
-  }, [placesLib]);
-
-  // Re-init PlacesService if dummyDivRef becomes available after placesLib
-  useEffect(() => {
-    if (placesLib && dummyDivRef.current && !placesServiceRef.current) {
-      placesServiceRef.current = new placesLib.PlacesService(dummyDivRef.current);
-    }
-  }, [placesLib, dummyDivRef.current]);
-
   function ensureSessionToken() {
     if (!sessionTokenRef.current && placesLib) {
       sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
@@ -92,89 +75,87 @@ export function PropertyAddressInput({
     setResolvedData(prev => ({ ...prev, [key]: value }));
   }
 
-  function fetchPredictions(input: string, path: ActivePath) {
-    if (!autocompleteServiceRef.current || !input.trim()) {
-      setPredictions([]);
-      return;
-    }
+  async function fetchPredictions(input: string) {
+    if (!placesLib || !input.trim()) { setPredictions([]); return; }
     ensureSessionToken();
-    const request: google.maps.places.AutocompletionRequest = {
-      input,
-      componentRestrictions: { country: 'in' },
-      sessionToken: sessionTokenRef.current ?? undefined,
-      types: path === 'A' ? ['establishment'] : ['geocode'],
-    };
-    autocompleteServiceRef.current.getPlacePredictions(request, (results, status) => {
-      if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-        setPredictions(results);
-        setPathState('autocomplete');
-      } else {
-        setPredictions([]);
-      }
-    });
+    try {
+      const { suggestions } = await (placesLib as any).AutocompleteSuggestion
+        .fetchAutocompleteSuggestions({
+          input,
+          includedRegionCodes: ['IN'],
+          sessionToken: sessionTokenRef.current ?? undefined,
+        });
+      const list: google.maps.places.AutocompleteSuggestion[] = suggestions ?? [];
+      setPredictions(list);
+      if (list.length > 0) setPathState('autocomplete');
+    } catch (err) {
+      console.error('Autocomplete fetch failed:', err);
+      setPredictions([]);
+    }
   }
 
   function handleBuildingChange(value: string) {
     setBuildingInput(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!value.trim()) { setPredictions([]); setPathState('idle'); return; }
-    debounceRef.current = setTimeout(() => fetchPredictions(value, 'A'), 300);
+    debounceRef.current = setTimeout(() => fetchPredictions(value), 300);
   }
 
   function handleAreaChange(value: string) {
     setAreaInput(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!value.trim()) { setPredictions([]); setPathState('idle'); return; }
-    debounceRef.current = setTimeout(() => fetchPredictions(value, 'B'), 300);
+    debounceRef.current = setTimeout(() => fetchPredictions(value), 300);
   }
 
-  function handlePredictionSelect(prediction: google.maps.places.AutocompletePrediction) {
+  async function handlePredictionSelect(suggestion: google.maps.places.AutocompleteSuggestion) {
     setPredictions([]);
     setPathState('resolving');
-    if (activePath === 'A') setBuildingInput(prediction.structured_formatting.main_text);
-    else setAreaInput(prediction.description);
+    if (activePath === 'A') setBuildingInput(suggestion.placePrediction.mainText.text);
+    else setAreaInput(suggestion.placePrediction.text.text);
 
-    if (!placesServiceRef.current) return;
+    try {
+      const place = suggestion.placePrediction.toPlace();
+      await place.fetchFields({
+        fields: ['addressComponents', 'location', 'viewport', 'formattedAddress', 'plusCode', 'id', 'displayName'],
+      });
+      clearSessionToken(); // terminates billing session
 
-    placesServiceRef.current.getDetails(
-      {
-        placeId: prediction.place_id,
-        fields: ['address_components', 'geometry', 'formatted_address', 'plus_code', 'place_id', 'name'],
-        sessionToken: sessionTokenRef.current ?? undefined,
-      },
-      (place, status) => {
-        clearSessionToken(); // terminates billing session
-        if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
-          setPathState('idle');
-          return;
-        }
+      const parsed = parseAddressComponents(place, activePath === 'A' ? 'google_place' : 'manual');
+      const buildingName = activePath === 'A' ? (place.displayName ?? buildingInput) : null;
 
-        const parsed = parseAddressComponents(place, activePath === 'A' ? 'google_place' : 'manual');
-        const buildingName = activePath === 'A' ? (place.name ?? buildingInput) : null;
+      const data: Partial<AddressData> = {
+        ...parsed,
+        building_name: buildingName,
+        streetview_available: false,
+        streetview_pano_id: null,
+        streetview_checked_at: null,
+        streetview_show_in_listing: false,
+        location_verified_by_owner: false,
+        location_verified_at: null,
+        lister_flat_number: null,
+      };
 
-        const data: Partial<AddressData> = {
-          ...parsed,
-          building_name: buildingName,
-          streetview_available: false,
-          streetview_pano_id: null,
-          streetview_checked_at: null,
-          streetview_show_in_listing: false,
-          location_verified_by_owner: false,
-          location_verified_at: null,
-          lister_flat_number: null,
-        };
+      setPincode(parsed.pincode ?? '');
+      setShowListing(false);
+      setVerified(false);
+      setResolvedData(data);
+      setPathState('resolved');
 
-        setPincode(parsed.pincode ?? '');
-        setShowListing(false);
-        setVerified(false);
-        setResolvedData(data);
-        setPathState('resolved');
-
-        if (activePath === 'A' && parsed.latitude != null && parsed.longitude != null) {
-          runStreetViewCheck(parsed.latitude, parsed.longitude, data);
-        }
+      if (activePath === 'A' && parsed.latitude != null && parsed.longitude != null) {
+        runStreetViewCheck(parsed.latitude, parsed.longitude, data);
       }
-    );
+    } catch (err) {
+      console.error('Place Details fetch failed:', err);
+      clearSessionToken();
+      setPredictions([]);
+      setPathState('idle');
+      toast({
+        title: "Couldn't load address details",
+        description: "Please try again or use manual entry.",
+        variant: "destructive",
+      });
+    }
   }
 
   function runStreetViewCheck(
@@ -250,9 +231,6 @@ export function PropertyAddressInput({
 
   return (
     <div className="space-y-4">
-      {/* Hidden DOM node required by PlacesService */}
-      <div ref={dummyDivRef} style={{ display: 'none' }} aria-hidden="true" />
-
       {/* Path A: Building name autocomplete */}
       {activePath === 'A' && (
         <div className="space-y-1 relative">
@@ -269,15 +247,15 @@ export function PropertyAddressInput({
           />
           {predictions.length > 0 && (
             <ul className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-md max-h-60 overflow-y-auto">
-              {predictions.map((p) => (
+              {predictions.map((s) => (
                 <li
-                  key={p.place_id}
+                  key={s.placePrediction.placeId}
                   className="px-3 py-2 text-sm cursor-pointer hover:bg-muted"
-                  onClick={() => handlePredictionSelect(p)}
+                  onClick={() => handlePredictionSelect(s)}
                 >
-                  <span className="font-medium">{p.structured_formatting.main_text}</span>
+                  <span className="font-medium">{s.placePrediction.mainText.text}</span>
                   <span className="text-muted-foreground ml-1 text-xs">
-                    {p.structured_formatting.secondary_text}
+                    {s.placePrediction.secondaryText?.text}
                   </span>
                 </li>
               ))}
@@ -297,31 +275,45 @@ export function PropertyAddressInput({
         </button>
       )}
 
-      {/* Path B: Area / street autocomplete */}
+      {/* Path B: Building name (free text) + Area / street autocomplete */}
       {activePath === 'B' && (
-        <div className="space-y-1 relative">
-          <Label htmlFor="area_search">Street / Area</Label>
-          <Input
-            id="area_search"
-            value={areaInput}
-            onChange={(e) => handleAreaChange(e.target.value)}
-            placeholder="e.g. Koramangala 5th Block, Bengaluru"
-            className="min-h-[44px]"
-            autoComplete="off"
-          />
-          {predictions.length > 0 && (
-            <ul className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-md max-h-60 overflow-y-auto">
-              {predictions.map((p) => (
-                <li
-                  key={p.place_id}
-                  className="px-3 py-2 text-sm cursor-pointer hover:bg-muted"
-                  onClick={() => handlePredictionSelect(p)}
-                >
-                  {p.description}
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="space-y-4 relative">
+          {/* Building name — free text in manual mode */}
+          <div className="space-y-1">
+            <Label htmlFor="building_name_manual">Building name</Label>
+            <Input
+              id="building_name_manual"
+              value={buildingInput}
+              onChange={(e) => setBuildingInput(e.target.value)}
+              placeholder="e.g. Prestige Lakeside (optional)"
+              className="min-h-[44px]"
+              autoComplete="off"
+            />
+          </div>
+          <div className="space-y-1 relative">
+            <Label htmlFor="area_search">Street / Area</Label>
+            <Input
+              id="area_search"
+              value={areaInput}
+              onChange={(e) => handleAreaChange(e.target.value)}
+              placeholder="e.g. Koramangala 5th Block, Bengaluru"
+              className="min-h-[44px]"
+              autoComplete="off"
+            />
+            {predictions.length > 0 && (
+              <ul className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-md max-h-60 overflow-y-auto">
+                {predictions.map((s) => (
+                  <li
+                    key={s.placePrediction.placeId}
+                    className="px-3 py-2 text-sm cursor-pointer hover:bg-muted"
+                    onClick={() => handlePredictionSelect(s)}
+                  >
+                    {s.placePrediction.text.text}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => { setActivePath('A'); setPredictions([]); }}

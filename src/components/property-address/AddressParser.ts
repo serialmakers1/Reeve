@@ -13,28 +13,28 @@ type ParsedAddress = Omit<
 >;
 
 export function parseAddressComponents(
-  place: google.maps.places.PlaceResult,
+  place: google.maps.places.Place,
   mode: 'google_place' | 'manual'
 ): ParsedAddress {
   const fields: Record<string, string> = {};
 
-  for (const component of place.address_components ?? []) {
+  for (const component of place.addressComponents ?? []) {
     const types = component.types;
-    if (types.includes('street_number')) fields.street_number = component.long_name;
-    if (types.includes('route')) fields.route = component.long_name;
-    if (types.includes('sublocality_level_1')) fields.sublocality_1 = component.long_name;
-    if (types.includes('sublocality_level_2')) fields.sublocality_2 = component.long_name;
-    if (types.includes('neighborhood')) fields.neighborhood = component.long_name;
-    if (types.includes('locality')) fields.city = component.long_name;
-    if (types.includes('administrative_area_level_2')) fields.district = component.long_name;
-    if (types.includes('administrative_area_level_1')) fields.state = component.long_name;
-    if (types.includes('country')) fields.country = component.long_name;
-    if (types.includes('postal_code')) fields.pincode = component.long_name;
+    if (types.includes('street_number')) fields.street_number = component.longText;
+    if (types.includes('route')) fields.route = component.longText;
+    if (types.includes('sublocality_level_1')) fields.sublocality_1 = component.longText;
+    if (types.includes('sublocality_level_2')) fields.sublocality_2 = component.longText;
+    if (types.includes('neighborhood')) fields.neighborhood = component.longText;
+    if (types.includes('locality')) fields.city = component.longText;
+    if (types.includes('administrative_area_level_2')) fields.district = component.longText;
+    if (types.includes('administrative_area_level_1')) fields.state = component.longText;
+    if (types.includes('country')) fields.country = component.longText;
+    if (types.includes('postal_code')) fields.pincode = component.longText;
   }
 
-  const lat = place.geometry?.location?.lat() ?? null;
-  const lng = place.geometry?.location?.lng() ?? null;
-  const viewport = place.geometry?.viewport;
+  const lat = place.location?.lat() ?? null;
+  const lng = place.location?.lng() ?? null;
+  const viewport = place.viewport;
 
   const street_address =
     [fields.street_number, fields.route].filter(Boolean).join(' ').trim() ||
@@ -42,8 +42,8 @@ export function parseAddressComponents(
     null;
 
   return {
-    place_id: place.place_id ?? null,
-    formatted_address: place.formatted_address ?? null,
+    place_id: place.id ?? null,
+    formatted_address: place.formattedAddress ?? null,
     street_number: fields.street_number ?? null,
     route: fields.route ?? null,
     street_address,
@@ -56,7 +56,7 @@ export function parseAddressComponents(
     state: fields.state ?? null,
     country: fields.country ?? null,
     pincode: fields.pincode ?? null,
-    plus_code: (place as any).plus_code?.global_code ?? null,
+    plus_code: place.plusCode?.globalCode ?? null,
     latitude: lat,
     longitude: lng,
     viewport_ne_lat: viewport ? viewport.getNorthEast().lat() : null,

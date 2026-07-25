@@ -1,3 +1,41 @@
+## [2026-07-26] refactor | Prompt 13: Migrate Places API legacy → New API (AutocompleteSuggestion + Place.fetchFields); fix Bug 2 Path B building name; fix Bug 3 pet_policy/building_rules visibleWhen [IST]
+
+**Files changed:** `src/components/property-address/AddressParser.ts`, `src/components/property-address/PropertyAddressInput.tsx`, `src/pages/admin/PropertyEdit.tsx`, `src/config/property-fields.ts`.
+
+**Bug 1 — Places API migration (CRITICAL):**
+Root cause: `reeve-maps` GCP project has "Places API (New)" only; legacy `AutocompleteService` + `PlacesService` blocked for new customers (post March 1 2025).
+
+- **`AddressParser.ts`**: parameter type `PlaceResult` → `Place`; field names `address_components` → `addressComponents`, `component.long_name` → `component.longText`, `place.geometry?.location` → `place.location`, `place.geometry?.viewport` → `place.viewport`, `place.place_id` → `place.id`, `place.formatted_address` → `place.formattedAddress`, `(place as any).plus_code?.global_code` → `place.plusCode?.globalCode`.
+- **`PropertyAddressInput.tsx`**: removed `autocompleteServiceRef`, `placesServiceRef`, `dummyDivRef` refs and both init useEffects. Replaced `getPlacePredictions` callback with `placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions()` async/await. Replaced `getDetails` callback with `suggestion.placePrediction.toPlace().fetchFields()`. `handlePredictionSelect` now async; adds `useToast` for Place Details error. Dropdown JSX updated: `p.place_id` → `s.placePrediction.placeId`, `structured_formatting.main_text` → `placePrediction.mainText.text`, `p.description` → `s.placePrediction.text.text`. `predictions` state typed as `AutocompleteSuggestion[]`. Session token lifecycle unchanged.
+- **`PropertyEdit.tsx`**: removed `adminDummyDivRef`, `placesServiceRef` refs, `useRef` import, PlacesService init useEffect, hidden dummy `<div>`. `handleRefetchFromGoogle` rewritten as async using `new placesLib.Place({ id }).fetchFields()`. `place.name` → `place.displayName`.
+
+**Bug 2 — Path B building name missing:**
+Added free-text `<Input>` for building name inside `{activePath === 'B' && ...}` block, above the area input. Reuses `buildingInput`/`setBuildingInput` state without autocomplete.
+
+**Bug 3 — pet_policy/building_rules visible on sale listings:**
+Added `visibleWhen: (v) => v.listing_type !== "sale"` to both `pet_policy` (line 779) and `building_rules` (line 789) spec entries in `property-fields.ts`. `building_notes` intentionally unchanged.
+
+**TypeScript baseline:** 358 (unchanged).
+
+---
+
+## [2026-07-26] fix | Prompt 11: spec fixes (location_verified_by_owner Checkbox, streetview_available input type, lister_role owner badge) + CLAUDE.md 200-line trim + docs (D-GM-001–005) [IST]
+
+**Files changed:** `src/config/property-fields.ts`, `src/components/property-address/PropertyAddressInput.tsx`, `src/components/listing/PropertyPreview.tsx`, `CLAUDE.md`, `commons-decisions.md`, `commons-forward-plan.md`.
+
+**Bug fixes:**
+- `location_verified_by_owner` spec: kept `input: "switch"`, updated helper to document Checkbox render.
+- `streetview_available` spec: `input: "switch"` → `input: "text"`, added badge-render helper.
+- `PropertyPreview.tsx`: removed `lister_role !== "owner"` guard; all roles including "Owner" now display; added "Property Manager" case.
+
+**CLAUDE.md:** Trimmed from 215 → 200 lines; added Google Maps Phase 1 section.
+**commons-decisions.md:** Appended D-GM-001–D-GM-005.
+**commons-forward-plan.md:** Appended full Google Maps Phase 2 deferred list (7+ items).
+
+**TypeScript baseline:** 358 (unchanged).
+
+---
+
 ## [2026-07-25] feat | Prompt 10: ListingReviewDetail parity — owner contact, missing fields, image gallery, new address columns [IST]
 
 **Files changed:** `src/pages/admin/ListingReviewDetail.tsx`.
@@ -1041,3 +1079,4 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-25] feat | Prompt 9: PropertyPreview parity — 28 new fields, listing_type-aware price block, No Surprises inline, lister_role chip [IST]
 ## [2026-07-25] feat | Prompt 10: ListingReviewDetail parity — FK join owner contact, 23+ new fields, image gallery, SV subsection [IST]
 ## [2026-07-26] fix | Prompt 11: Bug 1 (location_verified_by_owner raw input → shadcn Checkbox), Bug 2 (streetview_available spec input switch→text), Bug 3 (lister_role owner guard removed + label ternary fixed). CLAUDE.md trimmed to 200 lines + Google Maps Phase 1 section added. D-GM-001–D-GM-005 appended to commons-decisions.md. Phase 2 deferred items + ownerDisplayName TODO appended to commons-forward-plan.md. [IST]
+## [2026-07-26] audit | Prompt 12 diagnostic: Places API migration + 3 live bugs [IST]

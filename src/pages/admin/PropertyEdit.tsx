@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { SpecField } from "@/components/property/SpecField";
@@ -100,8 +100,6 @@ export default function PropertyEdit() {
   // Google Maps libraries — must be at top level (Rules of Hooks)
   const placesLib = useMapsLibrary('places');
   const streetViewLib = useMapsLibrary('streetView');
-  const adminDummyDivRef = useRef<HTMLDivElement>(null);
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
 
   const [property, setProperty] = useState<PropertyData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -254,13 +252,6 @@ export default function PropertyEdit() {
   const [showSectionInput, setShowSectionInput] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
-
-  // Init PlacesService for Re-fetch from Google action
-  useEffect(() => {
-    if (placesLib && adminDummyDivRef.current && !placesServiceRef.current) {
-      placesServiceRef.current = new placesLib.PlacesService(adminDummyDivRef.current);
-    }
-  }, [placesLib]);
 
   useEffect(() => {
     if (!id || authLoading) return;
@@ -495,34 +486,32 @@ export default function PropertyEdit() {
     );
   };
 
-  const handleRefetchFromGoogle = () => {
-    if (!placeId || !placesServiceRef.current) return;
+  const handleRefetchFromGoogle = async () => {
+    if (!placeId || !placesLib) return;
     setRefetching(true);
-    placesServiceRef.current.getDetails(
-      {
-        placeId,
-        fields: ['address_components', 'geometry', 'formatted_address', 'plus_code', 'place_id', 'name'],
-      },
-      (place, status) => {
-        setRefetching(false);
-        if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
-          toast({ title: 'Re-fetch failed', description: 'Could not load address from Google.', variant: 'destructive' });
-          return;
-        }
-        const parsed = parseAddressComponents(place, 'google_place');
-        handleAddressResolved({
-          ...parsed,
-          building_name: place.name ?? buildingName,
-          streetview_available: streetviewAvailable ?? false,
-          streetview_pano_id: streetviewPanoId,
-          streetview_checked_at: streetviewCheckedAt,
-          streetview_show_in_listing: streetviewShowInListing,
-          location_verified_by_owner: locationVerifiedByOwner,
-          location_verified_at: locationVerifiedAt,
-          lister_flat_number: listerFlatNumber,
-        } as AddressData);
-      }
-    );
+    try {
+      const place = new (placesLib as any).Place({ id: placeId });
+      await place.fetchFields({
+        fields: ['addressComponents', 'location', 'viewport', 'formattedAddress', 'plusCode', 'id', 'displayName'],
+      });
+      const parsed = parseAddressComponents(place, 'google_place');
+      handleAddressResolved({
+        ...parsed,
+        building_name: place.displayName ?? buildingName,
+        streetview_available: streetviewAvailable ?? false,
+        streetview_pano_id: streetviewPanoId,
+        streetview_checked_at: streetviewCheckedAt,
+        streetview_show_in_listing: streetviewShowInListing,
+        location_verified_by_owner: locationVerifiedByOwner,
+        location_verified_at: locationVerifiedAt,
+        lister_flat_number: listerFlatNumber,
+      } as AddressData);
+    } catch (err) {
+      console.error('Re-fetch from Google failed:', err);
+      toast({ title: "Couldn't refresh from Google. Try again.", variant: 'destructive' });
+    } finally {
+      setRefetching(false);
+    }
   };
 
   const handleSave = async () => {
@@ -1017,9 +1006,6 @@ export default function PropertyEdit() {
 
         {/* Location card — Google Maps Phase 1 */}
         <Section title="Location">
-          {/* Hidden DOM node required by admin's PlacesService */}
-          <div ref={adminDummyDivRef} style={{ display: 'none' }} aria-hidden="true" />
-
           <PropertyAddressInput
             mode="admin"
             initialData={placeId ? {
