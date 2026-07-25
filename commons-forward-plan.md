@@ -364,3 +364,22 @@ Before removing the `false is true` IF gates on the WhatsApp branches in the Con
 ### Infrastructure
 - WhatsApp/AiSensy n8n nodes — blocked on DLT approval + Block 1 phone sync (sync_contact_fields RPC above)
 - sync_contact_fields RPC must be built before WhatsApp nodes go live
+
+---
+
+## Google Maps Phase 2 (deferred from Phase 1, 2026-07-26)
+
+### Map features
+- Embedded map with pins on Search page (replace or augment card grid with map view toggle)
+- City/locality picker on Search page (geographic filter using Google Places geocode)
+- "Near me" geolocation search (browser `navigator.geolocation` → reverse geocode → filter by radius)
+- Street View auto re-check via n8n background job (30-day cadence for recently-checked, 90-day for older)
+
+### Admin / owner features
+- `OwnerPropertyManagement.tsx`: add Google Maps link, new address columns display, landmark field
+- `floor_plan_url` orphaned DB column: either implement floor plan upload UI or drop the column
+
+### Data / ops
+- `pet_policy_text`: add as a DB column in a future migration; wire into `mapFieldToDb`, admin form, and PropertyDetail display. Currently form-state only — values entered are discarded on save (D-GM-003).
+- `ownerDisplayName` in PropertyDetail → RequestContactPanel: still passed as null; consent copy falls back to "the owner". Fix: add `public_profiles.display_name` to the PropertyDetail property fetch.
+- Google Cloud free trial → paid account conversion: required before Maps API billing kicks in at scale; free trial gives $200/month credit but expires after 90 days.

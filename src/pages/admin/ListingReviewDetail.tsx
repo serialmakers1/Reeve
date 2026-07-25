@@ -15,7 +15,7 @@
  * detail refetches and shows a toast so the admin sees the fresh state.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import posthog from "posthog-js";
 import { format, formatDistanceToNow } from "date-fns";
@@ -35,7 +35,6 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { BHK_OPTIONS } from "@/config/property-form";
-import { getUserDisplayName } from "@/lib/user";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import EditRequestDiff from "@/components/property-management/EditRequestDiff";
 
@@ -50,25 +49,53 @@ const REJECTION_REASONS = [
 
 interface PropertyRow {
   id: string; owner_id: string; status: string;
+  // Address
   building_name: string | null; street_address: string | null;
   locality: string | null; city: string | null; state: string | null; pincode: string | null;
+  // Prompt 10 (P10): new address columns
+  formatted_address: string | null;
+  sublocality_1: string | null;
+  // Core
   bhk: string | null; property_type: string | null;
   square_footage: number | null; furnishing: string | null;
+  // Prompt 9 additions (missing from prior interface)
+  floor_number: number | null;
+  total_floors: number | null;
+  super_built_up_area: number | null;
+  building_age_years: number | null;
+  bathrooms: number | null;
+  balconies: number | null;
+  facing: string | null;
+  furnishing_detail: unknown | null;
+  amenities: unknown | null;
+  lister_role: string | null;
+  youtube_walkthrough_url: string | null;
+  // Pricing
   listed_rent: number | null; security_deposit_amount: number | null;
   available_from: string | null;
-  title: string | null; description: string | null;
+  lock_in_months: number | null;
+  move_in_charges_amount: number | null;
+  rent_brokerage_fixed_amount: number | null;
+  // Rules/notes
   building_rules: string | null; building_notes: string | null; pet_policy: string | null;
-  // Prompt 13 (D-165) — admin-only exposure.
-  flat_number: string | null;
-  // Prompt 8 (D-159) — India fields.
+  // Admin-only flat numbers
+  flat_number: string | null;           // D-091: never public
+  lister_flat_number: string | null;    // owner-submitted unit number
+  // Prompt 8 (D-159) — India fields
   landmark: string | null;
-  notice_period_months: number | null;
+  notice_period_days: number | null;
   annual_rent_increase_pct: number | null;
   water_storage: string | null;
+  utility_water_included: boolean | null;
+  utility_gas_included: boolean | null;
+  utility_electricity_included: boolean | null;
+  gas_type: string | null;
+  water_source: string[] | null;
+  main_door_lock_type: string | null;
   parking_2w: string | null; parking_4w: string | null;
   parking_2w_count: number | null; parking_4w_count: number | null;
   parking_notes: string | null;
-  // Prompt 10 (D-161/D-162) — rent/sale.
+  // Prompt 10 (D-161/D-162) — rent/sale
   listing_type: string | null;
   sale_price: number | null;
   price_negotiable: boolean | null;
@@ -78,6 +105,14 @@ interface PropertyRow {
   rera_registration_number: string | null;
   khata_type: string | null;
   property_tax_paid_upto: string | null;
+  // Prompt 10: Street View + location verification
+  streetview_available: boolean | null;
+  streetview_pano_id: string | null;
+  streetview_show_in_listing: boolean;
+  location_verified_by_owner: boolean;
+  location_verified_at: string | null;
+  // Prompt 10: owner contact via FK join
+  owner: { full_name: string; email: string | null; phone: string | null } | null;
 }
 
 interface EditRequestRow {
@@ -102,6 +137,12 @@ const formatValue = (v: unknown): string => {
   return String(v);
 };
 
+/** Capitalise each word: "living_room" → "Living Room" */
+function sectionLabel(raw: string | null): string {
+  if (!raw) return "Other";
+  return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function ListingReviewDetail() {
   const { type, id } = useParams<{ type: "new" | "edit"; id: string }>();
   const navigate = useNavigate();
@@ -111,7 +152,6 @@ export default function ListingReviewDetail() {
   const [property, setProperty] = useState<PropertyRow | null>(null);
   const [editRequest, setEditRequest] = useState<EditRequestRow | null>(null);
   const [ownerName, setOwnerName] = useState<string>("Owner");
-  const [ownerPhoto, setOwnerPhoto] = useState<string | null>(null);
   const [priorRevisions, setPriorRevisions] = useState<EditRequestRow[]>([]);
   const [expandedRev, setExpandedRev] = useState<string | null>(null);
   const [images, setImages] = useState<Array<{ id: string; url: string; is_primary: boolean; section: string | null }>>([]);
@@ -144,24 +184,19 @@ export default function ListingReviewDetail() {
     }
 
     if (!propertyId) return;
+    // Prompt 10: owner FK join replaces the separate public_profiles query.
+    // Exact syntax from Properties.tsx line 170.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: prop } = await (supabase as any).from("properties").select("*").eq("id", propertyId).maybeSingle();
+    const { data: prop } = await (supabase as any).from("properties")
+      .select("*, owner:users!properties_owner_id_fkey(full_name, email, phone)")
+      .eq("id", propertyId).maybeSingle();
     if (!prop) {
       toast({ title: "Property not found", variant: "destructive" });
       navigate("/admin/listing-reviews", { replace: true });
       return;
     }
     setProperty(prop as PropertyRow);
-
-    // Owner info (public_profiles view)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: ownerProfile } = await (supabase as any)
-      .from("public_profiles")
-      .select("user_id, full_name, display_name, profile_photo_url")
-      .eq("user_id", (prop as PropertyRow).owner_id).maybeSingle();
-    const op = ownerProfile as { full_name?: string | null; display_name?: string | null } | null;
-    setOwnerName(getUserDisplayName({ full_name: op?.full_name ?? null }, op));
-    setOwnerPhoto((ownerProfile as { profile_photo_url?: string | null } | null)?.profile_photo_url ?? null);
+    setOwnerName((prop as PropertyRow).owner?.full_name ?? "Owner");
 
     // Photos
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -303,6 +338,16 @@ export default function ListingReviewDetail() {
   const photoAdd = editRequest?.payload.photo_changes?.add ?? [];
   const photoDelete = editRequest?.payload.photo_changes?.delete ?? [];
 
+  // Build grouped image map for new-listing gallery
+  const imageGroups: Map<string, typeof images> = new Map();
+  if (isNewType) {
+    images.forEach((img) => {
+      const key = img.section ?? "Other";
+      if (!imageGroups.has(key)) imageGroups.set(key, []);
+      imageGroups.get(key)!.push(img);
+    });
+  }
+
   return (
     <AdminLayout>
       <div className="max-w-5xl mx-auto space-y-4">
@@ -317,7 +362,7 @@ export default function ListingReviewDetail() {
             {isNewType ? "Review new listing" : "Review edit request"}
           </h1>
           <div className="flex items-center gap-2 shrink-0">
-            <ProfileAvatar photoUrl={ownerPhoto} displayName={ownerName} size="sm" />
+            <ProfileAvatar photoUrl={null} displayName={ownerName} size="sm" />
             <div className="text-right">
               <p className="text-xs font-medium">{ownerName}</p>
               <p className="text-[10px] text-muted-foreground">
@@ -327,35 +372,58 @@ export default function ListingReviewDetail() {
           </div>
         </div>
 
-        {/* Property snapshot — Prompt 13 (G2/D-165): full view including India (Prompt 8) +
-            rent/sale (Prompt 10) fields, admin-only flat_number line, listing-type chip. */}
+        {/* Property snapshot — includes India (Prompt 8) + rent/sale (Prompt 10) fields,
+            admin-only flat numbers, and Prompt 10 new address/SV/verification fields. */}
         <section className="rounded-lg border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">Property</h2>
-            {/* Prompt 10b chip parity — muted so it doesn't dominate. */}
             <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
               {property.listing_type === "sale" ? "For Sale" : "For Rent"}
             </span>
           </div>
-          {/* Admin-only exposure of flat_number (D-091: never public; spec audiences=['admin_form']). */}
-          <div className="rounded border border-amber-100 bg-amber-50/50 px-3 py-2 text-xs">
-            <span className="font-medium text-amber-900">Flat number (admin only):</span>{" "}
-            <span className="text-amber-800">{property.flat_number ?? "—"}</span>
+
+          {/* Admin-only flat numbers (D-091: flat_number never public) */}
+          <div className="rounded border border-amber-100 bg-amber-50/50 px-3 py-2 text-xs space-y-1">
+            <div>
+              <span className="font-medium text-amber-900">Flat number (admin only):</span>{" "}
+              <span className="text-amber-800">{property.flat_number ?? "—"}</span>
+            </div>
+            {property.lister_flat_number && (
+              <div>
+                <span className="font-medium text-amber-900">Lister-submitted unit:</span>{" "}
+                <span className="text-amber-800">{property.lister_flat_number}</span>
+              </div>
+            )}
           </div>
+
+          {/* Basic info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <Field k="Building" v={property.building_name} />
+            <Field k="Formatted address" v={property.formatted_address} />
             <Field k="Address" v={property.street_address} />
             <Field k="Locality" v={property.locality} />
+            <Field k="Neighbourhood" v={property.sublocality_1} />
             <Field k="Landmark" v={property.landmark} />
             <Field k="City" v={property.city} />
             <Field k="Pincode" v={property.pincode} />
+            <Field k="Lister role" v={property.lister_role} />
             <Field k="BHK" v={bhkLabel(property.bhk)} />
             <Field k="Type" v={property.property_type} />
             <Field k="Furnishing" v={property.furnishing} />
             <Field k="Area (sqft)" v={property.square_footage} />
+            <Field k="Super built-up area (sqft)" v={property.super_built_up_area} />
+            <Field k="Floor" v={
+              property.floor_number != null && property.total_floors != null
+                ? `${property.floor_number} / ${property.total_floors}`
+                : property.floor_number != null ? String(property.floor_number) : null
+            } />
+            <Field k="Building age (yrs)" v={property.building_age_years} />
+            <Field k="Bathrooms" v={property.bathrooms} />
+            <Field k="Balconies" v={property.balconies} />
+            <Field k="Facing" v={property.facing} />
           </div>
 
-          {/* Rent-side pricing block (rendered for rent + legacy null listing_type). */}
+          {/* Rent-side pricing block */}
           {property.listing_type !== "sale" && (
             <div className="rounded border border-border/60 bg-muted/20 p-3 space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase">Rent & Deposit</p>
@@ -363,13 +431,16 @@ export default function ListingReviewDetail() {
                 <Field k="Rent" v={property.listed_rent ? `₹${property.listed_rent.toLocaleString("en-IN")}` : null} />
                 <Field k="Deposit" v={property.security_deposit_amount ? `₹${property.security_deposit_amount.toLocaleString("en-IN")}` : null} />
                 <Field k="Available from" v={property.available_from ? format(new Date(property.available_from), "PPP") : null} />
-                <Field k="Notice period (months)" v={property.notice_period_months} />
+                <Field k="Notice period" v={property.notice_period_days != null ? property.notice_period_days + " days" : null} />
+                <Field k="Lock-in (months)" v={property.lock_in_months} />
                 <Field k="Annual rent increase (%)" v={property.annual_rent_increase_pct != null ? `${property.annual_rent_increase_pct}%` : null} />
+                <Field k="Move-in charges" v={property.move_in_charges_amount ? `₹${property.move_in_charges_amount.toLocaleString("en-IN")}` : null} />
+                <Field k="Brokerage" v={property.rent_brokerage_fixed_amount != null ? `₹${property.rent_brokerage_fixed_amount.toLocaleString("en-IN")}` : null} />
               </div>
             </div>
           )}
 
-          {/* Sale-side pricing block. */}
+          {/* Sale-side pricing block */}
           {property.listing_type === "sale" && (
             <div className="rounded border border-border/60 bg-muted/20 p-3 space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase">Sale Details</p>
@@ -388,28 +459,126 @@ export default function ListingReviewDetail() {
             </div>
           )}
 
-          {/* Building / parking / water */}
+          {/* Building / parking / utilities */}
           <div className="rounded border border-border/60 bg-muted/20 p-3 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Building & Society</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               <Field k="2W parking" v={property.parking_2w && property.parking_2w !== "none" ? `${property.parking_2w}${property.parking_2w_count ? ` · ${property.parking_2w_count} slot${property.parking_2w_count === 1 ? "" : "s"}` : ""}` : null} />
               <Field k="4W parking" v={property.parking_4w && property.parking_4w !== "none" ? `${property.parking_4w}${property.parking_4w_count ? ` · ${property.parking_4w_count} slot${property.parking_4w_count === 1 ? "" : "s"}` : ""}` : null} />
               <Field k="Water storage" v={property.water_storage?.replace(/_/g, " ") ?? null} />
+              <Field k="Water" v={property.utility_water_included != null ? (property.utility_water_included ? "Included" : "Extra") : null} />
+              <Field k="Gas" v={property.utility_gas_included != null ? (property.utility_gas_included ? `Included${property.gas_type ? ` (${property.gas_type})` : ""}` : "Extra") : property.gas_type ? `Type: ${property.gas_type}` : null} />
+              <Field k="Electricity" v={property.utility_electricity_included != null ? (property.utility_electricity_included ? "Included" : "Extra") : null} />
+              <Field k="Water source" v={property.water_source && property.water_source.length > 0 ? property.water_source.join(", ") : null} />
+              <Field k="Main door lock" v={property.main_door_lock_type} />
             </div>
             {property.parking_notes && (
               <div><p className="text-xs text-muted-foreground">Parking notes</p><p className="text-sm whitespace-pre-line">{property.parking_notes}</p></div>
             )}
           </div>
 
-          {property.title && <div><p className="text-xs text-muted-foreground">Title</p><p className="text-sm">{property.title}</p></div>}
-          {property.description && <div><p className="text-xs text-muted-foreground">Description</p><p className="text-sm whitespace-pre-line">{property.description}</p></div>}
+          {/* Furnishing detail (JSONB — raw display for admin review) */}
+          {property.furnishing_detail != null && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Furnishing detail</p>
+              <pre className="text-xs whitespace-pre-wrap bg-muted rounded p-2 overflow-x-auto">
+                {JSON.stringify(property.furnishing_detail, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Building amenities (JSONB — raw display for admin review) */}
+          {property.amenities != null && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Building amenities</p>
+              <pre className="text-xs whitespace-pre-wrap bg-muted rounded p-2 overflow-x-auto">
+                {JSON.stringify(property.amenities, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Location & Street View */}
+          <div className="rounded border border-border/60 bg-muted/20 p-3 space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase">Location & Street View</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Street View</p>
+                {property.streetview_available === null ? (
+                  <p className="text-sm text-muted-foreground">Not checked</p>
+                ) : property.streetview_available ? (
+                  <p className="text-sm font-medium text-green-700">✓ Available</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Not available</p>
+                )}
+              </div>
+              {property.streetview_available && property.streetview_pano_id && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Preview</p>
+                  <a
+                    href={`https://www.google.com/maps/@?api=1&map_action=pano&pano=${property.streetview_pano_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary underline"
+                  >
+                    View Street View →
+                  </a>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-muted-foreground">Show in listing</p>
+                <p className="text-sm">{property.streetview_show_in_listing ? "Yes" : "No"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Owner verified location</p>
+                <p className="text-sm">
+                  {property.location_verified_by_owner
+                    ? `Yes${property.location_verified_at ? ` · ${format(new Date(property.location_verified_at), "PPP")}` : ""}`
+                    : "No"}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {property.pet_policy && <div><p className="text-xs text-muted-foreground">Pet policy</p><p className="text-sm">{property.pet_policy}</p></div>}
           {property.building_rules && <div><p className="text-xs text-muted-foreground">House rules</p><p className="text-sm whitespace-pre-line">{property.building_rules}</p></div>}
           {property.building_notes && <div><p className="text-xs text-muted-foreground">About the building</p><p className="text-sm whitespace-pre-line">{property.building_notes}</p></div>}
+          {property.youtube_walkthrough_url && (
+            <div>
+              <p className="text-xs text-muted-foreground">Video walkthrough</p>
+              <a href={property.youtube_walkthrough_url} target="_blank" rel="noopener noreferrer"
+                 className="text-sm text-primary underline">
+                View on YouTube →
+              </a>
+            </div>
+          )}
         </section>
 
-        {/* Diff view for edit type — Prompt 13 (D-165): "Currently live: X" subtitle
-            via <EditRequestDiff>. Same visual pattern owners see (D-093). */}
+        {/* Owner contact — from users FK join (Prompt 10) */}
+        {property.owner && (property.owner.email || property.owner.phone) && (
+          <section className="rounded-lg border bg-card p-4 space-y-2">
+            <h2 className="text-sm font-semibold">Owner contact</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              {property.owner.email && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <a href={`mailto:${property.owner.email}`} className="text-sm text-primary underline truncate block">
+                    {property.owner.email}
+                  </a>
+                </div>
+              )}
+              {property.owner.phone && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Phone</p>
+                  <a href={`tel:+${property.owner.phone}`} className="text-sm text-primary underline">
+                    +91 {property.owner.phone.replace(/^(\+91|91)/, "")}
+                  </a>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Diff view for edit type — unchanged (D-165). */}
         {!isNewType && editRequest && (
           <section className="rounded-lg border bg-card p-4 space-y-3">
             <h2 className="text-sm font-semibold">Proposed changes</h2>
@@ -459,15 +628,35 @@ export default function ListingReviewDetail() {
           </section>
         )}
 
-        {/* Photos gallery (current) */}
-        {images.length > 0 && (
-          <section className="rounded-lg border bg-card p-4 space-y-2">
-            <h2 className="text-sm font-semibold">Current photos ({images.length})</h2>
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-              {images.map((img) => (
-                <img key={img.id} src={img.url} alt="" className="aspect-square object-cover rounded" />
-              ))}
-            </div>
+        {/* Photos gallery — new-listing reviews only, grouped by section with clickable thumbnails */}
+        {isNewType && images.length > 0 && (
+          <section className="rounded-lg border bg-card p-4 space-y-4">
+            <h2 className="text-sm font-semibold">Photos ({images.length})</h2>
+            {Array.from(imageGroups.entries()).map(([section, imgs]) => (
+              <div key={section}>
+                <p className="text-xs font-medium text-muted-foreground mb-2">
+                  {sectionLabel(section === "Other" ? null : section)} ({imgs.length})
+                </p>
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  {imgs.map((img) => (
+                    <a
+                      key={img.id}
+                      href={img.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative block"
+                    >
+                      <img src={img.url} alt="" className="aspect-square object-cover rounded w-full" />
+                      {img.is_primary && (
+                        <span className="absolute bottom-0.5 left-0.5 rounded text-[9px] font-bold bg-primary text-primary-foreground px-1 py-0.5 leading-none">
+                          Cover
+                        </span>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ))}
           </section>
         )}
 

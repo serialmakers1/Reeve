@@ -70,7 +70,7 @@ export default function Index() {
                       Offer a home
                     </p>
                     <div className="flex gap-8">
-                      {[{ label: "Sell", to: "/list?listing_type=sale" }, { label: "Rent it out", to: "/list" }].map(({ label, to }) => (
+                      {[{ label: "Sell", to: "/list" }, { label: "Rent it out", to: "/list" }].map(({ label, to }) => (
                         <Link key={label} to={to}
                           className="group inline-flex items-center text-[17px] font-semibold text-[#0F172A] hover:text-[#2563EB] transition-colors duration-150 min-h-[44px]"
                           style={{ fontFamily: FONT_INTER }}>
@@ -612,7 +612,7 @@ export default function Index() {
                   </h3>
                   <div className="flex justify-around [@media(min-width:800px)]:justify-center [@media(min-width:800px)]:gap-12">
                     {[
-                      { label: "Sell", to: "/list?listing_type=sale" },
+                      { label: "Sell", to: "/list" },
                       { label: "Rent it out", to: "/list" },
                     ].map(({ label, to }) => (
                       <Link

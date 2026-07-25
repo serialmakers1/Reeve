@@ -121,10 +121,8 @@ interface PropertyData {
   parking_2w: string;
   amenities: string[] | null;
   pet_policy: string | null;
-  title: string | null;
   available_from: string | null;
   property_type: string | null;
-  description: string | null;
   building_rules: string | null;
   security_deposit_months: number;
   security_deposit_amount: number | null; // Sync Prompt 1 (D-167) — public deposit display prefers this over months × rent.
@@ -141,10 +139,8 @@ interface PropertyData {
   building_age_years: number | null;
   furnishing_detail: unknown;
   youtube_walkthrough_url: string | null;
-  google_maps_url: string | null;
   // Prompt 8 (D-159) — India fields.
   landmark: string | null;
-  notice_period_months: number | null;
   annual_rent_increase_pct: number | null;
   water_storage: string | null;
   parking_2w_count: number | null;
@@ -176,6 +172,13 @@ interface PropertyData {
   listed_at: string | null;
   // F1-B2c: owner-authored "About the Property" copy (rendered in place of description).
   building_notes: string | null;
+  // Google Maps Phase 1 — address display + action buttons
+  formatted_address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  streetview_available: boolean | null;
+  streetview_show_in_listing: boolean;
+  streetview_pano_id: string | null;
 }
 
 interface PropertyImage {
@@ -582,7 +585,7 @@ const PropertyDetail: React.FC = () => {
         supabase
           .from("properties")
           .select(
-            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, title, available_from, property_type, description, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, google_maps_url, landmark, notice_period_months, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_fixed_amount, sale_brokerage_pct, notice_period_days, lock_in_months, super_built_up_area, water_source, listed_at, building_notes, lister_role"
+            "id, owner_id, status, building_name, floor_number, total_floors, locality, city, bhk, square_footage, furnishing, listed_rent, parking_4w, parking_2w, amenities, pet_policy, available_from, property_type, building_rules, security_deposit_months, security_deposit_amount, society_maintenance_approx, maintenance_included_in_rent, gas_type, utility_water_included, utility_electricity_included, utility_gas_included, main_door_lock_type, bathrooms, balconies, facing, building_age_years, furnishing_detail, youtube_walkthrough_url, landmark, annual_rent_increase_pct, water_storage, parking_2w_count, parking_4w_count, parking_notes, listing_type, sale_price, price_negotiable, expected_price_per_sqft, possession_status, possession_date, rera_registration_number, khata_type, property_tax_paid_upto, move_in_charges_amount, rent_brokerage_fixed_amount, sale_brokerage_pct, notice_period_days, lock_in_months, super_built_up_area, water_source, listed_at, building_notes, lister_role, formatted_address, latitude, longitude, streetview_available, streetview_show_in_listing, streetview_pano_id"
           )
           .eq("id", id)
           .maybeSingle(),
@@ -1137,36 +1140,55 @@ const PropertyDetail: React.FC = () => {
                 {bhkLabel(property.bhk)} in {property.building_name}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {property.locality ? `${property.locality}, ` : ""}
-                {property.city}
+                {property.formatted_address
+                  ? property.formatted_address
+                  : [property.locality, property.city].filter(Boolean).join(', ')}
               </p>
               {/* F1-B1c: landmark rendered as-is — owner placeholder already includes "Near". */}
               {property.landmark && (
                 <p className="text-sm text-muted-foreground">{property.landmark}</p>
               )}
-              {/* F1-B1b: available_from removed from header — surfaces in AtAGlance. */}
-              {(property.youtube_walkthrough_url || property.google_maps_url) && (
+              {/* Google Maps Phase 1 — location action buttons */}
+              {(property.latitude != null && property.longitude != null ||
+                (property.streetview_show_in_listing && property.streetview_available)) && (
                 <div className="flex flex-wrap gap-2 pt-2">
-                  {property.youtube_walkthrough_url && (
+                  {property.latitude != null && property.longitude != null && (
                     <a
-                      href={property.youtube_walkthrough_url}
+                      href={`https://maps.google.com/?q=${property.latitude},${property.longitude}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm text-foreground hover:bg-muted"
                     >
-                      <Play className="h-3.5 w-3.5" /> Watch Walkthrough
+                      <MapPin className="h-3.5 w-3.5" /> View on Google Maps
                     </a>
                   )}
-                  {property.google_maps_url && (
+                  {property.streetview_show_in_listing && property.streetview_available && (
                     <a
-                      href={property.google_maps_url}
+                      href={
+                        property.streetview_pano_id
+                          ? `https://www.google.com/maps/@?api=1&map_action=pano&pano=${property.streetview_pano_id}`
+                          : `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${property.latitude},${property.longitude}`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm text-foreground hover:bg-muted"
                     >
-                      <MapPin className="h-3.5 w-3.5" /> View on Maps
+                      <Eye className="h-3.5 w-3.5" /> Street View
                     </a>
                   )}
+                </div>
+              )}
+              {/* F1-B1b: available_from removed from header — surfaces in AtAGlance. */}
+              {property.youtube_walkthrough_url && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <a
+                    href={property.youtube_walkthrough_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm text-foreground hover:bg-muted"
+                  >
+                    <Play className="h-3.5 w-3.5" /> Watch Walkthrough
+                  </a>
                 </div>
               )}
               {(() => {

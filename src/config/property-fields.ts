@@ -277,16 +277,6 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     ownerSection: "location",
     tier: "locked",
   },
-  {
-    key: "google_maps_url",
-    label: "Google Maps link",
-    helper: "Paste a Maps link so tenants know exactly where it is",
-    input: "text",
-    placeholder: "https://maps.google.com/...",
-    audiences: ["owner_form", "admin_form", "public_detail"],
-    editableBy: ["owner", "admin"],
-    ownerSection: "location",
-  },
   // Added in Prompt 8 (D-159). Renders as a bespoke subtitle in PropertyDetail's
   // Location block ("Near {landmark}") — not through the details grid.
   {
@@ -299,6 +289,54 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     helper: "e.g., Near XYZ mall, Behind ABC hospital",
     audiences: ["owner_form", "admin_form", "public_detail"],
     editableBy: ["owner", "admin"],
+    ownerSection: "location",
+  },
+
+  // ── Google Maps Phase 1 — location fields ───────────────────────────
+  {
+    key: "formatted_address",
+    label: "Full address",
+    adminLabel: "Formatted address",
+    helper: "Auto-filled from your building or area selection.",
+    input: "text",
+    audiences: ["owner_form", "admin_form", "public_detail"],
+    editableBy: ["admin"],
+    ownerSection: "location",
+    tier: "locked",
+  },
+  {
+    key: "sublocality_1",
+    label: "Neighbourhood",
+    publicLabel: "Neighbourhood",
+    input: "text",
+    audiences: ["public_detail"],
+    editableBy: [],
+  },
+  {
+    key: "location_verified_by_owner",
+    label: "I have verified the location pin is correctly placed on the map",
+    input: "switch",
+    helper: "Required before you can submit your listing. Rendered by PropertyAddressInput as a shadcn Checkbox — not via SpecField.",
+    audiences: ["owner_form"],
+    editableBy: ["owner"],
+    ownerSection: "location",
+  },
+  {
+    key: "streetview_show_in_listing",
+    label: "Show Street View link in listing",
+    input: "switch",
+    helper: "When available, a Street View link helps tenants see the street. Enabled by default.",
+    audiences: ["owner_form", "admin_form"],
+    editableBy: ["owner", "admin"],
+    ownerSection: "location",
+  },
+  {
+    key: "streetview_available",
+    label: "Street View availability",
+    input: "text",
+    helper: "Rendered by PropertyAddressInput as a status badge — not via SpecField.",
+    audiences: ["owner_form", "admin_form"],
+    editableBy: [],
     ownerSection: "location",
   },
 
@@ -499,7 +537,7 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     label: "Notice period (months, legacy)",
     input: "number",
     min: 0,
-    audiences: ["admin_form", "public_detail"],
+    audiences: [],
     editableBy: ["admin"],
     display: (v) => (typeof v === "number" ? `${v} month${v === 1 ? "" : "s"}` : "—"),
     visibleWhen: (v) => v.listing_type !== "sale",
@@ -770,25 +808,6 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     ownerSection: "photos",
   },
 
-  // ── Description ──────────────────────────────────────────────────────
-  {
-    key: "title",
-    label: "Listing title",
-    input: "text",
-    maxLength: 120,
-    audiences: ["owner_form", "admin_form", "public_detail"],
-    editableBy: ["owner", "admin"],
-    ownerSection: "description",
-  },
-  {
-    key: "description",
-    label: "Description",
-    input: "textarea",
-    audiences: ["owner_form", "admin_form", "public_detail"],
-    editableBy: ["owner", "admin"],
-    ownerSection: "description",
-  },
-
   // P3: converted from freetext to enum-select. CHECK constraint enforced in
   // migration `20260721120000_property_detail_additions.sql`.
   {
@@ -980,6 +999,18 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     input: "text",
     audiences: ["admin_form"],
     editableBy: ["admin"],
+    tier: "locked",
+  },
+  {
+    key: "lister_flat_number",
+    label: "Flat / Unit number",
+    input: "text",
+    maxLength: 10,
+    pattern: /^[A-Za-z0-9/-]{1,10}$/,
+    helper: "Letters, numbers, hyphens and slashes only. Max 10 characters. This will not be visible to tenants on the property listing.",
+    audiences: ["owner_form", "admin_form"],
+    editableBy: ["owner", "admin"],
+    ownerSection: "location",
     tier: "locked",
   },
   {

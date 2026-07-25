@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { APIProvider } from '@vis.gl/react-google-maps';
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -190,17 +191,22 @@ function AppInner() {
 const App = () => (
   <Sentry.ErrorBoundary fallback={<p>Something went wrong. Please refresh the page.</p>}>
     <QueryClientProvider client={queryClient}>
-      <AuthGatedRealtimeMount />
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <ScrollToTop />
-          <ErrorBoundary>
-            <AppInner />
-          </ErrorBoundary>
-        </BrowserRouter>
-      </TooltipProvider>
+      <APIProvider
+        apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ''}
+        libraries={['places']}
+      >
+        <AuthGatedRealtimeMount />
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <ScrollToTop />
+            <ErrorBoundary>
+              <AppInner />
+            </ErrorBoundary>
+          </BrowserRouter>
+        </TooltipProvider>
+      </APIProvider>
     </QueryClientProvider>
   </Sentry.ErrorBoundary>
 );

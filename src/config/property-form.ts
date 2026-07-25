@@ -19,6 +19,8 @@ export const PROPERTY_TYPE_OPTIONS = [
   { value: "apartment", label: "Apartment" },
   { value: "villa", label: "Villa" },
   { value: "independent_house", label: "Independent House" },
+  { value: "duplex_apartment", label: "Duplex Apartment" },
+  { value: "plot", label: "Plot / Land" },
 ] as const;
 
 export const FURNISHING_OPTIONS = [

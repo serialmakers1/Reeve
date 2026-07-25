@@ -1,3 +1,106 @@
+## [2026-07-25] feat | Prompt 10: ListingReviewDetail parity — owner contact, missing fields, image gallery, new address columns [IST]
+
+**Files changed:** `src/pages/admin/ListingReviewDetail.tsx`.
+
+**Changes:**
+- **Owner FK join**: changed `select("*")` to `select("*, owner:users!properties_owner_id_fkey(full_name, email, phone)")` — exact syntax from `Properties.tsx:170`
+- **Removed `public_profiles` query**: eliminated separate query + `ownerPhoto` state; `ownerName` now set directly from `prop.owner?.full_name ?? "Owner"`; `ProfileAvatar` receives `photoUrl={null}` (falls back to initials)
+- **Removed `getUserDisplayName` import** (no longer needed)
+- **`PropertyRow` interface additions** (23 new fields): `owner` (FK join object), `formatted_address`, `sublocality_1`, `streetview_available`, `streetview_pano_id`, `streetview_show_in_listing`, `location_verified_by_owner`, `location_verified_at`, `lister_flat_number`, `lister_role`, `youtube_walkthrough_url`, `floor_number`, `total_floors`, `super_built_up_area`, `building_age_years`, `bathrooms`, `balconies`, `facing`, `furnishing_detail`, `amenities`, `gas_type`, `utility_water_included`, `utility_gas_included`, `utility_electricity_included`, `water_source`, `main_door_lock_type`, `lock_in_months`, `move_in_charges_amount`, `rent_brokerage_fixed_amount`
+- **Amber admin box**: now shows both `flat_number` (DB-assigned) and `lister_flat_number` (owner-submitted)
+- **Basic info grid**: added formatted_address, neighbourhood (sublocality_1), lister_role, floor/total_floors combined, super_built_up_area, building_age_years, bathrooms, balconies, facing
+- **Rent block**: added lock_in_months, move_in_charges_amount, rent_brokerage_fixed_amount
+- **Building & Society block**: added utility_water_included, utility_gas_included (+gas_type), utility_electricity_included, water_source, main_door_lock_type
+- **JSONB raw display**: `furnishing_detail` + `amenities` rendered as `<pre className="text-xs whitespace-pre-wrap bg-muted rounded p-2">` + JSON.stringify (admin review context)
+- **Location & Street View subsection**: shows streetview_available badge (✓ Available / Not available / Not checked), "View Street View" link when pano_id present, show-in-listing toggle state, owner verified location + timestamp
+- **YouTube walkthrough link** added at bottom of property snapshot
+- **Owner contact section** (new): shows email as `mailto:` link, phone as `tel:` link (formatted as `+91 XXXXXXXXXX` per convention), only rendered when at least one contact field is non-null
+- **Photos gallery (new-type reviews only)**: replaced flat ungrouped grid with section-grouped gallery; `sectionLabel()` helper formats "living_room" → "Living Room"; thumbnails are `<a href target="_blank">` (click-to-open); primary image shows "Cover" badge; gated on `isNewType` — edit-type diff view unchanged
+- Removed `useMemo` from imports (no longer used)
+
+**Explicit non-actions:**
+- `notice_period_days` display confirmed already updated (Prompt 3) — not touched
+- Edit-type diff view (lines 408–457) completely unchanged
+- `owner_diet_preference`, `owner_pet_preference`, `owner_tenant_type_preference`, `auto_accept_enabled`, `legal_owner_name` — absent from interface and display
+
+**TypeScript baseline:** 358 (unchanged).
+
+---
+
+## [2026-07-25] feat | Prompt 9: PropertyPreview — parity with PropertyDetail (listing_type, sale fields, rent terms, floor/parking/water additions, landmark, pet_policy_text)
+
+**Files changed:** `src/components/listing/PropertyPreview.tsx`, `src/pages/ListProperty.tsx`.
+
+**Changes:**
+- Added 28 new fields to `PropertyPreviewData` interface: `listing_type`, `lister_role`, `landmark`, `floor_number`, `total_floors`, `super_built_up_area`, `building_age_years`, rent terms (`lock_in_months`, `notice_period_days`, `notice_period_months`, `annual_rent_increase_pct`, `move_in_charges_amount`, `rent_brokerage_fixed_amount`), sale fields (`sale_price`, `price_negotiable`, `expected_price_per_sqft`, `possession_status`, `possession_date`, `rera_registration_number`, `sale_brokerage_pct`, `khata_type`), parking additions (`parking_2w_count`, `parking_4w_count`, `parking_notes`), water additions (`water_storage`, `water_source`), `main_door_lock_type`, `pet_policy_text`
+- Added `noticeGrade()` helper + `DOT_CLASS` for color-dot logic (mirrors NoSurprisesCard)
+- Added `cn` import from `@/lib/utils`
+- Landmark renders below locality line
+- Key stats chips: added `floor_number/total_floors`, `super_built_up_area`, `building_age_years`, `lister_role` badge (non-owner roles only)
+- Price block is now `listing_type`-aware: sale → shows `sale_price`, `expected_price_per_sqft`, `price_negotiable`; rent → existing block unchanged
+- "No Surprises" inline block for rent listings: lock_in, notice_period_days, annual_rent_increase_pct, move_in_charges_amount, rent_brokerage_fixed_amount — all with color dots matching NoSurprisesCard thresholds
+- Sale Details block for sale listings: possession_status + date, RERA, khata_type, sale_brokerage_pct
+- Utilities & parking: added parking_2w_count, parking_4w_count, parking_notes, water_storage, water_source, main_door_lock_type
+- House rules: added `pet_policy_text` (form-state only, never in DB) below pet_policy
+- `previewData` memo in ListProperty.tsx: wired all 28 new fields from `form.*`; `possession_date` formatted via `format(form.possession_date, "PP")` matching existing `available_from` pattern
+
+**Explicit non-actions:**
+- `notice_period_months` added to interface (legacy admin field) but not rendered — `notice_period_days` is the owner-visible field
+- `pet_policy_text` NOT in PropertyDetail.tsx — preview-only since it's form state, never a DB column
+
+**TypeScript baseline:** 358 (unchanged).
+
+---
+
+## [2026-07-25] feat | Prompt 8: PropertyDetail — formatted_address display, Maps button, Street View button, pet_policy_text [IST]
+
+**Files changed:** `src/pages/PropertyDetail.tsx`.
+
+**Changes:**
+- Added 6 new columns to DB select string: `formatted_address`, `latitude`, `longitude`, `streetview_available`, `streetview_show_in_listing`, `streetview_pano_id`
+- Added all 6 to `PropertyData` interface
+- Updated address line (locality/city) to use `formatted_address` as primary with legacy fallback to `locality + city`
+- Added Maps + Street View action buttons after `landmark`, before YouTube link (same `inline-flex rounded-full border` pill style); both `<a target="_blank">` links; Maps shown when lat+lng non-null; SV shown when both `streetview_show_in_listing === true` AND `streetview_available === true`; SV URL uses `pano_id` when available, falls back to `viewpoint={lat},{lng}`
+- `MapPin` and `Eye` were already imported — no new imports needed
+
+**Explicit non-actions:**
+- `pet_policy_text`: local UI state only — `mapFieldToDb` returns null (ListProperty.tsx:2139). Not a DB column. NOT added to select or interface. Data quality gap flagged for a later prompt.
+- `sale_brokerage_pct`: already in interface + select + passed to child components. No change.
+- `google_maps_url`: already zero references. No action.
+
+**TypeScript baseline:** 358 (unchanged).
+
+---
+
+## [2026-07-25] build | Google Maps Phase 1 Prompt 7 — admin form wire-up, mode='admin' editable fields, Location card, SV re-check, Re-fetch from Google
+
+**Files changed:** `src/components/property-address/PropertyAddressInput.tsx`, `src/pages/admin/PropertyEdit.tsx`.
+
+**PropertyAddressInput.tsx changes:**
+- `mode: _mode` → `mode`; added `const isAdmin = mode === 'admin'`
+- Added `updateResolvedField(key, value)` helper — updates resolvedData, auto-triggers onAddressResolved
+- In resolved state: admin gets editable Inputs for formatted_address, city, state, sublocality_1, district; owner gets the existing read-only summary div
+- SV section hidden for admin (`!isAdmin`) — admin manages SV in the Location card
+- Location verification checkbox hidden for admin
+
+**PropertyEdit.tsx changes:**
+- New imports: `useMapsLibrary`, `PropertyAddressInput`, `AddressData`, `parseAddressComponents`, `Separator`, `RefreshCw`, `useRef`
+- `useMapsLibrary('places')` + `useMapsLibrary('streetView')` at component top level
+- 24 new useState declarations (placeId, formattedAddress, addressMode, routeVal, sublocality1, sublocality2, neighborhood, district, country, plusCode, viewportNe/SwLat/Lng, latitude, longitude, streetviewAvailable/PanoId/CheckedAt/ShowInListing, locationVerifiedByOwner/At, listerFlatNumber, streetviewChecking, refetching)
+- PlacesService init useEffect (for Re-fetch action)
+- 24 new hydration lines in existing fetchProperty useEffect
+- `handleAddressResolved` — updates all address state vars, no DB save
+- `handleRecheckStreetView` — calls StreetViewService, immediately partial-saves 3 SV columns to DB
+- `handleRefetchFromGoogle` — calls Place Details on stored placeId, feeds into handleAddressResolved
+- 24 new fields in handleSave payload
+- New "Location" card (before Basic Details): PropertyAddressInput + lister_flat_number input + landmark + SV section + Re-fetch button
+- Removed from Basic Details: building_name, street_address, locality, city, state, pincode SpecFields (all in PropertyAddressInput now); legal_owner_name retained
+- Removed landmark from Listing Details card (moved to Location card)
+
+**TypeScript baseline:** 358 (unchanged from post-P6 baseline).
+
+---
+
 ## [2026-07-17] build | Phase 3 Prompt 8 — completion audit PARTIAL, FAILs: [migration-5-filename-mismatch], plus migration 20260717000006, commons sync, CLAUDE.md 200-line cap [17:55 IST]
 
 Final wrap-up prompt for Phase 3. One migration file authored, commons + CLAUDE.md updated with pre-decided content, TypeScript baseline held.
@@ -927,3 +1030,14 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-22] fix | 11 fixes: amenities bug, brokerage flat-amount, move-in→NoSurprises, sale PriceAndTerms, sidebar sticky, comments collapse, AllDetails mobile, pet/rules sale gate [18:38 IST]
 ## [2026-07-22] audit | Post-deploy diagnosis — header overlap, Q&A state, sale field placement, gas type, lister role [22:53 IST]
 ## [2026-07-22] feat | lister_role field + 5 fixes (sidebar, Q&A, sale AtAGlance, gas type) [10:22 IST]
+## [2026-07-25] migrate | Prompt 2: types regen, migration file, interface fix, commons-schema update [ IST]
+## [2026-07-25] migrate | Prompt 2: types regen, migration file, interface fix, commons-schema update [20:48 IST]
+## [2026-07-25] refactor | Prompt 3: deprecated field removal, notice_period swap, canInsertDraft cleanup, Index.tsx CTA fix [21:22 IST]
+## [2026-07-25] refactor | Prompt 4: property-fields.ts spec additions for Phase 1 new fields [21:41 IST]
+## [2026-07-25] feat | Prompt 5: @vis.gl/react-google-maps installed, APIProvider wired, PropertyAddressInput component built in isolation [IST]
+## [2026-07-25] feat | Prompt 6: PropertyAddressInput wired into owner listing form, Tier 1 lock UI, preview warning banner [IST]
+## [2026-07-25] feat | Prompt 7: PropertyAddressInput wired into admin PropertyEdit — Location card, admin-mode editable fields, SV re-check, Re-fetch from Google [IST]
+## [2026-07-25] feat | Prompt 8: PropertyDetail fetches + displays formatted_address, Maps button, Street View button [IST]
+## [2026-07-25] feat | Prompt 9: PropertyPreview parity — 28 new fields, listing_type-aware price block, No Surprises inline, lister_role chip [IST]
+## [2026-07-25] feat | Prompt 10: ListingReviewDetail parity — FK join owner contact, 23+ new fields, image gallery, SV subsection [IST]
+## [2026-07-26] fix | Prompt 11: Bug 1 (location_verified_by_owner raw input → shadcn Checkbox), Bug 2 (streetview_available spec input switch→text), Bug 3 (lister_role owner guard removed + label ternary fixed). CLAUDE.md trimmed to 200 lines + Google Maps Phase 1 section added. D-GM-001–D-GM-005 appended to commons-decisions.md. Phase 2 deferred items + ownerDisplayName TODO appended to commons-forward-plan.md. [IST]

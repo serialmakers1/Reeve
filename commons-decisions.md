@@ -1900,3 +1900,18 @@ Audit confirmed post-Phase-4 build:
 
 ## D-P4-024 — ListingsGrid status filter decision
 ListingsGrid on PublicProfile uses .in(["listed","edit_pending_review"]) not strict .eq("listed"). Rationale: edit_pending_review properties are publicly visible (is_active=true) and shown in search results and RequestContactPanel ELIGIBLE_STATUSES. Narrowing to strict 'listed' would desync PublicProfile from the rest of the platform. This matches the established convention. If status semantics change, update here.
+
+## D-GM-001 — Google Maps API setup
+`@vis.gl/react-google-maps` v1.x installed. `<APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ''} libraries={['places']}>` wraps the provider tree in `App.tsx` inside `QueryClientProvider`, outside `BrowserRouter`. `?? ''` prevents crash when key is absent in local dev. Key is set in Vercel environment; never hard-coded in any component. `useMapsLibrary('places')` and `useMapsLibrary('streetView')` used for lazy library loading — gate all Places/SV logic behind the returned library object (null until loaded).
+
+## D-GM-002 — lister_flat_number column
+New DB column on `properties`: `lister_flat_number varchar(10)` with CHECK constraint (letters, digits, hyphens, slashes only). Max 10 chars. **Never public** — excluded from all public-facing selects (PropertyDetail, search). Admin amber box in ListingReviewDetail shows both `flat_number` (old) and `lister_flat_number` (new). Owner form Section 1 shows a dedicated input (outside SpecField). Admin Location card shows its own input. Old `flat_number` (admin-direct-write, never public) is untouched.
+
+## D-GM-003 — pet_policy_text is form-state only (not persisted)
+`pet_policy_text` exists in `FormState` and is collected in the owner form, but `mapFieldToDb` returns `null` for it — it is never saved to the DB. Rendered in PropertyPreview (preview-only) but NOT in PropertyDetail. Future work: add as a DB column and wire into `mapFieldToDb` + admin form. Until then, any value entered is discarded on save.
+
+## D-GM-004 — address_mode enum
+`address_mode varchar` column on `properties`. Values: `'google_place'` (owner used Path A — building autocomplete) or `'manual'` (owner used Path B — area geocode fallback). Determines which autocomplete path was used and informs admin of data quality. Null for legacy properties migrated before Phase 1.
+
+## D-GM-005 — Tier 1 address lock
+Address fields (`building_name`, `locality`, `city`, `state`, `pincode`, and all 12 geocoding columns) are editable only in `draft` and `changes_requested` status. In all other statuses (`pending_review`, `listed`, `edit_pending_review`, etc.), `PropertyAddressInput` is replaced by a read-only text display with a "Contact support" link. `bhk`, `property_type`, `listing_type`, `lister_role` follow the same lock. Constant: `tierOneLocked = entryStatus !== "create" && entryStatus !== "draft" && entryStatus !== "changes_requested"`.
