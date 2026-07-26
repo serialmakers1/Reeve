@@ -64,6 +64,34 @@ interface PropertyRow {
   utility_electricity_included: boolean | null; gas_type: string | null;
   pet_policy: string | null; building_rules: string | null; building_notes: string | null;
   title: string | null; description: string | null;
+  // Phase 1 additions
+  formatted_address: string | null;
+  sublocality_1: string | null;
+  landmark: string | null;
+  lister_flat_number: string | null;
+  lister_role: string | null;
+  super_built_up_area: number | null;
+  lock_in_months: number | null;
+  notice_period_days: number | null;
+  annual_rent_increase_pct: number | null;
+  move_in_charges_amount: number | null;
+  rent_brokerage_fixed_amount: number | null;
+  water_storage: string | null;
+  water_source: string[] | null;
+  main_door_lock_type: string | null;
+  parking_2w_count: number | null;
+  parking_4w_count: number | null;
+  parking_notes: string | null;
+  listing_type: string | null;
+  sale_price: number | null;
+  price_negotiable: boolean | null;
+  expected_price_per_sqft: number | null;
+  possession_status: string | null;
+  possession_date: string | null;
+  rera_registration_number: string | null;
+  khata_type: string | null;
+  property_tax_paid_upto: string | null;
+  streetview_show_in_listing: boolean | null;
 }
 
 interface ImageRow {
@@ -367,6 +395,15 @@ export default function OwnerPropertyManagement() {
               <FieldRow k="City" v={view.city} pending={pendingFieldKeys.has("city")} live={property.city} />
               <FieldRow k="State" v={view.state} />
               <FieldRow k="Pincode" v={view.pincode} pending={pendingFieldKeys.has("pincode")} live={property.pincode} />
+              <FieldRow k="Full address" v={view.formatted_address} />
+              <FieldRow k="Sublocality" v={view.sublocality_1} />
+              <FieldRow k="Landmark" v={view.landmark} />
+              <FieldRow k="Unit number" v={view.lister_flat_number} />
+            </DetailsSection>
+
+            <DetailsSection title="Listing details">
+              <FieldRow k="Listing type" v={view.listing_type === "sale" ? "Sale" : view.listing_type === "rent" ? "Rent" : view.listing_type} />
+              <FieldRow k="Listed by" v={view.lister_role} />
             </DetailsSection>
 
             <DetailsSection title="Basics">
@@ -379,6 +416,7 @@ export default function OwnerPropertyManagement() {
               <FieldRow k="Building age" v={view.building_age_years ? `${view.building_age_years} years` : null} pending={pendingFieldKeys.has("building_age_years")} live={property.building_age_years ? `${property.building_age_years} years` : null} />
               <FieldRow k="Bathrooms" v={view.bathrooms} pending={pendingFieldKeys.has("bathrooms")} live={property.bathrooms} />
               <FieldRow k="Balconies" v={view.balconies} pending={pendingFieldKeys.has("balconies")} live={property.balconies} />
+              <FieldRow k="Super built-up area" v={view.super_built_up_area ? `${view.super_built_up_area} sqft` : null} />
             </DetailsSection>
 
             <DetailsSection title="Rent & Deposit">
@@ -387,7 +425,29 @@ export default function OwnerPropertyManagement() {
               <FieldRow k="Society maintenance" v={formatRupees(view.society_maintenance_approx)} pending={pendingFieldKeys.has("society_maintenance_approx")} live={formatRupees(property.society_maintenance_approx)} />
               <FieldRow k="Maintenance included" v={view.maintenance_included_in_rent ? "Yes" : "No"} pending={pendingFieldKeys.has("maintenance_included_in_rent")} live={property.maintenance_included_in_rent ? "Yes" : "No"} />
               <FieldRow k="Available from" v={view.available_from ? format(new Date(view.available_from), "PPP") : null} pending={pendingFieldKeys.has("available_from")} live={property.available_from ? format(new Date(property.available_from), "PPP") : null} />
+              {view.listing_type !== "sale" && (
+                <>
+                  <FieldRow k="Lock-in" v={view.lock_in_months ? `${view.lock_in_months} months` : null} />
+                  <FieldRow k="Notice period" v={view.notice_period_days ? `${view.notice_period_days} days` : null} />
+                  <FieldRow k="Annual increase" v={view.annual_rent_increase_pct != null ? `${view.annual_rent_increase_pct}%` : null} />
+                  <FieldRow k="Move-in charges" v={formatRupees(view.move_in_charges_amount)} />
+                  <FieldRow k="Brokerage" v={formatRupees(view.rent_brokerage_fixed_amount)} />
+                </>
+              )}
             </DetailsSection>
+
+            {view.listing_type === "sale" && (
+              <DetailsSection title="Sale">
+                <FieldRow k="Sale price" v={formatRupees(view.sale_price)} />
+                <FieldRow k="Negotiable" v={view.price_negotiable ? "Yes" : null} />
+                <FieldRow k="Price/sqft" v={formatRupees(view.expected_price_per_sqft)} />
+                <FieldRow k="Possession" v={view.possession_status} />
+                <FieldRow k="Possession date" v={view.possession_date ? format(new Date(view.possession_date), "PPP") : null} />
+                <FieldRow k="RERA no." v={view.rera_registration_number} />
+                <FieldRow k="Khata type" v={view.khata_type} />
+                <FieldRow k="Property tax paid upto" v={view.property_tax_paid_upto ? format(new Date(view.property_tax_paid_upto), "PPP") : null} />
+              </DetailsSection>
+            )}
 
             <DetailsSection title="Furnishing">
               <FieldRow k="Type" v={labelForValue(FURNISHING_OPTIONS as unknown as { value:string; label:string }[], view.furnishing)} pending={pendingFieldKeys.has("furnishing")} live={labelForValue(FURNISHING_OPTIONS as unknown as { value:string; label:string }[], property.furnishing)} />
@@ -421,6 +481,14 @@ export default function OwnerPropertyManagement() {
               <FieldRow k="Water included" v={view.utility_water_included ? "Yes" : "No"} />
               <FieldRow k="Gas included" v={view.utility_gas_included ? `Yes${view.gas_type ? ` (${view.gas_type})` : ""}` : "No"} />
               <FieldRow k="Electricity included" v={view.utility_electricity_included ? "Yes" : "No"} />
+              <FieldRow k="Water storage" v={view.water_storage} />
+              <FieldRow k="Water source" v={view.water_source?.length ? view.water_source.join(", ") : null} />
+              <FieldRow k="Main door lock" v={view.main_door_lock_type} />
+              <FieldRow k="2W parking count" v={view.parking_2w_count} />
+              <FieldRow k="4W parking count" v={view.parking_4w_count} />
+              {view.parking_notes && (
+                <div><p className="text-xs text-muted-foreground">Parking notes</p><p className="text-sm whitespace-pre-line">{view.parking_notes}</p></div>
+              )}
             </DetailsSection>
 
             <DetailsSection title="Rules & Preferences">
@@ -430,6 +498,16 @@ export default function OwnerPropertyManagement() {
               )}
               {view.building_notes && (
                 <div><p className="text-xs text-muted-foreground">About the building</p><p className="text-sm whitespace-pre-line">{view.building_notes}</p></div>
+              )}
+            </DetailsSection>
+
+            <DetailsSection title="Media">
+              <FieldRow k="Street View in listing" v={view.streetview_show_in_listing != null ? (view.streetview_show_in_listing ? "Yes" : "No") : null} />
+              {view.youtube_walkthrough_url && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Video walkthrough</p>
+                  <a href={view.youtube_walkthrough_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">View →</a>
+                </div>
               )}
             </DetailsSection>
 

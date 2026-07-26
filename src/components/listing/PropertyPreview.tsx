@@ -9,7 +9,8 @@
  * Per D-112: reads from PROPS (current form state), never from the DB.
  */
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { X } from "lucide-react";
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   FURNISHING_OPTIONS,
@@ -88,6 +89,11 @@ export interface PropertyPreviewData {
   water_source?: string[];
   main_door_lock_type?: string;
   pet_policy_text?: string;
+  formatted_address?: string;
+  lister_flat_number?: string;
+  location_verified_by_owner?: boolean;
+  streetview_show_in_listing?: boolean;
+  property_tax_paid_upto?: string;
 }
 
 const labelForValue = (opts: readonly { value: string; label: string }[], value: string) =>
@@ -147,9 +153,16 @@ export default function PropertyPreview({ open, onOpenChange, data, isFirstSubmi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
         <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-3">
-          <DialogTitle className="text-sm text-muted-foreground font-normal">
-            Preview — how tenants will see your listing
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-sm text-muted-foreground font-normal">
+              Preview — how tenants will see your listing
+            </DialogTitle>
+            <DialogClose asChild>
+              <button className="rounded-sm opacity-70 hover:opacity-100 focus:outline-none" aria-label="Close">
+                <X className="h-4 w-4" />
+              </button>
+            </DialogClose>
+          </div>
         </DialogHeader>
 
         {isFirstSubmit && (
@@ -196,6 +209,22 @@ export default function PropertyPreview({ open, onOpenChange, data, isFirstSubmi
             </p>
             {data.landmark && (
               <p className="text-sm text-muted-foreground mt-0.5">Near: {data.landmark}</p>
+            )}
+            {data.formatted_address && (
+              <p className="text-sm text-muted-foreground mt-0.5">{data.formatted_address}</p>
+            )}
+            {data.lister_flat_number && (
+              <p className="text-sm text-muted-foreground mt-0.5">Unit: {data.lister_flat_number}</p>
+            )}
+            {(data.location_verified_by_owner || data.streetview_show_in_listing) && (
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {data.location_verified_by_owner && (
+                  <span className="rounded-full bg-green-100 text-green-800 text-[10px] px-2 py-0.5 font-medium">Location verified</span>
+                )}
+                {data.streetview_show_in_listing && (
+                  <span className="rounded-full bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 font-medium">Street View enabled</span>
+                )}
+              </div>
             )}
           </div>
 
@@ -430,6 +459,22 @@ export default function PropertyPreview({ open, onOpenChange, data, isFirstSubmi
               </a>
             </div>
           )}
+
+          {data.property_tax_paid_upto && (
+            <div>
+              <p className="text-xs text-muted-foreground">Property tax paid upto</p>
+              <p className="text-sm">{data.property_tax_paid_upto}</p>
+            </div>
+          )}
+
+          <div className="pt-2 border-t">
+            <button
+              onClick={() => onOpenChange(false)}
+              className="text-sm text-muted-foreground hover:text-foreground underline"
+            >
+              ← Back to form
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
