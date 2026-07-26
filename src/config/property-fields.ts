@@ -593,7 +593,7 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     audiences: ["owner_form", "admin_form", "public_detail"],
     editableBy: ["owner", "admin"],
     ownerSection: "inside",
-    requiredOwner: true,
+    requiredOwner: false,
     displayIcon: "armchair",
   },
   {

@@ -1090,3 +1090,6 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-25] feat | Prompt 10: ListingReviewDetail parity — FK join owner contact, 23+ new fields, image gallery, SV subsection [IST]
 ## [2026-07-26] fix | Prompt 11: Bug 1 (location_verified_by_owner raw input → shadcn Checkbox), Bug 2 (streetview_available spec input switch→text), Bug 3 (lister_role owner guard removed + label ternary fixed). CLAUDE.md trimmed to 200 lines + Google Maps Phase 1 section added. D-GM-001–D-GM-005 appended to commons-decisions.md. Phase 2 deferred items + ownerDisplayName TODO appended to commons-forward-plan.md. [IST]
 ## [2026-07-26] audit | Prompt 12 diagnostic: Places API migration + 3 live bugs [IST]
+
+## [2026-07-26] fix | Prompt A: annual_rent_increase_pct zero-value bug, building_age hydration, furnishing asterisk removed [IST]
+## [2026-07-26] fix | Prompt B: mobile bottom bar visibility restored — bottom-16 on mobile to clear BottomNav [IST]

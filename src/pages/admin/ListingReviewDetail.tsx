@@ -34,7 +34,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { BHK_OPTIONS } from "@/config/property-form";
+import { BHK_OPTIONS, BUILDING_AMENITIES, FURNISHING_ITEM_OPTIONS } from "@/config/property-form";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import EditRequestDiff from "@/components/property-management/EditRequestDiff";
 
@@ -76,6 +76,7 @@ interface PropertyRow {
   lock_in_months: number | null;
   move_in_charges_amount: number | null;
   rent_brokerage_fixed_amount: number | null;
+  maintenance_included_in_rent: boolean | null;
   // Rules/notes
   building_rules: string | null; building_notes: string | null; pet_policy: string | null;
   // Admin-only flat numbers
@@ -105,6 +106,7 @@ interface PropertyRow {
   rera_registration_number: string | null;
   khata_type: string | null;
   property_tax_paid_upto: string | null;
+  sale_brokerage_pct: number | null;
   // Prompt 10: Street View + location verification
   streetview_available: boolean | null;
   streetview_pano_id: string | null;
@@ -436,6 +438,7 @@ export default function ListingReviewDetail() {
                 <Field k="Annual rent increase (%)" v={property.annual_rent_increase_pct != null ? `${property.annual_rent_increase_pct}%` : null} />
                 <Field k="Move-in charges" v={property.move_in_charges_amount ? `₹${property.move_in_charges_amount.toLocaleString("en-IN")}` : null} />
                 <Field k="Brokerage" v={property.rent_brokerage_fixed_amount != null ? `₹${property.rent_brokerage_fixed_amount.toLocaleString("en-IN")}` : null} />
+                <Field k="Maintenance included" v={property.maintenance_included_in_rent != null ? (property.maintenance_included_in_rent ? "Yes" : "No") : null} />
               </div>
             </div>
           )}
@@ -455,6 +458,7 @@ export default function ListingReviewDetail() {
                 <Field k="RERA number" v={property.rera_registration_number} />
                 <Field k="Khata type" v={property.khata_type} />
                 <Field k="Tax paid up to" v={property.property_tax_paid_upto ? format(new Date(property.property_tax_paid_upto), "PPP") : null} />
+                <Field k="Sale brokerage %" v={property.sale_brokerage_pct != null ? `${property.sale_brokerage_pct}%` : null} />
               </div>
             </div>
           )}
@@ -477,25 +481,75 @@ export default function ListingReviewDetail() {
             )}
           </div>
 
-          {/* Furnishing detail (JSONB — raw display for admin review) */}
-          {property.furnishing_detail != null && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Furnishing detail</p>
-              <pre className="text-xs whitespace-pre-wrap bg-muted rounded p-2 overflow-x-auto">
-                {JSON.stringify(property.furnishing_detail, null, 2)}
-              </pre>
-            </div>
-          )}
+          {/* Furnishing detail (JSONB — table display) */}
+          {property.furnishing_detail != null && (() => {
+            const items = property.furnishing_detail as Array<{ item: string; count?: number; size?: string; rooms?: string; custom?: boolean }>;
+            if (!Array.isArray(items) || items.length === 0) return null;
+            const hasCount = items.some(f => f.count != null);
+            const hasSize  = items.some(f => f.size  != null);
+            const hasRooms = items.some(f => f.rooms != null);
+            return (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Furnishing detail</p>
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-muted/40">
+                      <th className="border border-border/60 px-2 py-1 text-left">Item</th>
+                      {hasCount && <th className="border border-border/60 px-2 py-1 text-left">Count</th>}
+                      {hasSize  && <th className="border border-border/60 px-2 py-1 text-left">Size</th>}
+                      {hasRooms && <th className="border border-border/60 px-2 py-1 text-left">Rooms</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((f, i) => (
+                      <tr key={i} className="even:bg-muted/20">
+                        <td className="border border-border/60 px-2 py-1">{f.custom ? f.item : (FURNISHING_ITEM_OPTIONS.find(o => o.value === f.item)?.label ?? f.item)}</td>
+                        {hasCount && <td className="border border-border/60 px-2 py-1">{f.count}</td>}
+                        {hasSize  && <td className="border border-border/60 px-2 py-1">{f.size}</td>}
+                        {hasRooms && <td className="border border-border/60 px-2 py-1">{f.rooms}</td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
 
-          {/* Building amenities (JSONB — raw display for admin review) */}
-          {property.amenities != null && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Building amenities</p>
-              <pre className="text-xs whitespace-pre-wrap bg-muted rounded p-2 overflow-x-auto">
-                {JSON.stringify(property.amenities, null, 2)}
-              </pre>
-            </div>
-          )}
+          {/* Building amenities (JSONB — chips display) */}
+          {property.amenities != null && (() => {
+            const am = property.amenities as { building?: string[]; furnishing_items?: string[] };
+            const bldg = am.building ?? [];
+            const furn = am.furnishing_items ?? [];
+            if (bldg.length === 0 && furn.length === 0) return null;
+            return (
+              <div className="space-y-2">
+                {bldg.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Building amenities</p>
+                    <div className="flex flex-wrap gap-1">
+                      {bldg.map((a) => (
+                        <span key={a} className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {BUILDING_AMENITIES.find(o => o.value === a)?.label ?? a}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {furn.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Furnishing amenities</p>
+                    <div className="flex flex-wrap gap-1">
+                      {furn.map((f) => (
+                        <span key={f} className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {FURNISHING_ITEM_OPTIONS.find(o => o.value === f)?.label ?? f}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Location & Street View */}
           <div className="rounded border border-border/60 bg-muted/20 p-3 space-y-2">

@@ -304,7 +304,7 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     square_footage: d.square_footage != null ? String(d.square_footage) : "",
     super_built_up_area: d.super_built_up_area != null ? String(d.super_built_up_area) : "",
     facing: (d.facing as string) ?? "",
-    building_age_years: d.building_age_years != null ? String(d.building_age_years) : "",
+    building_age_years: d.building_age_years ? String(d.building_age_years) : "",
     listed_rent: d.listed_rent != null ? String(d.listed_rent) : "",
     security_deposit_amount: d.security_deposit_amount != null ? String(d.security_deposit_amount) : "",
     security_deposit_months: d.security_deposit_months != null ? String(d.security_deposit_months) : "",
@@ -1235,6 +1235,13 @@ export default function ListProperty() {
     water_source: form.water_source.length > 0 ? form.water_source : undefined,
     main_door_lock_type: form.main_door_lock_type || undefined,
     pet_policy_text: form.pet_policy_text || undefined,
+    formatted_address: form.formatted_address || undefined,
+    lister_flat_number: form.lister_flat_number || undefined,
+    location_verified_by_owner: form.location_verified_by_owner,
+    streetview_show_in_listing: form.streetview_show_in_listing,
+    property_tax_paid_upto: form.property_tax_paid_upto
+      ? format(form.property_tax_paid_upto, "PP")
+      : undefined,
   }), [form, images]);
 
   // ─── Session storage restore prompt (Prompt 9) ───────────────────────────
@@ -1917,7 +1924,7 @@ export default function ListProperty() {
         </Accordion>
 
         {/* Sticky footer submit bar */}
-        <div className="fixed bottom-0 md:bottom-0 left-0 right-0 z-30 bg-background border-t px-4 py-3 md:pl-64">
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-30 bg-background border-t px-4 py-3 md:pl-64">
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
             <div className="text-xs">
               <SaveStateIndicator state={saveState} />
@@ -2099,7 +2106,10 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "notice_period_months": return { notice_period_months: parseNum(strVal) };
     case "notice_period_days": return { notice_period_days: parseNum(strVal) };
     case "lock_in_months": return { lock_in_months: parseNum(strVal) };
-    case "annual_rent_increase_pct": return { annual_rent_increase_pct: parseNum(strVal) };
+    case "annual_rent_increase_pct": {
+      const num = parseNum(strVal);
+      return num !== null && !isNaN(num) ? { annual_rent_increase_pct: num } : {};
+    }
     case "parking_2w_count": return { parking_2w_count: parseNum(strVal) ?? 0 };
     case "parking_4w_count": return { parking_4w_count: parseNum(strVal) ?? 0 };
     case "parking_notes": return { parking_notes: strVal.trim() || null };
