@@ -1,3 +1,7 @@
+## [2026-07-26] feat | Prompt B: flag-based fallback inputs for city/state/street_address/pincode, pincode added to isSectionComplete case 1 gate, city+state subtitle removed from address summary [IST]
+
+## [2026-07-26] fix | Bug fixes: locality fallback chain (sublocality_1 ?? neighborhood ?? sublocality_2), drop locality from isSectionComplete case 1 gate, remove lister_flat_number from addressPatch, red asterisks on security_deposit + furnishing bespoke labels [IST]
+
 ## [2026-07-26] fix | lister_role NOT NULL bug in createDraft — default to owner, mapFieldToDb skip-when-empty guard already present [IST]
 
 ## [2026-07-26] migrate | Make bhk/furnishing/state nullable — fix createDraft INSERT failure, regen types.ts, tracked migration file [IST]

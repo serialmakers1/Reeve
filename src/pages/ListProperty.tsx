@@ -386,7 +386,7 @@ function isSectionComplete(
   openedSections: Set<SectionNum>,
 ): boolean {
   switch (section) {
-    case 1: return !!(f.building_name.trim().length >= 2 && f.locality.trim() && f.city.trim() && f.state && f.location_verified_by_owner);
+    case 1: return !!(f.building_name.trim().length >= 2 && f.city.trim() && f.state && f.pincode.trim() && f.location_verified_by_owner);
     case 2: return !!(f.bhk && f.property_type);
     case 3: {
       // Prompt 10a (D-161): Section-3 slot flips between Rent & Deposit and
@@ -834,7 +834,6 @@ export default function ListProperty() {
       streetview_show_in_listing: data.streetview_show_in_listing,
       location_verified_by_owner: data.location_verified_by_owner,
       location_verified_at: data.location_verified_at,
-      lister_flat_number: data.lister_flat_number,
     };
     setForm((prev) => ({ ...prev, ...addressPatch }));
     if (!readOnly) {
@@ -1614,7 +1613,7 @@ export default function ListProperty() {
                   P3: months input removed from owner UI; chips still write both
                   amount and months so the column stays populated for legacy readers. */}
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Security deposit (₹) *</Label>
+                <Label className="text-sm font-medium">Security deposit (₹) <span className="text-destructive">*</span></Label>
                 <Input type="number" value={form.security_deposit_amount} onChange={(e) => updateField("security_deposit_amount", e.target.value)} placeholder="70000" className="min-h-[44px]" />
                 {parseNum(form.listed_rent) ? (
                   <div className="flex gap-1.5 pt-1">
@@ -1700,7 +1699,7 @@ export default function ListProperty() {
           {/* Section 4 */}
           <SectionShell num={4} title="What's inside the home?" status={sectionStatuses[4]} summary={sectionSummary(4, form, images)}>
             <div className="space-y-4">
-              <FormField label="Furnishing *">
+              <FormField label={<>Furnishing <span className="text-destructive">*</span></>}>
                 <Select value={form.furnishing} onValueChange={(v) => updateField("furnishing", v)}>
                   <SelectTrigger className="min-h-[44px] max-w-xs"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>{FURNISHING_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>

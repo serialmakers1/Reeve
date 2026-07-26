@@ -46,6 +46,10 @@ export function PropertyAddressInput({
   const [verified, setVerified] = useState(initialData?.location_verified_by_owner ?? false);
   const [buildingNameTouched, setBuildingNameTouched] = useState(false);
   const [mapImgError, setMapImgError] = useState(false);
+  const [needsCityInput, setNeedsCityInput] = useState(false);
+  const [needsStateInput, setNeedsStateInput] = useState(false);
+  const [needsStreetInput, setNeedsStreetInput] = useState(false);
+  const [needsPincodeInput, setNeedsPincodeInput] = useState(false);
 
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,6 +64,10 @@ export function PropertyAddressInput({
       setShowListing(initialData.streetview_show_in_listing ?? false);
       setActivePath(initialData.address_mode === 'manual' ? 'B' : 'A');
       setPathState('resolved');
+      setNeedsCityInput(!initialData.city);
+      setNeedsStateInput(!initialData.state);
+      setNeedsStreetInput(!initialData.street_address);
+      setNeedsPincodeInput(!initialData.pincode);
     }
   }, []); // only on mount
 
@@ -114,6 +122,10 @@ export function PropertyAddressInput({
     setPredictions([]);
     setBuildingNameTouched(false);
     setMapImgError(false);
+    setNeedsCityInput(false);
+    setNeedsStateInput(false);
+    setNeedsStreetInput(false);
+    setNeedsPincodeInput(false);
     setPathState('resolving');
     if (activePath === 'A') setBuildingInput(suggestion.placePrediction.mainText.text);
     else setAreaInput(suggestion.placePrediction.text.text);
@@ -127,6 +139,10 @@ export function PropertyAddressInput({
 
       const parsed = parseAddressComponents(place, activePath === 'A' ? 'google_place' : 'manual');
       const buildingName = activePath === 'A' ? (place.displayName ?? buildingInput) : null;
+      setNeedsCityInput(!parsed.city);
+      setNeedsStateInput(!parsed.state);
+      setNeedsStreetInput(!parsed.street_address);
+      setNeedsPincodeInput(!parsed.pincode);
 
       const data: Partial<AddressData> = {
         ...parsed,
@@ -379,18 +395,59 @@ export function PropertyAddressInput({
               </div>
             </div>
           ) : (
-            <div className="rounded-md border bg-muted/40 px-4 py-3 space-y-0.5">
+            <div className="rounded-md border bg-muted/40 px-4 py-3">
               <p className="text-sm font-medium text-foreground">{resolvedData.formatted_address}</p>
-              {resolvedData.city && (
-                <p className="text-xs text-muted-foreground">
-                  {[resolvedData.city, resolvedData.state].filter(Boolean).join(', ')}
-                </p>
+            </div>
+          )}
+
+          {/* Fallback inputs — shown only when Google omitted the field (owner mode only) */}
+          {!isAdmin && (
+            <div className="space-y-3">
+              {needsCityInput && (
+                <div className="space-y-1">
+                  <Label htmlFor="city_fallback">
+                    City <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="city_fallback"
+                    value={resolvedData.city ?? ''}
+                    placeholder="e.g. Bengaluru"
+                    className="min-h-[44px]"
+                    onChange={(e) => updateResolvedField('city', e.target.value || null)}
+                  />
+                </div>
+              )}
+              {needsStateInput && (
+                <div className="space-y-1">
+                  <Label htmlFor="state_fallback">
+                    State <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="state_fallback"
+                    value={resolvedData.state ?? ''}
+                    placeholder="e.g. Karnataka"
+                    className="min-h-[44px]"
+                    onChange={(e) => updateResolvedField('state', e.target.value || null)}
+                  />
+                </div>
+              )}
+              {needsStreetInput && (
+                <div className="space-y-1">
+                  <Label htmlFor="street_address_fallback">Street / Road</Label>
+                  <Input
+                    id="street_address_fallback"
+                    value={resolvedData.street_address ?? ''}
+                    placeholder="e.g. 1st Main Road"
+                    className="min-h-[44px]"
+                    onChange={(e) => updateResolvedField('street_address', e.target.value || null)}
+                  />
+                </div>
               )}
             </div>
           )}
 
           {/* Pincode — editable fallback only when Google did not return one */}
-          {!pincode && (
+          {needsPincodeInput && (
             <div className="space-y-1">
               <Label htmlFor="pincode_input">Pincode</Label>
               <Input

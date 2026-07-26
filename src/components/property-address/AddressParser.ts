@@ -50,7 +50,7 @@ export function parseAddressComponents(
     sublocality_1: fields.sublocality_1 ?? null,
     sublocality_2: fields.sublocality_2 ?? null,
     neighborhood: fields.neighborhood ?? null,
-    locality: fields.sublocality_1 ?? null,
+    locality: fields.sublocality_1 ?? fields.neighborhood ?? fields.sublocality_2 ?? null,
     city: fields.city ?? null,
     district: fields.district ?? null,
     state: fields.state ?? null,
