@@ -18,7 +18,6 @@ import { Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import PmsHome from "./pages/PmsHome";
 import Login from "./pages/Login";
-import Search from "./pages/Search";
 import OwnerLandingPage from "./pages/OwnerLandingPage";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
@@ -33,6 +32,7 @@ const ReferProperty          = React.lazy(() => import("./pages/ReferProperty"))
 const Eligibility            = React.lazy(() => import("./pages/Eligibility"));
 const TenantSavingsCalculator = React.lazy(() => import("./pages/TenantSavingsCalculator"));
 const OwnerSavingsCalculator = React.lazy(() => import("./pages/OwnerSavingsCalculator"));
+const SearchBrowsePage       = React.lazy(() => import("./features/search/SearchBrowsePage"));
 const OwnerClarityGuide      = React.lazy(() => import("./pages/OwnerClarityGuide"));
 
 // Owner
@@ -130,7 +130,7 @@ function AppInner() {
         <Route path="/" element={<Index />} />
         <Route path="/pms" element={<PmsHome />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/search" element={<Search />} />
+        <Route path="/search" element={<SearchBrowsePage />} />
         <Route path="/property/:id" element={<PropertyDetail />} />
         <Route path="/refer-property" element={<ReferProperty />} />
         <Route path="/privacy" element={<Privacy />} />
