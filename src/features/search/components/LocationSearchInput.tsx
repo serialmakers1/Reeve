@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import { usePlacesSearch } from "@/features/search/hooks/usePlacesSearch";
 import { MAX_SELECTED_LOCATIONS } from "@/features/search/domain/searchConstants";
 import type { LocationToken, LocationTokenType } from "@/features/search/domain/searchTypes";
@@ -46,10 +46,23 @@ export function LocationSearchInput({
   const { suggestions, isLoading, error, isReady, fetchSuggestions, resolvePlace, clearSuggestions } =
     usePlacesSearch();
 
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listboxId = useId();
+  const [activeIndex, setActiveIndex] = useState(-1);
+
   const [inputText, setInputText] = useState("");
   const [open, setOpen] = useState(false);
   const [cityMismatchWarning, setCityMismatchWarning] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
+
+  // Reset active index when suggestion list changes
+  useEffect(() => { setActiveIndex(-1); }, [suggestions]);
+
+  // Scroll active item into view
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    document.getElementById(`${listboxId}-option-${activeIndex}`)?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, listboxId]);
 
   const atMax = selected.length >= MAX_SELECTED_LOCATIONS;
   const disabled = !city;
@@ -69,7 +82,10 @@ export function LocationSearchInput({
     }
   }
 
-  async function handleSelect(suggestion: google.maps.places.AutocompleteSuggestion) {
+  async function selectOption(index: number) {
+    const suggestion = suggestions[index];
+    if (!suggestion) return;
+    setActiveIndex(-1);
     setResolving(true);
     const types: string[] = (suggestion.placePrediction as any).types ?? [];
     try {
@@ -109,6 +125,7 @@ export function LocationSearchInput({
       // resolvePlace failed — user can try again
     } finally {
       setResolving(false);
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }
 
@@ -141,11 +158,39 @@ export function LocationSearchInput({
           <PopoverTrigger asChild>
             <div className="relative">
               <Input
+                ref={inputRef}
                 placeholder={disabled ? "Select a city first" : "Add a neighbourhood, area, or building…"}
                 value={inputText}
                 disabled={disabled}
                 onChange={(e) => handleInputChange(e.target.value)}
                 onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+                role="combobox"
+                aria-expanded={open && suggestions.length > 0}
+                aria-autocomplete="list"
+                aria-haspopup="listbox"
+                aria-controls={open && suggestions.length > 0 ? listboxId : undefined}
+                aria-activedescendant={
+                  open && activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
+                }
+                onKeyDown={(e) => {
+                  if (!open || suggestions.length === 0) return;
+                  const total = suggestions.length;
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActiveIndex((prev) => (prev >= total - 1 ? 0 : prev + 1));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActiveIndex((prev) => (prev <= 0 ? total - 1 : prev - 1));
+                  } else if (e.key === "Enter" && activeIndex >= 0 && activeIndex < total) {
+                    e.preventDefault();
+                    selectOption(activeIndex);
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    setActiveIndex(-1);
+                    setOpen(false);
+                    inputRef.current?.focus();
+                  }
+                }}
                 className="pr-8"
               />
               {(isLoading || resolving) && (
@@ -155,12 +200,14 @@ export function LocationSearchInput({
           </PopoverTrigger>
           <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
             <Command>
-              <CommandList>
-                {suggestions.map((s) => (
+              <CommandList id={listboxId} role="listbox">
+                {suggestions.map((s, idx) => (
                   <CommandItem
                     key={s.placePrediction.placeId}
+                    id={`${listboxId}-option-${idx}`}
                     value={s.placePrediction.text.text}
-                    onSelect={() => handleSelect(s)}
+                    aria-selected={activeIndex === idx}
+                    onSelect={() => selectOption(idx)}
                   >
                     {s.placePrediction.text.text}
                   </CommandItem>

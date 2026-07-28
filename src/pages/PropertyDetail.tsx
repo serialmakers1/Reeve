@@ -25,8 +25,15 @@ import AllDetailsAccordion from "@/components/property-detail/AllDetailsAccordio
 import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
 import { cn } from "@/lib/utils";
 import type { CommentSectionHandle } from "@/components/comments/CommentSection";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import posthog from "posthog-js";
+import {
+  SEARCH_EVENTS,
+  getSearchSessionId,
+  getDeviceClass,
+  getActiveFilterGroups,
+} from "@/features/search/analytics/searchAnalytics";
+import { parseSearchUrl } from "@/features/search/state/parseSearchUrl";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -463,6 +470,31 @@ const COMMONS_HIDE = false as boolean;
 const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const routeLocation = useLocation();
+  const fromSearch = (routeLocation.state as { fromSearch?: string } | null)?.fromSearch ?? null;
+
+  // Sanitized search context for analytics — only available when arrived from search
+  const searchOriginContext = useMemo<Record<string, unknown> | null>(() => {
+    if (!fromSearch) return null;
+    try {
+      const params = new URL(fromSearch, window.location.origin).searchParams;
+      const parsed = parseSearchUrl(params);
+      const mode = parsed.context.mode ?? "rent";
+      return {
+        search_session_id: getSearchSessionId(),
+        listing_mode: parsed.context.mode ?? null,
+        city_id: null,
+        selected_location_count: parsed.context.locations.length,
+        property_type: parsed.context.propertyType ?? null,
+        filter_groups: getActiveFilterGroups(parsed.filters, mode),
+        result_count_bucket: "unknown",
+        view_mode: parsed.view ?? null,
+        device_class: getDeviceClass(),
+      };
+    } catch {
+      return null;
+    }
+  }, [fromSearch]);
   const { user, session, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -617,14 +649,6 @@ const PropertyDetail: React.FC = () => {
         ...raw,
         amenities: Array.isArray(raw.amenities) ? (raw.amenities as string[]) : null,
       } as PropertyData);
-      posthog?.capture("property_viewed", {
-        property_id: raw.id,
-        bhk: raw.bhk,
-        locality: raw.locality ?? undefined,
-        city: raw.city,
-        listed_rent: raw.listed_rent,
-        furnishing: raw.furnishing,
-      });
 
       // Store raw amenities jsonb for furnishing/building display
       if (raw.amenities && typeof raw.amenities === 'object' && !Array.isArray(raw.amenities)) {
@@ -925,7 +949,7 @@ const PropertyDetail: React.FC = () => {
         {/* Back button */}
         <div className="px-4 py-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => fromSearch ? navigate(fromSearch, { replace: true }) : navigate(-1)}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" /> Back
@@ -951,9 +975,28 @@ const PropertyDetail: React.FC = () => {
             {!isOwnProperty && (
               <FavouriteHeart
                 filled={id ? isFavourited(id) : false}
-                onClick={() => {
+                onClick={async () => {
                   if (!favLoggedIn) { setLoginDrawerOpen(true); return; }
-                  if (id) toggleFavourite(id);
+                  if (!id) return;
+                  const wasAdding = !isFavourited(id);
+                  const success = await toggleFavourite(id);
+                  if (success && wasAdding) {
+                    posthog?.capture(SEARCH_EVENTS.FAVOURITE_COMPLETED, {
+                      property_id: id,
+                      source_surface: "property_detail",
+                      ...(searchOriginContext ?? {
+                        search_session_id: null,
+                        listing_mode: null,
+                        city_id: null,
+                        selected_location_count: null,
+                        property_type: null,
+                        filter_groups: null,
+                        result_count_bucket: "unknown",
+                        view_mode: null,
+                        device_class: getDeviceClass(),
+                      }),
+                    });
+                  }
                 }}
                 className="!bg-black/40 !text-white hover:!bg-black/60"
               />
@@ -1295,6 +1338,7 @@ const PropertyDetail: React.FC = () => {
                     ownerDisplayName={ownerDisplayName}
                     buildingName={property.building_name ?? "this property"}
                     propertyStatus={property.status}
+                    searchContext={searchOriginContext}
                   />
                 )}
               </div>

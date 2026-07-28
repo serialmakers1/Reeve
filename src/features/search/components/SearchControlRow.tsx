@@ -21,8 +21,9 @@ const SORT_LABELS: Record<string, string> = {
   availability_confirmed: "Availability",
 };
 
+// Mobile-only control row — h-11 (44px) for WCAG 2.5.5 touch targets
 const CHIP =
-  "flex h-8 items-center rounded-full border border-border px-3 text-xs font-medium shrink-0 transition-colors";
+  "flex h-11 min-w-[44px] items-center rounded-full border border-border px-3 text-xs font-medium shrink-0 transition-colors";
 
 const ACTIVE_CHIP = "bg-primary/10 border-primary text-primary";
 const INACTIVE_CHIP = "bg-background text-foreground";
@@ -72,12 +73,12 @@ export function SearchControlRow({
   const modeFilterLabel = resolvedMode === "buy" ? "Possession" : "Furnishing";
 
   return (
-    <div className="sticky top-16 z-40 bg-background border-b">
+    <div className="sticky top-16 z-40 bg-background border-b desk:hidden">
       {/* Row 1: context chip + count + sort */}
       <div className="flex h-10 items-center justify-between gap-2 px-4">
         <button
           onClick={onOpenSetup}
-          className="flex min-w-0 items-center gap-1 rounded-full border border-border px-3 h-8 text-xs font-medium truncate"
+          className="flex min-w-0 items-center gap-1 rounded-full border border-border px-3 h-11 text-xs font-medium truncate"
           aria-label="Edit search context"
         >
           <span className="truncate">{contextLabel}</span>
@@ -90,7 +91,7 @@ export function SearchControlRow({
           <Popover>
             <PopoverTrigger asChild>
               <button
-                className="flex h-8 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium"
+                className="flex h-11 min-w-[44px] items-center gap-1 rounded-full border border-border px-3 text-xs font-medium"
                 aria-label={`Current sort: ${sortLabel}`}
               >
                 {sortLabel}
@@ -116,10 +117,11 @@ export function SearchControlRow({
       </div>
 
       {/* Row 2: filter chips */}
-      <div className="flex h-10 items-center gap-2 overflow-x-auto px-4 pb-1">
+      <div className="flex h-14 items-center gap-2 overflow-x-auto px-4 pb-1">
         <button
           onClick={onOpenFilters}
           aria-label="Budget filter"
+          aria-pressed={budgetActive}
           className={cn(CHIP, budgetActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
         >
           Budget{budgetActive ? " ·" : ""}
@@ -127,6 +129,7 @@ export function SearchControlRow({
         <button
           onClick={onOpenFilters}
           aria-label="BHK filter"
+          aria-pressed={bhkActive}
           className={cn(CHIP, bhkActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
         >
           {bhkActive ? `BHK (${f.bhk!.length})` : "BHK"}
@@ -134,6 +137,7 @@ export function SearchControlRow({
         <button
           onClick={onOpenFilters}
           aria-label={`${modeFilterLabel} filter`}
+          aria-pressed={modeFilterActive}
           className={cn(CHIP, modeFilterActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
         >
           {modeFilterLabel}
@@ -142,6 +146,7 @@ export function SearchControlRow({
         <button
           onClick={onOpenFilters}
           aria-label="All filters"
+          aria-pressed={totalActive > 0}
           className={cn(CHIP, totalActive > 0 ? ACTIVE_CHIP : INACTIVE_CHIP)}
         >
           All Filters{totalActive > 0 ? ` (${totalActive})` : ""}

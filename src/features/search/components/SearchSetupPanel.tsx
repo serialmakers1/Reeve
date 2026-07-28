@@ -47,9 +47,10 @@ interface PendingCityChange {
 export interface SearchSetupPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSubmit?: (ctx: { mode: SearchMode; city: string; locations: LocationToken[]; propertyType: string | null }) => void;
 }
 
-export function SearchSetupPanel({ open, onOpenChange }: SearchSetupPanelProps) {
+export function SearchSetupPanel({ open, onOpenChange, onSubmit }: SearchSetupPanelProps) {
   const { state, setContext } = useSearchState();
 
   const contextKey = JSON.stringify({
@@ -124,12 +125,14 @@ export function SearchSetupPanel({ open, onOpenChange }: SearchSetupPanelProps) 
     if (!canSubmit) return;
     // Strip tokens without a real placeId — they can't be matched by the RPC
     const rpcLocations = draft.locations.filter((l) => l.placeId !== null);
-    setContext({
+    const committed = {
       mode: draft.mode!,
       city: draft.city!,
       locations: rpcLocations,
       propertyType: draft.propertyType,
-    });
+    };
+    setContext(committed);
+    onSubmit?.(committed);
     onOpenChange(false);
   }
 

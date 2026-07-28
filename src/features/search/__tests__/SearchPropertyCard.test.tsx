@@ -6,17 +6,6 @@ import type { SearchPropertyResult } from "../data/searchResultContract";
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
-// useFavourites default: logged in, no favourites
-vi.mock("@/hooks/useFavourites", () => ({
-  useFavourites: vi.fn(() => ({
-    isFavourited: (id: string) => id === "fav-property",
-    toggleFavourite: vi.fn(),
-    isLoggedIn: true,
-    loading: false,
-    favouriteIds: new Set<string>(),
-  })),
-}));
-
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual("react-router-dom");
   return { ...actual, useNavigate: () => navigateSpy };
@@ -26,14 +15,9 @@ vi.mock("@/features/search/state/pendingSearchIntent", () => ({
   writePendingIntent: (...args: unknown[]) => pendingIntentSpy(...args),
 }));
 
-// Spies declared after vi.mock so Vitest's module hoisting doesn't affect them.
-// The factory closures above reference these by name — they'll be defined by the
-// time the first test body runs.
 const navigateSpy = vi.fn();
 const pendingIntentSpy = vi.fn();
 let toggleSpy = vi.fn();
-
-import { useFavourites } from "@/hooks/useFavourites";
 
 // ── Fixture ──────────────────────────────────────────────────────────────────
 
@@ -91,10 +75,20 @@ function makeResult(overrides: Partial<SearchPropertyResult> = {}): SearchProper
   };
 }
 
-function renderCard(result: SearchPropertyResult) {
+interface RenderOverrides {
+  isFavourited?: (id: string) => boolean;
+  isLoggedIn?: boolean;
+}
+
+function renderCard(result: SearchPropertyResult, overrides: RenderOverrides = {}) {
   return render(
     <MemoryRouter initialEntries={["/search?type=rent&city=bengaluru"]}>
-      <SearchPropertyCard result={result} />
+      <SearchPropertyCard
+        result={result}
+        isFavourited={overrides.isFavourited ?? ((id) => id === "fav-property")}
+        onToggleFavourite={toggleSpy}
+        isLoggedIn={overrides.isLoggedIn ?? true}
+      />
     </MemoryRouter>,
   );
 }
@@ -105,13 +99,6 @@ beforeEach(() => {
   navigateSpy.mockClear();
   pendingIntentSpy.mockClear();
   toggleSpy = vi.fn();
-  vi.mocked(useFavourites).mockReturnValue({
-    isFavourited: (id: string) => id === "fav-property",
-    toggleFavourite: toggleSpy,
-    isLoggedIn: true,
-    loading: false,
-    favouriteIds: new Set<string>(),
-  });
 });
 
 describe("SearchPropertyCard — rent card", () => {
@@ -152,7 +139,7 @@ describe("SearchPropertyCard — rent card", () => {
     renderCard(makeResult());
     const btn = screen.getByLabelText(/Save to favourites|Remove from favourites/);
     fireEvent.click(btn);
-    expect(toggleSpy).toHaveBeenCalledWith("prop-1");
+    expect(toggleSpy).toHaveBeenCalledWith("prop-1", "list");
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 
@@ -199,14 +186,7 @@ describe("SearchPropertyCard — buy card", () => {
 
 describe("SearchPropertyCard — unauthenticated favourite", () => {
   it("calls writePendingIntent and navigates to login when not logged in", () => {
-    vi.mocked(useFavourites).mockReturnValue({
-      isFavourited: () => false,
-      toggleFavourite: toggleSpy,
-      isLoggedIn: false,
-      loading: false,
-      favouriteIds: new Set<string>(),
-    });
-    renderCard(makeResult());
+    renderCard(makeResult(), { isLoggedIn: false, isFavourited: () => false });
     const btn = screen.getByLabelText(/Save to favourites/);
     fireEvent.click(btn);
     expect(pendingIntentSpy).toHaveBeenCalledWith("prop-1", expect.stringContaining("/"));

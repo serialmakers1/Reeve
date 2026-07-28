@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavourites } from "@/hooks/useFavourites";
 import type { SearchPropertyResult } from "../data/searchResultContract";
+import type { SearchCursor } from "../domain/searchTypes";
 import {
   searchProperties,
   overlayPropertyCounts,
@@ -53,6 +54,7 @@ interface PageAccumulation {
 export interface UseSearchResultsReturn {
   results: SearchPropertyResult[];
   hasNextPage: boolean;
+  nextCursor: SearchCursor | null;
   isInitialLoading: boolean;
   isLoadingMore: boolean;
   isRefreshing: boolean;
@@ -135,6 +137,7 @@ export function useSearchResults(): UseSearchResultsReturn {
   return {
     results,
     hasNextPage: query.data?.hasNextPage ?? false,
+    nextCursor: query.data?.nextCursor ?? null,
     isInitialLoading,
     isLoadingMore,
     isRefreshing,

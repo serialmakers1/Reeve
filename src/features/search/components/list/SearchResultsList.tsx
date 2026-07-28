@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import type { SearchPropertyResult } from "@/features/search/data/searchResultContract";
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { SearchPropertyCard } from "./SearchPropertyCard";
@@ -13,6 +15,17 @@ interface SearchResultsListProps {
   error: Error | null;
   loadMore: () => void;
   onOpenSetup: () => void;
+  layout?: "list" | "horizontal";
+  columns?: 1 | "responsive";
+  selectedPropertyId?: string | null;
+  hoveredPropertyId?: string | null;
+  onHover?: (id: string | null) => void;
+  onRegisterRef?: (id: string, el: HTMLDivElement | null) => void;
+  isFavourited: (id: string) => boolean;
+  onToggleFavourite: (id: string, surface: "list" | "split" | "map") => void;
+  isLoggedIn: boolean;
+  onListingOpen?: (id: string, surface: "list" | "split") => void;
+  nextPageHref?: string | null;
 }
 
 export function SearchResultsList({
@@ -25,6 +38,17 @@ export function SearchResultsList({
   error,
   loadMore,
   onOpenSetup,
+  layout = "list",
+  columns = "responsive",
+  selectedPropertyId,
+  hoveredPropertyId,
+  onHover,
+  onRegisterRef,
+  isFavourited,
+  onToggleFavourite,
+  isLoggedIn,
+  onListingOpen,
+  nextPageHref,
 }: SearchResultsListProps) {
   const { state } = useSearchState();
 
@@ -72,24 +96,48 @@ export function SearchResultsList({
     );
   }
 
+  const wrapperClass =
+    layout === "horizontal"
+      ? "flex flex-col"
+      : cn(
+          columns === "responsive"
+            ? "desk:grid desk:grid-cols-2 2xl:grid-cols-3 desk:gap-3 desk:p-3"
+            : "",
+        );
+
   return (
-    <div>
+    <div className={wrapperClass}>
       {isRefreshing && (
-        <p className="py-2 text-center text-xs text-muted-foreground">Refreshing…</p>
+        <p className="py-2 text-center text-xs text-muted-foreground desk:col-span-full">
+          Refreshing…
+        </p>
       )}
-      {results.map((r) => (
-        <SearchPropertyCard key={r.id} result={r} />
+      {results.map((r, i) => (
+        <SearchPropertyCard
+          key={r.id}
+          result={r}
+          layout={layout === "horizontal" ? "horizontal" : "vertical"}
+          isSelected={r.id === selectedPropertyId}
+          isFirstVisible={i === 0}
+          onHover={onHover}
+          onRegisterRef={onRegisterRef}
+          isFavourited={isFavourited}
+          onToggleFavourite={onToggleFavourite}
+          isLoggedIn={isLoggedIn}
+          onListingOpen={onListingOpen}
+        />
       ))}
       {hasNextPage && !isLoadingMore && (
-        <button
-          onClick={loadMore}
-          className="w-full py-4 text-sm font-medium text-primary"
+        <Link
+          to={nextPageHref ?? "#"}
+          onClick={(e) => { e.preventDefault(); loadMore(); }}
+          className="block w-full py-4 text-center text-sm font-medium text-primary desk:col-span-full"
         >
           Load more
-        </button>
+        </Link>
       )}
       {isLoadingMore && (
-        <div>
+        <div className="desk:col-span-full">
           <SearchCardSkeleton />
           <SearchCardSkeleton />
         </div>

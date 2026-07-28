@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import posthog from "posthog-js";
+import { useNavigate, useLocation } from "react-router-dom";
 import { List } from "lucide-react";
 import { Map as GoogleMap, useMap, useApiLoadingStatus } from "@vis.gl/react-google-maps";
 import { MarkerClusterer } from "@googlemaps/markerclusterer";
@@ -53,11 +52,16 @@ function boundsEqual(a: MapBounds | null, b: MapBounds | null): boolean {
 function buildMarkerElement(
   group: MarkerGroup,
   selectedMarkerId: string | null,
+  hoveredPropertyId?: string | null,
 ): HTMLElement {
   const rep = group.representative;
   const price = formatMarkerPrice(rep.price);
   const count = group.members.length;
   const isSelected = rep.markerId === selectedMarkerId;
+  const isHovered =
+    !isSelected &&
+    !!hoveredPropertyId &&
+    group.members.some((m) => m.markerId === hoveredPropertyId);
   const isApprox = rep.precision === "approximate";
 
   const pill = document.createElement("div");
@@ -65,10 +69,24 @@ function buildMarkerElement(
     "px-2 py-0.5 rounded-full text-[11px] font-semibold shadow-sm border-2 whitespace-nowrap select-none";
   const colorClass = isSelected
     ? "bg-primary text-primary-foreground border-primary scale-110"
-    : "bg-card text-foreground border-border";
+    : isHovered
+      ? "bg-primary/20 text-primary border-primary/60 scale-105"
+      : "bg-card text-foreground border-border";
   const approxClass = isApprox ? "border-dashed" : "";
   pill.className = [baseClass, colorClass, approxClass].filter(Boolean).join(" ");
-  pill.textContent = count > 1 ? `${price} ×${count}` : price;
+  pill.style.display = "flex";
+  pill.style.flexDirection = "column";
+  pill.style.alignItems = "center";
+
+  const priceSpan = document.createElement("span");
+  priceSpan.textContent = count > 1 ? `${price} ×${count}` : price;
+  pill.appendChild(priceSpan);
+
+  const locationLabel = document.createElement("span");
+  locationLabel.style.cssText = "font-size:9px;opacity:0.6;display:block;white-space:nowrap;line-height:1.2;";
+  locationLabel.textContent = isApprox ? "Approx." : "Exact";
+  pill.appendChild(locationLabel);
+
   return pill;
 }
 
@@ -78,6 +96,7 @@ interface InnerControllerProps {
   onIdleBounds: (bounds: MapBounds) => void;
   groupedMarkers: MarkerGroup[];
   selectedMarkerId: string | null;
+  hoveredPropertyId?: string | null;
   onMarkerClick: (propertyId: string) => void;
 }
 
@@ -85,6 +104,7 @@ function MapInnerController({
   onIdleBounds,
   groupedMarkers,
   selectedMarkerId,
+  hoveredPropertyId,
   onMarkerClick,
 }: InnerControllerProps) {
   const map = useMap("search-map");
@@ -131,7 +151,7 @@ function MapInnerController({
 
       const el = new markerLib.AdvancedMarkerElement({
         position: { lat: group.lat, lng: group.lng },
-        content: buildMarkerElement(group, selectedMarkerId),
+        content: buildMarkerElement(group, selectedMarkerId, hoveredPropertyId),
         title,
         gmpClickable: true,
       });
@@ -143,7 +163,7 @@ function MapInnerController({
     return () => {
       clusterer.clearMarkers();
     };
-  }, [map, groupedMarkers, selectedMarkerId, onMarkerClick]);
+  }, [map, groupedMarkers, selectedMarkerId, hoveredPropertyId, onMarkerClick]);
 
   return null;
 }
@@ -154,14 +174,27 @@ interface SearchMapViewProps {
   onOpenSetup: () => void;
   onOpenFilters: () => void;
   onBackToList: () => void;
+  showPreview?: boolean;
+  hoveredPropertyId?: string | null;
+  isFavourited?: (id: string) => boolean;
+  onToggleFavourite?: (id: string, surface: "list" | "split" | "map") => void;
+  isLoggedIn?: boolean;
+  onListingOpen?: (propertyId: string, surface: "list" | "split" | "map") => void;
 }
 
 export function SearchMapView({
   onOpenSetup,
   onOpenFilters,
   onBackToList,
+  showPreview = true,
+  hoveredPropertyId,
+  isFavourited = () => false,
+  onToggleFavourite = () => {},
+  isLoggedIn = false,
+  onListingOpen,
 }: SearchMapViewProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { state, setMapBounds, setSelectedPropertyId } = useSearchState();
   const apiStatus = useApiLoadingStatus();
 
@@ -200,7 +233,7 @@ export function SearchMapView({
   // ── Map failure fallback ────────────────────────────────────────────────────
   if (apiStatus === "FAILED") {
     return (
-      <div className="fixed inset-x-0 top-16 bottom-0 z-30 flex flex-col items-center justify-center gap-4 p-6">
+      <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-6">
         <p className="text-sm text-muted-foreground text-center">
           Map unavailable. Check your connection and try again.
         </p>
@@ -232,7 +265,7 @@ export function SearchMapView({
       };
 
   return (
-    <div className="fixed inset-x-0 top-16 bottom-0 z-30">
+    <div className="w-full h-full relative">
       <GoogleMap
         id="search-map"
         mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID}
@@ -245,6 +278,7 @@ export function SearchMapView({
           onIdleBounds={handleIdleBounds}
           groupedMarkers={groupedMarkers}
           selectedMarkerId={selectedMarkerId}
+          hoveredPropertyId={hoveredPropertyId}
           onMarkerClick={(propertyId) => setSelectedPropertyId(propertyId)}
         />
       </GoogleMap>
@@ -298,16 +332,23 @@ export function SearchMapView({
         <List className="h-4 w-4" /> List
       </button>
 
-      {/* Selected property preview */}
-      {selectedGroup && (
+      {/* Selected property preview — suppressed in split mode */}
+      {showPreview && selectedGroup && (
         <div className="absolute bottom-16 left-2 right-2 z-10">
           <MapPropertyPreview
             group={selectedGroup}
             onClose={() => setSelectedPropertyId(null)}
             onOpen={(propertyId) => {
-              posthog?.capture("search_map_property_opened", { property_id: propertyId });
-              navigate(`/property/${propertyId}`);
+              onListingOpen?.(propertyId, "map");
+              const params = new URLSearchParams(location.search);
+              params.set("pid", propertyId);
+              const returnTo = location.pathname + "?" + params.toString();
+              setSelectedPropertyId(propertyId);
+              navigate(`/property/${propertyId}`, { state: { fromSearch: returnTo } });
             }}
+            isFavourited={isFavourited}
+            onToggleFavourite={(id) => onToggleFavourite(id, "map")}
+            isLoggedIn={isLoggedIn}
           />
         </div>
       )}
