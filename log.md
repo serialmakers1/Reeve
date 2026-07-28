@@ -1,3 +1,45 @@
+## [2026-07-28] feature | Completed Phase 10 Map/List filter parity and synced live map RPC migration [IST]
+
+## [2026-07-28] feature | Phase 10 — Mobile Google Map search experience: SearchMapView (full-screen map, AdvancedMarkerElement clustering, Search this area, MapPropertyPreview), SearchMapPlaceholder enabled, lazy mount in SearchBrowsePage, mapBounds URL-serialized regardless of view, setSelectedPropertyId in useSearchState, PostHog search_map_opened + search_map_property_opened [IST]
+
+## [2026-07-28] feature | Phase 9 P2 — Added map-marker data path: MapMarkersInput, fetchMapMarkers, mapRpcRowToMarker; synced get_map_markers migration (20260728120000) verbatim from live RPC [IST]
+
+## [2026-07-28] feature | Phase 8 — Owner availability confirmation UI (OwnerDashboard + PropertyCard with AvailabilityArea sub-component); SearchFilterPanel Availability Confirmed section enabled (3/7/14d chips); availability_confirmed sort option added to SearchFilterPanel + SearchControlRow (rent mode only) [IST]
+
+## [2026-07-28] migrate | Added reproducible Phase 7 search RPC migration file (20260727220849_search_compact_properties_phase7_filters.sql) — 42-param search_compact_properties, 6 new predicates in all 4 sort branches [04:20 IST]
+
+## [2026-07-28] feat | Phase 7 — Mode-aware filter panels: SearchFilterPanel (Sheet), FilterSection, filterUtils/countActiveFilters, sort Popover, active chips with indicators; zeroRentBrokerage + rentBrokerageMaxFixed + buyBrokerageMaxPct wired; 24 new tests, 369 passing [04:08 IST]
+
+## [2026-07-28] feat | Phase 6 — Mobile search list MVP: SearchControlRow, SearchMapPlaceholder, SearchCardSkeleton, SearchPropertyCard, SearchResultsList; resolvers (price, comparisonFacts, contextualSignal); 48 new tests, 345 passing [02:41 IST]
+
+## [2026-07-28] feat | Phase 5 Prompt 1 — Search Setup Panel (SearchSetupPanel, RentBuySelector, CitySearchInput, LocationSearchInput, PropertyTypeSelector, usePlacesSearch, useReverseGeocode); 16 tests passing [01:30 IST]
+
+## [2026-07-28] verify | Completed final Phase 4 search orchestration validation [00:54 IST]
+
+## [2026-07-28] feat | Phase 4 Prompt 1 — useSearchResults orchestration hook, SearchBrowsePage integrated [00:40 IST]
+
+## [2026-07-28] feat | Phase 3 complete — migrations, mapper, adapter, tests, verification all done [00:15 IST]
+
+## [2026-07-27] feat | Phase 3 Prompt 7 — Migration 3D, types regen, mapRpcRowToResult, searchDataClient [23:58 IST]
+
+## [2026-07-27] feat | Phase 3 Prompt 5 — Migration 3B filed: search_compact_properties RPC [23:41 IST]
+
+## [2026-07-27] feat | Phase 3 Prompt 3 — Migration 3A filed: availability_confirmed_at + reconfirmation RPC [20:40 IST]
+
+## [2026-07-27] feat | Phase 3 Prompt 1 — SearchCursor discriminated union, locations_data hardened [20:15 IST]
+
+## [2026-07-27] feat | Phase 2 Prompt 3 — RPC contracts frozen, cursor pagination, Phase 2 complete [19:13 IST]
+
+## [2026-07-27] feat | Phase 2 Prompt 1 — URL contract hardened, locations resolved, mode transitions locked [18:29 IST]
+
+## [2026-07-27] feat | Phase 1 Prompt 4 — SearchBrowsePage shell created; Phase 1 complete [17:38 IST]
+
+## [2026-07-27] feat | Phase 1 Prompt 3 — SearchPropertyResult and SearchMapMarker contracts frozen [17:29 IST]
+
+## [2026-07-27] feat | Phase 1 Prompt 2 — search feature scaffold, mode model, state model, URL utilities and tests complete [17:18 IST]
+
+## [2026-07-27] audit | Phase 1 Prompt 1 — baseline captured and targeted diagnosis complete [17:05 IST]
+
 ## [2026-07-26] feat | Prompt B: flag-based fallback inputs for city/state/street_address/pincode, pincode added to isSectionComplete case 1 gate, city+state subtitle removed from address summary [IST]
 
 ## [2026-07-26] fix | Bug fixes: locality fallback chain (sublocality_1 ?? neighborhood ?? sublocality_2), drop locality from isSectionComplete case 1 gate, remove lister_flat_number from addressPatch, red asterisks on security_deposit + furnishing bespoke labels [IST]

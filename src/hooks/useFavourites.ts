@@ -77,5 +77,5 @@ export function useFavourites() {
     [userId, favouriteIds]
   );
 
-  return { isFavourited, toggleFavourite, isLoggedIn: !!userId, loading };
+  return { isFavourited, favouriteIds, toggleFavourite, isLoggedIn: !!userId, loading };
 }

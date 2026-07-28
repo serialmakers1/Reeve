@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -39,15 +40,18 @@ interface OwnerProperty {
   is_active: boolean;
   created_at: string;
   listing_type?: string | null;
+  availability_confirmed_at: string | null;
 }
 
 export default function OwnerDashboard() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useRequireAuth();
+  const { toast } = useToast();
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [properties, setProperties] = useState<OwnerProperty[]>([]);
   const [photoMap, setPhotoMap] = useState<Record<string, string>>({});
   const [unansweredMap, setUnansweredMap] = useState<Record<string, number>>({});
+  const [availMap, setAvailMap] = useState<Record<string, { confirmedAt: string; nextAt: string }>>({});
   const [loading, setLoading] = useState(true);
   const [showDraftLimit, setShowDraftLimit] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
@@ -65,7 +69,7 @@ export default function OwnerDashboard() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: props } = await (supabase as any)
         .from("properties")
-        .select("id, building_name, locality, city, bhk, listed_rent, status, is_active, created_at, listing_type")
+        .select("id, building_name, locality, city, bhk, listed_rent, status, is_active, created_at, listing_type, availability_confirmed_at")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: false });
       const rows = (props ?? []) as OwnerProperty[];
@@ -131,6 +135,23 @@ export default function OwnerDashboard() {
     }
     navigate("/list");
   };
+
+  async function handleConfirmAvailability(propertyId: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc("confirm_availability_of_rental", {
+      p_property_id: propertyId,
+    });
+    if (error) {
+      toast({ title: "Could not confirm availability", description: error.message, variant: "destructive" });
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    setAvailMap((prev) => ({
+      ...prev,
+      [propertyId]: { confirmedAt: row.confirmed_at, nextAt: row.next_confirmation_at },
+    }));
+    toast({ title: "Availability confirmed", description: "Tenants will see your listing as recently confirmed." });
+  }
 
   const goToProperty = (p: OwnerProperty) => {
     posthog?.capture("commons_owner_dashboard_property_card_clicked", {
@@ -244,6 +265,9 @@ export default function OwnerDashboard() {
                     property={p}
                     primaryPhotoUrl={photoMap[p.id] ?? null}
                     unansweredCount={unansweredMap[p.id]}
+                    availabilityConfirmedAt={availMap[p.id]?.confirmedAt ?? p.availability_confirmed_at}
+                    nextConfirmationAt={availMap[p.id]?.nextAt ?? null}
+                    onConfirmAvailability={() => handleConfirmAvailability(p.id)}
                     onClick={() => goToProperty(p)}
                   />
                 ))}
