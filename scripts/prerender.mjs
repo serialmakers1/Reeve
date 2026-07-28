@@ -463,10 +463,10 @@ const routes = [
   // ── /search ───────────────────────────────────────────────────────────────────
   {
     outFile: path.join(DIST, 'search', 'index.html'),
-    title: 'Search Rental Properties in Bangalore | Reeve ',
-    description: 'Browse rental properties in Bangalore. Filter by BHK, locality, and rent range. Fully managed homes — no broker, no hidden fees, 2-month deposit.',
-    ogTitle: 'Search Rental Properties in Bangalore | Reeve',
-    ogDescription: 'Rental properties in Bangalore. Fully managed, professionally screened. No broker fees, 2-month deposit.',
+    title: 'Properties for Rent and Sale in India | Reeve',
+    description: 'Find rental and sale properties across India. Search by city, neighbourhood, BHK, and budget, with transparent listing and lister information on Reeve.',
+    ogTitle: 'Properties for Rent and Sale in India | Reeve',
+    ogDescription: 'Find rental and sale properties across India on Reeve. Search by city, neighbourhood, BHK, and budget.',
     canonical: BASE + '/search',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -492,14 +492,9 @@ const routes = [
   </header>
   <main>
     <section aria-label="Property search">
-      <h1>Rental Properties in Bangalore </h1>
-      <p>Browse Reeve-managed rental homes in Bangalore. Every property is professionally managed — tenant screening, rent collection, maintenance, and exit handled by Reeve. No broker, no hidden fees, 2-month deposit only.</p>
-      <p>Filter by BHK, locality, furnishing, and rent range to find your ideal home. All listed properties are actively managed and ready for verified applicants.</p>
-      <ul>
-        <li>2-month deposit — not 3</li>
-        <li>Fully managed: no direct landlord contact needed</li>
-        <li>Aadhaar + PAN + income verification before move-in</li>
-      </ul>
+      <h1>Properties for Rent and Sale in India</h1>
+      <p>Search rental and sale properties across India on Reeve. Filter by city, neighbourhood, BHK, furnishing, and budget to find the right home.</p>
+      <p>Each listing includes transparent lister information and property details so you can make informed decisions.</p>
     </section>
   </main>
 </div>`,

@@ -1,3 +1,13 @@
+## [2026-07-29] feature | Completed Phase 15 production Search cutover [IST]
+
+## [2026-07-29] feature | Phase 14 — Fast, Accessible, Machine-Readable Search: React.lazy SearchMapView (code-split), <main>/<h1 sr-only>/aria-live in SearchBrowsePage, <article> root + decoding=async + isFirstVisible LCP on SearchPropertyCard, Load-more as <Link> with nextPageHref (crawlable pagination), combobox ARIA + activeIndex keyboard nav on CitySearchInput/LocationSearchInput, h-11 touch targets + aria-pressed on filter chips (mobile + desktop), visible Approx./Exact text on map marker pills + MapPropertyPreview, useSearchMeta (runtime noindex/canonical with cleanup), /search prerender copy updated (nationwide Rent+Buy neutral); SearchPropertyCard tests updated for Phase 12 injected-props; 351 passing [IST]
+
+## [2026-07-28] feature | Completed Phase 13 significant PostHog product analytics instrumentation [IST]
+
+## [2026-07-28] feature | Completed Phase 12 favourites and search-to-property continuity [IST]
+
+## [2026-07-28] feature | Completed Phase 11 desktop List/Split search experience and state restoration [IST]
+
 ## [2026-07-28] feature | Completed Phase 10 Map/List filter parity and synced live map RPC migration [IST]
 
 ## [2026-07-28] feature | Phase 10 — Mobile Google Map search experience: SearchMapView (full-screen map, AdvancedMarkerElement clustering, Search this area, MapPropertyPreview), SearchMapPlaceholder enabled, lazy mount in SearchBrowsePage, mapBounds URL-serialized regardless of view, setSelectedPropertyId in useSearchState, PostHog search_map_opened + search_map_property_opened [IST]

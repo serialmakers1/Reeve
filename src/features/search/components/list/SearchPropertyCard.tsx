@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Heart, Camera } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { SearchPropertyResult } from "@/features/search/data/searchResultContract";
-import { useFavourites } from "@/hooks/useFavourites";
 import { writePendingIntent } from "@/features/search/state/pendingSearchIntent";
+import { useSearchState } from "@/features/search/state/useSearchState";
 import { resolveDisplayPrice } from "@/features/search/resolvers/priceResolver";
 import { resolveComparisonFacts } from "@/features/search/resolvers/comparisonFactsResolver";
 import { resolveContextualSignal } from "@/features/search/resolvers/contextualSignalResolver";
@@ -37,14 +38,36 @@ function freshnessLabel(result: SearchPropertyResult): string | null {
 
 interface SearchPropertyCardProps {
   result: SearchPropertyResult;
+  layout?: "vertical" | "horizontal";
+  isSelected?: boolean;
+  isFirstVisible?: boolean;
+  onHover?: (id: string | null) => void;
+  onRegisterRef?: (id: string, el: HTMLDivElement | null) => void;
+  isFavourited: (id: string) => boolean;
+  onToggleFavourite: (id: string, surface: "list" | "split" | "map") => void;
+  isLoggedIn: boolean;
+  onListingOpen?: (id: string, surface: "list" | "split") => void;
 }
 
-export function SearchPropertyCard({ result }: SearchPropertyCardProps) {
+export function SearchPropertyCard({
+  result,
+  layout = "vertical",
+  isSelected,
+  isFirstVisible = false,
+  onHover,
+  onRegisterRef,
+  isFavourited,
+  onToggleFavourite,
+  isLoggedIn,
+  onListingOpen,
+}: SearchPropertyCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isFavourited, toggleFavourite, isLoggedIn } = useFavourites();
+  const { setSelectedPropertyId } = useSearchState();
   const [imgSrc, setImgSrc] = useState(result.primaryImageUrl || PLACEHOLDER_IMG);
 
+  // Surface derived from layout — horizontal = desktop Split, vertical = List
+  const surface = layout === "horizontal" ? "split" : "list" as const;
   const isFav = isFavourited(result.id);
   const displayPrice = resolveDisplayPrice(result);
   const facts = resolveComparisonFacts(result, result.listingMode);
@@ -57,20 +80,48 @@ export function SearchPropertyCard({ result }: SearchPropertyCardProps) {
       .filter(Boolean)
       .join(" ") || "Property listing";
 
+  const registerRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      onRegisterRef?.(result.id, el);
+    },
+    [result.id, onRegisterRef],
+  );
+
+  // Build the canonical return URL with pid so Phase 11/12 restoration fires on return
+  const returnTo = (() => {
+    const params = new URLSearchParams(location.search);
+    params.set("pid", result.id);
+    return location.pathname + "?" + params.toString();
+  })();
+
   function handleFavourite(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     if (!isLoggedIn) {
-      const returnTo = location.pathname + location.search;
       writePendingIntent(result.id, returnTo);
       navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`);
       return;
     }
-    toggleFavourite(result.id);
+    onToggleFavourite(result.id, surface);
   }
 
   return (
-    <div className="relative bg-white border-b last:border-b-0">
+    <article
+      ref={registerRef}
+      className={cn(
+        "relative bg-white border-b last:border-b-0",
+        isSelected && "ring-2 ring-inset ring-primary",
+        layout === "horizontal" && "desk:flex desk:flex-row desk:h-[140px]",
+      )}
+      onMouseEnter={() => onHover?.(result.id)}
+      onMouseLeave={() => onHover?.(null)}
+      onFocus={() => onHover?.(result.id)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          onHover?.(null);
+        }
+      }}
+    >
       {/* Favourite — sibling of Link, absolutely positioned over image */}
       <button
         onClick={handleFavourite}
@@ -82,13 +133,27 @@ export function SearchPropertyCard({ result }: SearchPropertyCardProps) {
         />
       </button>
 
-      <Link to={result.detailUrl} className="block">
+      <Link
+        to={result.detailUrl}
+        state={{ fromSearch: returnTo }}
+        onClick={() => {
+          setSelectedPropertyId(result.id);
+          onListingOpen?.(result.id, surface);
+        }}
+        className={cn("block", layout === "horizontal" && "desk:flex desk:flex-row desk:flex-1")}
+      >
         {/* Image */}
-        <div className="relative h-36 overflow-hidden bg-muted">
+        <div className={cn(
+          "relative overflow-hidden bg-muted",
+          layout === "horizontal"
+            ? "h-36 desk:h-full desk:w-[180px] desk:shrink-0"
+            : "h-36",
+        )}>
           <img
             src={imgSrc}
             alt={imageAlt}
-            loading="lazy"
+            loading={isFirstVisible ? "eager" : "lazy"}
+            decoding="async"
             className="h-full w-full object-cover"
             onError={() => setImgSrc(PLACEHOLDER_IMG)}
           />
@@ -115,7 +180,7 @@ export function SearchPropertyCard({ result }: SearchPropertyCardProps) {
         </div>
 
         {/* Content */}
-        <div className="space-y-1 p-2.5">
+        <div className="space-y-1 p-2.5 flex-1 min-w-0">
           {/* BHK + type */}
           <p className="text-sm font-semibold leading-tight">
             {[result.bhk, result.propertyType].filter(Boolean).join(" · ") || "Property"}
@@ -178,6 +243,6 @@ export function SearchPropertyCard({ result }: SearchPropertyCardProps) {
           </div>
         </div>
       </Link>
-    </div>
+    </article>
   );
 }
