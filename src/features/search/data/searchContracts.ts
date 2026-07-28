@@ -23,7 +23,7 @@ export const MAP_MARKERS_LIMIT = 200;
  */
 export interface SearchPropertiesInput {
   mode: SearchMode;
-  city: string;                      // normalized lowercase city identifier
+  city: string | null;               // normalized lowercase city identifier; null = no city filter (nationwide)
   locationIds: string[];             // OR semantics; empty = search whole city
   propertyType: string | null;
 

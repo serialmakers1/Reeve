@@ -159,9 +159,12 @@ export function clearIncompatibleFilters(state: SearchState): SearchState {
 
 // ─── hasValidSearchContext ────────────────────────────────────────────────────
 
-/** Returns true only when mode is non-null AND city is non-null and non-empty. */
+/**
+ * Returns true when mode (rent/buy) is chosen. City is optional — a mode alone
+ * loads default/nationwide results; city only narrows them.
+ */
 export function hasValidSearchContext(state: SearchState): boolean {
-  return state.context.mode !== null && !!state.context.city;
+  return state.context.mode !== null;
 }
 
 // ─── buildReturnUrl ───────────────────────────────────────────────────────────

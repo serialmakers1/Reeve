@@ -294,20 +294,20 @@ describe("hasValidSearchContext", () => {
     expect(hasValidSearchContext(state)).toBe(false);
   });
 
-  it("returns false when city is null", () => {
+  it("returns true when city is null (city is optional — mode alone is valid)", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
       context: { mode: "rent", city: null, locations: [], propertyType: null },
     };
-    expect(hasValidSearchContext(state)).toBe(false);
+    expect(hasValidSearchContext(state)).toBe(true);
   });
 
-  it("returns false when city is empty string", () => {
+  it("returns true when city is empty string (city is optional)", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
       context: { mode: "rent", city: "", locations: [], propertyType: null },
     };
-    expect(hasValidSearchContext(state)).toBe(false);
+    expect(hasValidSearchContext(state)).toBe(true);
   });
 });
 
