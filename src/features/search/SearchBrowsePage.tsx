@@ -37,7 +37,7 @@ export default function SearchBrowsePage() {
 
   // ── search_context_submitted ───────────────────────────────────────────────
   const handleContextSubmitted = useCallback(
-    (submittedCtx: { mode: string; city: string; locations: { id: string }[]; propertyType: string | null }) => {
+    (submittedCtx: { mode: string; city: string | null; locations: { id: string }[]; propertyType: string | null }) => {
       const sessionId = newSearchSessionId();
       posthog?.capture(SEARCH_EVENTS.CONTEXT_SUBMITTED, {
         search_session_id: sessionId,

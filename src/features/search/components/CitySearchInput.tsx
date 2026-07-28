@@ -81,7 +81,11 @@ export function CitySearchInput({
     setResolving(true);
     try {
       const place = await resolvePlace(suggestion, ["id", "location", "viewport", "displayName"]);
-      const city = (place as any).displayName?.text?.toLowerCase() ?? inputText.toLowerCase();
+      // New Places API: Place.displayName is a plain string (not { text }).
+      const rawDisplayName = (place as any).displayName;
+      const displayNameStr =
+        typeof rawDisplayName === "string" ? rawDisplayName : rawDisplayName?.text;
+      const city = (displayNameStr ?? inputText).toLowerCase();
       const vp = (place as any).viewport;
       const viewport: Viewport | null = vp
         ? {
@@ -89,7 +93,8 @@ export function CitySearchInput({
             high: { lat: vp.getNorthEast().lat(), lng: vp.getNorthEast().lng() },
           }
         : null;
-      const displayLabel = (place as any).displayName?.text ?? inputText;
+      // Full prediction text (e.g. "Bangalore, Karnataka, India") for the input display.
+      const displayLabel = suggestion.placePrediction.text?.text ?? displayNameStr ?? inputText;
       setInputText(displayLabel);
       setOpen(false);
       clearSuggestions();

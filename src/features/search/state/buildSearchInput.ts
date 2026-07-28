@@ -8,13 +8,13 @@ import { SEARCH_PAGE_SIZE } from "../data/searchContracts";
  */
 export function buildSearchInput(state: SearchState): SearchPropertiesInput | null {
   const { mode, city, locations, propertyType } = state.context;
-  if (!mode || !city) return null;
+  if (!mode) return null;
 
   const f = state.filters as RentFilters & BuyFilters;
 
   return {
     mode,
-    city,
+    city: city ?? null,
     locationIds: locations.map((l) => l.id),
     propertyType: propertyType ?? null,
 

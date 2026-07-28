@@ -29,20 +29,24 @@ describe("buildSearchInput — disabled cases", () => {
     expect(buildSearchInput(getDefaultSearchState(null))).toBeNull();
   });
 
-  it("returns null when city is null", () => {
+  it("returns non-null with city=null when only mode is set (city is optional)", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
       context: { mode: "rent", city: null, locations: [], propertyType: null },
     };
-    expect(buildSearchInput(state)).toBeNull();
+    const input = buildSearchInput(state);
+    expect(input).not.toBeNull();
+    expect(input!.city).toBeNull();
   });
 
-  it("returns null when city is empty string", () => {
+  it("returns non-null with city='' passed through when city is empty string", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
       context: { mode: "rent", city: "", locations: [], propertyType: null },
     };
-    expect(buildSearchInput(state)).toBeNull();
+    const input = buildSearchInput(state);
+    expect(input).not.toBeNull();
+    expect(input!.city).toBe("");
   });
 
   it("returns non-null for valid rent state", () => {

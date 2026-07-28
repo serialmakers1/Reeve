@@ -47,7 +47,7 @@ interface PendingCityChange {
 export interface SearchSetupPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit?: (ctx: { mode: SearchMode; city: string; locations: LocationToken[]; propertyType: string | null }) => void;
+  onSubmit?: (ctx: { mode: SearchMode; city: string | null; locations: LocationToken[]; propertyType: string | null }) => void;
 }
 
 export function SearchSetupPanel({ open, onOpenChange, onSubmit }: SearchSetupPanelProps) {
@@ -119,7 +119,8 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit }: SearchSetupPa
     }
   }
 
-  const canSubmit = !!draft.mode && !!draft.city;
+  // City is optional — a mode alone loads default/nationwide results.
+  const canSubmit = !!draft.mode;
 
   function handleSubmit() {
     if (!canSubmit) return;
@@ -127,7 +128,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit }: SearchSetupPa
     const rpcLocations = draft.locations.filter((l) => l.placeId !== null);
     const committed = {
       mode: draft.mode!,
-      city: draft.city!,
+      city: draft.city,
       locations: rpcLocations,
       propertyType: draft.propertyType,
     };
