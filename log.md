@@ -1145,3 +1145,4 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 
 ## [2026-07-26] fix | Prompt A: annual_rent_increase_pct zero-value bug, building_age hydration, furnishing asterisk removed [IST]
 ## [2026-07-26] fix | Prompt B: mobile bottom bar visibility restored — bottom-16 on mobile to clear BottomNav [IST]
+## [2026-07-29] fix | Restored responsive breakpoints and Search application shell [20:18 IST]

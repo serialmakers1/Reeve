@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, Suspense, lazy } fro
 import posthog from "posthog-js";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import Layout from "@/components/Layout";
 import { useSearchState } from "@/features/search";
 import { useSearchResults } from "@/features/search/state/useSearchResults";
 import { useFavourites } from "@/hooks/useFavourites";
@@ -247,7 +248,8 @@ export default function SearchBrowsePage() {
       : "hidden";
 
   return (
-    <main data-testid="search-browse-page" className="min-h-screen">
+    <Layout>
+    <div data-testid="search-browse-page" className="min-h-screen">
       <SearchSetupPanel open={isPanelOpen} onOpenChange={setIsPanelOpen} onSubmit={handleContextSubmitted} />
       <SearchFilterPanel open={isFilterPanelOpen} onOpenChange={setIsFilterPanelOpen} />
 
@@ -344,6 +346,7 @@ export default function SearchBrowsePage() {
       {hasValidContext && !isMapView && (
         <SearchMapPlaceholder onClick={() => setView("map")} />
       )}
-    </main>
+    </div>
+    </Layout>
   );
 }
