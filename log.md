@@ -1147,3 +1147,6 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-26] fix | Prompt B: mobile bottom bar visibility restored — bottom-16 on mobile to clear BottomNav [IST]
 ## [2026-07-29] fix | Restored responsive breakpoints and Search application shell [20:18 IST]
 ## [2026-07-29] fix | Fixed Search location, RPC contract, default results, and geolocation flow [21:05 IST]
+## [2026-07-29] fix | Search default-Rent, Vercel auto-city, Popular Cities, city-scoped Areas [10:09 IST]
+## [2026-07-29] ui | Search UX structure, guidance, toolbar, and filter hierarchy [10:36 IST]
+## [2026-07-29] ui | Search cards, split layout, responsive states, and visual polish [10:49 IST]

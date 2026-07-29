@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { X, Loader2 } from "lucide-react";
+import { viewportToBoundsLiteral } from "@/features/search/domain/geoUtils";
 
 type Viewport = { low: { lat: number; lng: number }; high: { lat: number; lng: number } };
 
@@ -29,6 +30,8 @@ function inferTokenType(types: string[]): LocationTokenType {
 interface LocationSearchInputProps {
   city: string | null;
   cityViewport: Viewport | null;
+  /** True once a canonical city (with viewport) is resolved. Areas stay disabled until then. */
+  cityResolved: boolean;
   selected: LocationToken[];
   onAdd: (token: LocationToken) => void;
   onRemove: (id: string) => void;
@@ -38,6 +41,7 @@ interface LocationSearchInputProps {
 export function LocationSearchInput({
   city,
   cityViewport,
+  cityResolved,
   selected,
   onAdd,
   onRemove,
@@ -65,15 +69,21 @@ export function LocationSearchInput({
   }, [activeIndex, listboxId]);
 
   const atMax = selected.length >= MAX_SELECTED_LOCATIONS;
-  const disabled = !city;
+  // Areas are only usable once a canonical city (with viewport) is resolved — area
+  // suggestions must be scoped to the city, which requires the viewport.
+  const disabled = !cityResolved;
 
   function handleInputChange(val: string) {
     setInputText(val);
     setCityMismatchWarning(null);
     if (val.trim() && !atMax) {
       setOpen(true);
-      const extra: Record<string, unknown> = cityViewport
-        ? { locationRestriction: { rectangle: cityViewport } }
+      // Scope area suggestions to the city viewport. The Places (New) API expects a
+      // LatLngBoundsLiteral; when a locationRestriction is present, omit includedRegionCodes
+      // (the two conflict). usePlacesSearch drops the region code when __noRegion is set.
+      const bounds = viewportToBoundsLiteral(cityViewport);
+      const extra: Record<string, unknown> = bounds
+        ? { locationRestriction: bounds, __noRegion: true }
         : {};
       fetchSuggestions(val, extra);
     } else {
@@ -159,7 +169,11 @@ export function LocationSearchInput({
             <div className="relative">
               <Input
                 ref={inputRef}
-                placeholder={disabled ? "Select a city first" : "Add a neighbourhood, area, or building…"}
+                placeholder={
+                  disabled
+                    ? "Select a city first"
+                    : `Search areas in ${city ? city.charAt(0).toUpperCase() + city.slice(1) : "your city"}`
+                }
                 value={inputText}
                 disabled={disabled}
                 onChange={(e) => handleInputChange(e.target.value)}
@@ -216,6 +230,11 @@ export function LocationSearchInput({
             </Command>
           </PopoverContent>
         </Popover>
+      )}
+
+      {/* Disabled helper — no canonical city yet */}
+      {disabled && (
+        <p className="text-xs text-muted-foreground">Select a city first to search areas.</p>
       )}
 
       {/* City mismatch warning */}

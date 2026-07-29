@@ -4,6 +4,8 @@ import type { SearchPropertyResult } from "@/features/search/data/searchResultCo
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { SearchPropertyCard } from "./SearchPropertyCard";
 import { SearchCardSkeleton } from "./SearchCardSkeleton";
+import { SearchResultsHeader } from "./SearchResultsHeader";
+import { ActiveFiltersRow } from "../desktop/ActiveFiltersRow";
 
 interface SearchResultsListProps {
   results: SearchPropertyResult[];
@@ -15,6 +17,7 @@ interface SearchResultsListProps {
   error: Error | null;
   loadMore: () => void;
   onOpenSetup: () => void;
+  onOpenFilters?: () => void;
   layout?: "list" | "horizontal";
   columns?: 1 | "responsive";
   selectedPropertyId?: string | null;
@@ -38,6 +41,7 @@ export function SearchResultsList({
   error,
   loadMore,
   onOpenSetup,
+  onOpenFilters,
   layout = "list",
   columns = "responsive",
   selectedPropertyId,
@@ -54,7 +58,7 @@ export function SearchResultsList({
 
   if (isInitialLoading) {
     return (
-      <div>
+      <div className="flex flex-col gap-3 p-4 desk:grid desk:grid-cols-2 2xl:grid-cols-3 desk:gap-4">
         {Array.from({ length: 6 }, (_, i) => (
           <SearchCardSkeleton key={i} />
         ))}
@@ -98,15 +102,16 @@ export function SearchResultsList({
 
   const wrapperClass =
     layout === "horizontal"
-      ? "flex flex-col"
-      : cn(
-          columns === "responsive"
-            ? "desk:grid desk:grid-cols-2 2xl:grid-cols-3 desk:gap-3 desk:p-3"
-            : "",
-        );
+      ? "flex flex-col gap-3 p-3"
+      : columns === "responsive"
+        ? "flex flex-col gap-3 p-4 desk:grid desk:grid-cols-2 2xl:grid-cols-3 desk:gap-4 desk:p-4"
+        : "flex flex-col gap-3 p-4";
 
   return (
-    <div className={wrapperClass}>
+    <>
+      {onOpenFilters && <ActiveFiltersRow onOpenFilters={onOpenFilters} />}
+      <SearchResultsHeader loadedCount={results.length} hasNextPage={hasNextPage} />
+      <div className={wrapperClass}>
       {isRefreshing && (
         <p className="py-2 text-center text-xs text-muted-foreground desk:col-span-full">
           Refreshing…
@@ -142,6 +147,7 @@ export function SearchResultsList({
           <SearchCardSkeleton />
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

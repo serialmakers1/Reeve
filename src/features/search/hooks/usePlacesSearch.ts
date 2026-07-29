@@ -59,11 +59,14 @@ export function usePlacesSearch(): UsePlacesSearchReturn {
         setIsLoading(true);
         setError(null);
         try {
+          // A locationRestriction and includedRegionCodes conflict in the Places (New) API;
+          // callers set __noRegion to drop the region code when they pass a restriction.
+          const { __noRegion, ...extraRest } = (extra ?? {}) as Record<string, unknown>;
           const { suggestions: s } = await (placesLib as any).AutocompleteSuggestion.fetchAutocompleteSuggestions({
             input,
-            includedRegionCodes: ["IN"],
+            ...(__noRegion ? {} : { includedRegionCodes: ["IN"] }),
             sessionToken: sessionTokenRef.current ?? undefined,
-            ...extra,
+            ...extraRest,
           });
           if (gen !== generationRef.current) return;
           setSuggestions(s ?? []);

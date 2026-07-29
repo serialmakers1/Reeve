@@ -59,6 +59,11 @@ function renderPanel(open = true, mode: "rent" | "buy" = "rent") {
   );
 }
 
+// Advanced filter sections live behind the "More filters" disclosure.
+function openMore() {
+  fireEvent.click(screen.getByRole("button", { name: /more filters/i }));
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -87,14 +92,14 @@ describe("draft state", () => {
 describe("Apply", () => {
   it("calls setFilters on Apply", () => {
     renderPanel();
-    const applyBtn = screen.getByRole("button", { name: "Apply" });
+    const applyBtn = screen.getByRole("button", { name: "Show properties" });
     fireEvent.click(applyBtn);
     expect(setFiltersSpy).toHaveBeenCalledTimes(1);
   });
 
   it("calls setSort on Apply", () => {
     renderPanel();
-    const applyBtn = screen.getByRole("button", { name: "Apply" });
+    const applyBtn = screen.getByRole("button", { name: "Show properties" });
     fireEvent.click(applyBtn);
     expect(setSortSpy).toHaveBeenCalledTimes(1);
   });
@@ -106,7 +111,7 @@ describe("Apply", () => {
         <SearchFilterPanel open onOpenChange={onOpenChange} />
       </MemoryRouter>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show properties" }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });
@@ -135,16 +140,19 @@ describe("Reset", () => {
 describe("Rent/Buy visibility", () => {
   it("shows Brokerage section in rent", () => {
     renderPanel(true, "rent");
+    openMore();
     expect(screen.getByText("Brokerage")).toBeTruthy();
   });
 
   it("shows Pets section in rent, not in buy", () => {
     renderPanel(true, "rent");
+    openMore();
     expect(screen.getByText("Pets")).toBeTruthy();
   });
 
   it("shows Possession section in buy", () => {
     renderPanel(true, "buy");
+    openMore();
     expect(screen.getByText("Possession")).toBeTruthy();
   });
 
@@ -161,10 +169,11 @@ describe("Rent/Buy visibility", () => {
     expect(screen.getByText("Furnishing")).toBeTruthy();
   });
 
-  it("shows 'Availability Confirmed' section as disabled in rent", () => {
+  it("shows 'Availability Confirmed' section in rent (under More filters)", () => {
     renderPanel(true, "rent");
+    openMore();
     expect(screen.getByText("Availability Confirmed")).toBeTruthy();
-    expect(screen.getByText("Coming soon")).toBeTruthy();
+    expect(screen.getByText("Within 7d")).toBeTruthy();
   });
 
   it("does NOT show 'Availability Confirmed' in buy", () => {

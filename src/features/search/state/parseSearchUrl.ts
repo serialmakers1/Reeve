@@ -164,7 +164,10 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
   const P = URL_PARAMS;
 
   // ── Mode ──
-  const mode = parseSearchMode(params.get(P.type));
+  // Absent `type` param defaults to "rent" so bare /search shows results immediately.
+  // An explicit ?type=rent|buy always wins; an invalid value stays null (setup gate).
+  const rawType = params.get(P.type);
+  const mode = parseSearchMode(rawType) ?? (rawType === null ? "rent" : null);
   const defaults = getDefaultSearchState(mode);
 
   // ── Context ──

@@ -7,6 +7,7 @@ import { useSearchState } from "@/features/search";
 import { useSearchResults } from "@/features/search/state/useSearchResults";
 import { useFavourites } from "@/hooks/useFavourites";
 import { useSearchMeta } from "@/features/search/hooks/useSearchMeta";
+import { useVercelGeoCity } from "@/features/search/hooks/useVercelGeoCity";
 import {
   SEARCH_EVENTS,
   newSearchSessionId,
@@ -28,12 +29,34 @@ const SearchMapView = lazy(() =>
 );
 
 export default function SearchBrowsePage() {
-  const { state, setView, hasValidContext } = useSearchState();
+  const { state, setView, setContext, hasValidContext } = useSearchState();
   const search = useSearchResults();
   const { isFavourited, toggleFavourite, isLoggedIn } = useFavourites();
   const routeLocation = useLocation();
   useSearchMeta();
-  const [isPanelOpen, setIsPanelOpen] = useState(!hasValidContext);
+
+  // Open the Setup panel once on a bare first visit (no type + no city in URL) so
+  // the user gets the location experience with Rent preselected + approximate city,
+  // while Rent results load behind it. Explicit-context visits never auto-open.
+  const [isPanelOpen, setIsPanelOpen] = useState(() => {
+    const sp = new URLSearchParams(routeLocation.search);
+    return !sp.get(URL_PARAMS.type) && !sp.get(URL_PARAMS.city);
+  });
+
+  // Approximate city from coarse Vercel IP geo (India-only, canonical, once per mount).
+  // Only attempt when no city was present at mount.
+  const hadCityAtMountRef = useRef(!!state.context.city);
+  const userSelectedCityRef = useRef(false);
+  const { approxCity } = useVercelGeoCity(!hadCityAtMountRef.current);
+
+  // Apply the approximate city only when no explicit/user city exists. When the panel
+  // is open, the panel adopts it via the `suggestedCity` prop (no URL churn); when
+  // closed, prefill the URL context. A late response never overwrites a user choice.
+  useEffect(() => {
+    if (!approxCity || userSelectedCityRef.current || state.context.city || isPanelOpen) return;
+    setContext({ city: approxCity.city });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approxCity, isPanelOpen, state.context.city]);
 
   // ── search_context_submitted ───────────────────────────────────────────────
   const handleContextSubmitted = useCallback(
@@ -95,11 +118,6 @@ export default function SearchBrowsePage() {
       );
     }
   }, [state.view, isDesktopSplit]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Setup panel auto-open ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (!hasValidContext) setIsPanelOpen(true);
-  }, [hasValidContext]);
 
   const openSetup = () => setIsPanelOpen(true);
 
@@ -249,8 +267,14 @@ export default function SearchBrowsePage() {
 
   return (
     <Layout>
-    <div data-testid="search-browse-page" className="min-h-screen">
-      <SearchSetupPanel open={isPanelOpen} onOpenChange={setIsPanelOpen} onSubmit={handleContextSubmitted} />
+    <div data-testid="search-browse-page" className="min-h-screen bg-muted/30">
+      <SearchSetupPanel
+        open={isPanelOpen}
+        onOpenChange={setIsPanelOpen}
+        onSubmit={handleContextSubmitted}
+        suggestedCity={approxCity}
+        onCityInteraction={() => { userSelectedCityRef.current = true; }}
+      />
       <SearchFilterPanel open={isFilterPanelOpen} onOpenChange={setIsFilterPanelOpen} />
 
       {/* Mobile toolbar — hidden at desk: */}
@@ -298,6 +322,7 @@ export default function SearchBrowsePage() {
             <SearchResultsList
               {...search}
               onOpenSetup={openSetup}
+              onOpenFilters={() => setIsFilterPanelOpen(true)}
               layout={isDesktopSplit ? "horizontal" : "list"}
               columns={isDesktopSplit ? 1 : "responsive"}
               selectedPropertyId={state.selectedPropertyId}
