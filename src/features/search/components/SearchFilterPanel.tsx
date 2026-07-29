@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Check } from "lucide-react";
+import { X, Check, ChevronDown } from "lucide-react";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useSearchState } from "@/features/search/state/useSearchState";
+import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { FilterSection } from "./list/FilterSection";
 import type { RentFilters, BuyFilters } from "../domain/searchTypes";
 import type { SearchSortKey } from "../domain/searchTypes";
@@ -119,12 +120,22 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
 
   const [draft, setDraft] = useState<RentFilters | BuyFilters>({});
   const [draftSort, setDraftSort] = useState<SearchSortKey>(state.sort);
+  const [showMore, setShowMore] = useState(false);
+  const [showAllAmenities, setShowAllAmenities] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setDraft(state.filters);
     setDraftSort(state.sort);
+    setShowMore(false);
+    setShowAllAmenities(false);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const draftFilterCount = countActiveFilters(draft, mode);
+  const AMENITY_SUBSET_COUNT = 6;
+  const visibleAmenities = showAllAmenities
+    ? AMENITY_OPTIONS
+    : AMENITY_OPTIONS.slice(0, AMENITY_SUBSET_COUNT);
 
   function handleApply() {
     setFilters(draft);
@@ -245,6 +256,45 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
             </div>
           </FilterSection>
 
+          {/* Amenities — common, subset first with See all */}
+          <FilterSection title="Amenities">
+            <div className="flex flex-wrap gap-2">
+              {visibleAmenities.map(({ value, label }) => (
+                <ToggleChip
+                  key={value}
+                  label={label}
+                  active={!!((draft as RentFilters & BuyFilters).amenities ?? []).includes(value)}
+                  onClick={() =>
+                    setShared({
+                      amenities: toggleArray((draft as RentFilters & BuyFilters).amenities, value),
+                    })
+                  }
+                />
+              ))}
+            </div>
+            {AMENITY_OPTIONS.length > AMENITY_SUBSET_COUNT && (
+              <button
+                type="button"
+                onClick={() => setShowAllAmenities((v) => !v)}
+                className="mt-2 text-xs font-medium text-primary underline underline-offset-2"
+              >
+                {showAllAmenities ? "Show fewer" : "See all"}
+              </button>
+            )}
+          </FilterSection>
+
+          {/* More filters — progressive disclosure of less-common options */}
+          <button
+            type="button"
+            onClick={() => setShowMore((v) => !v)}
+            className="flex w-full items-center justify-between py-4 text-sm font-semibold"
+          >
+            More filters
+            <ChevronDown className={cn("h-4 w-4 transition-transform", showMore && "rotate-180")} />
+          </button>
+
+          {showMore && (
+          <>
           {/* ── Rent-only sections ── */}
           {mode === "rent" && (
             <>
@@ -626,28 +676,6 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
             </div>
           </FilterSection>
 
-          <FilterSection title="Amenities">
-            <div className="flex flex-wrap gap-2">
-              {AMENITY_OPTIONS.map(({ value, label }) => (
-                <ToggleChip
-                  key={value}
-                  label={label}
-                  active={
-                    !!((draft as RentFilters & BuyFilters).amenities ?? []).includes(value)
-                  }
-                  onClick={() =>
-                    setShared({
-                      amenities: toggleArray(
-                        (draft as RentFilters & BuyFilters).amenities,
-                        value,
-                      ),
-                    })
-                  }
-                />
-              ))}
-            </div>
-          </FilterSection>
-
           <FilterSection title="Lister">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -692,16 +720,21 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
               </div>
             </div>
           </FilterSection>
+          </>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-3 px-4 py-3 border-t shrink-0">
-          <Button variant="ghost" className="flex-1" onClick={handleReset}>
+        <div className="flex items-center gap-3 border-t px-4 py-3 shrink-0">
+          <div className="flex-1 text-sm text-muted-foreground">
+            {draftFilterCount > 0
+              ? `${draftFilterCount} ${draftFilterCount === 1 ? "filter" : "filters"} applied`
+              : "No filters applied"}
+          </div>
+          <Button variant="ghost" onClick={handleReset}>
             Reset
           </Button>
-          <Button className="flex-1" onClick={handleApply}>
-            Apply
-          </Button>
+          <Button onClick={handleApply}>Show properties</Button>
         </div>
       </SheetContent>
     </Sheet>

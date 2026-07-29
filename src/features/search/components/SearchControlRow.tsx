@@ -1,9 +1,7 @@
-import { ChevronDown } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
-import type { SearchSortKey } from "../domain/searchTypes";
 import type { RentFilters, BuyFilters } from "../domain/searchTypes";
 
 interface SearchControlRowProps {
@@ -13,111 +11,59 @@ interface SearchControlRowProps {
   hasNextPage: boolean;
 }
 
-
-const SORT_LABELS: Record<string, string> = {
-  newest: "Newest",
-  price_asc: "Price ↑",
-  price_desc: "Price ↓",
-  availability_confirmed: "Availability",
-};
-
-// Mobile-only control row — h-11 (44px) for WCAG 2.5.5 touch targets
 const CHIP =
-  "flex h-11 min-w-[44px] items-center rounded-full border border-border px-3 text-xs font-medium shrink-0 transition-colors";
-
+  "flex h-11 min-w-[44px] items-center rounded-full border px-3 text-xs font-medium shrink-0 transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 const ACTIVE_CHIP = "bg-primary/10 border-primary text-primary";
-const INACTIVE_CHIP = "bg-background text-foreground";
+const INACTIVE_CHIP = "bg-background border-border text-foreground hover:border-primary/40";
 
-export function SearchControlRow({
-  onOpenSetup,
-  onOpenFilters,
-  loadedCount,
-  hasNextPage,
-}: SearchControlRowProps) {
-  const { state, setSort } = useSearchState();
-  const { mode, city, locations } = state.context;
+function titleCase(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
-  const SORT_OPTIONS: { key: SearchSortKey; label: string }[] = [
-    { key: "newest", label: "Newest" },
-    ...(mode === "rent" ? [{ key: "availability_confirmed" as SearchSortKey, label: "Availability" }] : []),
-    { key: "price_asc", label: "Price ↑" },
-    { key: "price_desc", label: "Price ↓" },
-  ];
-
-  const contextLabel = [
-    mode === "rent" ? "Rent" : "Buy",
-    city ? city.charAt(0).toUpperCase() + city.slice(1) : null,
-    locations.length > 0 ? locations[0].label : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  const sortLabel = SORT_LABELS[state.sort] ?? "Newest";
-  const countLabel =
-    loadedCount === 0
-      ? ""
-      : hasNextPage
-      ? `${loadedCount}+ properties`
-      : `${loadedCount} ${loadedCount === 1 ? "property" : "properties"}`;
-
+// Mobile-only control row. Sort + count now live in the result header.
+export function SearchControlRow({ onOpenSetup, onOpenFilters }: SearchControlRowProps) {
+  const { state } = useSearchState();
+  const { mode, city, locations, propertyType } = state.context;
   const resolvedMode = mode ?? "rent";
-  const totalActive = countActiveFilters(state.filters, resolvedMode);
-  const f = state.filters as RentFilters & BuyFilters;
 
+  // Line 1: mode · primary location (area or city)
+  const areaLabel =
+    locations.length > 0
+      ? `${locations[0].label}${locations.length > 1 ? ` +${locations.length - 1} areas` : ""}`
+      : city
+        ? titleCase(city)
+        : "Anywhere in India";
+  const primaryLine = `${resolvedMode === "rent" ? "Rent" : "Buy"} · ${areaLabel}`;
+
+  // Line 2: property type · city (graceful omissions)
+  const secondaryLine =
+    [propertyType ? titleCase(propertyType) : null, locations.length > 0 && city ? titleCase(city) : null]
+      .filter(Boolean)
+      .join(" · ") || (resolvedMode === "rent" ? "Rentals" : "For sale");
+
+  const f = state.filters as RentFilters & BuyFilters;
   const budgetActive = !!(f.minPrice || f.maxPrice);
-  const bhkActive = !!(f.bhk?.length);
-  const modeFilterActive =
-    resolvedMode === "buy"
-      ? !!((state.filters as BuyFilters).possessionStatus?.length)
-      : !!((state.filters as RentFilters).furnishing?.length);
-  const modeFilterLabel = resolvedMode === "buy" ? "Possession" : "Furnishing";
+  const bhkActive = !!f.bhk?.length;
+  const furnishingActive = !!f.furnishing?.length;
+  const totalActive = countActiveFilters(state.filters, resolvedMode);
 
   return (
-    <div className="sticky top-16 z-40 bg-background border-b desk:hidden">
-      {/* Row 1: context chip + count + sort */}
-      <div className="flex h-10 items-center justify-between gap-2 px-4">
-        <button
-          onClick={onOpenSetup}
-          className="flex min-w-0 items-center gap-1 rounded-full border border-border px-3 h-11 text-xs font-medium truncate"
-          aria-label="Edit search context"
-        >
-          <span className="truncate">{contextLabel}</span>
-          <ChevronDown className="h-3 w-3 shrink-0" />
-        </button>
-        <div className="flex items-center gap-2 shrink-0">
-          {countLabel ? (
-            <span className="text-xs text-muted-foreground">{countLabel}</span>
-          ) : null}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className="flex h-11 min-w-[44px] items-center gap-1 rounded-full border border-border px-3 text-xs font-medium"
-                aria-label={`Current sort: ${sortLabel}`}
-              >
-                {sortLabel}
-                <ChevronDown className="h-3 w-3" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-36 p-1">
-              {SORT_OPTIONS.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setSort(key)}
-                  className={cn(
-                    "w-full text-left px-3 py-2 text-sm rounded",
-                    key === state.sort && "bg-primary/10 font-medium text-primary",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
+    <div className="sticky top-16 z-40 space-y-2 border-b bg-background px-4 pb-2 pt-2 desk:hidden">
+      {/* Prominent Search Context card */}
+      <button
+        onClick={onOpenSetup}
+        aria-label="Edit search context"
+        className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-colors hover:border-primary/40 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-foreground">{primaryLine}</span>
+          <span className="block truncate text-xs text-muted-foreground">{secondaryLine}</span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+      </button>
 
-      {/* Row 2: filter chips */}
-      <div className="flex h-14 items-center gap-2 overflow-x-auto px-4 pb-1">
+      {/* Quick filter chips */}
+      <div className="flex items-center gap-2 overflow-x-auto">
         <button
           onClick={onOpenFilters}
           aria-label="Budget filter"
@@ -136,12 +82,11 @@ export function SearchControlRow({
         </button>
         <button
           onClick={onOpenFilters}
-          aria-label={`${modeFilterLabel} filter`}
-          aria-pressed={modeFilterActive}
-          className={cn(CHIP, modeFilterActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
+          aria-label="Furnishing filter"
+          aria-pressed={furnishingActive}
+          className={cn(CHIP, furnishingActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
         >
-          {modeFilterLabel}
-          {modeFilterActive ? " ·" : ""}
+          Furnishing{furnishingActive ? " ·" : ""}
         </button>
         <button
           onClick={onOpenFilters}
@@ -149,7 +94,7 @@ export function SearchControlRow({
           aria-pressed={totalActive > 0}
           className={cn(CHIP, totalActive > 0 ? ACTIVE_CHIP : INACTIVE_CHIP)}
         >
-          All Filters{totalActive > 0 ? ` (${totalActive})` : ""}
+          Filters{totalActive > 0 ? ` · ${totalActive}` : ""}
         </button>
       </div>
     </div>

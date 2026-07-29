@@ -6,9 +6,9 @@ function p(qs: string): URLSearchParams {
 }
 
 describe("parseSearchUrl", () => {
-  it("returns default state for empty params", () => {
+  it("returns default state for empty params (mode defaults to rent)", () => {
     const state = parseSearchUrl(p(""));
-    expect(state.context.mode).toBeNull();
+    expect(state.context.mode).toBe("rent");
     expect(state.context.city).toBeNull();
     expect(state.context.locations).toEqual([]);
     expect(state.sort).toBe("newest");

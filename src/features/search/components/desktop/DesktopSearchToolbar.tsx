@@ -1,21 +1,14 @@
-import { LayoutList, Columns2, Map, ChevronDown, SlidersHorizontal } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { LayoutList, Columns2, Map, ChevronDown, SlidersHorizontal, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
-import type { SearchViewMode, SearchSortKey, RentFilters, BuyFilters } from "@/features/search/domain/searchTypes";
-
-const SORT_LABELS: Record<string, string> = {
-  newest: "Newest",
-  price_asc: "Price ↑",
-  price_desc: "Price ↓",
-  availability_confirmed: "Availability",
-};
+import { SortControl } from "../SortControl";
+import type { SearchViewMode, RentFilters, BuyFilters } from "@/features/search/domain/searchTypes";
 
 const CHIP =
-  "flex h-8 items-center rounded-full border px-3 text-xs font-medium shrink-0 transition-colors";
+  "flex h-9 items-center rounded-lg border px-3 text-xs font-medium shrink-0 transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 const ACTIVE_CHIP = "bg-primary/10 border-primary text-primary";
-const INACTIVE_CHIP = "border-border bg-background text-foreground";
+const INACTIVE_CHIP = "border-border bg-background text-foreground hover:border-primary/40";
 
 interface DesktopSearchToolbarProps {
   onOpenSetup: () => void;
@@ -26,75 +19,59 @@ interface DesktopSearchToolbarProps {
   hasNextPage: boolean;
 }
 
+function titleCase(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export function DesktopSearchToolbar({
   onOpenSetup,
   onOpenFilters,
   view,
   onSetView,
-  loadedCount,
-  hasNextPage,
 }: DesktopSearchToolbarProps) {
-  const { state, setSort } = useSearchState();
+  const { state } = useSearchState();
   const { mode, city, locations } = state.context;
   const resolvedMode = mode ?? "rent";
 
-  const SORT_OPTIONS: { key: SearchSortKey; label: string }[] = [
-    { key: "newest", label: "Newest" },
-    ...(resolvedMode === "rent"
-      ? [{ key: "availability_confirmed" as SearchSortKey, label: "Availability" }]
-      : []),
-    { key: "price_asc", label: "Price ↑" },
-    { key: "price_desc", label: "Price ↓" },
-  ];
+  const contextLabel =
+    locations.length > 0
+      ? `${locations[0].label}${locations.length > 1 ? ` +${locations.length - 1}` : ""}`
+      : city
+        ? titleCase(city)
+        : "All of India";
 
-  const contextLabel = [
-    resolvedMode === "rent" ? "Rent" : "Buy",
-    city ? city.charAt(0).toUpperCase() + city.slice(1) : null,
-    locations.length > 0 ? locations[0].label : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  const sortLabel = SORT_LABELS[state.sort] ?? "Newest";
   const totalActive = countActiveFilters(state.filters, resolvedMode);
   const f = state.filters as RentFilters & BuyFilters;
   const budgetActive = !!(f.minPrice || f.maxPrice);
-  const bhkActive = !!(f.bhk?.length);
-  const modeFilterActive =
-    resolvedMode === "buy"
-      ? !!((state.filters as BuyFilters).possessionStatus?.length)
-      : !!((state.filters as RentFilters).furnishing?.length);
-  const modeFilterLabel = resolvedMode === "buy" ? "Possession" : "Furnishing";
-
-  const countLabel =
-    loadedCount === 0
-      ? ""
-      : hasNextPage
-        ? `${loadedCount}+ properties`
-        : `${loadedCount} ${loadedCount === 1 ? "property" : "properties"}`;
+  const bhkActive = !!f.bhk?.length;
+  const furnishingActive = !!f.furnishing?.length;
 
   return (
-    <div className="hidden desk:flex sticky top-16 z-40 h-14 bg-background border-b items-center gap-2 px-4">
-      {/* Mode chip */}
+    <div className="sticky top-16 z-40 hidden h-14 items-center gap-2 border-b bg-background px-4 desk:flex">
+      {/* Rent / Buy — distinct segment */}
       <button
         onClick={onOpenSetup}
         className={cn(CHIP, INACTIVE_CHIP, "font-semibold")}
-        aria-label="Switch rent/buy"
+        aria-label="Switch rent or buy"
       >
         {resolvedMode === "rent" ? "Rent" : "Buy"}
+        <ChevronDown className="ml-1 h-3 w-3" />
       </button>
 
-      {/* Context chip */}
+      {/* Prominent location / context control */}
       <button
         onClick={onOpenSetup}
-        className={cn(CHIP, INACTIVE_CHIP, "max-w-[200px] truncate")}
-        aria-label="Edit search context"
+        aria-label="Edit search location"
+        className="flex h-9 min-w-[220px] max-w-[320px] items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/10 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
-        <span className="truncate">{contextLabel || "Set location"}</span>
-        <ChevronDown className="ml-1 h-3 w-3 shrink-0" />
+        <MapPin className="h-4 w-4 shrink-0 text-primary" />
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+          {contextLabel}
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
 
-      {/* Budget */}
+      {/* Secondary quick filters */}
       <button
         onClick={onOpenFilters}
         aria-label="Budget filter"
@@ -103,8 +80,6 @@ export function DesktopSearchToolbar({
       >
         Budget{budgetActive ? " ·" : ""}
       </button>
-
-      {/* BHK */}
       <button
         onClick={onOpenFilters}
         aria-label="BHK filter"
@@ -113,19 +88,14 @@ export function DesktopSearchToolbar({
       >
         {bhkActive ? `BHK (${f.bhk!.length})` : "BHK"}
       </button>
-
-      {/* Furnishing / Possession */}
       <button
         onClick={onOpenFilters}
-        aria-label={`${modeFilterLabel} filter`}
-        aria-pressed={modeFilterActive}
-        className={cn(CHIP, modeFilterActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
+        aria-label="Furnishing filter"
+        aria-pressed={furnishingActive}
+        className={cn(CHIP, furnishingActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
       >
-        {modeFilterLabel}
-        {modeFilterActive ? " ·" : ""}
+        Furnishing{furnishingActive ? " ·" : ""}
       </button>
-
-      {/* All Filters */}
       <button
         onClick={onOpenFilters}
         aria-label="All filters"
@@ -136,41 +106,13 @@ export function DesktopSearchToolbar({
         Filters{totalActive > 0 ? ` (${totalActive})` : ""}
       </button>
 
-      {/* Spacer + count */}
       <div className="flex-1" />
-      {countLabel && (
-        <span className="text-xs text-muted-foreground shrink-0">{countLabel}</span>
-      )}
 
       {/* Sort */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <button
-            className={cn(CHIP, INACTIVE_CHIP)}
-            aria-label={`Current sort: ${sortLabel}`}
-          >
-            {sortLabel}
-            <ChevronDown className="ml-1 h-3 w-3" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-40 p-1">
-          {SORT_OPTIONS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setSort(key)}
-              className={cn(
-                "w-full text-left px-3 py-2 text-sm rounded",
-                key === state.sort && "bg-primary/10 font-medium text-primary",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </PopoverContent>
-      </Popover>
+      <SortControl className="h-9" />
 
       {/* View mode toggle */}
-      <div className="flex items-center rounded-lg border border-border overflow-hidden shrink-0">
+      <div className="flex shrink-0 items-center overflow-hidden rounded-lg border border-border">
         {(
           [
             { v: "list" as SearchViewMode, Icon: LayoutList, label: "List" },
@@ -183,10 +125,8 @@ export function DesktopSearchToolbar({
             onClick={() => onSetView(v)}
             aria-label={`${label} view`}
             className={cn(
-              "flex h-8 w-9 items-center justify-center text-xs transition-colors",
-              view === v
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground",
+              "flex h-9 w-9 items-center justify-center text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40",
+              view === v ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             <Icon className="h-4 w-4" />

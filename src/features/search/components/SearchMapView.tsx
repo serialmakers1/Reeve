@@ -327,7 +327,7 @@ export function SearchMapView({
       <button
         type="button"
         onClick={onBackToList}
-        className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 rounded-full border bg-card px-4 py-2 text-sm font-medium shadow-md"
+        className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >
         <List className="h-4 w-4" /> List
       </button>

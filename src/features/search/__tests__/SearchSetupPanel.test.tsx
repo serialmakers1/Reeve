@@ -241,8 +241,9 @@ describe("SearchSetupPanel — Places failure", () => {
     // When city is set from URL, LocationSearchInput renders. With no error yet,
     // the button appears only on error. We just verify the locations area renders.
     renderPanel({ open: true });
-    // The "Areas" section heading should be visible since city is set
-    expect(screen.getByText(/areas/i)).toBeInTheDocument();
+    // The "Areas" section renders since city is set (matcher is loose — helper copy
+    // also contains "areas", so assert at least one match).
+    expect(screen.getAllByText(/areas/i).length).toBeGreaterThan(0);
   });
 });
 
