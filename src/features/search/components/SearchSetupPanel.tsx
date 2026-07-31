@@ -59,7 +59,7 @@ export interface SearchSetupPanelProps {
 
 export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, onCityInteraction }: SearchSetupPanelProps) {
   const { state, setContext } = useSearchState();
-  const { resolveCityByName } = useResolveCity();
+  const { resolveCityByName, isReady: placesReady } = useResolveCity();
 
   // True once the user selects/changes the city — blocks geo prefill + city hydration.
   const userTouchedCityRef = useRef(false);
@@ -87,7 +87,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   const [draft, setDraft] = useState<SearchSetupDraft>({
     mode: state.context.mode,
     city: state.context.city,
-    cityDisplayValue: state.context.city ?? "",
+    cityDisplayValue: state.context.city ? state.context.city.charAt(0).toUpperCase() + state.context.city.slice(1) : "",
     cityPlaceId: null,
     cityViewport: null,
     locations: state.context.locations,
@@ -103,7 +103,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
     setDraft({
       mode: state.context.mode,
       city: state.context.city,
-      cityDisplayValue: state.context.city ?? "",
+      cityDisplayValue: state.context.city ? state.context.city.charAt(0).toUpperCase() + state.context.city.slice(1) : "",
       cityPlaceId: null,
       cityViewport: null,
       locations: state.context.locations,
@@ -171,7 +171,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   // Hydrate an existing (URL-restored) city with its canonical placeId/viewport once,
   // so Areas enable without forcing re-selection. Skips if already resolved or user-touched.
   useEffect(() => {
-    if (!open || !draft.city || draft.cityViewport || userTouchedCityRef.current) return;
+    if (!open || !placesReady || !draft.city || draft.cityViewport || userTouchedCityRef.current) return;
     const cityAtStart = draft.city;
     let cancelled = false;
     resolveCityByName(cityAtStart).then((resolved) => {
@@ -191,7 +191,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, draft.city, draft.cityViewport]);
+  }, [open, placesReady, draft.city, draft.cityViewport]);
 
   // City is optional — a mode alone loads default/nationwide results.
   const canSubmit = !!draft.mode;
@@ -225,7 +225,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-full max-w-none h-dvh overflow-y-auto sm:h-auto sm:max-w-lg sm:rounded-lg p-0 flex flex-col gap-0">
+        <DialogContent className="w-full max-w-none h-[92dvh] top-auto bottom-0 translate-y-0 rounded-t-2xl overflow-hidden sm:top-[50%] sm:bottom-auto sm:h-auto sm:max-w-lg sm:translate-y-[-50%] sm:rounded-lg p-0 flex flex-col gap-0">
           <DialogHeader className="px-5 pt-5 pb-4 border-b shrink-0 space-y-1 text-left">
             <DialogTitle className="text-lg font-semibold">Find your next home</DialogTitle>
             <p className="text-sm text-muted-foreground">
@@ -261,7 +261,8 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                 </p>
               )}
               {/* Popular cities — resolve canonically via the shared Google flow */}
-              <div className="flex flex-wrap gap-1.5 pt-1">
+              <p className="pt-1 text-xs font-medium text-muted-foreground">Popular cities</p>
+              <div className="flex flex-wrap gap-1.5">
                 {POPULAR_CITIES.map((name) => (
                   <Button
                     key={name}

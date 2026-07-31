@@ -39,17 +39,21 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(async () => {
-        // F1-B6c: on network miss, prefer cache; for navigations fall back to
-        // the app shell; otherwise re-throw so the browser produces the natural
-        // failure UI instead of Response.error() (which spams the DevTools
-        // console with "FetchEvent … network error response").
+        // On network miss, prefer cache; for navigations fall back to the app
+        // shell. Never reject respondWith() — a rejected promise spams the
+        // DevTools console with "FetchEvent … Network request failed". Always
+        // resolve with a Response so the browser handles failure naturally.
         const cached = await caches.match(event.request);
         if (cached) return cached;
         if (event.request.mode === 'navigate') {
-          const shell = await caches.match('/');
+          const shell = (await caches.match('/')) || (await caches.match('/index.html'));
           if (shell) return shell;
+          return new Response(
+            '<!doctype html><meta charset="utf-8"><title>Offline</title><p>You appear to be offline.</p>',
+            { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+          );
         }
-        throw new Error('Network request failed');
+        return new Response('', { status: 504, statusText: 'Offline' });
       })
   );
 });

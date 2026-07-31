@@ -191,7 +191,7 @@ export function SearchPropertyCard({
         <div
           className={cn(
             "min-w-0 flex-1",
-            isHorizontal ? "flex flex-col justify-center gap-0.5 p-3" : "space-y-1.5 p-3",
+            isHorizontal ? "flex flex-col justify-center gap-0.5 p-3" : "space-y-1 p-3",
           )}
         >
           {/* 1. Price */}

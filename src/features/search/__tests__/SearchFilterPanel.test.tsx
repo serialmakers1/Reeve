@@ -81,12 +81,6 @@ describe("draft state", () => {
     expect(setFiltersSpy).not.toHaveBeenCalled();
   });
 
-  it("does NOT call setSort when sort is changed in draft", () => {
-    renderPanel();
-    const priceAsc = screen.getByText("Price ↑");
-    fireEvent.click(priceAsc);
-    expect(setSortSpy).not.toHaveBeenCalled();
-  });
 });
 
 describe("Apply", () => {
@@ -116,10 +110,10 @@ describe("Apply", () => {
   });
 });
 
-describe("Reset", () => {
-  it("does NOT call setFilters or resetFilters on Reset (draft-only)", () => {
+describe("Clear all", () => {
+  it("does NOT call setFilters or resetFilters on Clear all (draft-only)", () => {
     renderPanel();
-    const resetBtn = screen.getByRole("button", { name: "Reset" });
+    const resetBtn = screen.getByRole("button", { name: "Clear all" });
     fireEvent.click(resetBtn);
     expect(setFiltersSpy).not.toHaveBeenCalled();
     expect(resetFiltersSpy).not.toHaveBeenCalled();
@@ -132,7 +126,7 @@ describe("Reset", () => {
         <SearchFilterPanel open onOpenChange={onOpenChange} />
       </MemoryRouter>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 });
@@ -183,17 +177,10 @@ describe("Rent/Buy visibility", () => {
 });
 
 describe("Sort", () => {
-  it("shows Newest, Price ↑, Price ↓ options", () => {
+  it("no longer renders a Sort section in the filter panel (Sort lives in Search chrome)", () => {
     renderPanel();
-    expect(screen.getByText("Newest")).toBeTruthy();
-    expect(screen.getByText("Price ↑")).toBeTruthy();
-    expect(screen.getByText("Price ↓")).toBeTruthy();
-  });
-
-  it("does NOT show Availability Confirmed sort option", () => {
-    renderPanel();
-    expect(screen.queryByText("Availability")).toBeNull();
-    expect(screen.queryByText(/availability_confirmed/i)).toBeNull();
+    expect(screen.queryByText("Sort by")).toBeNull();
+    expect(screen.queryByText("Newest")).toBeNull();
   });
 });
 

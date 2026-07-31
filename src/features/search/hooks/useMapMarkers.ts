@@ -23,8 +23,16 @@ export function useMapMarkers(enabled: boolean) {
     city: city ?? "",
     bounds: bounds ?? { ne: { lat: 0, lng: 0 }, sw: { lat: 0, lng: 0 } },
 
-    // Shared
-    locationIds: state.context.locations.map((l) => l.id),
+    // Shared — geographic Area filter (OR); legacy placeId list no longer sent
+    locationIds: [],
+    areaBoxes: state.context.locations
+      .filter((l) => l.viewport)
+      .map((l) => ({
+        swLat: l.viewport!.sw.lat,
+        swLng: l.viewport!.sw.lng,
+        neLat: l.viewport!.ne.lat,
+        neLng: l.viewport!.ne.lng,
+      })),
     propertyType: state.context.propertyType ?? null,
     bhk: f.bhk ?? [],
     furnishing: f.furnishing ?? [],

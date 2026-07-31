@@ -77,18 +77,24 @@ describe("buildSearchInput — context fields", () => {
     expect(buildSearchInput(rentState())!.city).toBe("bengaluru");
   });
 
-  it("maps location ids from tokens", () => {
+  it("derives areaBoxes from area viewports; locationIds always empty (geographic filter)", () => {
     const state = rentState({
       context: {
         mode: "rent", city: "bengaluru",
         locations: [
-          { id: "loc1", label: "Koramangala", type: "area", cityId: "bengaluru", placeId: null },
-          { id: "loc2", label: "Indiranagar", type: "area", cityId: "bengaluru", placeId: null },
+          {
+            id: "loc1", label: "Koramangala", type: "area", cityId: "bengaluru", placeId: "p1",
+            viewport: { sw: { lat: 12.9, lng: 77.6 }, ne: { lat: 12.95, lng: 77.65 } },
+          },
+          // viewport-less token contributes no box (hydration gate handles readiness elsewhere)
+          { id: "loc2", label: "Indiranagar", type: "area", cityId: "bengaluru", placeId: "p2", viewport: null },
         ],
         propertyType: null,
       },
     });
-    expect(buildSearchInput(state)!.locationIds).toEqual(["loc1", "loc2"]);
+    const input = buildSearchInput(state)!;
+    expect(input.locationIds).toEqual([]);
+    expect(input.areaBoxes).toEqual([{ swLat: 12.9, swLng: 77.6, neLat: 12.95, neLng: 77.65 }]);
   });
 
   it("empty locations → empty locationIds array", () => {

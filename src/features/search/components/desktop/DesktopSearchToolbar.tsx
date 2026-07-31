@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { SortControl } from "../SortControl";
+import { RentBuySelector } from "../RentBuySelector";
 import type { SearchViewMode, RentFilters, BuyFilters } from "@/features/search/domain/searchTypes";
 
 const CHIP =
@@ -29,7 +30,7 @@ export function DesktopSearchToolbar({
   view,
   onSetView,
 }: DesktopSearchToolbarProps) {
-  const { state } = useSearchState();
+  const { state, setMode } = useSearchState();
   const { mode, city, locations } = state.context;
   const resolvedMode = mode ?? "rent";
 
@@ -48,21 +49,16 @@ export function DesktopSearchToolbar({
 
   return (
     <div className="sticky top-16 z-40 hidden h-14 items-center gap-2 border-b bg-background px-4 desk:flex">
-      {/* Rent / Buy — distinct segment */}
-      <button
-        onClick={onOpenSetup}
-        className={cn(CHIP, INACTIVE_CHIP, "font-semibold")}
-        aria-label="Switch rent or buy"
-      >
-        {resolvedMode === "rent" ? "Rent" : "Buy"}
-        <ChevronDown className="ml-1 h-3 w-3" />
-      </button>
+      {/* Rent / Buy — segmented control */}
+      <div className="w-[148px] shrink-0">
+        <RentBuySelector value={resolvedMode} onChange={setMode} />
+      </div>
 
       {/* Prominent location / context control */}
       <button
         onClick={onOpenSetup}
         aria-label="Edit search location"
-        className="flex h-9 min-w-[220px] max-w-[320px] items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/10 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="flex h-9 min-w-[280px] max-w-[380px] items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/10 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         <MapPin className="h-4 w-4 shrink-0 text-primary" />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">

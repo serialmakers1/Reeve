@@ -3963,6 +3963,63 @@ export type Database = {
       earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
       generate_pseudonym: { Args: never; Returns: string }
+      get_map_markers: {
+        Args: {
+          p_amenities?: string[]
+          p_area_boxes?: Json
+          p_availability_confirmed_within_days?: number
+          p_available_by?: string
+          p_bhk?: string[]
+          p_city: string
+          p_furnishing?: string[]
+          p_has_experience_feedback?: boolean
+          p_has_video_walkthrough?: boolean
+          p_khata_type?: string[]
+          p_limit?: number
+          p_listed_within_days?: number
+          p_listing_type: Database["public"]["Enums"]["property_listing_type"]
+          p_location_ids?: string[]
+          p_max_annual_increase?: number
+          p_max_carpet_area?: number
+          p_max_deposit?: number
+          p_max_lock_in_months?: number
+          p_max_move_in_charges?: number
+          p_max_notice_days?: number
+          p_max_price?: number
+          p_max_rent_brokerage_fixed?: number
+          p_max_sale_brokerage_pct?: number
+          p_max_super_built_up?: number
+          p_min_carpet_area?: number
+          p_min_price?: number
+          p_min_response_rate?: number
+          p_min_super_built_up?: number
+          p_ne_lat: number
+          p_ne_lng: number
+          p_negotiable?: boolean
+          p_parking_2w?: string[]
+          p_parking_4w?: string[]
+          p_pet_policy?: string[]
+          p_possession_before?: string
+          p_possession_status?: string[]
+          p_property_tax_paid?: boolean
+          p_property_type?: string
+          p_rera_disclosed?: boolean
+          p_sw_lat: number
+          p_sw_lng: number
+          p_zero_rent_brokerage?: boolean
+        }
+        Returns: {
+          building_name: string
+          latitude: number
+          listing_type: string
+          location_mode: string
+          longitude: number
+          match_count: number
+          price_amount: number
+          price_kind: string
+          property_id: string
+        }[]
+      }
       get_my_daily_request_remaining: { Args: never; Returns: number }
       get_owner_response_rate: {
         Args: { p_owner_id: string }
@@ -4102,6 +4159,7 @@ export type Database = {
       search_compact_properties: {
         Args: {
           p_amenities?: string[]
+          p_area_boxes?: Json
           p_availability_confirmed_within_days?: number
           p_available_by?: string
           p_bhk?: string[]
@@ -4113,6 +4171,7 @@ export type Database = {
           p_furnishing?: string[]
           p_has_experience_feedback?: boolean
           p_has_video_walkthrough?: boolean
+          p_khata_type?: string[]
           p_limit?: number
           p_listed_within_days?: number
           p_listing_type: Database["public"]["Enums"]["property_listing_type"]
@@ -4124,6 +4183,8 @@ export type Database = {
           p_max_move_in_charges?: number
           p_max_notice_days?: number
           p_max_price?: number
+          p_max_rent_brokerage_fixed?: number
+          p_max_sale_brokerage_pct?: number
           p_max_super_built_up?: number
           p_min_carpet_area?: number
           p_min_price?: number
@@ -4135,8 +4196,11 @@ export type Database = {
           p_pet_policy?: string[]
           p_possession_before?: string
           p_possession_status?: string[]
+          p_property_tax_paid?: boolean
           p_property_type?: string
+          p_rera_disclosed?: boolean
           p_sort?: string
+          p_zero_rent_brokerage?: boolean
         }
         Returns: {
           availability_confirmed_at: string

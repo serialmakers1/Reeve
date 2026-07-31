@@ -41,12 +41,20 @@ export interface MapBounds {
   sw: LatLng;
 }
 
+/** Google viewport for an area, used for geographic Area filtering (p_area_boxes). */
+export interface AreaViewport {
+  sw: { lat: number; lng: number };
+  ne: { lat: number; lng: number };
+}
+
 export interface LocationToken {
   id: string;
   label: string;
   type: LocationTokenType;
   cityId: string | null;
   placeId: string | null;
+  /** Area viewport bounds; null until hydrated (older URLs). */
+  viewport: AreaViewport | null;
 }
 
 // ─── Search context (setup fields — persisted in URL) ─────────────────────────
