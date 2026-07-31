@@ -36,7 +36,13 @@ export async function searchProperties(
   const { data, error } = await supabaseClient.rpc("search_compact_properties", {
     p_listing_type: input.mode === "buy" ? "sale" : "rent",
     p_city: input.city,
-    p_location_ids: input.locationIds.length > 0 ? input.locationIds : null,
+    p_location_ids: [],
+    p_area_boxes: input.areaBoxes.map((b) => ({
+      sw_lat: b.swLat,
+      sw_lng: b.swLng,
+      ne_lat: b.neLat,
+      ne_lng: b.neLng,
+    })),
     p_property_type: input.propertyType,
     p_min_price: input.minPrice,
     p_max_price: input.maxPrice,
@@ -171,7 +177,13 @@ export async function fetchMapMarkers(
     p_ne_lng: input.bounds.ne.lng,
     p_limit: Math.min(input.limit ?? 200, 500),
     // ── Shared membership filters ──────────────────────────────────────────────
-    p_location_ids: input.locationIds ?? [],
+    p_location_ids: [],
+    p_area_boxes: (input.areaBoxes ?? []).map((b) => ({
+      sw_lat: b.swLat,
+      sw_lng: b.swLng,
+      ne_lat: b.neLat,
+      ne_lng: b.neLng,
+    })),
     p_property_type: input.propertyType ?? null,
     p_bhk: input.bhk ?? [],
     p_furnishing: input.furnishing ?? [],

@@ -122,6 +122,18 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
   const [draftSort, setDraftSort] = useState<SearchSortKey>(state.sort);
   const [showMore, setShowMore] = useState(false);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1200px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1200px)");
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  const cityTitle = state.context.city
+    ? state.context.city.charAt(0).toUpperCase() + state.context.city.slice(1)
+    : null;
 
   useEffect(() => {
     if (!open) return;
@@ -165,33 +177,32 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90dvh] flex flex-col p-0">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
-          <h2 className="text-base font-semibold">Filters</h2>
-          <SheetClose asChild>
-            <button aria-label="Close filters" className="rounded-full p-1 hover:bg-muted">
-              <X className="h-5 w-5" />
+      <SheetContent
+        side={isDesktop ? "right" : "bottom"}
+        className={cn(
+          "flex flex-col p-0 gap-0",
+          isDesktop ? "w-[520px] sm:max-w-[560px] h-full" : "h-[90dvh]",
+        )}
+      >
+        {/* Header — single close is the built-in SheetContent X (top-right) */}
+        <div className="px-4 py-3 border-b shrink-0 pr-12">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">Filters</h2>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="text-xs font-medium text-primary hover:underline underline-offset-2"
+            >
+              Clear all
             </button>
-          </SheetClose>
+          </div>
+          {cityTitle && (
+            <p className="mt-0.5 text-xs text-muted-foreground">Showing properties in {cityTitle}</p>
+          )}
         </div>
 
         {/* Body — scrollable */}
         <div className="flex-1 overflow-y-auto px-4">
-          {/* Sort */}
-          <FilterSection title="Sort by">
-            <div className="flex flex-wrap gap-2">
-              {SORT_OPTIONS.map(({ key, label }) => (
-                <ToggleChip
-                  key={key}
-                  label={label}
-                  active={draftSort === key}
-                  onClick={() => setDraftSort(key)}
-                />
-              ))}
-            </div>
-          </FilterSection>
-
           {/* Budget */}
           <FilterSection title={mode === "rent" ? "Total monthly budget (₹)" : "Sale price (₹)"}>
             <div className="flex items-center gap-2">
@@ -731,9 +742,6 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
               ? `${draftFilterCount} ${draftFilterCount === 1 ? "filter" : "filters"} applied`
               : "No filters applied"}
           </div>
-          <Button variant="ghost" onClick={handleReset}>
-            Reset
-          </Button>
           <Button onClick={handleApply}>Show properties</Button>
         </div>
       </SheetContent>

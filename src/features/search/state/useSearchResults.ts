@@ -12,6 +12,7 @@ import {
 import type { SearchPropertiesResult } from "../data/searchDataClient";
 import { useSearchState } from "./useSearchState";
 import { buildSearchInput } from "./buildSearchInput";
+import { useAreaViewports } from "../hooks/useAreaViewports";
 
 // ─── Pure utility: merge two pages by ID, preserving server order ─────────────
 
@@ -22,6 +23,18 @@ export function mergeSearchPages(
   const seen = new Set(existing.map((r) => r.id));
   const deduped = incoming.filter((r) => !seen.has(r.id));
   return [...existing, ...deduped];
+}
+
+// ─── Pure: area→city fallback trigger ────────────────────────────────────────
+// Fires ONLY when the primary query genuinely succeeded with zero rows AND areas
+// are selected. Loading/error must never trigger it (so failures aren't disguised
+// as "no homes found").
+export function shouldRecoverAreas(
+  primarySucceeded: boolean,
+  primaryResultCount: number,
+  selectedAreaCount: number,
+): boolean {
+  return primarySucceeded && primaryResultCount === 0 && selectedAreaCount > 0;
 }
 
 // ─── Stable search key (everything except cursor) ─────────────────────────────
@@ -51,6 +64,15 @@ interface PageAccumulation {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
+export interface AreaFallback {
+  /** Recovery query state — only "success" with results shows city-wide listings. */
+  status: "loading" | "success" | "error";
+  hasResults: boolean;
+  results: SearchPropertyResult[];
+  areaLabels: string[];
+  cityLabel: string;
+}
+
 export interface UseSearchResultsReturn {
   results: SearchPropertyResult[];
   hasNextPage: boolean;
@@ -61,14 +83,23 @@ export interface UseSearchResultsReturn {
   isEmpty: boolean;
   error: Error | null;
   loadMore: () => void;
+  /** Set only when primary succeeded with 0 rows AND areas are selected. */
+  areaFallback: AreaFallback | null;
 }
 
 export function useSearchResults(): UseSearchResultsReturn {
   const { state, hasValidContext, setCursor } = useSearchState();
   const { isFavourited } = useFavourites();
+  const { areaViewportsReady, areaViewportsError } = useAreaViewports();
 
   const searchKey = useMemo(() => computeSearchKey(state), [state]);
   const input = useMemo(() => buildSearchInput(state), [state]);
+  // Area boxes are not part of computeSearchKey; include them so hydration → refetch.
+  const areaBoxesKey = useMemo(() => JSON.stringify(input?.areaBoxes ?? []), [input]);
+  // Gating: areas selected but viewports not yet hydrated → hold the query (loading),
+  // never fire it without the area (which would masquerade as a broader search).
+  const gatingAreas =
+    hasValidContext && state.context.locations.length > 0 && !areaViewportsReady && !areaViewportsError;
 
   // Accumulated pages across load-more calls for the same searchKey
   const [accumulated, setAccumulated] = useState<PageAccumulation>({
@@ -78,8 +109,8 @@ export function useSearchResults(): UseSearchResultsReturn {
 
   const query = useQuery<SearchPropertiesResult, Error>({
     // Include cursorKey so each "load more" fires a new query
-    queryKey: ["searchResults", searchKey, cursorKey(state.cursor)],
-    enabled: hasValidContext && input !== null,
+    queryKey: ["searchResults", searchKey, areaBoxesKey, cursorKey(state.cursor)],
+    enabled: hasValidContext && input !== null && areaViewportsReady,
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
     queryFn: async (): Promise<SearchPropertiesResult> => {
@@ -118,10 +149,13 @@ export function useSearchResults(): UseSearchResultsReturn {
 
   const hasPages = accumulated.key === searchKey && accumulated.results.length > 0;
 
-  const isInitialLoading = !hasPages && query.isFetching && hasValidContext;
+  // While area viewports hydrate, present a loading state (never empty/city-wide).
+  const isInitialLoading = gatingAreas || (!hasPages && query.isFetching && hasValidContext);
   const isLoadingMore = hasPages && query.isFetching && state.cursor !== null;
   const isRefreshing = hasPages && query.isFetching && state.cursor === null;
   const isEmpty =
+    !gatingAreas &&
+    !areaViewportsError &&
     !query.isFetching &&
     !query.error &&
     hasValidContext &&
@@ -134,6 +168,54 @@ export function useSearchResults(): UseSearchResultsReturn {
     if (nextCursor) setCursor(nextCursor);
   }, [query.data?.nextCursor, setCursor]);
 
+  // ── Area → city fallback recovery ──────────────────────────────────────────
+  // Trigger ONLY when the primary query genuinely succeeded with zero rows AND
+  // areas are selected. Never on loading/error (those surface as-is).
+  const shouldRecover = shouldRecoverAreas(
+    query.isSuccess,
+    query.data?.results.length ?? 0,
+    state.context.locations.length,
+  );
+
+  const recoveryInput = useMemo(
+    // City-wide recovery clears BOTH area filters (boxes + legacy ids); all else preserved.
+    () => (input ? { ...input, areaBoxes: [], locationIds: [], cursor: null } : null),
+    [input],
+  );
+
+  const recoveryQuery = useQuery<SearchPropertiesResult, Error>({
+    queryKey: ["searchResultsRecovery", searchKey],
+    enabled: shouldRecover && recoveryInput !== null,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<SearchPropertiesResult> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const page = await searchProperties(recoveryInput!, supabase as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const withCounts = await overlayPropertyCounts(page.results, supabase as any);
+      return { ...page, results: withCounts };
+    },
+  });
+
+  const recoveryResults = useMemo(
+    () => (recoveryQuery.data?.results ?? []).map((r) => ({ ...r, isFavourited: isFavourited(r.id) })),
+    [recoveryQuery.data, isFavourited],
+  );
+
+  const cityLabel = state.context.city
+    ? state.context.city.charAt(0).toUpperCase() + state.context.city.slice(1)
+    : "";
+
+  const areaFallback: AreaFallback | null = shouldRecover
+    ? {
+        status: recoveryQuery.isSuccess ? "success" : recoveryQuery.isError ? "error" : "loading",
+        hasResults: (recoveryQuery.data?.results.length ?? 0) > 0,
+        results: recoveryResults,
+        areaLabels: state.context.locations.map((l) => l.label),
+        cityLabel,
+      }
+    : null;
+
   return {
     results,
     hasNextPage: query.data?.hasNextPage ?? false,
@@ -142,7 +224,10 @@ export function useSearchResults(): UseSearchResultsReturn {
     isLoadingMore,
     isRefreshing,
     isEmpty,
-    error: query.error ?? null,
+    error: areaViewportsError
+      ? new Error("We couldn't load your selected areas. Please try again.")
+      : (query.error ?? null),
     loadMore,
+    areaFallback,
   };
 }

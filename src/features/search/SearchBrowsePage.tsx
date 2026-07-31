@@ -262,7 +262,7 @@ export default function SearchBrowsePage() {
   const mapWrapperClass = isMapView
     ? "fixed inset-x-0 top-16 desk:top-[120px] bottom-0 z-30"
     : isSplitView
-      ? "hidden desk:fixed desk:right-0 desk:top-[120px] desk:bottom-0 desk:w-[42%] desk:z-20"
+      ? "hidden desk:block desk:fixed desk:right-0 desk:top-[120px] desk:bottom-0 desk:w-[42%] desk:z-20"
       : "hidden";
 
   return (

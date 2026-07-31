@@ -99,7 +99,7 @@ export function LocationSearchInput({
     setResolving(true);
     const types: string[] = (suggestion.placePrediction as any).types ?? [];
     try {
-      const place = await resolvePlace(suggestion, ["id", "displayName", "addressComponents"]);
+      const place = await resolvePlace(suggestion, ["id", "displayName", "addressComponents", "viewport"]);
 
       // One-city invariant check when cityViewport is null (India-wide search)
       if (!cityViewport && city) {
@@ -116,12 +116,19 @@ export function LocationSearchInput({
         }
       }
 
+      const vp = (place as any).viewport;
       const token: LocationToken = {
         id: (place as any).id,
         label: suggestion.placePrediction.mainText.text,
         type: inferTokenType(types),
         cityId: city,
         placeId: (place as any).id,
+        viewport: vp
+          ? {
+              sw: { lat: vp.getSouthWest().lat(), lng: vp.getSouthWest().lng() },
+              ne: { lat: vp.getNorthEast().lat(), lng: vp.getNorthEast().lng() },
+            }
+          : null,
       };
 
       const alreadyAdded = selected.some((t) => t.id === token.id);

@@ -19,6 +19,7 @@ function encodeLocationsData(tokens: SearchState["context"]["locations"]): strin
       type: t.type,
       cityId: t.cityId,
       placeId: t.placeId,
+      ...(t.viewport ? { viewport: t.viewport } : {}),
     })),
   };
   return btoa(JSON.stringify(payload));

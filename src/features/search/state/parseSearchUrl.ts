@@ -95,7 +95,14 @@ function decodeLocationsData(raw: string | null): LocationToken[] {
       seen.add(id);
       const cityId = typeof obj.cityId === "string" ? obj.cityId : null;
       const placeId = typeof obj.placeId === "string" ? obj.placeId : null;
-      result.push({ id, label, type: type as LocationTokenType, cityId, placeId });
+      // Optional area viewport: accept only when all 4 coords are finite numbers.
+      const vp = obj.viewport as Record<string, any> | undefined;
+      const fin = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
+      const viewport =
+        vp && vp.sw && vp.ne && fin(vp.sw.lat) && fin(vp.sw.lng) && fin(vp.ne.lat) && fin(vp.ne.lng)
+          ? { sw: { lat: vp.sw.lat, lng: vp.sw.lng }, ne: { lat: vp.ne.lat, lng: vp.ne.lng } }
+          : null;
+      result.push({ id, label, type: type as LocationTokenType, cityId, placeId, viewport });
     }
     return result;
   } catch {

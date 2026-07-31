@@ -24,7 +24,8 @@ export const MAP_MARKERS_LIMIT = 200;
 export interface SearchPropertiesInput {
   mode: SearchMode;
   city: string | null;               // normalized lowercase city identifier; null = no city filter (nationwide)
-  locationIds: string[];             // OR semantics; empty = search whole city
+  locationIds: string[];             // legacy placeId list (kept for RPC compat; sent as [])
+  areaBoxes: { swLat: number; swLng: number; neLat: number; neLng: number }[]; // geographic Area filter (OR)
   propertyType: string | null;
 
   // Price

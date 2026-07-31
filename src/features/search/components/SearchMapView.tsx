@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { List } from "lucide-react";
-import { Map as GoogleMap, useMap, useApiLoadingStatus } from "@vis.gl/react-google-maps";
+import { Map as GoogleMap, useMap, useApiLoadingStatus, useMapsLibrary } from "@vis.gl/react-google-maps";
 import { MarkerClusterer } from "@googlemaps/markerclusterer";
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { useMapMarkers } from "@/features/search/hooks/useMapMarkers";
+import { useResolveCity } from "@/features/search/hooks/useResolveCity";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { MapPropertyPreview } from "@/features/search/components/map/MapPropertyPreview";
 import { formatMarkerPrice } from "@/features/search/components/map/MapMarkerPin";
@@ -37,6 +38,58 @@ function groupMarkersByLocation(markers: SearchMapMarker[]): MarkerGroup[] {
   }));
 }
 
+/**
+ * Resolve the viewport to fit on first open: union of all selected areas'
+ * viewports (fetched from each area's Google placeId), else the canonical city
+ * viewport. Returns null if nothing resolves (map stays at its current view).
+ */
+async function resolveSeedBounds(
+  locations: { placeId: string | null; label: string; viewport?: { sw: { lat: number; lng: number }; ne: { lat: number; lng: number } } | null }[],
+  city: string | null,
+  placesLib: any,
+  resolveCityByName: (name: string) => Promise<{ viewport: { low: { lat: number; lng: number }; high: { lat: number; lng: number } } | null } | null>,
+): Promise<MapBounds | null> {
+  const boxes: MapBounds[] = [];
+  for (const loc of locations) {
+    // Prefer the already-hydrated token viewport; only fetch if missing.
+    if (loc.viewport) {
+      boxes.push({ ne: { ...loc.viewport.ne }, sw: { ...loc.viewport.sw } });
+      continue;
+    }
+    if (loc.placeId && placesLib?.Place) {
+      try {
+        const place = new placesLib.Place({ id: loc.placeId });
+        await place.fetchFields({ fields: ["viewport"] });
+        const vp = place.viewport;
+        if (vp) {
+          boxes.push({
+            ne: { lat: vp.getNorthEast().lat(), lng: vp.getNorthEast().lng() },
+            sw: { lat: vp.getSouthWest().lat(), lng: vp.getSouthWest().lng() },
+          });
+        }
+      } catch {
+        /* skip unresolved area */
+      }
+    }
+  }
+  if (boxes.length > 0) {
+    return boxes.reduce((acc, b) => ({
+      ne: { lat: Math.max(acc.ne.lat, b.ne.lat), lng: Math.max(acc.ne.lng, b.ne.lng) },
+      sw: { lat: Math.min(acc.sw.lat, b.sw.lat), lng: Math.min(acc.sw.lng, b.sw.lng) },
+    }));
+  }
+  if (city) {
+    const resolved = await resolveCityByName(city);
+    if (resolved?.viewport) {
+      return {
+        ne: { lat: resolved.viewport.high.lat, lng: resolved.viewport.high.lng },
+        sw: { lat: resolved.viewport.low.lat, lng: resolved.viewport.low.lng },
+      };
+    }
+  }
+  return null;
+}
+
 function boundsEqual(a: MapBounds | null, b: MapBounds | null): boolean {
   if (a === null && b === null) return true;
   if (a === null || b === null) return false;
@@ -67,11 +120,12 @@ function buildMarkerElement(
   const pill = document.createElement("div");
   const baseClass =
     "px-2 py-0.5 rounded-full text-[11px] font-semibold shadow-sm border-2 whitespace-nowrap select-none";
+  // Compact Reeve-blue price pins. Selected gets a white ring + larger scale to stand out.
   const colorClass = isSelected
-    ? "bg-primary text-primary-foreground border-primary scale-110"
+    ? "bg-primary text-primary-foreground border-white scale-110"
     : isHovered
-      ? "bg-primary/20 text-primary border-primary/60 scale-105"
-      : "bg-card text-foreground border-border";
+      ? "bg-primary text-primary-foreground border-white/70 scale-105"
+      : "bg-primary text-primary-foreground border-primary";
   const approxClass = isApprox ? "border-dashed" : "";
   pill.className = [baseClass, colorClass, approxClass].filter(Boolean).join(" ");
   pill.style.display = "flex";
@@ -98,6 +152,9 @@ interface InnerControllerProps {
   selectedMarkerId: string | null;
   hoveredPropertyId?: string | null;
   onMarkerClick: (propertyId: string) => void;
+  /** Fit the map to this viewport once per search geography (changes by key). */
+  seedBounds: MapBounds | null;
+  seedKey: string;
 }
 
 function MapInnerController({
@@ -106,9 +163,26 @@ function MapInnerController({
   selectedMarkerId,
   hoveredPropertyId,
   onMarkerClick,
+  seedBounds,
+  seedKey,
 }: InnerControllerProps) {
   const map = useMap("search-map");
   const clustererRef = useRef<MarkerClusterer | null>(null);
+  const fittedKeyRef = useRef<string | null>(null);
+
+  // Fit to the selected search geography ONCE per geography key. Subsequent user
+  // pan/zoom never snaps back; a new City/Areas selection (new key) refits once.
+  useEffect(() => {
+    if (!map || !seedBounds || !seedKey) return;
+    if (fittedKeyRef.current === seedKey) return;
+    fittedKeyRef.current = seedKey;
+    map.fitBounds({
+      north: seedBounds.ne.lat,
+      south: seedBounds.sw.lat,
+      east: seedBounds.ne.lng,
+      west: seedBounds.sw.lng,
+    });
+  }, [map, seedBounds, seedKey]);
 
   // Track idle bounds
   useEffect(() => {
@@ -201,8 +275,38 @@ export function SearchMapView({
   const [pendingBounds, setPendingBounds] = useState<MapBounds | null>(null);
   const committedBounds = state.mapBounds;
 
+  // ── Seed viewport once per selected search geography (area union, else city) ──
+  const placesLib = useMapsLibrary("places");
+  const { resolveCityByName } = useResolveCity();
+  const [seedBounds, setSeedBounds] = useState<MapBounds | null>(null);
+  const seededKeyRef = useRef<string | null>(null);
+  const locations = state.context.locations;
+  const geoKey =
+    locations.length > 0 ? locations.map((l) => l.id).join(",") : (state.context.city ?? "");
+
+  useEffect(() => {
+    if (!geoKey || seededKeyRef.current === geoKey) return;
+    let cancelled = false;
+    (async () => {
+      const bounds = await resolveSeedBounds(locations, state.context.city, placesLib, resolveCityByName);
+      if (cancelled || !bounds) return;
+      seededKeyRef.current = geoKey;
+      setSeedBounds(bounds);
+      // Commit once so get_map_markers runs for the selected geography.
+      setMapBounds(bounds);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geoKey, placesLib]);
+
   const { data: markers = [] } = useMapMarkers(true);
   const groupedMarkers = groupMarkersByLocation(markers);
+  // Precision legend shows only when both exact + approximate pins are present.
+  const hasExactPins = markers.some((m) => m.precision === "exact");
+  const hasApproxPins = markers.some((m) => m.precision === "approximate");
+  const showPrecisionLegend = hasExactPins && hasApproxPins;
 
   // Derive selected group from URL state
   const selectedMarkerId = state.selectedPropertyId;
@@ -280,11 +384,13 @@ export function SearchMapView({
           selectedMarkerId={selectedMarkerId}
           hoveredPropertyId={hoveredPropertyId}
           onMarkerClick={(propertyId) => setSelectedPropertyId(propertyId)}
+          seedBounds={seedBounds}
+          seedKey={geoKey}
         />
       </GoogleMap>
 
-      {/* Top overlay: context chip + Filters */}
-      <div className="absolute top-2 left-2 right-2 z-10 flex items-center gap-2">
+      {/* Top overlay: context chip + Filters — hidden on desktop (toolbar already has these) */}
+      <div className="absolute top-2 left-2 right-2 z-10 flex items-center gap-2 desk:hidden">
         <button
           type="button"
           onClick={onOpenSetup}
@@ -320,6 +426,20 @@ export function SearchMapView({
           <p className="rounded-full bg-card/90 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm">
             Navigate to {city || "your city"} and tap "Search this area"
           </p>
+        </div>
+      )}
+
+      {/* Precision legend — only when both exact + approximate pins are present */}
+      {showPrecisionLegend && (
+        <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-1 rounded-lg border bg-card/95 px-2.5 py-1.5 text-[10px] shadow-sm backdrop-blur-sm">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full border-2 border-primary bg-primary" />
+            Exact location
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full border-2 border-dashed border-primary bg-primary/40" />
+            Approximate
+          </span>
         </div>
       )}
 

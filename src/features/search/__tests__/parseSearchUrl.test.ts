@@ -65,6 +65,28 @@ describe("parseSearchUrl", () => {
     expect(state.context.locations).toHaveLength(5);
   });
 
+  it("parses an area viewport from locations_data (persisted for geographic filtering)", () => {
+    const tokens = [
+      {
+        id: "loc1", label: "Whitefield", type: "area", cityId: "bengaluru", placeId: "p1",
+        viewport: { sw: { lat: 12.9, lng: 77.7 }, ne: { lat: 13.0, lng: 77.8 } },
+      },
+    ];
+    const data = btoa(JSON.stringify({ v: 1, items: tokens }));
+    const state = parseSearchUrl(p(`type=rent&locations=loc1&locations_data=${data}`));
+    expect(state.context.locations[0].viewport).toEqual({
+      sw: { lat: 12.9, lng: 77.7 },
+      ne: { lat: 13.0, lng: 77.8 },
+    });
+  });
+
+  it("sets viewport null when locations_data omits/has malformed viewport", () => {
+    const tokens = [{ id: "loc1", label: "A", type: "area", cityId: "bengaluru", placeId: "p1" }];
+    const data = btoa(JSON.stringify({ v: 1, items: tokens }));
+    const state = parseSearchUrl(p(`type=rent&locations=loc1&locations_data=${data}`));
+    expect(state.context.locations[0].viewport).toBeNull();
+  });
+
   it("trims to five locations when six are provided", () => {
     const tokens = Array.from({ length: 6 }, (_, i) => ({
       id: `loc${i}`,

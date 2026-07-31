@@ -15,7 +15,17 @@ export function buildSearchInput(state: SearchState): SearchPropertiesInput | nu
   return {
     mode,
     city: city ?? null,
-    locationIds: locations.map((l) => l.id),
+    // Legacy placeId list no longer used for Area matching — send empty.
+    locationIds: [],
+    // Geographic Area filter: one box per selected area viewport (OR semantics server-side).
+    areaBoxes: locations
+      .filter((l) => l.viewport)
+      .map((l) => ({
+        swLat: l.viewport!.sw.lat,
+        swLng: l.viewport!.sw.lng,
+        neLat: l.viewport!.ne.lat,
+        neLng: l.viewport!.ne.lng,
+      })),
     propertyType: propertyType ?? null,
 
     minPrice: f.minPrice ?? null,
