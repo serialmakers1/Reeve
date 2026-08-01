@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Check, ChevronDown } from "lucide-react";
-import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetClose, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -240,7 +240,7 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
         {/* Header — single close is the built-in SheetContent X (top-right) */}
         <div className="px-4 py-3 border-b shrink-0 pr-12">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold">Filters</h2>
+            <SheetTitle className="text-base font-semibold">Filters</SheetTitle>
             <button
               type="button"
               onClick={handleReset}
@@ -249,9 +249,9 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
               Clear all
             </button>
           </div>
-          {cityTitle && (
-            <p className="mt-0.5 text-xs text-muted-foreground">Showing properties in {cityTitle}</p>
-          )}
+          <SheetDescription className="mt-0.5 text-xs text-muted-foreground">
+            {cityTitle ? `Showing properties in ${cityTitle}` : "Refine your search results"}
+          </SheetDescription>
         </div>
 
         {/* Body — scrollable */}

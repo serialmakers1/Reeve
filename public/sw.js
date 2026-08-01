@@ -1,4 +1,4 @@
-const CACHE_NAME = 'reeve-shell-v2';
+const CACHE_NAME = 'reeve-shell-v3';
 
 const SHELL_ASSETS = [
   '/',
@@ -26,6 +26,10 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return;
+  // Never intercept same-origin API requests (e.g. /api/geo). Let the browser
+  // see the real response/failure — the caller's own try/catch handles it.
+  // Prevents wrapping a failed API fetch in a synthetic 504 "Offline".
+  if (url.pathname.startsWith('/api/')) return;
 
   event.respondWith(
     fetch(event.request)

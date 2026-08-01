@@ -47,6 +47,15 @@ export function CitySearchInput({
   const [geoLoading, setGeoLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
 
+  // Strict-Mode-safe mount guard: init false, set true on effect setup, false on
+  // cleanup. (Init-true + cleanup-only would stay permanently false after React
+  // 18 dev's extra setup→cleanup→setup cycle, silently dropping geo callbacks.)
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   // Reset active index when suggestion list changes
   useEffect(() => { setActiveIndex(-1); }, [suggestions]);
 
@@ -115,24 +124,47 @@ export function CitySearchInput({
   }
 
   async function handleUseMyLocation() {
+    // Dup guard: ignore repeated clicks while a request is already in flight.
+    if (geoLoading) return;
     if (!navigator.geolocation) {
-      toast({ title: "Couldn't detect location — please enter manually", variant: "destructive" });
+      toast({ title: "Location isn't supported here — please enter your city", variant: "destructive" });
       onToggleManualFallback();
       return;
     }
     setGeoLoading(true);
     try {
+      // Explicit user action: always the device's real position via the
+      // Geolocation API — never the Vercel IP fallback (which is only a default
+      // for an empty search). Bounded timeout so the button can't hang.
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject),
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 0,
+        }),
       );
       const result = await geocodeLatLng(pos.coords.latitude, pos.coords.longitude);
+      // Component unmounted mid-flight (e.g. panel closed) — drop the result.
+      if (!mountedRef.current) return;
       if (!result) throw new Error("Geocoding failed");
+      // Same canonical City path as manual selection: viewport present → Areas enable.
       onCitySelected(result.city, result.city, null, result.viewport);
-    } catch {
-      toast({ title: "Couldn't detect location — please enter manually", variant: "destructive" });
+    } catch (err) {
+      if (!mountedRef.current) return;
+      // Actionable, error-specific messaging. Draft is untouched on failure.
+      const code = (err as GeolocationPositionError | undefined)?.code;
+      const title =
+        code === 1 /* PERMISSION_DENIED */
+          ? "Location access blocked — enable it or enter your city"
+          : code === 3 /* TIMEOUT */
+            ? "Location timed out — try again or enter your city"
+            : code === 2 /* POSITION_UNAVAILABLE */
+              ? "Couldn't determine your location — please enter your city"
+              : "Couldn't detect location — please enter manually";
+      toast({ title, variant: "destructive" });
       onToggleManualFallback();
     } finally {
-      setGeoLoading(false);
+      if (mountedRef.current) setGeoLoading(false);
     }
   }
 

@@ -7,6 +7,7 @@ import type { LocationToken } from "@/features/search/domain/searchTypes";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -229,14 +230,14 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
         <DialogContent className="w-full max-w-none h-[92dvh] top-auto bottom-0 translate-y-0 rounded-t-2xl overflow-hidden sm:top-[50%] sm:bottom-auto sm:h-auto sm:max-h-[90dvh] sm:max-w-lg sm:translate-y-[-50%] sm:rounded-lg desk:max-w-2xl p-0 flex flex-col gap-0">
           <DialogHeader className="px-5 pt-5 pb-4 border-b shrink-0 space-y-1 text-left">
             <DialogTitle className="text-lg font-semibold">Find your next home</DialogTitle>
-            <p className="text-sm text-muted-foreground">
+            <DialogDescription className="text-sm text-muted-foreground">
               {isApproxCity ? approxHelperText : "Tell us what you're looking for to get started."}
-            </p>
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5 desk:grid desk:grid-cols-2 desk:gap-6 desk:space-y-0 desk:items-start">
             {/* Left column: Looking to, City, Popular Cities */}
-            <div className="space-y-5">
+            <div className="space-y-5 min-w-0">
             {/* Rent / Buy */}
             <section className="space-y-2">
               <p className="text-sm font-medium">Looking to</p>
@@ -291,7 +292,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
             </div>
 
             {/* Right column: Areas, Property type */}
-            <div className="space-y-5">
+            <div className="space-y-5 min-w-0">
 
             {/* Locations */}
             {draft.city && (
@@ -302,7 +303,10 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                 <LocationSearchInput
                   city={draft.city}
                   cityViewport={draft.cityViewport}
-                  cityResolved={!!draft.cityViewport}
+                  // Area search enables as soon as a committed City exists — area
+                  // filtering uses each token's own viewport; the city viewport is
+                  // hydrated in the background only for autocomplete biasing.
+                  cityResolved={!!draft.city}
                   selected={draft.locations}
                   onAdd={(token) => {
                     if (draft.locations.length >= 5 || draft.locations.some((l) => l.id === token.id)) return;

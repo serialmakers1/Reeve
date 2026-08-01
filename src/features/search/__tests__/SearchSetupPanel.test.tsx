@@ -255,3 +255,29 @@ describe("SearchSetupPanel — location limits", () => {
     expect(screen.queryByText(/areas/i)).not.toBeInTheDocument();
   });
 });
+
+describe("SearchSetupPanel — Area enablement on committed City (Issue 6)", () => {
+  // useMapsLibrary is mocked to null, so the city-viewport hydration effect never
+  // runs. The Area input must still be enabled purely from the committed city.
+  it("enables the Area search input immediately when a committed city exists", () => {
+    vi.mocked(useSearchState).mockReturnValue(rentBengaluruState as ReturnType<typeof useSearchState>);
+    renderPanel({ open: true });
+    const areaInput = screen.getByPlaceholderText(/search areas in bengaluru/i);
+    expect(areaInput).toBeInTheDocument();
+    expect(areaInput).not.toBeDisabled();
+    // The disabled placeholder must NOT appear.
+    expect(screen.queryByPlaceholderText(/select a city first/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("SearchSetupPanel — dialog accessibility (Issue 1)", () => {
+  it("renders an accessible description (DialogDescription) for the dialog", () => {
+    vi.mocked(useSearchState).mockReturnValue(noContextState as ReturnType<typeof useSearchState>);
+    renderPanel({ open: true });
+    const dialog = screen.getByRole("dialog");
+    // Radix wires DialogDescription via aria-describedby → resolves to a node.
+    const describedBy = dialog.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy as string)).toBeTruthy();
+  });
+});
