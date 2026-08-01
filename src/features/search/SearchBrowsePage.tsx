@@ -8,6 +8,8 @@ import { useSearchResults } from "@/features/search/state/useSearchResults";
 import { useFavourites } from "@/hooks/useFavourites";
 import { useSearchMeta } from "@/features/search/hooks/useSearchMeta";
 import { useVercelGeoCity } from "@/features/search/hooks/useVercelGeoCity";
+import { SEARCH_MAP_ENABLED } from "@/features/search/domain/searchFeatureFlags";
+import { shouldAutoOpenSetup, canAdoptGeoCity } from "@/features/search/state/searchSetupGating";
 import {
   SEARCH_EVENTS,
   newSearchSessionId,
@@ -35,28 +37,47 @@ export default function SearchBrowsePage() {
   const routeLocation = useLocation();
   useSearchMeta();
 
-  // Open the Setup panel once on a bare first visit (no type + no city in URL) so
-  // the user gets the location experience with Rent preselected + approximate city,
-  // while Rent results load behind it. Explicit-context visits never auto-open.
-  const [isPanelOpen, setIsPanelOpen] = useState(() => {
-    const sp = new URLSearchParams(routeLocation.search);
-    return !sp.get(URL_PARAMS.type) && !sp.get(URL_PARAMS.city);
-  });
+  // Auto-open Setup once ONLY when there is no committed location (no city AND no
+  // areas) in the URL. A restored/URL/user City or Areas goes straight to results.
+  const [isPanelOpen, setIsPanelOpen] = useState(() => shouldAutoOpenSetup(routeLocation.search));
 
   // Approximate city from coarse Vercel IP geo (India-only, canonical, once per mount).
-  // Only attempt when no city was present at mount.
-  const hadCityAtMountRef = useRef(!!state.context.city);
+  // Precedence: explicit URL location > committed user location > Setup draft > Vercel.
+  // Only attempt when NO location (city or areas) was present at mount.
+  const hadLocationAtMountRef = useRef(!!state.context.city || state.context.locations.length > 0);
   const userSelectedCityRef = useRef(false);
-  const { approxCity } = useVercelGeoCity(!hadCityAtMountRef.current);
+  const geoSeededRef = useRef(false);
+  const { approxCity } = useVercelGeoCity(!hadLocationAtMountRef.current);
 
-  // Apply the approximate city only when no explicit/user city exists. When the panel
-  // is open, the panel adopts it via the `suggestedCity` prop (no URL churn); when
-  // closed, prefill the URL context. A late response never overwrites a user choice.
+  // Adopt the approximate city ONLY to seed a fully-empty search, once. Re-check
+  // committed state + user interaction at apply time so a late async response never
+  // overwrites a URL/user/area location. When the panel is open, the panel adopts it
+  // via `suggestedCity` (adopt-if-draft-empty + !userTouched) instead.
   useEffect(() => {
-    if (!approxCity || userSelectedCityRef.current || state.context.city || isPanelOpen) return;
-    setContext({ city: approxCity.city });
+    if (
+      !canAdoptGeoCity({
+        hasApproxCity: !!approxCity,
+        alreadySeeded: geoSeededRef.current,
+        userSelectedCity: userSelectedCityRef.current,
+        committedCity: !!state.context.city,
+        committedAreaCount: state.context.locations.length,
+        panelOpen: isPanelOpen,
+      })
+    ) {
+      return;
+    }
+    geoSeededRef.current = true;
+    setContext({ city: approxCity!.city });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approxCity, isPanelOpen, state.context.city]);
+
+  // Normalize a stale ?view=map|split in the URL to List once (replace, no new entry).
+  useEffect(() => {
+    if (SEARCH_MAP_ENABLED) return;
+    const v = new URLSearchParams(routeLocation.search).get(URL_PARAMS.view);
+    if (v === "map" || v === "split") setView("list");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── search_context_submitted ───────────────────────────────────────────────
   const handleContextSubmitted = useCallback(
@@ -96,10 +117,14 @@ export default function SearchBrowsePage() {
   const isDesktopSplit = isSplitView && isDesktop;
 
   // ── Lazy map mount — only when map will actually render ────────────────────
-  const [hasOpenedMap, setHasOpenedMap] = useState(isMapView || isDesktopSplit);
+  const [hasOpenedMap, setHasOpenedMap] = useState(
+    SEARCH_MAP_ENABLED && (isMapView || isDesktopSplit),
+  );
   const prevViewRef = useRef(state.view);
 
   useEffect(() => {
+    // Map/Split gated off — no mount, no marker query, no map analytics.
+    if (!SEARCH_MAP_ENABLED) return;
     const prev = prevViewRef.current;
     const next = state.view;
     prevViewRef.current = next;
@@ -349,7 +374,7 @@ export default function SearchBrowsePage() {
       )}
 
       {/* Single SearchMapView — outside results pane; wrapper className owns all positioning */}
-      {hasOpenedMap && (
+      {SEARCH_MAP_ENABLED && hasOpenedMap && (
         <div className={mapWrapperClass}>
           <Suspense fallback={null}>
           <SearchMapView
@@ -367,8 +392,8 @@ export default function SearchBrowsePage() {
         </div>
       )}
 
-      {/* Map FAB — show when not in fullscreen map; hidden on desktop (desk:hidden in component) */}
-      {hasValidContext && !isMapView && (
+      {/* Map FAB — hidden while Map/Split are gated off */}
+      {SEARCH_MAP_ENABLED && hasValidContext && !isMapView && (
         <SearchMapPlaceholder onClick={() => setView("map")} />
       )}
     </div>

@@ -6,6 +6,14 @@ function p(qs: string): URLSearchParams {
 }
 
 describe("parseSearchUrl", () => {
+  // Map/Split are gated off (SEARCH_MAP_ENABLED=false) → any view normalizes to list.
+  it("normalizes view=map to list (Map/Split gated off)", () => {
+    expect(parseSearchUrl(p("type=rent&view=map")).view).toBe("list");
+  });
+  it("normalizes view=split to list (Map/Split gated off)", () => {
+    expect(parseSearchUrl(p("type=rent&view=split")).view).toBe("list");
+  });
+
   it("returns default state for empty params (mode defaults to rent)", () => {
     const state = parseSearchUrl(p(""));
     expect(state.context.mode).toBe("rent");
@@ -136,8 +144,8 @@ describe("parseSearchUrl", () => {
     expect(state.sort).toBe("newest");
   });
 
-  it('parses view=split', () => {
-    expect(parseSearchUrl(p("type=rent&view=split")).view).toBe("split");
+  it('view=split normalizes to list while Map/Split are gated off', () => {
+    expect(parseSearchUrl(p("type=rent&view=split")).view).toBe("list");
   });
 
   it('resets nonsense view to "list"', () => {
@@ -266,7 +274,7 @@ describe("parseSearchUrl", () => {
     expect(rf.bhk).toEqual(["2BHK", "3BHK"]);
     expect(rf.furnishing).toEqual(["semi_furnished"]);
     expect(state.sort).toBe("price_asc");
-    expect(state.view).toBe("split");
+    expect(state.view).toBe("list"); // view=split normalized to list (Map/Split gated off)
   });
 
   it("parses a full buy URL", () => {

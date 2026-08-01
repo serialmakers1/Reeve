@@ -13,10 +13,12 @@ import {
   SEARCH_VIEW_MODES,
   DEFAULT_SORT,
   DEFAULT_VIEW,
+
   MAX_SELECTED_LOCATIONS,
   URL_PARAMS,
 } from "../domain/searchConstants";
 import { getDefaultSearchState } from "../domain/searchDefaults";
+import { SEARCH_MAP_ENABLED } from "../domain/searchFeatureFlags";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -233,10 +235,14 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
     : DEFAULT_SORT;
 
   // ── View ──
+  // While Map/Split are gated off, any restored map/split state normalizes to list
+  // here (single source), so no Map mounts and no extra navigation entry is created.
   const rawView = params.get(P.view) ?? "";
-  const view = (SEARCH_VIEW_MODES as readonly string[]).includes(rawView)
-    ? (rawView as SearchState["view"])
-    : DEFAULT_VIEW;
+  const view = !SEARCH_MAP_ENABLED
+    ? "list"
+    : (SEARCH_VIEW_MODES as readonly string[]).includes(rawView)
+      ? (rawView as SearchState["view"])
+      : DEFAULT_VIEW;
 
   // ── Cursor ──
   const cursorRaw = params.get(URL_PARAMS.cursor);

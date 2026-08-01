@@ -1162,3 +1162,4 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-07-29] ui | Search cards, split layout, responsive states, and visual polish [10:49 IST]
 ## [2026-07-29] fix | Fixed area recovery, map initialization/markers, Split rendering, and Search service-worker stability [11:49 IST]
 ## [2026-07-29] fix | Implemented geographic Area filtering and final Search mockup parity [14:37 IST]
+## [2026-08-01] fix | Stabilized List-only Search, filters, and location setup behavior [13:17 IST]

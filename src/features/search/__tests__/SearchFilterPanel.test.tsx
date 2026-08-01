@@ -11,6 +11,7 @@ import type { RentFilters, BuyFilters } from "../domain/searchTypes";
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
 const setFiltersSpy = vi.fn();
+const applyFiltersSpy = vi.fn();
 const setSortSpy = vi.fn();
 const resetFiltersSpy = vi.fn();
 
@@ -30,6 +31,7 @@ vi.mock("@/features/search/state/useSearchState", () => ({
   useSearchState: vi.fn(() => ({
     state: mockState,
     setFilters: setFiltersSpy,
+    applyFilters: applyFiltersSpy,
     setSort: setSortSpy,
     resetFilters: resetFiltersSpy,
     hasValidContext: true,
@@ -48,6 +50,7 @@ function renderPanel(open = true, mode: "rent" | "buy" = "rent") {
   vi.mocked(useSearchState).mockReturnValue({
     state: mockState,
     setFilters: setFiltersSpy,
+    applyFilters: applyFiltersSpy,
     setSort: setSortSpy,
     resetFilters: resetFiltersSpy,
     hasValidContext: true,
@@ -68,6 +71,7 @@ function openMore() {
 
 beforeEach(() => {
   setFiltersSpy.mockClear();
+  applyFiltersSpy.mockClear();
   setSortSpy.mockClear();
   resetFiltersSpy.mockClear();
   mockState = { ...defaultMockState };
@@ -84,18 +88,18 @@ describe("draft state", () => {
 });
 
 describe("Apply", () => {
-  it("calls setFilters on Apply", () => {
+  it("calls applyFilters once on Apply (single atomic write)", () => {
     renderPanel();
     const applyBtn = screen.getByRole("button", { name: "Show properties" });
     fireEvent.click(applyBtn);
-    expect(setFiltersSpy).toHaveBeenCalledTimes(1);
+    expect(applyFiltersSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("calls setSort on Apply", () => {
+  it("does NOT call setSort on Apply (sort is external; never clobbered)", () => {
     renderPanel();
     const applyBtn = screen.getByRole("button", { name: "Show properties" });
     fireEvent.click(applyBtn);
-    expect(setSortSpy).toHaveBeenCalledTimes(1);
+    expect(setSortSpy).not.toHaveBeenCalled();
   });
 
   it("closes panel after Apply", () => {

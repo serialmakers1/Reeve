@@ -225,7 +225,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-full max-w-none h-[92dvh] top-auto bottom-0 translate-y-0 rounded-t-2xl overflow-hidden sm:top-[50%] sm:bottom-auto sm:h-auto sm:max-w-lg sm:translate-y-[-50%] sm:rounded-lg p-0 flex flex-col gap-0">
+        <DialogContent className="w-full max-w-none h-[92dvh] top-auto bottom-0 translate-y-0 rounded-t-2xl overflow-hidden sm:top-[50%] sm:bottom-auto sm:h-auto sm:max-h-[90dvh] sm:max-w-lg sm:translate-y-[-50%] sm:rounded-lg p-0 flex flex-col gap-0">
           <DialogHeader className="px-5 pt-5 pb-4 border-b shrink-0 space-y-1 text-left">
             <DialogTitle className="text-lg font-semibold">Find your next home</DialogTitle>
             <p className="text-sm text-muted-foreground">
@@ -233,7 +233,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
             </p>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-6">
             {/* Rent / Buy */}
             <section className="space-y-2">
               <p className="text-sm font-medium">Looking to</p>
