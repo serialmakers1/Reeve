@@ -4,6 +4,7 @@ import { useSearchState } from "@/features/search/state/useSearchState";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { SortControl } from "../SortControl";
 import { RentBuySelector } from "../RentBuySelector";
+import { SEARCH_MAP_ENABLED } from "@/features/search/domain/searchFeatureFlags";
 import type { SearchViewMode, RentFilters, BuyFilters } from "@/features/search/domain/searchTypes";
 
 const CHIP =
@@ -107,7 +108,8 @@ export function DesktopSearchToolbar({
       {/* Sort */}
       <SortControl className="h-9" />
 
-      {/* View mode toggle */}
+      {/* View mode toggle — hidden while Map/Split are gated off (List-only) */}
+      {SEARCH_MAP_ENABLED && (
       <div className="flex shrink-0 items-center overflow-hidden rounded-lg border border-border">
         {(
           [
@@ -129,6 +131,7 @@ export function DesktopSearchToolbar({
           </button>
         ))}
       </div>
+      )}
     </div>
   );
 }

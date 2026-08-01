@@ -1,7 +1,65 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { overlayFavourites, buildSearchCursor } from "../data/searchDataClient";
+import { overlayFavourites, buildSearchCursor, searchProperties } from "../data/searchDataClient";
+import type { SearchPropertiesInput } from "../data/searchContracts";
 import type { SearchPropertyResult } from "../data/searchResultContract";
 import type { SearchPropertyRpcRow } from "../data/searchResultContract";
+
+function baseInput(overrides: Partial<SearchPropertiesInput> = {}): SearchPropertiesInput {
+  return {
+    mode: "rent", city: "bengaluru", locationIds: [], areaBoxes: [], propertyType: null,
+    minPrice: null, maxPrice: null, bhk: [], furnishing: [], possessionStatus: [],
+    availableBy: null, listedWithin: null, availabilityConfirmedWithin: null, maxDeposit: null,
+    maxLockIn: null, maxNotice: null, maxAnnualIncrease: null, maxMoveInCharges: null, petPolicy: [],
+    maxBrokerage: null, rentBrokerageMaxFixed: null, rentBrokerageMaxMonths: null,
+    zeroRentBrokerage: null, minCarpetArea: null, maxCarpetArea: null, minSuperBuiltUp: null,
+    maxSuperBuiltUp: null, possessionBefore: null, negotiable: null, buyBrokerageMaxPct: null,
+    reraDisclosed: null, khataType: [], propertyTaxPaid: null, parking4w: [], parking2w: [],
+    amenities: [], hasVideoWalkthrough: null, minResponseRate: null, hasExperienceFeedback: null,
+    sort: "newest", cursor: null, limit: 20,
+    ...overrides,
+  } as SearchPropertiesInput;
+}
+
+describe("searchProperties — RPC payload", () => {
+  function mockClient() {
+    const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return { client: { rpc } as any, rpc };
+  }
+
+  it("sends p_bhk with selected BHK values (filter reaches the request)", async () => {
+    const { client, rpc } = mockClient();
+    await searchProperties(baseInput({ bhk: ["1BHK"] }), client);
+    expect(rpc).toHaveBeenCalledWith("search_compact_properties", expect.objectContaining({ p_bhk: ["1BHK"] }));
+  });
+
+  it("sends p_bhk null when no BHK selected (empty default does not filter)", async () => {
+    const { client, rpc } = mockClient();
+    await searchProperties(baseInput({ bhk: [] }), client);
+    expect(rpc).toHaveBeenCalledWith("search_compact_properties", expect.objectContaining({ p_bhk: null }));
+  });
+
+  it("maps furnishing + price + area boxes to the correct RPC args", async () => {
+    const { client, rpc } = mockClient();
+    await searchProperties(
+      baseInput({
+        furnishing: ["semi_furnished"], minPrice: 10000, maxPrice: 40000,
+        areaBoxes: [{ swLat: 12.9, swLng: 77.6, neLat: 13.0, neLng: 77.7 }],
+      }),
+      client,
+    );
+    expect(rpc).toHaveBeenCalledWith(
+      "search_compact_properties",
+      expect.objectContaining({
+        p_furnishing: ["semi_furnished"],
+        p_min_price: 10000,
+        p_max_price: 40000,
+        p_area_boxes: [{ sw_lat: 12.9, sw_lng: 77.6, ne_lat: 13.0, ne_lng: 77.7 }],
+        p_location_ids: [],
+      }),
+    );
+  });
+});
 
 function makeResult(overrides: Partial<SearchPropertyResult> = {}): SearchPropertyResult {
   return {

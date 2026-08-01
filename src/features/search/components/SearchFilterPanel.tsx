@@ -10,9 +10,7 @@ import { useSearchState } from "@/features/search/state/useSearchState";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { FilterSection } from "./list/FilterSection";
 import type { RentFilters, BuyFilters } from "../domain/searchTypes";
-import type { SearchSortKey } from "../domain/searchTypes";
 import {
-  DEFAULT_SORT,
   BHK_VALUES,
   FURNISHING_VALUES,
   PARKING_VALUES,
@@ -108,18 +106,10 @@ function toggleArray<T>(arr: T[] | undefined, val: T): T[] {
 }
 
 export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps) {
-  const { state, setFilters, setSort } = useSearchState();
+  const { state, applyFilters } = useSearchState();
   const mode = state.context.mode ?? "rent";
 
-  const SORT_OPTIONS: { key: SearchSortKey; label: string }[] = [
-    { key: "newest", label: "Newest" },
-    ...(mode === "rent" ? [{ key: "availability_confirmed" as SearchSortKey, label: "Recently confirmed" }] : []),
-    { key: "price_asc", label: "Price ↑" },
-    { key: "price_desc", label: "Price ↓" },
-  ];
-
   const [draft, setDraft] = useState<RentFilters | BuyFilters>({});
-  const [draftSort, setDraftSort] = useState<SearchSortKey>(state.sort);
   const [showMore, setShowMore] = useState(false);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [isDesktop, setIsDesktop] = useState(
@@ -138,7 +128,6 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
   useEffect(() => {
     if (!open) return;
     setDraft(state.filters);
-    setDraftSort(state.sort);
     setShowMore(false);
     setShowAllAmenities(false);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -150,14 +139,13 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
     : AMENITY_OPTIONS.slice(0, AMENITY_SUBSET_COUNT);
 
   function handleApply() {
-    setFilters(draft);
-    setSort(draftSort);
+    // Single atomic write — replaces filters, preserves the externally-selected sort.
+    applyFilters(draft);
     onOpenChange(false);
   }
 
   function handleReset() {
     setDraft({});
-    setDraftSort(DEFAULT_SORT);
   }
 
   const rf = draft as RentFilters;

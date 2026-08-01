@@ -75,6 +75,17 @@ export function useSearchState() {
     [state, push],
   );
 
+  // Atomic filter apply: one push that REPLACES filters wholesale (not merge, so
+  // unchecking clears), resets the cursor, and preserves the current sort. Used by
+  // the filter panel's Apply — a single write avoids the stale-closure clobber that
+  // two sequential setter pushes caused.
+  const applyFilters = useCallback(
+    (filters: RentFilters | BuyFilters) => {
+      push({ ...state, filters, cursor: null });
+    },
+    [state, push],
+  );
+
   const setView = useCallback(
     (view: SearchViewMode) => {
       push({ ...state, view });
@@ -113,6 +124,7 @@ export function useSearchState() {
     setMode,
     setContext,
     setFilters,
+    applyFilters,
     setSort,
     setView,
     setCursor,
