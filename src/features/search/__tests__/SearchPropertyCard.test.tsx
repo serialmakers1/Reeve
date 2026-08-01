@@ -102,21 +102,23 @@ beforeEach(() => {
 });
 
 describe("SearchPropertyCard — rent card", () => {
-  it("renders price text with /mo suffix", () => {
+  it("renders the monthly rent amount with a month unit + Total monthly label", () => {
     renderCard(makeResult());
-    expect(screen.getByText(/35,000\/mo/)).toBeTruthy();
+    expect(screen.getByText(/35,000/)).toBeTruthy();
+    expect(screen.getByText("/ month")).toBeTruthy();
+    expect(screen.getByText("Total monthly")).toBeTruthy();
   });
 
-  it("renders building name", () => {
+  it("renders building name (combined with locality)", () => {
     renderCard(makeResult());
-    expect(screen.getByText("Sunrise Apartments")).toBeTruthy();
+    expect(screen.getByText(/Sunrise Apartments/)).toBeTruthy();
   });
 
-  it("renders comparison facts (max 3)", () => {
+  it("renders comparison facts (max 3) with explicit labels", () => {
     renderCard(makeResult());
-    // carpet (900), super-built-up (1100 — different value), semi-furnished
-    expect(screen.getByText("900 sq.ft")).toBeTruthy();
-    expect(screen.getByText("1100 sq.ft SBA")).toBeTruthy();
+    // carpet (900), super built-up (1100 — different value), semi-furnished
+    expect(screen.getByText("900 sq.ft carpet")).toBeTruthy();
+    expect(screen.getByText("1,100 sq.ft super built-up")).toBeTruthy();
     expect(screen.getByText("Semi-furnished")).toBeTruthy();
   });
 
@@ -172,12 +174,18 @@ describe("SearchPropertyCard — buy card", () => {
     expect(screen.getByText(/85L/)).toBeTruthy();
   });
 
-  it("renders possession status as a comparison fact", () => {
+  it("renders possession status as a comparison fact (when higher-priority attrs absent)", () => {
     renderCard(
       makeResult({
         listingMode: "buy",
         price: null,
         possessionStatus: "ready_to_move",
+        // Clear the preferred carpet/super-built-up/furnishing/parking so possession surfaces.
+        carpetAreaSqft: null,
+        superBuiltUpSqft: null,
+        furnishing: null,
+        parking4w: null,
+        parking2w: null,
       }),
     );
     expect(screen.getByText("Ready to move")).toBeTruthy();

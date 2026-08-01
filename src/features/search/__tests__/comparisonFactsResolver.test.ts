@@ -73,30 +73,30 @@ describe("resolveComparisonFacts — Rent", () => {
     expect(resolveComparisonFacts(r, "rent").length).toBeLessThanOrEqual(3);
   });
 
-  it("carpet area is fact 1 when non-null", () => {
+  it("carpet area is fact 1 with explicit label", () => {
     const r = { ...base(), carpetAreaSqft: 900 };
     const facts = resolveComparisonFacts(r, "rent");
-    expect(facts[0]?.label).toBe("900 sq.ft");
+    expect(facts[0]?.label).toBe("900 sq.ft carpet");
   });
 
-  it("super-built-up appears after carpet when values differ", () => {
+  it("super built-up appears after carpet (explicit label, comma-grouped) when values differ", () => {
     const r = { ...base(), carpetAreaSqft: 800, superBuiltUpSqft: 1000 };
     const facts = resolveComparisonFacts(r, "rent");
-    expect(facts.some((f) => f.label === "800 sq.ft")).toBe(true);
-    expect(facts.some((f) => f.label === "1000 sq.ft SBA")).toBe(true);
+    expect(facts.some((f) => f.label === "800 sq.ft carpet")).toBe(true);
+    expect(facts.some((f) => f.label === "1,000 sq.ft super built-up")).toBe(true);
   });
 
-  it("super-built-up skipped when numeric value equals carpet (area-value duplicate)", () => {
+  it("super built-up skipped when numeric value equals carpet (area-value duplicate)", () => {
     const r = { ...base(), carpetAreaSqft: 800, superBuiltUpSqft: 800 };
     const facts = resolveComparisonFacts(r, "rent");
     expect(facts.filter((f) => f.label.includes("sq.ft")).length).toBe(1);
-    expect(facts.some((f) => f.label.includes("SBA"))).toBe(false);
+    expect(facts.some((f) => f.label.includes("super built-up"))).toBe(false);
   });
 
-  it("super-built-up becomes fact 1 when carpet is null", () => {
+  it("super built-up becomes fact 1 when carpet is null", () => {
     const r = { ...base(), superBuiltUpSqft: 1100 };
     const facts = resolveComparisonFacts(r, "rent");
-    expect(facts[0]?.label).toBe("1100 sq.ft SBA");
+    expect(facts[0]?.label).toBe("1,100 sq.ft super built-up");
   });
 
   it("building age NOT included in rent facts", () => {
@@ -126,10 +126,10 @@ describe("resolveComparisonFacts — Rent", () => {
 });
 
 describe("resolveComparisonFacts — Buy", () => {
-  it("carpet area is fact 1, possession status fact 2", () => {
+  it("carpet area is fact 1 (explicit label), possession follows when no size/furnishing/parking", () => {
     const r = { ...base(), carpetAreaSqft: 1200, possessionStatus: "ready_to_move" };
     const facts = resolveComparisonFacts(r, "buy");
-    expect(facts[0]?.label).toBe("1200 sq.ft");
+    expect(facts[0]?.label).toBe("1,200 sq.ft carpet");
     expect(facts[1]?.label).toBe("Ready to move");
   });
 
@@ -141,19 +141,19 @@ describe("resolveComparisonFacts — Buy", () => {
       buildingAgeYears: 8,
     };
     const facts = resolveComparisonFacts(r, "buy");
-    expect(facts.map((f) => f.label)).toEqual(["1000 sq.ft", "Ready to move", "8 yr old"]);
+    expect(facts.map((f) => f.label)).toEqual(["1,000 sq.ft carpet", "Ready to move", "8 yr old"]);
   });
 
-  it("furnishing NOT in buy output", () => {
+  it("furnishing IS a high-value buy attribute now", () => {
     const r = { ...base(), furnishing: "fully_furnished", carpetAreaSqft: 900 };
     const facts = resolveComparisonFacts(r, "buy");
-    expect(facts.some((f) => f.label.toLowerCase().includes("furnished"))).toBe(false);
+    expect(facts.some((f) => f.label === "Fully furnished")).toBe(true);
   });
 
-  it("super-built-up NOT in buy output", () => {
-    const r = { ...base(), superBuiltUpSqft: 1400 };
+  it("super built-up IS shown in buy (explicit label) when it differs from carpet", () => {
+    const r = { ...base(), carpetAreaSqft: 900, superBuiltUpSqft: 1400 };
     const facts = resolveComparisonFacts(r, "buy");
-    expect(facts.some((f) => f.label.includes("SBA"))).toBe(false);
+    expect(facts.some((f) => f.label === "1,400 sq.ft super built-up")).toBe(true);
   });
 
   it("under_construction status rendered correctly", () => {

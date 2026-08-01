@@ -115,12 +115,17 @@ export function SearchPropertyCard({
   }
 
   const priceBlock = displayPrice && (
-    <p className={cn("font-bold leading-tight text-foreground", isHorizontal ? "text-base" : "text-lg")}>
-      {displayPrice.primary}
-      {displayPrice.isTotalMonthly && (
-        <span className="ml-1 text-[11px] font-normal text-muted-foreground">total</span>
-      )}
-    </p>
+    <div className="leading-tight">
+      <p className={cn("font-bold text-foreground", isHorizontal ? "text-base" : "text-lg")}>
+        {displayPrice.amount}
+        {displayPrice.unit && (
+          <span className="ml-1 text-xs font-normal text-muted-foreground">{displayPrice.unit}</span>
+        )}
+      </p>
+      <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        {displayPrice.label}
+      </p>
+    </div>
   );
 
   return (
@@ -167,7 +172,7 @@ export function SearchPropertyCard({
         <div
           className={cn(
             "relative overflow-hidden bg-muted",
-            isHorizontal ? "h-36 desk:h-full desk:w-[132px] desk:shrink-0" : "h-44",
+            isHorizontal ? "h-32 desk:h-full desk:w-[132px] desk:shrink-0" : "h-36",
           )}
         >
           <img
@@ -191,7 +196,7 @@ export function SearchPropertyCard({
         <div
           className={cn(
             "min-w-0 flex-1",
-            isHorizontal ? "flex flex-col justify-center gap-0.5 p-3" : "space-y-1 p-3",
+            isHorizontal ? "flex flex-col justify-center gap-0.5 p-3" : "space-y-0.5 p-2.5",
           )}
         >
           {/* 1. Price */}
@@ -200,13 +205,10 @@ export function SearchPropertyCard({
           {/* 2. BHK + type */}
           <p className="text-sm font-semibold leading-tight text-foreground">{titleLine}</p>
 
-          {/* 3. Building + locality */}
-          {result.buildingName && (
-            <p className="truncate text-xs leading-tight text-foreground/80">{result.buildingName}</p>
-          )}
-          {(result.locality || result.city) && (
+          {/* 3. Building · locality (combined) */}
+          {(result.buildingName || result.locality || result.city) && (
             <p className="truncate text-xs leading-tight text-muted-foreground">
-              {result.locality ?? result.city}
+              {[result.buildingName, result.locality ?? result.city].filter(Boolean).join(" · ")}
             </p>
           )}
 

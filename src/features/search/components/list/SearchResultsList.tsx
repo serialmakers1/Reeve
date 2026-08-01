@@ -154,10 +154,10 @@ export function SearchResultsList({
 
   const wrapperClass =
     layout === "horizontal"
-      ? "flex flex-col gap-3 p-3"
+      ? "flex flex-col gap-2.5 p-3"
       : columns === "responsive"
-        ? "flex flex-col gap-3 p-4 desk:grid desk:grid-cols-2 2xl:grid-cols-3 desk:gap-4 desk:p-4"
-        : "flex flex-col gap-3 p-4";
+        ? "flex flex-col gap-2.5 p-4 desk:grid desk:grid-cols-2 2xl:grid-cols-3 desk:gap-4 desk:p-4"
+        : "flex flex-col gap-2.5 p-4";
 
   return (
     <>
