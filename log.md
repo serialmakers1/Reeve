@@ -1,3 +1,5 @@
+## [2026-08-01] ui | Redesigned Login page right-side content around Reeve transparency principles [14:00 IST]
+
 ## [2026-08-01] fix | Moved AdminLayout Reeve links from sidebar and mobile Sheet to account dropdown [13:15 IST]
 
 ## [2026-08-01] feature | Phase 11A — Navigation redesign implemented: Header (desktop centre = Browse/PMS/Inspection; List→/list; auth dropdown adds Owner Dashboard→/owner-dashboard, drops Account settings; admin dropdown gains dashboards+My Profile; mobile menu two-way auth/anon with conditional Admin Dashboard, Login carries returnTo, aria-expanded added), Footer (5-col grid: brand+Marketplace/Dashboards&Account/Services&Support/Legal; canonical /list /tenant-dashboard /owner-dashboard /me; removed Tenant Savings/For Owners/Refer/My Properties/profile; static, no useAuth), BottomNav (Home tab removed → Browse/Tenant/Owner; suppression unchanged), AdminLayout (REEVE_LINKS section in NavLinks for sidebar+Sheet; Sign Out untouched). Layout unchanged. No auth/route/guard/analytics-name/SSG changes. [12:30 IST]

@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, ArrowLeft, ShieldCheck } from "lucide-react";
+import { Loader2, ArrowLeft, ShieldCheck, Eye, Lock, Activity } from "lucide-react";
 
 type LoginStep = "phone" | "otp";
 
@@ -223,82 +223,78 @@ export default function LoginPage() {
 
   return (
     <Layout>
-      {/* Split-screen wrapper: flex-col on mobile (right panel stacks above), flex-row on desktop */}
+      {/* Split-screen wrapper: flex-col on mobile (form first, marketing below), flex-row on desktop */}
       <div className="flex flex-1 flex-col md:flex-row">
 
-        {/* ── RIGHT PANEL (appears first in DOM → stacks above card on mobile) ── */}
-        <div className="order-1 md:order-2 md:w-[60%] bg-[#F7F7F5] flex flex-col justify-center px-6 py-10 md:px-14 md:py-16 gap-10">
+        {/* ── RIGHT PANEL (marketing — desktop right; on mobile stacks below the form) ── */}
+        <div className="order-2 md:order-2 md:w-[60%] bg-[#F7F7F5] flex flex-col justify-center px-6 py-10 md:px-14 md:py-16 gap-8">
 
-          {/* Section 1 — headline */}
-          <div className="space-y-4">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-600 tracking-wide">
+          {/* Section 1 — eyebrow + headline + description */}
+          <div className="space-y-4 max-w-xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
               <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
-              Bangalore's trust layer for rentals
+              Transparency before contact
             </span>
             <h2 className="text-3xl md:text-4xl font-serif leading-tight text-gray-900">
-              Renting,{" "}
-              <em className="text-blue-600 not-italic font-serif" style={{ fontStyle: "italic" }}>without</em>
-              {" "}the chaos.
+              Know more{" "}
+              <em className="text-blue-600 font-serif" style={{ fontStyle: "italic" }}>before</em>
+              {" "}you connect.
             </h2>
             <p className="text-sm md:text-base text-gray-600 leading-relaxed max-w-lg">
-              No broker. No spam calls. No drama. Just a verified property, a fair agreement, and someone to call when things go wrong.
+              Browse homes to buy or rent, or list one to sell or rent out—with clearer terms, listing history, public questions, and context about the person behind the listing.
             </p>
           </div>
 
-          {/* Section 2 — two side-by-side feature cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* For Tenants */}
-            <div className="rounded-xl bg-white border border-gray-200 p-5 shadow-sm space-y-3">
-              <p className="text-xs font-semibold tracking-widest uppercase text-blue-600">• For Tenants</p>
-              <ul className="space-y-2">
-                {[
-                  "Zero brokerage, always",
-                  "2-month deposit only",
-                  "No calls unless you ask",
-                  "Maintenance handled by us",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-green-600 font-bold mt-0.5 shrink-0">✓</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
+          {/* Section 2 — principle cards: two on the first row, one wider beneath */}
+          <div className="space-y-4 max-w-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Card 1 — See before you contact */}
+              <div className="rounded-xl bg-white border border-gray-200 p-5 shadow-sm space-y-3">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600/10 text-blue-600">
+                  <Eye className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h3 className="text-sm font-semibold text-gray-900">See before you contact</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Understand the lister&apos;s role, important terms, listing history, and public questions before deciding to connect.
+                </p>
+              </div>
+              {/* Card 2 — Your details stay private */}
+              <div className="rounded-xl bg-white border border-gray-200 p-5 shadow-sm space-y-3">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-600/10 text-green-600">
+                  <Lock className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h3 className="text-sm font-semibold text-gray-900">Your details stay private</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Send a structured contact request. Contact details are shared privately only after the lister approves the connection.
+                </p>
+              </div>
             </div>
-            {/* For Owners */}
+            {/* Card 3 — Trust built through behaviour (full width) */}
             <div className="rounded-xl bg-white border border-gray-200 p-5 shadow-sm space-y-3">
-              <p className="text-xs font-semibold tracking-widest uppercase text-blue-600">• For Owners</p>
-              <ul className="space-y-2">
-                {[
-                  "Only verified tenants reach you",
-                  "Free listing, tenant pays the fee",
-                  "No spam calls on listing",
-                  "Free Property Management Service",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-green-600 font-bold mt-0.5 shrink-0">✓</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600/10 text-blue-600">
+                <Activity className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <h3 className="text-sm font-semibold text-gray-900">Trust built through behaviour</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                See signals such as responsiveness, listing accuracy, and feedback from people who connected through Reeve.
+              </p>
             </div>
           </div>
 
-          {/* Section 3 — social proof strip */}
-          <div className="rounded-xl bg-gray-100/80 border border-gray-200 px-5 py-4 flex items-center gap-4">
-            {/* Overlapping avatars */}
-            <div className="flex -space-x-2 shrink-0">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-teal-500 text-xs font-bold text-white ring-2 ring-white">RK</span>
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-orange-400 text-xs font-bold text-white ring-2 ring-white">AM</span>
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-400 text-xs font-bold text-white ring-2 ring-white">SP</span>
-            </div>
-            <p className="text-sm text-gray-700 leading-snug">
-              <span className="font-semibold text-gray-900">12 families</span> moved in this month without paying a rupee of brokerage
+          {/* Section 3 — principle strip */}
+          <div className="rounded-xl bg-white border border-gray-200 px-5 py-4 max-w-xl space-y-1">
+            <p className="text-sm font-semibold text-gray-900">Your enquiry is not inventory.</p>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              You choose one property. Reeve does not turn that interest into unrelated calls from multiple brokers.
+            </p>
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 pt-1">
+              Browse without logging in
             </p>
           </div>
         </div>
 
         {/* ── LEFT PANEL ── */}
-        <div className="order-2 md:order-1 md:w-[40%] bg-white flex flex-col items-center justify-center px-6 py-8 md:py-12">
+        <div className="order-1 md:order-1 md:w-[40%] bg-white flex flex-col items-center justify-center px-6 py-8 md:py-12">
           <div className="w-full max-w-sm space-y-4">
 
             {/* Zero Spam block — above the card */}
