@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Users, Home, FileText, Building2, ClipboardList, ClipboardCheck, UserPlus, Menu, X, User, ChevronDown, CalendarDays, ScrollText, Phone } from "lucide-react";
+import { Users, Home, FileText, Building2, ClipboardList, ClipboardCheck, UserPlus, Menu, X, User, ChevronDown, CalendarDays, ScrollText, Phone, ExternalLink, Search, PlusSquare, LayoutDashboard, UserCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +22,16 @@ const NAV_ITEMS = [
   { label: "Visit Logs", path: "/admin/visits", icon: ScrollText },
   { label: "Callbacks", path: "/admin/callbacks", icon: Phone },
   { label: "Applications", path: "/admin/applications", icon: FileText },
+];
+
+// Access to the normal (non-admin) Reeve site from within the admin shell.
+const REEVE_LINKS = [
+  { label: "View Reeve", path: "/", icon: ExternalLink },
+  { label: "Browse Properties", path: "/search", icon: Search },
+  { label: "List Your Property", path: "/list", icon: PlusSquare },
+  { label: "Tenant Dashboard", path: "/tenant-dashboard", icon: LayoutDashboard },
+  { label: "Owner Dashboard", path: "/owner-dashboard", icon: Building2 },
+  { label: "My Profile", path: "/me", icon: UserCircle },
 ];
 
 interface AdminLayoutProps {
@@ -114,6 +124,26 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </Link>
         );
       })}
+
+      {/* Access to the normal Reeve site */}
+      <div className="mt-4 pt-3 border-t border-primary-foreground/20">
+        <span className="px-3 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground/50">
+          Reeve
+        </span>
+        <div className="mt-1 flex flex-col gap-1">
+          {REEVE_LINKS.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={onNavigate}
+              className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium text-primary-foreground/80 transition-colors hover:bg-primary-foreground/10 min-h-[44px]"
+            >
+              <item.icon className="h-5 w-5 shrink-0" />
+              <span className="flex-1">{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
     </nav>
   );
 
