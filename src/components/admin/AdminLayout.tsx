@@ -9,6 +9,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -124,26 +126,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </Link>
         );
       })}
-
-      {/* Access to the normal Reeve site */}
-      <div className="mt-4 pt-3 border-t border-primary-foreground/20">
-        <span className="px-3 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground/50">
-          Reeve
-        </span>
-        <div className="mt-1 flex flex-col gap-1">
-          {REEVE_LINKS.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={onNavigate}
-              className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium text-primary-foreground/80 transition-colors hover:bg-primary-foreground/10 min-h-[44px]"
-            >
-              <item.icon className="h-5 w-5 shrink-0" />
-              <span className="flex-1">{item.label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
     </nav>
   );
 
@@ -187,7 +169,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <ChevronDown className="h-3.5 w-3.5 opacity-60" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Reeve</DropdownMenuLabel>
+              {REEVE_LINKS.map((item) => (
+                <DropdownMenuItem key={item.path} asChild>
+                  <Link to={item.path} className="flex items-center gap-2">
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleLogout}
                 className="text-red-600 focus:text-red-600 focus:bg-red-50"
