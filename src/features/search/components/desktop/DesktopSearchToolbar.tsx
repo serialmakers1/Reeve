@@ -5,6 +5,7 @@ import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { SortControl } from "../SortControl";
 import { RentBuySelector } from "../RentBuySelector";
 import { SEARCH_MAP_ENABLED } from "@/features/search/domain/searchFeatureFlags";
+import { quickFilterLabel } from "@/features/search/state/filterSummary";
 import type { SearchViewMode, RentFilters, BuyFilters } from "@/features/search/domain/searchTypes";
 
 const CHIP =
@@ -75,7 +76,7 @@ export function DesktopSearchToolbar({
         aria-pressed={budgetActive}
         className={cn(CHIP, budgetActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
       >
-        Budget{budgetActive ? " ·" : ""}
+        {quickFilterLabel(state.filters, resolvedMode, "budget")}
       </button>
       <button
         onClick={onOpenFilters}
@@ -83,7 +84,7 @@ export function DesktopSearchToolbar({
         aria-pressed={bhkActive}
         className={cn(CHIP, bhkActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
       >
-        {bhkActive ? `BHK (${f.bhk!.length})` : "BHK"}
+        {quickFilterLabel(state.filters, resolvedMode, "bhk")}
       </button>
       <button
         onClick={onOpenFilters}
@@ -91,7 +92,7 @@ export function DesktopSearchToolbar({
         aria-pressed={furnishingActive}
         className={cn(CHIP, furnishingActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
       >
-        Furnishing{furnishingActive ? " ·" : ""}
+        {quickFilterLabel(state.filters, resolvedMode, "furnishing")}
       </button>
       <button
         onClick={onOpenFilters}

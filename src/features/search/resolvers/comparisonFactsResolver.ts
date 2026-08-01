@@ -22,6 +22,11 @@ function add(facts: ComparisonFact[], label: string | null | undefined): void {
   facts.push({ label });
 }
 
+/** Comma-group a whole number (Indian/standard thousands) for area labels. */
+function fmt(n: number): string {
+  return Math.round(n).toLocaleString("en-IN");
+}
+
 function floorLabel(floorNumber: number | null, totalFloors: number | null): string | null {
   if (floorNumber === null) return null;
   return totalFloors !== null ? `Fl ${floorNumber}/${totalFloors}` : `Fl ${floorNumber}`;
@@ -50,37 +55,29 @@ export function resolveComparisonFacts(
 ): ComparisonFact[] {
   const facts: ComparisonFact[] = [];
 
+  // Preferred high-value attributes first (carpet, super built-up, furnishing, parking),
+  // with explicit labels (no unexplained abbreviations). Capped at 3 by add().
   if (mode === "rent") {
-    // 1. carpet area
-    if (result.carpetAreaSqft) add(facts, `${result.carpetAreaSqft} sq.ft`);
-    // 2. super-built-up — skip only when numeric value equals carpet (area-value duplicate)
+    if (result.carpetAreaSqft) add(facts, `${fmt(result.carpetAreaSqft)} sq.ft carpet`);
     if (result.superBuiltUpSqft && result.superBuiltUpSqft !== result.carpetAreaSqft) {
-      add(facts, `${result.superBuiltUpSqft} sq.ft SBA`);
+      add(facts, `${fmt(result.superBuiltUpSqft)} sq.ft super built-up`);
     }
-    // 3. furnishing
     if (result.furnishing) add(facts, FURNISHING_LABELS[result.furnishing] ?? null);
-    // 4. bathrooms
-    if (result.bathrooms) add(facts, `${result.bathrooms} bath`);
-    // 5. floor
-    add(facts, floorLabel(result.floorNumber, result.totalFloors));
-    // 6-7. parking (4W first, then 2W)
     add(facts, parkingLabel(result.parking4w, result.parking2w));
+    // fallbacks if fewer than 3 high-value attributes are present
+    if (result.bathrooms) add(facts, `${result.bathrooms} bath`);
+    add(facts, floorLabel(result.floorNumber, result.totalFloors));
   } else {
-    // Buy
-    // 1. carpet area
-    if (result.carpetAreaSqft) add(facts, `${result.carpetAreaSqft} sq.ft`);
-    // 2. possession status
-    if (result.possessionStatus) add(facts, POSSESSION_STATUS_LABELS[result.possessionStatus] ?? null);
-    // 3. possession date
-    add(facts, possessionDateLabel(result.possessionDate));
-    // 4. building age
-    if (result.buildingAgeYears) add(facts, `${result.buildingAgeYears} yr old`);
-    // 5. bathrooms
-    if (result.bathrooms) add(facts, `${result.bathrooms} bath`);
-    // 6. floor
-    add(facts, floorLabel(result.floorNumber, result.totalFloors));
-    // 7. parking
+    if (result.carpetAreaSqft) add(facts, `${fmt(result.carpetAreaSqft)} sq.ft carpet`);
+    if (result.superBuiltUpSqft && result.superBuiltUpSqft !== result.carpetAreaSqft) {
+      add(facts, `${fmt(result.superBuiltUpSqft)} sq.ft super built-up`);
+    }
+    if (result.furnishing) add(facts, FURNISHING_LABELS[result.furnishing] ?? null);
     add(facts, parkingLabel(result.parking4w, result.parking2w));
+    // fallbacks
+    if (result.possessionStatus) add(facts, POSSESSION_STATUS_LABELS[result.possessionStatus] ?? null);
+    add(facts, possessionDateLabel(result.possessionDate));
+    if (result.buildingAgeYears) add(facts, `${result.buildingAgeYears} yr old`);
   }
 
   return facts;

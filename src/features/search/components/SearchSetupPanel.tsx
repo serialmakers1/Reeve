@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { MapPin } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { RentBuySelector } from "./RentBuySelector";
 import { CitySearchInput } from "./CitySearchInput";
 import { LocationSearchInput } from "./LocationSearchInput";
@@ -225,7 +226,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-full max-w-none h-[92dvh] top-auto bottom-0 translate-y-0 rounded-t-2xl overflow-hidden sm:top-[50%] sm:bottom-auto sm:h-auto sm:max-h-[90dvh] sm:max-w-lg sm:translate-y-[-50%] sm:rounded-lg p-0 flex flex-col gap-0">
+        <DialogContent className="w-full max-w-none h-[92dvh] top-auto bottom-0 translate-y-0 rounded-t-2xl overflow-hidden sm:top-[50%] sm:bottom-auto sm:h-auto sm:max-h-[90dvh] sm:max-w-lg sm:translate-y-[-50%] sm:rounded-lg desk:max-w-2xl p-0 flex flex-col gap-0">
           <DialogHeader className="px-5 pt-5 pb-4 border-b shrink-0 space-y-1 text-left">
             <DialogTitle className="text-lg font-semibold">Find your next home</DialogTitle>
             <p className="text-sm text-muted-foreground">
@@ -233,7 +234,9 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
             </p>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-6">
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5 desk:grid desk:grid-cols-2 desk:gap-6 desk:space-y-0 desk:items-start">
+            {/* Left column: Looking to, City, Popular Cities */}
+            <div className="space-y-5">
             {/* Rent / Buy */}
             <section className="space-y-2">
               <p className="text-sm font-medium">Looking to</p>
@@ -262,22 +265,33 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
               )}
               {/* Popular cities — resolve canonically via the shared Google flow */}
               <p className="pt-1 text-xs font-medium text-muted-foreground">Popular cities</p>
-              <div className="flex flex-wrap gap-1.5">
-                {POPULAR_CITIES.map((name) => (
-                  <Button
-                    key={name}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 rounded-full px-3 text-xs font-normal"
-                    disabled={resolvingPopular !== null}
-                    onClick={() => handlePopularCity(name)}
-                  >
-                    {resolvingPopular === name ? "…" : name}
-                  </Button>
-                ))}
+              <div className="flex flex-wrap gap-2">
+                {POPULAR_CITIES.map((name) => {
+                  const selected = draft.city === name.toLowerCase();
+                  return (
+                    <Button
+                      key={name}
+                      type="button"
+                      variant={selected ? "default" : "outline"}
+                      size="sm"
+                      aria-pressed={selected}
+                      className={cn(
+                        "h-9 rounded-lg px-3.5 text-sm font-medium",
+                        selected && "bg-primary text-primary-foreground hover:bg-primary/90",
+                      )}
+                      disabled={resolvingPopular !== null}
+                      onClick={() => handlePopularCity(name)}
+                    >
+                      {resolvingPopular === name ? "…" : name}
+                    </Button>
+                  );
+                })}
               </div>
             </section>
+            </div>
+
+            {/* Right column: Areas, Property type */}
+            <div className="space-y-5">
 
             {/* Locations */}
             {draft.city && (
@@ -312,6 +326,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                 onChange={(v) => setDraft((d) => ({ ...d, propertyType: v }))}
               />
             </section>
+            </div>
           </div>
 
           {/* Footer CTA */}

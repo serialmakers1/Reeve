@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
+import { quickFilterLabel } from "@/features/search/state/filterSummary";
 import type { RentFilters, BuyFilters } from "../domain/searchTypes";
 
 interface SearchControlRowProps {
@@ -70,7 +71,7 @@ export function SearchControlRow({ onOpenSetup, onOpenFilters }: SearchControlRo
           aria-pressed={budgetActive}
           className={cn(CHIP, budgetActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
         >
-          Budget{budgetActive ? " ·" : ""}
+          {quickFilterLabel(state.filters, resolvedMode, "budget")}
         </button>
         <button
           onClick={onOpenFilters}
@@ -78,7 +79,7 @@ export function SearchControlRow({ onOpenSetup, onOpenFilters }: SearchControlRo
           aria-pressed={bhkActive}
           className={cn(CHIP, bhkActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
         >
-          {bhkActive ? `BHK (${f.bhk!.length})` : "BHK"}
+          {quickFilterLabel(state.filters, resolvedMode, "bhk")}
         </button>
         <button
           onClick={onOpenFilters}
@@ -86,7 +87,7 @@ export function SearchControlRow({ onOpenSetup, onOpenFilters }: SearchControlRo
           aria-pressed={furnishingActive}
           className={cn(CHIP, furnishingActive ? ACTIVE_CHIP : INACTIVE_CHIP)}
         >
-          Furnishing{furnishingActive ? " ·" : ""}
+          {quickFilterLabel(state.filters, resolvedMode, "furnishing")}
         </button>
         <button
           onClick={onOpenFilters}

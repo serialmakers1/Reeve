@@ -62,9 +62,9 @@ function renderPanel(open = true, mode: "rent" | "buy" = "rent") {
   );
 }
 
-// Advanced filter sections live behind the "More filters" disclosure.
-function openMore() {
-  fireEvent.click(screen.getByRole("button", { name: /more filters/i }));
+// Advanced filter sections live behind group accordions; open one by its header.
+function openGroup(name: RegExp) {
+  fireEvent.click(screen.getByRole("button", { name }));
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -136,21 +136,21 @@ describe("Clear all", () => {
 });
 
 describe("Rent/Buy visibility", () => {
-  it("shows Brokerage section in rent", () => {
+  it("shows Brokerage section in rent (Deal terms group)", () => {
     renderPanel(true, "rent");
-    openMore();
+    openGroup(/deal terms/i);
     expect(screen.getByText("Brokerage")).toBeTruthy();
   });
 
-  it("shows Pets section in rent, not in buy", () => {
+  it("shows Pets section in rent, not in buy (Deal terms group)", () => {
     renderPanel(true, "rent");
-    openMore();
+    openGroup(/deal terms/i);
     expect(screen.getByText("Pets")).toBeTruthy();
   });
 
-  it("shows Possession section in buy", () => {
+  it("shows Possession section in buy (Property & availability group)", () => {
     renderPanel(true, "buy");
-    openMore();
+    openGroup(/property & availability/i);
     expect(screen.getByText("Possession")).toBeTruthy();
   });
 
@@ -167,9 +167,9 @@ describe("Rent/Buy visibility", () => {
     expect(screen.getByText("Furnishing")).toBeTruthy();
   });
 
-  it("shows 'Availability Confirmed' section in rent (under More filters)", () => {
+  it("shows 'Availability Confirmed' section in rent (Property & availability group)", () => {
     renderPanel(true, "rent");
-    openMore();
+    openGroup(/property & availability/i);
     expect(screen.getByText("Availability Confirmed")).toBeTruthy();
     expect(screen.getByText("Within 7d")).toBeTruthy();
   });
