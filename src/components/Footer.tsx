@@ -8,7 +8,7 @@ const Footer = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Zone 1: Navigation */}
-        <div className="grid md:grid-cols-4 gap-8 text-center md:text-left">
+        <div className="grid md:grid-cols-5 gap-8 text-center md:text-left">
 
           {/* Column 1 — Brand */}
           <div>
@@ -20,69 +20,76 @@ const Footer = () => {
             </p>
           </div>
 
-          {/* Column 2 — For Tenants */}
+          {/* Column 2 — Marketplace */}
           <div>
-            <h3 className="text-white font-semibold text-sm mb-3">For Tenants</h3>
+            <h3 className="text-white font-semibold text-sm mb-3">Marketplace</h3>
             <ul className="space-y-2">
+              <li>
+                <Link to="/" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Home
+                </Link>
+              </li>
               <li>
                 <Link to="/search" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Search Properties
+                  Browse Properties
                 </Link>
               </li>
               <li>
-                <Link to="/savings/tenant" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Tenant Savings Calculator
-                </Link>
-              </li>
-              <li>
-                <Link to="/dashboard" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  My Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link to="/refer-property" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Refer a Property
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Column B — For Owners */}
-          <div>
-            <h3 className="text-white font-semibold text-sm mb-3">For Owners</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link to="/my-properties/new" className="text-gray-400 text-sm hover:text-white transition-colors" onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "footer" })}>
+                <Link to="/list" className="text-gray-400 text-sm hover:text-white transition-colors" onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "footer" })}>
                   List Your Property
                 </Link>
               </li>
+            </ul>
+          </div>
+
+          {/* Column 3 — Dashboards & Account */}
+          <div>
+            <h3 className="text-white font-semibold text-sm mb-3">Dashboards &amp; Account</h3>
+            <ul className="space-y-2">
               <li>
-                <Link to="/owners" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Owner Savings Calculator
+                <Link to="/tenant-dashboard" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Tenant Dashboard
                 </Link>
               </li>
               <li>
-                <Link to="/my-properties" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  My Properties
+                <Link to="/owner-dashboard" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Owner Dashboard
                 </Link>
               </li>
               <li>
-                <Link to="/" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Home Page
+                <Link to="/me" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  My Profile
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column C — Company & Support */}
+          {/* Column 4 — Services & Support */}
           <div>
-            <h3 className="text-white font-semibold text-sm mb-3">Company &amp; Support</h3>
+            <h3 className="text-white font-semibold text-sm mb-3">Services &amp; Support</h3>
             <ul className="space-y-2">
+              <li>
+                <Link to="/pms" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Property Management
+                </Link>
+              </li>
+              <li>
+                <Link to="/move-in-audit" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Property Inspection
+                </Link>
+              </li>
               <li>
                 <Link to="/contact" className="text-gray-400 text-sm hover:text-white transition-colors">
                   Contact Us
                 </Link>
               </li>
+            </ul>
+          </div>
+
+          {/* Column 5 — Legal */}
+          <div>
+            <h3 className="text-white font-semibold text-sm mb-3">Legal</h3>
+            <ul className="space-y-2">
               <li>
                 <Link to="/privacy" className="text-gray-400 text-sm hover:text-white transition-colors">
                   Privacy Policy

@@ -1,3 +1,9 @@
+## [2026-08-01] feature | Phase 11A — Navigation redesign implemented: Header (desktop centre = Browse/PMS/Inspection; List→/list; auth dropdown adds Owner Dashboard→/owner-dashboard, drops Account settings; admin dropdown gains dashboards+My Profile; mobile menu two-way auth/anon with conditional Admin Dashboard, Login carries returnTo, aria-expanded added), Footer (5-col grid: brand+Marketplace/Dashboards&Account/Services&Support/Legal; canonical /list /tenant-dashboard /owner-dashboard /me; removed Tenant Savings/For Owners/Refer/My Properties/profile; static, no useAuth), BottomNav (Home tab removed → Browse/Tenant/Owner; suppression unchanged), AdminLayout (REEVE_LINKS section in NavLinks for sidebar+Sheet; Sign Out untouched). Layout unchanged. No auth/route/guard/analytics-name/SSG changes. [12:30 IST]
+
+## [2026-08-01] diagnosis | Validated final Header, Footer, BottomNav and Layout redesign plan [12:00 IST]
+
+## [2026-07-31] diagnosis | Audited current header, navigation, auth-state and role routing [12:00 IST]
+
 ## [2026-07-29] feature | Completed Phase 15 production Search cutover [IST]
 
 ## [2026-07-29] feature | Phase 14 — Fast, Accessible, Machine-Readable Search: React.lazy SearchMapView (code-split), <main>/<h1 sr-only>/aria-live in SearchBrowsePage, <article> root + decoding=async + isFirstVisible LCP on SearchPropertyCard, Load-more as <Link> with nextPageHref (crawlable pagination), combobox ARIA + activeIndex keyboard nav on CitySearchInput/LocationSearchInput, h-11 touch targets + aria-pressed on filter chips (mobile + desktop), visible Approx./Exact text on map marker pills + MapPropertyPreview, useSearchMeta (runtime noindex/canonical with cleanup), /search prerender copy updated (nationwide Rent+Buy neutral); SearchPropertyCard tests updated for Phase 12 injected-props; 351 passing [IST]

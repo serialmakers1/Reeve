@@ -1,10 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, Building2, Home, LayoutDashboard } from "lucide-react";
+import { Search, Building2, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const TABS = [
-  { label: 'Home',              icon: Home,            route: '/'              },
-  { label: 'Browse Properties', icon: Search,          route: '/search'        },
+  { label: 'Browse',           icon: Search,          route: '/search'        },
   { label: 'Tenant Dashboard',  icon: LayoutDashboard, route: '/tenant-dashboard' },
   { label: 'Owner Dashboard',   icon: Building2,       route: '/owner-dashboard' },
 ];

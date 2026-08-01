@@ -40,28 +40,22 @@ const Header = () => {
           {/* Desktop nav links — centre */}
           <div className="hidden md:flex items-center gap-8">
             <Link
-              to="/savings/tenant"
-              className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors font-medium"
-            >
-              For Tenants
-            </Link>
-            <Link
-              to="/owners"
-              className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors font-medium"
-            >
-              For Owners
-            </Link>
-            <Link
               to="/search"
               className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors font-medium"
             >
-              Search Properties
+              Browse Properties
             </Link>
             <Link
-              to="/contact"
+              to="/pms"
               className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors font-medium"
             >
-              Contact
+              Property Management
+            </Link>
+            <Link
+              to="/move-in-audit"
+              className="text-sm text-gray-600 hover:text-[#0A1628] transition-colors font-medium"
+            >
+              Property Inspection
             </Link>
           </div>
 
@@ -70,41 +64,44 @@ const Header = () => {
             {isLoading ? (
               <Skeleton className="h-9 w-24 rounded-md" />
             ) : isAuthenticated && user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-[#0A1628] transition-colors px-3 py-2 rounded-lg hover:bg-gray-50">
-                    <User className="h-4 w-4" />
-                    <span>{displayName}</span>
-                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {isAdmin ? (
-                    <DropdownMenuItem onClick={() => navigate("/admin/owners")}>
-                      Admin Dashboard
+              <>
+                <Link
+                  to="/list"
+                  className="bg-[#2563EB] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200 hover:-translate-y-0.5"
+                  onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "header" })}
+                >
+                  List Your Property
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-[#0A1628] transition-colors px-3 py-2 rounded-lg hover:bg-gray-50">
+                      <User className="h-4 w-4" />
+                      <span>{displayName}</span>
+                      <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {isAdmin && (
+                      <DropdownMenuItem onClick={() => navigate("/admin/owners")}>
+                        Admin Dashboard
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => navigate("/tenant-dashboard")}>
+                      Tenant Dashboard
                     </DropdownMenuItem>
-                  ) : (
-                    <>
-                      <DropdownMenuItem onClick={() => navigate("/tenant-dashboard")}>
-                        Tenant Dashboard
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate("/my-properties")}>
-                        Owner Dashboard
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate("/me")}>
-                        My Profile
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate("/profile")}>
-                        Account settings
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuItem onClick={() => navigate("/owner-dashboard")}>
+                      Owner Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/me")}>
+                      My Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <>
                 <Link
@@ -114,7 +111,7 @@ const Header = () => {
                   Login
                 </Link>
                 <Link
-                  to="/my-properties/new"
+                  to="/list"
                   className="bg-[#2563EB] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200 hover:-translate-y-0.5"
                   onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "header" })}
                 >
@@ -130,6 +127,7 @@ const Header = () => {
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 text-[#0A1628]"
               aria-label="Toggle menu"
+              aria-expanded={isMobileMenuOpen}
             >
               {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -142,14 +140,47 @@ const Header = () => {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
           <div className="px-4 py-4 space-y-1">
-            {isAuthenticated && user && !isAdmin ? (
+            {isAuthenticated && user ? (
               <>
                 <Link
-                  to="/contact"
+                  to="/search"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Contact Us
+                  Browse Properties
+                </Link>
+                <Link
+                  to="/list"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    posthog?.capture("list_property_cta_clicked", { source_page: "header" });
+                  }}
+                >
+                  List Your Property
+                </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin/owners"
+                    className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Admin Dashboard
+                  </Link>
+                )}
+                <Link
+                  to="/tenant-dashboard"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Tenant Dashboard
+                </Link>
+                <Link
+                  to="/owner-dashboard"
+                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Owner Dashboard
                 </Link>
                 <Link
                   to="/me"
@@ -157,13 +188,6 @@ const Header = () => {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   My Profile
-                </Link>
-                <Link
-                  to="/profile"
-                  className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Account settings
                 </Link>
                 <button
                   onClick={() => {
@@ -185,48 +209,39 @@ const Header = () => {
                   Browse Properties
                 </Link>
                 <Link
-                  to="/savings/tenant"
+                  to="/list"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    posthog?.capture("list_property_cta_clicked", { source_page: "header" });
+                  }}
                 >
-                  Tenant Savings
+                  List Your Property
                 </Link>
                 <Link
-                  to="/owners"
+                  to="/pms"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Owner Savings
+                  Property Management
                 </Link>
                 <Link
-                  to="/contact"
+                  to="/move-in-audit"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Contact Us
+                  Property Inspection
                 </Link>
 
-                {!isAuthenticated && (
-                  <div className="pt-4 space-y-3">
-                    <Link
-                      to="/login"
-                      className="block w-full text-center text-sm text-gray-600 border border-gray-300 rounded-lg py-3"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Login
-                    </Link>
-                    <Link
-                      to="/my-properties/new"
-                      className="block w-full text-center bg-[#2563EB] text-white text-sm font-medium rounded-lg py-3"
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        posthog?.capture("list_property_cta_clicked", { source_page: "header" });
-                      }}
-                    >
-                      List Your Property
-                    </Link>
-                  </div>
-                )}
+                <div className="pt-4 space-y-3">
+                  <Link
+                    to={`/login?returnTo=${encodeURIComponent(location.pathname)}`}
+                    className="block w-full text-center text-sm text-gray-600 border border-gray-300 rounded-lg py-3"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Log In
+                  </Link>
+                </div>
               </>
             )}
           </div>
