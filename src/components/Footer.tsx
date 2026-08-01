@@ -13,11 +13,6 @@ const Footer = () => {
           {/* Column 1 — Brand */}
           <div>
             <span className="font-bold text-xl text-white tracking-wide">REEVE</span>
-            <p className="text-gray-400 text-sm mt-2">
-              Zero brokerage. Two month deposit.
-              <br />
-              Fully managed for free.
-            </p>
           </div>
 
           {/* Column 2 — Marketplace */}
