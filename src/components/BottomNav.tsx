@@ -4,8 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 
 const TABS = [
   { label: 'Browse',           icon: Search,          route: '/search'        },
-  { label: 'Tenant Dashboard',  icon: LayoutDashboard, route: '/tenant-dashboard' },
-  { label: 'Owner Dashboard',   icon: Building2,       route: '/owner-dashboard' },
+  { label: 'My Dashboard',          icon: LayoutDashboard, route: '/tenant-dashboard' },
+  { label: 'Manage My Properties',  icon: Building2,       route: '/owner-dashboard' },
 ];
 
 export default function BottomNav() {

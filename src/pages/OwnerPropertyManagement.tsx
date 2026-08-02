@@ -378,7 +378,7 @@ export default function OwnerPropertyManagement() {
 
           {/* Phase 3 Prompt 4 — live requests tab */}
           <TabsContent value="requests" className="space-y-4">
-            <RequestsTab propertyId={property.id} propertyStatus={property.status} />
+            <RequestsTab propertyId={property.id} propertyStatus={property.status} listingType={property.listing_type} />
           </TabsContent>
 
           {/* Details */}

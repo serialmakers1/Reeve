@@ -10,6 +10,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Clock, ExternalLink, Loader2, XCircle } from "lucide-react";
 import DeclineReasonModal, { DECLINE_REASONS } from "./DeclineReasonModal";
+import {
+  BUYING_PURPOSE_LABELS,
+  PURCHASE_TIMELINE_LABELS,
+  FUNDING_STAGE_LABELS,
+} from "@/lib/preferenceHelpers";
 
 // Phase 3 Prompt 4 — owner-side Requests tab.
 // Renders a live, grouped log of every contact_request against this property.
@@ -19,6 +24,7 @@ import DeclineReasonModal, { DECLINE_REASONS } from "./DeclineReasonModal";
 interface RequestsTabProps {
   propertyId: string;
   propertyStatus: string;
+  listingType?: string | null;
 }
 
 interface RentalPrefsSnapshot {
@@ -28,8 +34,6 @@ interface RentalPrefsSnapshot {
   occupation?: string | null;
   occupation_other?: string | null;
   expected_stay_duration?: string | null;
-  preferred_city?: string | null;
-  preferred_localities?: string[] | null;
   move_in_by?: string | null;
   marital_status?: string | null;
   diet_preference?: string | null;
@@ -38,13 +42,25 @@ interface RentalPrefsSnapshot {
   is_foreign_citizen?: boolean | null;
 }
 
+interface BuyingPrefsSnapshot {
+  age?: number | null;
+  occupation?: string | null;
+  occupation_other?: string | null;
+  is_foreign_citizen?: boolean | null;
+  buying_purpose?: string | null;
+  purchase_timeline?: string | null;
+  funding_stage?: string | null;
+}
+
 interface TenantSnapshot {
   display_name?: string | null;
   full_name?: string | null;
   profile_photo_url?: string | null;
   bio?: string | null;
   member_since?: string | null;
+  preference_type?: "rent" | "buy" | null;
   rental_preferences?: RentalPrefsSnapshot | null;
+  buying_preferences?: BuyingPrefsSnapshot | null;
 }
 
 type CrStatus = "pending" | "approved" | "declined" | "withdrawn" | "auto_cancelled";
@@ -93,30 +109,54 @@ function daysAgo(dt: string | null | undefined): string {
   try { return formatDistanceToNowStrict(new Date(dt), { addSuffix: false }); } catch { return ""; }
 }
 
-// ── Compact preference table (defensive access on every key) ───────────────
-function PrefTable({ prefs }: { prefs: RentalPrefsSnapshot | null | undefined }) {
-  const rows: Array<[string, string]> = [
-    ["Age", prefs?.age != null ? String(prefs.age) : "—"],
-    ["Gender", prefs?.gender ?? "—"],
-    ["Occupants", prefs?.number_of_occupants != null ? String(prefs.number_of_occupants) : "—"],
-    ["Occupation", prefs?.occupation ?? "—"],
-    ["Expected stay", prefs?.expected_stay_duration ?? "—"],
-    ["Move-in by", prefs?.move_in_by ?? "—"],
-    ["Preferred city", prefs?.preferred_city ?? "—"],
-    ["Diet", prefs?.diet_preference ?? "—"],
-    ["Pets", prefs?.has_pets ? (prefs.pet_types?.join(", ") ?? "Yes") : "No"],
-    ["Foreign citizen", prefs?.is_foreign_citizen ? "Yes" : "No"],
-  ];
+function PrefRow({ label, value }: { label: string; value: string | undefined | null }) {
+  if (value === null || value === undefined || value === "") return null;
   return (
-    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
-      {rows.map(([k, v]) => (
-        <div key={k} className="flex justify-between border-b border-border/40 py-1.5">
-          <dt className="text-muted-foreground">{k}</dt>
-          <dd className="text-foreground font-medium text-right">{v}</dd>
-        </div>
-      ))}
+    <div className="flex justify-between border-b border-border/40 py-1.5">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-foreground font-medium text-right">{value}</dd>
+    </div>
+  );
+}
+
+function RentPrefTable({ prefs }: { prefs: RentalPrefsSnapshot | null | undefined }) {
+  if (!prefs) return null;
+  return (
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0 text-sm">
+      <PrefRow label="Age" value={prefs.age != null ? String(prefs.age) : null} />
+      <PrefRow label="Occupation" value={prefs.occupation} />
+      {prefs.occupation_other && <PrefRow label="Occupation details" value={prefs.occupation_other} />}
+      <PrefRow label="Foreign national" value={prefs.is_foreign_citizen !== null && prefs.is_foreign_citizen !== undefined ? (prefs.is_foreign_citizen ? "Yes" : "No") : null} />
+      <PrefRow label="Gender" value={prefs.gender} />
+      <PrefRow label="Residents" value={prefs.number_of_occupants != null ? String(prefs.number_of_occupants) : null} />
+      <PrefRow label="Expected stay" value={prefs.expected_stay_duration} />
+      <PrefRow label="Move-in by" value={prefs.move_in_by} />
+      <PrefRow label="Marital status" value={prefs.marital_status} />
+      <PrefRow label="Diet" value={prefs.diet_preference} />
+      <PrefRow label="Pets" value={prefs.has_pets !== null && prefs.has_pets !== undefined ? (prefs.has_pets ? (prefs.pet_types?.join(", ") ?? "Yes") : "No") : null} />
     </dl>
   );
+}
+
+function BuyPrefTable({ prefs }: { prefs: BuyingPrefsSnapshot | null | undefined }) {
+  if (!prefs) return null;
+  return (
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0 text-sm">
+      <PrefRow label="Age" value={prefs.age != null ? String(prefs.age) : null} />
+      <PrefRow label="Occupation" value={prefs.occupation} />
+      {prefs.occupation_other && <PrefRow label="Occupation details" value={prefs.occupation_other} />}
+      <PrefRow label="Foreign national" value={prefs.is_foreign_citizen !== null && prefs.is_foreign_citizen !== undefined ? (prefs.is_foreign_citizen ? "Yes" : "No") : null} />
+      <PrefRow label="Buying purpose" value={prefs.buying_purpose ? (BUYING_PURPOSE_LABELS[prefs.buying_purpose] ?? prefs.buying_purpose) : null} />
+      <PrefRow label="Purchase timeline" value={prefs.purchase_timeline ? (PURCHASE_TIMELINE_LABELS[prefs.purchase_timeline] ?? prefs.purchase_timeline) : null} />
+      <PrefRow label="Funding stage" value={prefs.funding_stage ? (FUNDING_STAGE_LABELS[prefs.funding_stage] ?? prefs.funding_stage) : null} />
+    </dl>
+  );
+}
+
+function SnapshotPrefBlock({ snap, listingType }: { snap: TenantSnapshot | null | undefined; listingType?: string | null }) {
+  if (!snap) return null;
+  if (listingType === "sale") return <BuyPrefTable prefs={snap.buying_preferences} />;
+  return <RentPrefTable prefs={snap.rental_preferences} />;
 }
 
 // ── Snapshot-hidden compact card (used for declined / withdrawn / auto_cancelled) ─
@@ -159,6 +199,7 @@ function PendingCard(props: {
   approving: boolean;
   approveWarning: boolean;
   priorDeclinedAt: string | null;
+  listingType?: string | null;
 }) {
   const { cr, expanded } = props;
   const snap = cr.tenant_profile_snapshot;
@@ -210,7 +251,7 @@ function PendingCard(props: {
               </blockquote>
             )}
 
-            <PrefTable prefs={snap?.rental_preferences} />
+            <SnapshotPrefBlock snap={snap} listingType={props.listingType} />
 
             {props.approveWarning && (
               <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 flex items-start gap-2">
@@ -247,12 +288,12 @@ function PendingCard(props: {
 }
 
 // ── Approved read-only card ────────────────────────────────────────────────
-function ApprovedCard({ cr }: { cr: CrRow }) {
+function ApprovedCard({ cr, listingType }: { cr: CrRow; listingType?: string | null }) {
   const snap = cr.tenant_profile_snapshot;
   const name = displayName(snap);
   return (
     <Card className="border-emerald-300/60">
-      <CardContent className="p-4 space-y-2">
+      <CardContent className="p-4 space-y-3">
         <div className="flex items-start gap-3">
           <Avatar className="h-10 w-10">
             {snap?.profile_photo_url ? <AvatarImage src={snap.profile_photo_url} alt={name} /> : null}
@@ -265,13 +306,14 @@ function ApprovedCard({ cr }: { cr: CrRow }) {
             <Link to={`/u/${cr.tenant_id}`} className="text-xs underline">View public profile</Link>
           </div>
         </div>
+        <SnapshotPrefBlock snap={snap} listingType={listingType} />
       </CardContent>
     </Card>
   );
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function RequestsTab({ propertyId }: RequestsTabProps) {
+export default function RequestsTab({ propertyId, listingType }: RequestsTabProps) {
   const [rows, setRows] = useState<CrRow[] | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [approving, setApproving] = useState<Record<string, boolean>>({});
@@ -420,6 +462,7 @@ export default function RequestsTab({ propertyId }: RequestsTabProps) {
                 approving={approving[cr.id] ?? false}
                 approveWarning={approveWarnings[cr.id] ?? false}
                 priorDeclinedAt={priorDeclinedByTenant.get(cr.tenant_id) ?? null}
+                listingType={listingType}
               />
             ))}
           </div>
@@ -433,7 +476,7 @@ export default function RequestsTab({ propertyId }: RequestsTabProps) {
             <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Approved ({grouped.approved.length})
           </h3>
           <div className="space-y-3">
-            {grouped.approved.map((cr) => <ApprovedCard key={cr.id} cr={cr} />)}
+            {grouped.approved.map((cr) => <ApprovedCard key={cr.id} cr={cr} listingType={listingType} />)}
           </div>
         </section>
       )}

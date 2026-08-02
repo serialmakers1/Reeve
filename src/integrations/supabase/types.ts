@@ -3583,9 +3583,11 @@ export type Database = {
       rental_preferences: {
         Row: {
           age: number | null
+          buying_purpose: string | null
           created_at: string | null
           diet_preference: string | null
           expected_stay_duration: string | null
+          funding_stage: string | null
           gender: string | null
           has_pets: boolean | null
           id: string
@@ -3596,16 +3598,20 @@ export type Database = {
           occupation: string | null
           occupation_other: string | null
           pet_types: string[] | null
+          preference_mode: string
           preferred_city: string | null
           preferred_localities: string[] | null
+          purchase_timeline: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           age?: number | null
+          buying_purpose?: string | null
           created_at?: string | null
           diet_preference?: string | null
           expected_stay_duration?: string | null
+          funding_stage?: string | null
           gender?: string | null
           has_pets?: boolean | null
           id?: string
@@ -3616,16 +3622,20 @@ export type Database = {
           occupation?: string | null
           occupation_other?: string | null
           pet_types?: string[] | null
+          preference_mode?: string
           preferred_city?: string | null
           preferred_localities?: string[] | null
+          purchase_timeline?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           age?: number | null
+          buying_purpose?: string | null
           created_at?: string | null
           diet_preference?: string | null
           expected_stay_duration?: string | null
+          funding_stage?: string | null
           gender?: string | null
           has_pets?: boolean | null
           id?: string
@@ -3636,8 +3646,10 @@ export type Database = {
           occupation?: string | null
           occupation_other?: string | null
           pet_types?: string[] | null
+          preference_mode?: string
           preferred_city?: string | null
           preferred_localities?: string[] | null
+          purchase_timeline?: string | null
           updated_at?: string | null
           user_id?: string
         }

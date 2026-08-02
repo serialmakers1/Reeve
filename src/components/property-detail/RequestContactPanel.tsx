@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import posthog from "posthog-js";
 import { SEARCH_EVENTS, getDeviceClass } from "@/features/search/analytics/searchAnalytics";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +22,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CheckCircle2, Clock, Loader2, Mail, ShieldCheck, XCircle } from "lucide-react";
+import {
+  isRentComplete,
+  isBuyComplete,
+  isRentModeActive,
+  isBuyModeActive,
+} from "@/lib/preferenceHelpers";
 
 // Phase 3 Prompt 3 — Request Contact panel.
 // Owns all 7 button-state logic (D-P3-006), consent capture (D-P3-010),
@@ -34,16 +40,9 @@ export interface RequestContactPanelProps {
   ownerDisplayName?: string | null;
   buildingName: string;
   propertyStatus: string;
+  listingType?: string | null;
   searchContext?: Record<string, unknown> | null;
 }
-
-const REQUIRED_PREF_KEYS = [
-  "age",
-  "gender",
-  "number_of_occupants",
-  "occupation",
-  "expected_stay_duration",
-] as const;
 
 const ELIGIBLE_STATUSES = new Set(["listed", "edit_pending_review"]);
 
@@ -74,9 +73,10 @@ function formatCountdown(ms: number): string {
 }
 
 export default function RequestContactPanel(props: RequestContactPanelProps) {
-  const { propertyId, ownerId, ownerDisplayName, buildingName, propertyStatus, searchContext } = props;
+  const { propertyId, ownerId, ownerDisplayName, buildingName, propertyStatus, listingType, searchContext } = props;
   const { user, isAuthenticated, isLoading: authLoading, isFullyVerified } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const isOwner = !!(user?.id && ownerId === user.id);
   const statusEligible = ELIGIBLE_STATUSES.has(propertyStatus);
@@ -133,7 +133,7 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
           .limit(1)
           .maybeSingle(),
         sb.from("rental_preferences")
-          .select("age,gender,number_of_occupants,occupation,expected_stay_duration")
+          .select("preference_mode,age,occupation,is_foreign_citizen,gender,number_of_occupants,expected_stay_duration,buying_purpose,purchase_timeline,funding_stage")
           .eq("user_id", user.id)
           .maybeSingle(),
         sb.rpc("get_my_daily_request_remaining"),
@@ -141,8 +141,22 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
 
       setCr((crRes.data as CrRow | null) ?? null);
 
-      const pr = prefRes.data as Record<string, unknown> | null;
-      const incomplete = !pr || REQUIRED_PREF_KEYS.some((k) => pr[k] === null || pr[k] === undefined);
+      const pr = prefRes.data as {
+        preference_mode: string | null;
+        age: unknown; occupation: unknown; is_foreign_citizen: unknown;
+        gender: unknown; number_of_occupants: unknown; expected_stay_duration: unknown;
+        buying_purpose: unknown; purchase_timeline: unknown; funding_stage: unknown;
+      } | null;
+
+      let incomplete = true;
+      if (pr) {
+        if (listingType === "rent") {
+          incomplete = !(isRentModeActive(pr.preference_mode as any) && isRentComplete(pr as any));
+        } else if (listingType === "sale") {
+          incomplete = !(isBuyModeActive(pr.preference_mode as any) && isBuyComplete(pr as any));
+        }
+        // Unknown listing type → fail closed (incomplete = true)
+      }
       setPrefsIncomplete(incomplete);
 
       const rem = typeof remRes.data === "number" ? remRes.data : null;
@@ -497,12 +511,28 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="rounded-md border border-dashed border-muted-foreground/30 p-3 text-sm text-muted-foreground">
-                  Complete your rental preferences to send a request →{" "}
-                  <Link to="/tenant-dashboard/preferences" className="underline font-medium text-foreground">Set preferences</Link>
+                  {listingType === "sale"
+                    ? "Complete your buying preferences to send a request → "
+                    : "Complete your rental preferences to send a request → "}
+                  <Link
+                    to={(() => {
+                      const contextMode = listingType === "sale" ? "buy" : "rent";
+                      const params = new URLSearchParams({
+                        mode: contextMode,
+                        returnTo: location.pathname + location.search + location.hash,
+                      });
+                      return `/tenant-dashboard/preferences?${params.toString()}`;
+                    })()}
+                    className="underline font-medium text-foreground"
+                  >
+                    Set preferences
+                  </Link>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                Age, gender, occupants, occupation and stay duration are required.
+                {listingType === "sale"
+                  ? "Age, occupation, foreign national, buying purpose, timeline and funding stage are required."
+                  : "Age, gender, occupants, occupation and stay duration are required."}
               </TooltipContent>
             </Tooltip>
           )}
@@ -539,8 +569,8 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
                 disabled={prefsIncomplete}
               />
               <span>
-                I consent to sharing my rental preferences with{" "}
-                <strong>{displayOwner}</strong>, owner of <strong>{buildingName}</strong>. If approved, my contact details will be shared with them via email.
+                I consent to sharing the applicable details from My Preferences with{" "}
+                <strong>{displayOwner}</strong>, lister of <strong>{buildingName}</strong>. If approved, my contact details will be shared with them via email.
               </span>
             </label>
           </div>

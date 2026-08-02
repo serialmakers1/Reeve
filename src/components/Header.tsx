@@ -87,10 +87,10 @@ const Header = () => {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={() => navigate("/tenant-dashboard")}>
-                      Tenant Dashboard
+                      My Dashboard
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/owner-dashboard")}>
-                      Owner Dashboard
+                      Manage My Properties
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/me")}>
                       My Profile
@@ -173,14 +173,14 @@ const Header = () => {
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Tenant Dashboard
+                  My Dashboard
                 </Link>
                 <Link
                   to="/owner-dashboard"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Owner Dashboard
+                  Manage My Properties
                 </Link>
                 <Link
                   to="/me"
