@@ -11,7 +11,7 @@ export function FilterSection({ title, children, disabled, disabledReason }: Fil
   return (
     <div className={cn("py-4 border-b last:border-b-0", disabled && "opacity-50")}>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
         {disabled && disabledReason && (
           <span className="text-[10px] text-muted-foreground">{disabledReason}</span>
         )}

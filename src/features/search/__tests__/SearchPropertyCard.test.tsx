@@ -114,12 +114,14 @@ describe("SearchPropertyCard — rent card", () => {
     expect(screen.getByText(/Sunrise Apartments/)).toBeTruthy();
   });
 
-  it("renders comparison facts (max 3) with explicit labels", () => {
+  it("renders comparison facts (max 3) with explicit labels; size is exclusive", () => {
     renderCard(makeResult());
-    // carpet (900), super built-up (1100 — different value), semi-furnished
+    // carpet (Space) → Semi-furnished + 4W parking (Utility). Super built-up is the
+    // same `size` concept as carpet, so it is NOT also shown.
     expect(screen.getByText("900 sq.ft carpet")).toBeTruthy();
-    expect(screen.getByText("1,100 sq.ft super built-up")).toBeTruthy();
     expect(screen.getByText("Semi-furnished")).toBeTruthy();
+    expect(screen.getByText("4W parking")).toBeTruthy();
+    expect(screen.queryByText("1,100 sq.ft super built-up")).toBeNull();
   });
 
   it("favourite button is a sibling of the link, not nested inside it", () => {

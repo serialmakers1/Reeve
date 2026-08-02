@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Check, ChevronDown } from "lucide-react";
+import { X, Check, ChevronDown, Building2, Car, ReceiptText, ShieldCheck, type LucideIcon } from "lucide-react";
 import { Sheet, SheetContent, SheetClose, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -89,25 +89,36 @@ const BUY_BUDGET_PRESETS: { label: string; min?: number; max?: number }[] = [
 ];
 
 /** Collapsible filter group with a selected-count badge. */
-function FilterGroup({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+function FilterGroup({
+  title,
+  count,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  count: number;
+  icon?: LucideIcon;
+  children: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="border-b last:border-b-0">
+    <div className="mt-2 first:mt-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between py-3.5 text-sm font-semibold"
+        className="flex w-full items-center justify-between rounded-lg bg-muted/50 px-3 py-3 text-left font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         <span className="flex items-center gap-2">
+          {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
           {title}
           {count > 0 && (
-            <span className="rounded-full bg-primary/10 px-1.5 text-[11px] font-medium text-primary">{count}</span>
+            <span className="rounded-full bg-primary/15 px-1.5 text-[11px] font-medium text-primary">{count}</span>
           )}
         </span>
         <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
-      {open && <div className="pb-1">{children}</div>}
+      {open && <div className="px-3 pb-1">{children}</div>}
     </div>
   );
 }
@@ -341,7 +352,7 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
           </FilterSection>
 
           {/* ── Grouped advanced filters (accordions) ── */}
-          <FilterGroup title="Property & availability" count={groupCounts.propAvail}>
+          <FilterGroup title="Property & availability" icon={Building2} count={groupCounts.propAvail}>
           {mode === "rent" && (
             <>
               <FilterSection title="Available by">
@@ -486,7 +497,7 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
           )}
           </FilterGroup>
 
-          <FilterGroup title="Parking & amenities" count={groupCounts.parkAmen}>
+          <FilterGroup title="Parking & amenities" icon={Car} count={groupCounts.parkAmen}>
             <FilterSection title="Amenities">
               <div className="flex flex-wrap gap-2">
                 {visibleAmenities.map(({ value, label }) => (
@@ -549,7 +560,7 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
             </FilterSection>
           </FilterGroup>
 
-          <FilterGroup title="Deal terms" count={groupCounts.deal}>
+          <FilterGroup title="Deal terms" icon={ReceiptText} count={groupCounts.deal}>
           {mode === "rent" && (
             <>
               <FilterSection title="Brokerage">
@@ -694,7 +705,7 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
           )}
           </FilterGroup>
 
-          <FilterGroup title="Lister & transparency" count={groupCounts.lister}>
+          <FilterGroup title="Lister & transparency" icon={ShieldCheck} count={groupCounts.lister}>
             <FilterSection title="Lister">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">

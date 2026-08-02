@@ -55,110 +55,197 @@ function base(): SearchPropertyResult {
   };
 }
 
+const labels = (facts: { label: string }[]) => facts.map((f) => f.label);
+const concepts = (facts: { concept: string }[]) => facts.map((f) => f.concept);
+
+// ── Rent ────────────────────────────────────────────────────────────────────
+
 describe("resolveComparisonFacts — Rent", () => {
-  it("returns empty array when all fields null", () => {
+  it("returns empty array when all fields null (fewer than 3 is allowed)", () => {
     expect(resolveComparisonFacts(base(), "rent")).toHaveLength(0);
   });
 
-  it("returns at most 3 facts", () => {
-    const r = {
+  it("returns at most 3 facts even when many are disclosed", () => {
+    const r: SearchPropertyResult = {
       ...base(),
       carpetAreaSqft: 800,
       superBuiltUpSqft: 1000,
-      furnishing: "fully_furnished" as const,
-      bathrooms: 2,
-      floorNumber: 3,
-      totalFloors: 10,
+      furnishing: "fully_furnished",
+      parking4w: "covered",
+      rentBrokerageType: "zero",
+      securityDepositAmount: 100000,
+      lockInMonths: 6,
+      petPolicy: "allowed",
     };
-    expect(resolveComparisonFacts(r, "rent").length).toBeLessThanOrEqual(3);
+    expect(resolveComparisonFacts(r, "rent").length).toBe(3);
   });
 
-  it("carpet area is fact 1 with explicit label", () => {
-    const r = { ...base(), carpetAreaSqft: 900 };
-    const facts = resolveComparisonFacts(r, "rent");
-    expect(facts[0]?.label).toBe("900 sq.ft carpet");
+  it("carpet area is the first fact (Space group), with an explicit label", () => {
+    const facts = resolveComparisonFacts({ ...base(), carpetAreaSqft: 900 }, "rent");
+    expect(facts[0].label).toBe("900 sq.ft carpet");
+    expect(facts[0].concept).toBe("size");
   });
 
-  it("super built-up appears after carpet (explicit label, comma-grouped) when values differ", () => {
-    const r = { ...base(), carpetAreaSqft: 800, superBuiltUpSqft: 1000 };
-    const facts = resolveComparisonFacts(r, "rent");
-    expect(facts.some((f) => f.label === "800 sq.ft carpet")).toBe(true);
-    expect(facts.some((f) => f.label === "1,000 sq.ft super built-up")).toBe(true);
+  it("size is exclusive: carpet present → super built-up is NOT also shown", () => {
+    const facts = resolveComparisonFacts(
+      { ...base(), carpetAreaSqft: 800, superBuiltUpSqft: 1000 },
+      "rent",
+    );
+    expect(labels(facts)).toContain("800 sq.ft carpet");
+    expect(labels(facts).some((l) => l.includes("super built-up"))).toBe(false);
+    expect(concepts(facts).filter((c) => c === "size")).toHaveLength(1);
   });
 
-  it("super built-up skipped when numeric value equals carpet (area-value duplicate)", () => {
-    const r = { ...base(), carpetAreaSqft: 800, superBuiltUpSqft: 800 };
-    const facts = resolveComparisonFacts(r, "rent");
-    expect(facts.filter((f) => f.label.includes("sq.ft")).length).toBe(1);
-    expect(facts.some((f) => f.label.includes("super built-up"))).toBe(false);
+  it("super built-up is used only when carpet is null", () => {
+    const facts = resolveComparisonFacts({ ...base(), superBuiltUpSqft: 1100 }, "rent");
+    expect(facts[0].label).toBe("1,100 sq.ft super built-up");
   });
 
-  it("super built-up becomes fact 1 when carpet is null", () => {
-    const r = { ...base(), superBuiltUpSqft: 1100 };
+  it("picks one fact per group first: Space + Move-in friction + Utility", () => {
+    const r: SearchPropertyResult = {
+      ...base(),
+      carpetAreaSqft: 900,
+      rentBrokerageType: "zero",
+      furnishing: "semi_furnished",
+    };
     const facts = resolveComparisonFacts(r, "rent");
-    expect(facts[0]?.label).toBe("1,100 sq.ft super built-up");
+    expect(labels(facts)).toEqual(["900 sq.ft carpet", "Zero brokerage", "Semi-furnished"]);
   });
 
-  it("building age NOT included in rent facts", () => {
-    const r = { ...base(), buildingAgeYears: 5 };
+  it("brokerage is exclusive: zero brokerage wins over a brokerage amount", () => {
+    const r: SearchPropertyResult = {
+      ...base(),
+      rentBrokerageType: "zero",
+      rentBrokerageFixed: 20000,
+    };
     const facts = resolveComparisonFacts(r, "rent");
-    expect(facts.some((f) => f.label.includes("yr old"))).toBe(false);
+    expect(labels(facts)).toContain("Zero brokerage");
+    expect(concepts(facts).filter((c) => c === "brokerage")).toHaveLength(1);
   });
 
-  it("furnishing label rendered correctly", () => {
-    const r = { ...base(), furnishing: "semi_furnished" };
-    const facts = resolveComparisonFacts(r, "rent");
-    expect(facts.some((f) => f.label === "Semi-furnished")).toBe(true);
-  });
-
-  it("4W parking preferred over 2W", () => {
-    const r = { ...base(), parking4w: "covered", parking2w: "uncovered" };
-    const facts = resolveComparisonFacts(r, "rent");
-    expect(facts.some((f) => f.label === "4W parking")).toBe(true);
-    expect(facts.some((f) => f.label === "2W parking")).toBe(false);
+  it("parking is exclusive: 4W preferred over 2W", () => {
+    const facts = resolveComparisonFacts(
+      { ...base(), parking4w: "covered", parking2w: "uncovered" },
+      "rent",
+    );
+    expect(labels(facts)).toContain("4W parking");
+    expect(labels(facts)).not.toContain("2W parking");
   });
 
   it("2W parking used when 4W is none", () => {
-    const r = { ...base(), parking4w: "none", parking2w: "covered" };
+    const facts = resolveComparisonFacts(
+      { ...base(), parking4w: "none", parking2w: "covered" },
+      "rent",
+    );
+    expect(labels(facts)).toContain("2W parking");
+  });
+
+  it("deposit surfaces as move_in_cost when no brokerage present", () => {
+    const facts = resolveComparisonFacts({ ...base(), securityDepositAmount: 50000 }, "rent");
+    expect(labels(facts).some((l) => l.includes("deposit"))).toBe(true);
+  });
+
+  it("excludeConcepts drops a concept already shown elsewhere (e.g. the signal chip)", () => {
+    const r: SearchPropertyResult = {
+      ...base(),
+      carpetAreaSqft: 900,
+      rentBrokerageType: "zero",
+      furnishing: "semi_furnished",
+      parking4w: "covered",
+    };
+    const withBrokerage = resolveComparisonFacts(r, "rent");
+    expect(labels(withBrokerage)).toContain("Zero brokerage");
+
+    const excluded = resolveComparisonFacts(r, "rent", ["brokerage"]);
+    expect(labels(excluded)).not.toContain("Zero brokerage");
+    // Slot is backfilled by the next distinct-concept candidate (parking).
+    expect(labels(excluded)).toEqual(["900 sq.ft carpet", "Semi-furnished", "4W parking"]);
+  });
+
+  it("is deterministic across repeated calls", () => {
+    const r: SearchPropertyResult = {
+      ...base(),
+      carpetAreaSqft: 900,
+      rentBrokerageType: "zero",
+      furnishing: "semi_furnished",
+      parking4w: "covered",
+      petPolicy: "allowed",
+    };
+    const a = labels(resolveComparisonFacts(r, "rent"));
+    const b = labels(resolveComparisonFacts(r, "rent"));
+    expect(a).toEqual(b);
+  });
+
+  it("never returns a Property-tax fact", () => {
+    const r: SearchPropertyResult = { ...base(), carpetAreaSqft: 900, furnishing: "semi_furnished" };
     const facts = resolveComparisonFacts(r, "rent");
-    expect(facts.some((f) => f.label === "2W parking")).toBe(true);
+    expect(labels(facts).some((l) => /tax/i.test(l))).toBe(false);
   });
 });
 
+// ── Buy ─────────────────────────────────────────────────────────────────────
+
 describe("resolveComparisonFacts — Buy", () => {
-  it("carpet area is fact 1 (explicit label), possession follows when no size/furnishing/parking", () => {
-    const r = { ...base(), carpetAreaSqft: 1200, possessionStatus: "ready_to_move" };
-    const facts = resolveComparisonFacts(r, "buy");
-    expect(facts[0]?.label).toBe("1,200 sq.ft carpet");
-    expect(facts[1]?.label).toBe("Ready to move");
+  it("carpet is fact 1; readiness (ready to move) follows", () => {
+    const facts = resolveComparisonFacts(
+      { ...base(), carpetAreaSqft: 1200, possessionStatus: "ready_to_move" },
+      "buy",
+    );
+    expect(facts[0].label).toBe("1,200 sq.ft carpet");
+    expect(facts[1].label).toBe("Ready to move");
   });
 
-  it("building age takes slot 3 when carpet + possession fill 1+2", () => {
-    const r = {
+  it("readiness is exclusive: ready-to-move OR possession date, not both", () => {
+    const facts = resolveComparisonFacts(
+      { ...base(), possessionStatus: "ready_to_move", possessionDate: "2027-06-01" },
+      "buy",
+    );
+    expect(concepts(facts).filter((c) => c === "readiness")).toHaveLength(1);
+    expect(labels(facts)).toContain("Ready to move");
+  });
+
+  it("possession date used when not ready-to-move", () => {
+    const facts = resolveComparisonFacts(
+      { ...base(), possessionStatus: "under_construction", possessionDate: "2027-06-01" },
+      "buy",
+    );
+    expect(labels(facts).some((l) => l.startsWith("Possession:"))).toBe(true);
+  });
+
+  it("zero brokerage wins over a brokerage percentage", () => {
+    const facts = resolveComparisonFacts({ ...base(), saleBrokeragePct: 0 }, "buy");
+    expect(labels(facts)).toContain("Zero brokerage");
+  });
+
+  it("brokerage percentage shown when non-zero", () => {
+    const facts = resolveComparisonFacts({ ...base(), saleBrokeragePct: 1.5 }, "buy");
+    expect(labels(facts)).toContain("1.5% brokerage");
+  });
+
+  it("negotiable surfaces as a transaction-friction fact", () => {
+    const facts = resolveComparisonFacts({ ...base(), priceNegotiable: true }, "buy");
+    expect(labels(facts)).toContain("Negotiable");
+  });
+
+  it("furnishing is a valid buy utility fact", () => {
+    const facts = resolveComparisonFacts(
+      { ...base(), carpetAreaSqft: 900, furnishing: "fully_furnished" },
+      "buy",
+    );
+    expect(labels(facts)).toContain("Fully furnished");
+  });
+
+  it("caps at 3 and stays deterministic", () => {
+    const r: SearchPropertyResult = {
       ...base(),
       carpetAreaSqft: 1000,
       possessionStatus: "ready_to_move",
-      buildingAgeYears: 8,
+      saleBrokeragePct: 0,
+      parking4w: "covered",
+      furnishing: "semi_furnished",
     };
     const facts = resolveComparisonFacts(r, "buy");
-    expect(facts.map((f) => f.label)).toEqual(["1,000 sq.ft carpet", "Ready to move", "8 yr old"]);
-  });
-
-  it("furnishing IS a high-value buy attribute now", () => {
-    const r = { ...base(), furnishing: "fully_furnished", carpetAreaSqft: 900 };
-    const facts = resolveComparisonFacts(r, "buy");
-    expect(facts.some((f) => f.label === "Fully furnished")).toBe(true);
-  });
-
-  it("super built-up IS shown in buy (explicit label) when it differs from carpet", () => {
-    const r = { ...base(), carpetAreaSqft: 900, superBuiltUpSqft: 1400 };
-    const facts = resolveComparisonFacts(r, "buy");
-    expect(facts.some((f) => f.label === "1,400 sq.ft super built-up")).toBe(true);
-  });
-
-  it("under_construction status rendered correctly", () => {
-    const r = { ...base(), possessionStatus: "under_construction" };
-    const facts = resolveComparisonFacts(r, "buy");
-    expect(facts.some((f) => f.label === "Under construction")).toBe(true);
+    expect(facts.length).toBe(3);
+    expect(labels(facts)).toEqual(labels(resolveComparisonFacts(r, "buy")));
   });
 });

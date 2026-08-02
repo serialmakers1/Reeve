@@ -53,6 +53,15 @@ interface SearchPropertyCardProps {
 const FACT_CHIP =
   "rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] text-muted-foreground";
 
+// Contextual-signal type → fact concept key, so a fact never repeats the signal chip.
+const SIGNAL_TO_FACT_CONCEPT: Record<string, string> = {
+  zero_brokerage: "brokerage",
+  pets: "pets",
+  no_lockin: "lockin",
+  negotiable: "negotiable",
+  // "video" has no fact-concept equivalent — nothing to exclude.
+};
+
 export function SearchPropertyCard({
   result,
   layout = "vertical",
@@ -75,9 +84,16 @@ export function SearchPropertyCard({
   const surface = isHorizontal ? "split" : ("list" as const);
   const isFav = isFavourited(result.id);
   const displayPrice = resolveDisplayPrice(result);
-  const facts = resolveComparisonFacts(result, result.listingMode);
-  const visibleFacts = isHorizontal ? facts.slice(0, 2) : facts;
   const signal = resolveContextualSignal(result);
+  // The signal chip already surfaces one concept — exclude it from the facts so a
+  // card never shows the same information twice.
+  const signalConcept = signal ? SIGNAL_TO_FACT_CONCEPT[signal.type] : undefined;
+  const facts = resolveComparisonFacts(
+    result,
+    result.listingMode,
+    signalConcept ? [signalConcept] : [],
+  );
+  const visibleFacts = isHorizontal ? facts.slice(0, 2) : facts;
   const freshness = freshnessLabel(result);
   const roleLabel = LISTER_ROLE_LABELS[result.listerRole] ?? formatEnumLabel("lister_role", result.listerRole);
 
@@ -116,7 +132,7 @@ export function SearchPropertyCard({
 
   const priceBlock = displayPrice && (
     <div className="leading-tight">
-      <p className={cn("font-bold text-foreground", isHorizontal ? "text-base" : "text-lg")}>
+      <p className={cn("font-bold text-foreground", isHorizontal ? "text-base" : "text-xl")}>
         {displayPrice.amount}
         {displayPrice.unit && (
           <span className="ml-1 text-xs font-normal text-muted-foreground">{displayPrice.unit}</span>
@@ -195,45 +211,45 @@ export function SearchPropertyCard({
         {/* Content */}
         <div
           className={cn(
-            "min-w-0 flex-1",
-            isHorizontal ? "flex flex-col justify-center gap-0.5 p-3" : "space-y-0.5 p-2.5",
+            "flex min-w-0 flex-1 flex-col",
+            isHorizontal ? "justify-center gap-0.5 p-3" : "gap-1 p-2.5",
           )}
         >
           {/* 1. Price */}
           {priceBlock}
 
-          {/* 2. BHK + type */}
-          <p className="text-sm font-semibold leading-tight text-foreground">{titleLine}</p>
-
-          {/* 3. Building · locality (combined) */}
-          {(result.buildingName || result.locality || result.city) && (
-            <p className="truncate text-xs leading-tight text-muted-foreground">
-              {[result.buildingName, result.locality ?? result.city].filter(Boolean).join(" · ")}
+          {/* 2. Identity: BHK + type, then building · locality */}
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-[15px] font-semibold leading-tight text-foreground break-words">
+              {titleLine}
             </p>
-          )}
+            {(result.buildingName || result.locality || result.city) && (
+              <p className="truncate text-xs leading-tight text-muted-foreground">
+                {[result.buildingName, result.locality ?? result.city].filter(Boolean).join(" · ")}
+              </p>
+            )}
+          </div>
 
-          {/* 4. Comparison facts */}
-          {visibleFacts.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-0.5">
+          {/* 3. Comparison facts + signal (no blank row reserved when empty) */}
+          {(visibleFacts.length > 0 || signal) && (
+            <div className="flex flex-wrap items-center gap-1">
               {visibleFacts.map((f) => (
-                <span key={f.label} className={FACT_CHIP}>
+                <span key={f.concept} className={FACT_CHIP}>
                   {f.label}
                 </span>
               ))}
+              {signal && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  {signal.displayValue}
+                </span>
+              )}
             </div>
           )}
 
-          {/* 5. Contextual / transparency signal */}
-          {signal && (
-            <span className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-              {signal.displayValue}
-            </span>
-          )}
-
-          {/* 6. Lister + meta (List only — omitted in compact Split card) */}
+          {/* 4. Lister + meta (List only — omitted in compact Split card), pinned to bottom */}
           {!isHorizontal && (
-            <>
-              <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px] text-muted-foreground">
+            <div className="mt-auto space-y-0.5 pt-1">
+              <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
                 <span>{roleLabel}</span>
                 {result.isNewOnReeve && (
                   <span className="rounded-full border border-border bg-muted px-1.5 py-0.5">New on Reeve</span>
@@ -244,7 +260,7 @@ export function SearchPropertyCard({
                 <span>{result.viewCount >= VIEW_COUNT_MIN_DISPLAY ? `${result.viewCount} views` : ""}</span>
                 {freshness && <span>{freshness}</span>}
               </div>
-            </>
+            </div>
           )}
         </div>
       </Link>
