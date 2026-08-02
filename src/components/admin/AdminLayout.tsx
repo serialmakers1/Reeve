@@ -31,8 +31,8 @@ const REEVE_LINKS = [
   { label: "View Reeve", path: "/", icon: ExternalLink },
   { label: "Browse Properties", path: "/search", icon: Search },
   { label: "List Your Property", path: "/list", icon: PlusSquare },
-  { label: "Tenant Dashboard", path: "/tenant-dashboard", icon: LayoutDashboard },
-  { label: "Owner Dashboard", path: "/owner-dashboard", icon: Building2 },
+  { label: "My Dashboard", path: "/tenant-dashboard", icon: LayoutDashboard },
+  { label: "Manage My Properties", path: "/owner-dashboard", icon: Building2 },
   { label: "My Profile", path: "/me", icon: UserCircle },
 ];
 

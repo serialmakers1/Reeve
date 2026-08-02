@@ -23,13 +23,80 @@ function json(body: unknown, status: number): Response {
   });
 }
 
-const REQUIRED_PREF_KEYS = [
-  "age",
-  "gender",
-  "number_of_occupants",
-  "occupation",
-  "expected_stay_duration",
-] as const;
+type PrefRow = Record<string, unknown>;
+
+function isMissing(v: unknown): boolean {
+  return v === null || v === undefined;
+}
+
+function checkRentPrefsComplete(pr: PrefRow): boolean {
+  const mode = pr["preference_mode"] as string | null | undefined;
+  const modeOk = mode === "rent" || mode === "both";
+  return (
+    modeOk &&
+    !isMissing(pr["age"]) &&
+    !isMissing(pr["occupation"]) &&
+    pr["is_foreign_citizen"] !== null &&
+    pr["is_foreign_citizen"] !== undefined &&
+    !isMissing(pr["gender"]) &&
+    !isMissing(pr["number_of_occupants"]) &&
+    !isMissing(pr["expected_stay_duration"])
+  );
+}
+
+function checkBuyPrefsComplete(pr: PrefRow): boolean {
+  const mode = pr["preference_mode"] as string | null | undefined;
+  const modeOk = mode === "buy" || mode === "both";
+  return (
+    modeOk &&
+    !isMissing(pr["age"]) &&
+    !isMissing(pr["occupation"]) &&
+    pr["is_foreign_citizen"] !== null &&
+    pr["is_foreign_citizen"] !== undefined &&
+    !isMissing(pr["buying_purpose"]) &&
+    !isMissing(pr["purchase_timeline"]) &&
+    !isMissing(pr["funding_stage"])
+  );
+}
+
+function buildRentSnapshot(pr: PrefRow): Record<string, unknown> {
+  const snap: Record<string, unknown> = {
+    age: pr["age"],
+    occupation: pr["occupation"],
+    is_foreign_citizen: pr["is_foreign_citizen"],
+    gender: pr["gender"],
+    number_of_occupants: pr["number_of_occupants"],
+    expected_stay_duration: pr["expected_stay_duration"],
+    has_pets: !!pr["has_pets"],
+  };
+  if (pr["occupation_other"] && typeof pr["occupation_other"] === "string" && pr["occupation_other"] !== "") {
+    snap["occupation_other"] = pr["occupation_other"];
+  }
+  if (pr["move_in_by"] !== null && pr["move_in_by"] !== undefined) snap["move_in_by"] = pr["move_in_by"];
+  if (pr["marital_status"] !== null && pr["marital_status"] !== undefined) snap["marital_status"] = pr["marital_status"];
+  if (pr["diet_preference"] !== null && pr["diet_preference"] !== undefined) snap["diet_preference"] = pr["diet_preference"];
+  // pet_types only when has_pets=true and array is non-empty
+  if (pr["has_pets"]) {
+    const pt = pr["pet_types"];
+    if (Array.isArray(pt) && pt.length > 0) snap["pet_types"] = pt;
+  }
+  return snap;
+}
+
+function buildBuySnapshot(pr: PrefRow): Record<string, unknown> {
+  const snap: Record<string, unknown> = {
+    age: pr["age"],
+    occupation: pr["occupation"],
+    is_foreign_citizen: pr["is_foreign_citizen"],
+    buying_purpose: pr["buying_purpose"],
+    purchase_timeline: pr["purchase_timeline"],
+    funding_stage: pr["funding_stage"],
+  };
+  if (pr["occupation_other"] && typeof pr["occupation_other"] === "string" && pr["occupation_other"] !== "") {
+    snap["occupation_other"] = pr["occupation_other"];
+  }
+  return snap;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -76,20 +143,25 @@ Deno.serve(async (req: Request) => {
 
     const srHeaders = { "apikey": serviceRoleKey, "Authorization": `Bearer ${serviceRoleKey}` };
 
-    // ── 3. Property lookup — owner_id + status ──────────────────────────────
+    // ── 3. Property lookup — owner_id + status + listing_type ───────────────
     const propRes = await fetch(
-      `${supabaseUrl}/rest/v1/properties?id=eq.${propertyId}&select=id,owner_id,status`,
+      `${supabaseUrl}/rest/v1/properties?id=eq.${propertyId}&select=id,owner_id,status,listing_type`,
       { headers: srHeaders },
     );
     if (!propRes.ok) {
       console.error("PROPERTY_FETCH_ERROR", { status: propRes.status });
       return json({ error: "Failed to fetch property" }, 500);
     }
-    const props: Array<{ id: string; owner_id: string; status: string }> = await propRes.json();
+    const props: Array<{ id: string; owner_id: string; status: string; listing_type: string | null }> = await propRes.json();
     const property = props?.[0];
     if (!property) return json({ error: "Property not found" }, 404);
     if (!["listed", "edit_pending_review"].includes(property.status)) {
       return json({ error: "Property is not currently accepting requests" }, 422);
+    }
+
+    const listingType = property.listing_type;
+    if (listingType !== "rent" && listingType !== "sale") {
+      return json({ error: "Unknown listing type — cannot validate preferences" }, 422);
     }
 
     // ── 4. Self-request guard ───────────────────────────────────────────────
@@ -113,11 +185,10 @@ Deno.serve(async (req: Request) => {
       }
     } else {
       console.error("RATE_LIMIT_RPC_ERROR", { status: rateRes.status });
-      // Fail-closed: if the rate-limit RPC is broken, block the request.
       return json({ error: "Rate limit check failed" }, 500);
     }
 
-    // ── 6. Preferences completeness check ───────────────────────────────────
+    // ── 6. Preferences completeness check (mode-aware) ──────────────────────
     const prefRes = await fetch(
       `${supabaseUrl}/rest/v1/rental_preferences?user_id=eq.${tenantId}&select=*`,
       { headers: srHeaders },
@@ -126,17 +197,23 @@ Deno.serve(async (req: Request) => {
       console.error("PREF_FETCH_ERROR", { status: prefRes.status });
       return json({ error: "Failed to fetch preferences" }, 500);
     }
-    const prefRows: Array<Record<string, unknown>> = await prefRes.json();
+    const prefRows: PrefRow[] = await prefRes.json();
     const prefRow = prefRows?.[0] ?? null;
 
-    if (!prefRow || REQUIRED_PREF_KEYS.some((k) => prefRow[k] === null || prefRow[k] === undefined)) {
+    const prefsOk = prefRow
+      ? listingType === "rent"
+        ? checkRentPrefsComplete(prefRow)
+        : checkBuyPrefsComplete(prefRow)
+      : false;
+
+    if (!prefsOk) {
       return json({
         error: "preferences_incomplete",
-        redirect: "/tenant-dashboard/preferences",
+        redirect: `/tenant-dashboard/preferences?mode=${listingType === "sale" ? "buy" : "rent"}`,
       }, 422);
     }
 
-    // ── 7. Snapshot: public_profiles + profiles.created_at + rental_preferences ─
+    // ── 7. Snapshot: public_profiles + profiles.created_at + mode-scoped prefs ─
     const [pubRes, profRes] = await Promise.all([
       fetch(
         `${supabaseUrl}/rest/v1/public_profiles?user_id=eq.${tenantId}&select=display_name,full_name,profile_photo_url,bio`,
@@ -151,29 +228,25 @@ Deno.serve(async (req: Request) => {
       (await pubRes.json())?.[0] ?? {};
     const profRow: { created_at?: string | null } = (await profRes.json())?.[0] ?? {};
 
-    const tenant_profile_snapshot = {
+    const preferenceType = listingType === "sale" ? "buy" : "rent";
+    const prefSnapshot = listingType === "sale"
+      ? buildBuySnapshot(prefRow!)
+      : buildRentSnapshot(prefRow!);
+
+    const tenant_profile_snapshot: Record<string, unknown> = {
+      preference_type: preferenceType,
       display_name: pubRow.display_name ?? null,
       full_name: pubRow.full_name ?? null,
       profile_photo_url: pubRow.profile_photo_url ?? null,
       bio: pubRow.bio ?? null,
       member_since: profRow.created_at ?? null,
-      rental_preferences: {
-        age: prefRow.age ?? null,
-        gender: prefRow.gender ?? null,
-        number_of_occupants: prefRow.number_of_occupants ?? null,
-        occupation: prefRow.occupation ?? null,
-        occupation_other: prefRow.occupation_other ?? null,
-        expected_stay_duration: prefRow.expected_stay_duration ?? null,
-        preferred_city: prefRow.preferred_city ?? null,
-        preferred_localities: prefRow.preferred_localities ?? null,
-        move_in_by: prefRow.move_in_by ?? null,
-        marital_status: prefRow.marital_status ?? null,
-        diet_preference: prefRow.diet_preference ?? null,
-        has_pets: prefRow.has_pets ?? null,
-        pet_types: prefRow.pet_types ?? null,
-        is_foreign_citizen: prefRow.is_foreign_citizen ?? null,
-      },
     };
+
+    if (listingType === "sale") {
+      tenant_profile_snapshot["buying_preferences"] = prefSnapshot;
+    } else {
+      tenant_profile_snapshot["rental_preferences"] = prefSnapshot;
+    }
 
     // ── 8. INSERT contact_requests (trigger sets attempt_number) ────────────
     const insertRes = await fetch(`${supabaseUrl}/rest/v1/contact_requests`, {
@@ -198,14 +271,10 @@ Deno.serve(async (req: Request) => {
     const errBody = await insertRes.text();
     console.error("INSERT_ERROR", { status: insertRes.status, body: errBody });
 
-    // Unique partial index violation → active request already exists.
     if (insertRes.status === 409) {
       return json({ error: "request_already_active" }, 409);
     }
 
-    // Trigger raise (cooldown / max attempts / daily cap edge race).
-    // Postgres RAISE EXCEPTION surfaces via PostgREST with a JSON error body
-    // containing `message`. We surface it verbatim so the UI can map to copy.
     let triggerMessage = errBody;
     try {
       const parsed = JSON.parse(errBody);

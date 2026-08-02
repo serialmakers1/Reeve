@@ -43,12 +43,12 @@ const Footer = () => {
             <ul className="space-y-2">
               <li>
                 <Link to="/tenant-dashboard" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Tenant Dashboard
+                  My Dashboard
                 </Link>
               </li>
               <li>
                 <Link to="/owner-dashboard" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Owner Dashboard
+                  Manage My Properties
                 </Link>
               </li>
               <li>

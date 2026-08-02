@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { ArrowLeft, CalendarIcon, Loader2, Minus, Plus } from "lucide-react";
 import posthog from "posthog-js";
@@ -12,7 +12,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
@@ -24,9 +23,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-
-// D-172, D-177: rental preferences page. Single scrolling page, submit-on-click.
+import {
+  PreferenceMode,
+  BuyingPurpose,
+  PurchaseTimeline,
+  FundingStage,
+  PREFERENCE_MODE_OPTIONS,
+  BUYING_PURPOSE_OPTIONS,
+  PURCHASE_TIMELINE_OPTIONS,
+  FUNDING_STAGE_OPTIONS,
+  isRentModeActive,
+  isBuyModeActive,
+  isRentComplete,
+  isBuyComplete,
+} from "@/lib/preferenceHelpers";
 
 type Gender = "male" | "female" | "other";
 type MaritalStatus = "single" | "married" | "family" | "live_in";
@@ -42,35 +54,39 @@ type StayDuration =
 type PetType = "dog" | "cat" | "other";
 
 interface FormState {
-  preferred_city: string;
-  preferred_localities_text: string;
-  move_in_by: Date | null;
+  preference_mode: PreferenceMode;
   age: string;
-  gender: Gender | "";
-  marital_status: MaritalStatus | "";
   occupation: Occupation | "";
   occupation_other: string;
-  diet_preference: Diet | "";
-  is_foreign_citizen: boolean;
+  is_foreign_citizen: boolean | null;
+  gender: Gender | "";
   number_of_occupants: number;
   expected_stay_duration: StayDuration | "";
+  buying_purpose: BuyingPurpose | "";
+  purchase_timeline: PurchaseTimeline | "";
+  funding_stage: FundingStage | "";
+  move_in_by: Date | null;
+  marital_status: MaritalStatus | "";
+  diet_preference: Diet | "";
   has_pets: boolean;
   pet_types: PetType[];
 }
 
 const INITIAL_FORM: FormState = {
-  preferred_city: "",
-  preferred_localities_text: "",
-  move_in_by: null,
+  preference_mode: "rent",
   age: "",
-  gender: "",
-  marital_status: "",
   occupation: "",
   occupation_other: "",
-  diet_preference: "",
-  is_foreign_citizen: false,
+  is_foreign_citizen: null,
+  gender: "",
   number_of_occupants: 1,
   expected_stay_duration: "",
+  buying_purpose: "",
+  purchase_timeline: "",
+  funding_stage: "",
+  move_in_by: null,
+  marital_status: "",
+  diet_preference: "",
   has_pets: false,
   pet_types: [],
 };
@@ -85,14 +101,6 @@ const STAY_OPTIONS: { value: StayDuration; label: string }[] = [
 ];
 
 const MAX_MOVE_IN_DAYS = 90;
-
-function parseLocalities(text: string): string[] | null {
-  const items = text
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return items.length > 0 ? items : null;
-}
 
 function ToggleButton({
   selected,
@@ -119,8 +127,13 @@ function ToggleButton({
   );
 }
 
+function isValidReturnTo(v: string): boolean {
+  return v.startsWith("/") && !v.startsWith("//") && !v.includes("\\");
+}
+
 function TenantPreferencesInner() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useRequireAuth();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [loading, setLoading] = useState(true);
@@ -128,6 +141,10 @@ function TenantPreferencesInner() {
   const [ageError, setAgeError] = useState<string | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const existingRowRef = useRef<boolean>(false);
+  const modeParamAppliedRef = useRef<boolean>(false);
+
+  const rawReturnTo = searchParams.get("returnTo") ?? "";
+  const returnTo = rawReturnTo && isValidReturnTo(rawReturnTo) ? rawReturnTo : "";
 
   useEffect(() => {
     if (authLoading || !user?.id) return;
@@ -135,31 +152,54 @@ function TenantPreferencesInner() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await (supabase as any)
         .from("rental_preferences")
-        .select("*")
+        .select("preference_mode, age, occupation, occupation_other, is_foreign_citizen, gender, number_of_occupants, expected_stay_duration, buying_purpose, purchase_timeline, funding_stage, move_in_by, marital_status, diet_preference, has_pets, pet_types")
         .eq("user_id", user.id)
         .maybeSingle();
 
+      const modeParam = searchParams.get("mode");
+      const validModeParam: PreferenceMode | null =
+        modeParam === "rent" || modeParam === "buy" ? modeParam : null;
+
       if (data) {
         existingRowRef.current = true;
+        const savedMode: PreferenceMode = (data.preference_mode as PreferenceMode) ?? "rent";
+
+        let localMode = savedMode;
+        if (!modeParamAppliedRef.current && validModeParam) {
+          modeParamAppliedRef.current = true;
+          if (savedMode === "rent" && validModeParam === "buy") localMode = "both";
+          else if (savedMode === "buy" && validModeParam === "rent") localMode = "both";
+          // both stays both, matching mode is no-op
+        }
+
         setForm({
-          preferred_city: data.preferred_city ?? "",
-          preferred_localities_text: (data.preferred_localities ?? []).join(", "),
-          move_in_by: data.move_in_by ? new Date(data.move_in_by) : null,
+          preference_mode: localMode,
           age: data.age != null ? String(data.age) : "",
-          gender: (data.gender as Gender) ?? "",
-          marital_status: (data.marital_status as MaritalStatus) ?? "",
           occupation: (data.occupation as Occupation) ?? "",
           occupation_other: data.occupation_other ?? "",
-          diet_preference: (data.diet_preference as Diet) ?? "",
-          is_foreign_citizen: !!data.is_foreign_citizen,
+          is_foreign_citizen: data.is_foreign_citizen !== undefined ? data.is_foreign_citizen : null,
+          gender: (data.gender as Gender) ?? "",
           number_of_occupants: data.number_of_occupants ?? 1,
           expected_stay_duration: (data.expected_stay_duration as StayDuration) ?? "",
+          buying_purpose: (data.buying_purpose as BuyingPurpose) ?? "",
+          purchase_timeline: (data.purchase_timeline as PurchaseTimeline) ?? "",
+          funding_stage: (data.funding_stage as FundingStage) ?? "",
+          move_in_by: data.move_in_by ? new Date(data.move_in_by) : null,
+          marital_status: (data.marital_status as MaritalStatus) ?? "",
+          diet_preference: (data.diet_preference as Diet) ?? "",
           has_pets: !!data.has_pets,
           pet_types: (data.pet_types ?? []) as PetType[],
         });
+      } else {
+        // No row — apply contextual mode once
+        if (!modeParamAppliedRef.current && validModeParam) {
+          modeParamAppliedRef.current = true;
+          setForm((prev) => ({ ...prev, preference_mode: validModeParam }));
+        }
       }
       setLoading(false);
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user?.id]);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -169,17 +209,45 @@ function TenantPreferencesInner() {
   const ageNum = form.age === "" ? null : Number(form.age);
   const ageValid = ageNum !== null && ageNum >= 16 && ageNum <= 100;
 
+  const rentActive = isRentModeActive(form.preference_mode);
+  const buyActive = isBuyModeActive(form.preference_mode);
+
+  const requiredTotal = form.preference_mode === "both" ? 9 : 6;
+
   const requiredComplete = useMemo(() => {
     let n = 0;
+    // Shared (3)
     if (ageValid) n++;
-    if (form.gender) n++;
-    if (form.number_of_occupants >= 1) n++;
     if (form.occupation) n++;
-    if (form.expected_stay_duration) n++;
+    if (form.is_foreign_citizen !== null) n++;
+    // Rent (3)
+    if (rentActive) {
+      if (form.gender) n++;
+      if (form.number_of_occupants >= 1) n++;
+      if (form.expected_stay_duration) n++;
+    }
+    // Buy (3)
+    if (buyActive) {
+      if (form.buying_purpose) n++;
+      if (form.purchase_timeline) n++;
+      if (form.funding_stage) n++;
+    }
     return n;
-  }, [ageValid, form.gender, form.number_of_occupants, form.occupation, form.expected_stay_duration]);
+  }, [
+    ageValid,
+    form.occupation,
+    form.is_foreign_citizen,
+    form.gender,
+    form.number_of_occupants,
+    form.expected_stay_duration,
+    form.buying_purpose,
+    form.purchase_timeline,
+    form.funding_stage,
+    rentActive,
+    buyActive,
+  ]);
 
-  const canSave = requiredComplete === 5 && !saving;
+  const canSave = requiredComplete === requiredTotal && !saving;
 
   const today = useMemo(() => {
     const d = new Date();
@@ -216,48 +284,74 @@ function TenantPreferencesInner() {
     if (!canSave || !user?.id) return;
     setSaving(true);
 
-    const payload = {
-      user_id: user.id,
-      preferred_city: form.preferred_city.trim() || null,
-      preferred_localities: parseLocalities(form.preferred_localities_text),
-      move_in_by: form.move_in_by ? format(form.move_in_by, "yyyy-MM-dd") : null,
+    const sharedFields = {
+      preference_mode: form.preference_mode,
       age: ageNum,
-      gender: form.gender || null,
-      marital_status: form.marital_status || null,
       occupation: form.occupation || null,
-      occupation_other:
-        form.occupation === "other" ? form.occupation_other.trim() || null : null,
-      diet_preference: form.diet_preference || null,
+      occupation_other: form.occupation === "other" ? form.occupation_other.trim() || null : null,
       is_foreign_citizen: form.is_foreign_citizen,
+    };
+
+    const rentFields = {
+      gender: form.gender || null,
       number_of_occupants: form.number_of_occupants,
       expected_stay_duration: form.expected_stay_duration || null,
+      move_in_by: form.move_in_by ? format(form.move_in_by, "yyyy-MM-dd") : null,
+      marital_status: form.marital_status || null,
+      diet_preference: form.diet_preference || null,
       has_pets: form.has_pets,
       pet_types: form.has_pets && form.pet_types.length > 0 ? form.pet_types : null,
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
-      .from("rental_preferences")
-      .upsert(payload, { onConflict: "user_id" });
+    const buyFields = {
+      buying_purpose: form.buying_purpose || null,
+      purchase_timeline: form.purchase_timeline || null,
+      funding_stage: form.funding_stage || null,
+    };
+
+    let error: { message: string } | null = null;
+
+    if (!existingRowRef.current) {
+      // New row — insert with mode-scoped fields
+      const payload: Record<string, unknown> = { user_id: user.id, ...sharedFields };
+      if (rentActive) Object.assign(payload, rentFields);
+      if (buyActive) Object.assign(payload, buyFields);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await (supabase as any).from("rental_preferences").insert(payload);
+      error = res.error;
+      if (!error) existingRowRef.current = true;
+    } else {
+      // Existing row — update only mode-scoped fields (never touch opposing mode)
+      const payload: Record<string, unknown> = { ...sharedFields };
+      if (rentActive) Object.assign(payload, rentFields);
+      if (buyActive) Object.assign(payload, buyFields);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await (supabase as any)
+        .from("rental_preferences")
+        .update(payload)
+        .eq("user_id", user.id);
+      error = res.error;
+    }
 
     setSaving(false);
 
     if (error) {
-      console.error("rental_preferences upsert failed:", error);
+      console.error("rental_preferences save failed:", error);
       sonnerToast("Failed to save. Please try again.");
       return;
     }
 
-    const fieldsFilled = Object.entries(payload).filter(
-      ([k, v]) => k !== "user_id" && v !== null && !(Array.isArray(v) && v.length === 0),
-    ).length;
-
     posthog?.capture("rental_preferences_saved", {
+      mode: form.preference_mode,
       is_update: existingRowRef.current,
-      fields_filled: fieldsFilled,
     });
-    existingRowRef.current = true;
     sonnerToast("Preferences saved");
+
+    if (returnTo) {
+      navigate(returnTo);
+    }
   };
 
   if (authLoading || loading) {
@@ -280,83 +374,37 @@ function TenantPreferencesInner() {
           to="/tenant-dashboard"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Tenant Dashboard
+          <ArrowLeft className="h-4 w-4" /> My Dashboard
         </Link>
 
-        <h1 className="mt-4 text-2xl font-bold text-foreground">Rental Preferences</h1>
+        <h1 className="mt-4 text-2xl font-bold text-foreground">My Preferences</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          This is shared with a property owner only when you send them a contact request.
+          Your preferences are shared with the lister when you send a contact request.
         </p>
 
-        {/* ── Section 1 — Location & Timing ── */}
+        {/* ── Section 1 — What are you looking for ── */}
         <section className="mt-8 rounded-xl border bg-card p-5 space-y-5">
           <div>
-            <h2 className="text-base font-semibold text-foreground">Location & Timing</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Helps owners understand where you're looking and when you need to move.
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="preferred_city">Preferred city</Label>
-            <Input
-              id="preferred_city"
-              value={form.preferred_city}
-              onChange={(e) => update("preferred_city", e.target.value)}
-              placeholder="e.g. Bangalore"
-              className="min-h-[44px]"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="preferred_localities">Preferred localities</Label>
-            <Input
-              id="preferred_localities"
-              value={form.preferred_localities_text}
-              onChange={(e) => update("preferred_localities_text", e.target.value)}
-              placeholder="e.g. HSR Layout, Koramangala"
-              className="min-h-[44px]"
-            />
-            <p className="text-xs text-muted-foreground">Separate multiple localities with commas.</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Move-in by</Label>
-            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full min-h-[44px] justify-start text-left font-normal",
-                    !form.move_in_by && "text-muted-foreground",
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {form.move_in_by ? format(form.move_in_by, "EEEE, d MMMM yyyy") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={form.move_in_by ?? undefined}
-                  onSelect={(d) => {
-                    update("move_in_by", d ?? null);
-                    setDatePickerOpen(false);
-                  }}
-                  disabled={(d) => d < today || d > moveInMax}
-                  className="pointer-events-auto rounded-lg border border-border p-3"
+            <Label>What are you looking for? <span className="text-destructive">*</span></Label>
+            <div className="mt-1.5 grid grid-cols-3 gap-2">
+              {PREFERENCE_MODE_OPTIONS.map((opt) => (
+                <ToggleButton
+                  key={opt.value}
+                  selected={form.preference_mode === opt.value}
+                  label={opt.label}
+                  onClick={() => update("preference_mode", opt.value)}
                 />
-              </PopoverContent>
-            </Popover>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* ── Section 2 — About You ── */}
+        {/* ── Section 2 — Shared required fields ── */}
         <section className="mt-6 rounded-xl border bg-card p-5 space-y-5">
           <div>
             <h2 className="text-base font-semibold text-foreground">About You</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Owners want to know who'll be living in their home. This helps them make a confident decision when you reach out.
+              Listers want to know who'll be moving in. This helps them make a confident decision.
             </p>
           </div>
 
@@ -374,38 +422,6 @@ function TenantPreferencesInner() {
               className="mt-1.5 min-h-[44px]"
             />
             {ageError && <p className="mt-1 text-sm text-destructive">{ageError}</p>}
-          </div>
-
-          <div>
-            <Label>Gender <span className="text-destructive">*</span></Label>
-            <div className="mt-1.5 grid grid-cols-3 gap-2">
-              {(["male", "female", "other"] as const).map((g) => (
-                <ToggleButton
-                  key={g}
-                  selected={form.gender === g}
-                  label={g === "male" ? "Male" : g === "female" ? "Female" : "Other"}
-                  onClick={() => update("gender", g)}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <Label>Marital status</Label>
-            <Select
-              value={form.marital_status || undefined}
-              onValueChange={(v) => update("marital_status", v as MaritalStatus)}
-            >
-              <SelectTrigger className="mt-1.5 min-h-[44px]">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="single">Single</SelectItem>
-                <SelectItem value="married">Married</SelectItem>
-                <SelectItem value="family">Family</SelectItem>
-                <SelectItem value="live_in">Live-in</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <div>
@@ -441,127 +457,268 @@ function TenantPreferencesInner() {
           )}
 
           <div>
-            <Label>Diet preference</Label>
+            <Label>Are you a foreign national? <span className="text-destructive">*</span></Label>
             <div className="mt-1.5 grid grid-cols-2 gap-2">
               <ToggleButton
-                selected={form.diet_preference === "veg"}
-                label="Veg"
-                onClick={() => update("diet_preference", "veg")}
+                selected={form.is_foreign_citizen === true}
+                label="Yes"
+                onClick={() => update("is_foreign_citizen", true)}
               />
               <ToggleButton
-                selected={form.diet_preference === "non_veg"}
-                label="Non-veg"
-                onClick={() => update("diet_preference", "non_veg")}
+                selected={form.is_foreign_citizen === false}
+                label="No"
+                onClick={() => update("is_foreign_citizen", false)}
               />
             </div>
-          </div>
-
-          <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4">
-            <Checkbox
-              id="foreign_national"
-              checked={form.is_foreign_citizen}
-              onCheckedChange={(v) => update("is_foreign_citizen", v === true)}
-              className="mt-0.5"
-            />
-            <label htmlFor="foreign_national" className="text-sm text-foreground cursor-pointer leading-relaxed">
-              I am a foreign national
-            </label>
           </div>
         </section>
 
-        {/* ── Section 3 — Stay Details ── */}
-        <section className="mt-6 rounded-xl border bg-card p-5 space-y-5">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Stay Details</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Helps owners plan for how long their property will be occupied.
-            </p>
-          </div>
-
-          <div>
-            <Label>Number of residents <span className="text-destructive">*</span></Label>
-            <div className="mt-1.5 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => update("number_of_occupants", Math.max(1, form.number_of_occupants - 1))}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-foreground hover:bg-muted transition-colors"
-                aria-label="Decrease residents"
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={20}
-                value={form.number_of_occupants}
-                onChange={(e) => {
-                  const n = Number(e.target.value.replace(/\D/g, ""));
-                  update("number_of_occupants", Math.max(1, Math.min(20, Number.isFinite(n) && n > 0 ? n : 1)));
-                }}
-                className="min-h-[44px] w-20 text-center"
-              />
-              <button
-                type="button"
-                onClick={() => update("number_of_occupants", Math.min(20, form.number_of_occupants + 1))}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-foreground hover:bg-muted transition-colors"
-                aria-label="Increase residents"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <Label>Expected duration of stay <span className="text-destructive">*</span></Label>
-            <Select
-              value={form.expected_stay_duration || undefined}
-              onValueChange={(v) => update("expected_stay_duration", v as StayDuration)}
-            >
-              <SelectTrigger className="mt-1.5 min-h-[44px]">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                {STAY_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border border-border p-4">
+        {/* ── Section 3 — Rent required fields ── */}
+        {rentActive && (
+          <section className="mt-6 rounded-xl border bg-card p-5 space-y-5">
             <div>
-              <Label htmlFor="has_pets" className="cursor-pointer">Do you have pets?</Label>
+              <h2 className="text-base font-semibold text-foreground">Rental Details</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Helps owners plan for who'll be living in their home and for how long.
+              </p>
             </div>
-            <Switch
-              id="has_pets"
-              checked={form.has_pets}
-              onCheckedChange={(v) => {
-                update("has_pets", v);
-                if (!v) update("pet_types", []);
-              }}
-            />
-          </div>
 
-          {form.has_pets && (
-            <div className="pl-1 space-y-2">
-              <Label>Pet types</Label>
-              <div className="space-y-2">
-                {(["dog", "cat", "other"] as const).map((p) => (
-                  <label key={p} className="flex items-center gap-3 cursor-pointer">
-                    <Checkbox
-                      checked={form.pet_types.includes(p)}
-                      onCheckedChange={() => togglePet(p)}
-                    />
-                    <span className="text-sm text-foreground capitalize">
-                      {p === "other" ? "Other" : p === "dog" ? "Dog" : "Cat"}
-                    </span>
-                  </label>
+            <div>
+              <Label>Gender <span className="text-destructive">*</span></Label>
+              <div className="mt-1.5 grid grid-cols-3 gap-2">
+                {(["male", "female", "other"] as const).map((g) => (
+                  <ToggleButton
+                    key={g}
+                    selected={form.gender === g}
+                    label={g === "male" ? "Male" : g === "female" ? "Female" : "Other"}
+                    onClick={() => update("gender", g)}
+                  />
                 ))}
               </div>
             </div>
-          )}
-        </section>
+
+            <div>
+              <Label>Number of residents <span className="text-destructive">*</span></Label>
+              <div className="mt-1.5 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => update("number_of_occupants", Math.max(1, form.number_of_occupants - 1))}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-foreground hover:bg-muted transition-colors"
+                  aria-label="Decrease residents"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={20}
+                  value={form.number_of_occupants}
+                  onChange={(e) => {
+                    const n = Number(e.target.value.replace(/\D/g, ""));
+                    update("number_of_occupants", Math.max(1, Math.min(20, Number.isFinite(n) && n > 0 ? n : 1)));
+                  }}
+                  className="min-h-[44px] w-20 text-center"
+                />
+                <button
+                  type="button"
+                  onClick={() => update("number_of_occupants", Math.min(20, form.number_of_occupants + 1))}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-foreground hover:bg-muted transition-colors"
+                  aria-label="Increase residents"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <Label>Expected duration of stay <span className="text-destructive">*</span></Label>
+              <Select
+                value={form.expected_stay_duration || undefined}
+                onValueChange={(v) => update("expected_stay_duration", v as StayDuration)}
+              >
+                <SelectTrigger className="mt-1.5 min-h-[44px]">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STAY_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </section>
+        )}
+
+        {/* ── Section 4 — Buy required fields ── */}
+        {buyActive && (
+          <section className="mt-6 rounded-xl border bg-card p-5 space-y-5">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Buying Details</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Helps listers understand your buying intent and timeline.
+              </p>
+            </div>
+
+            <div>
+              <Label>What's the purpose of buying? <span className="text-destructive">*</span></Label>
+              <Select
+                value={form.buying_purpose || undefined}
+                onValueChange={(v) => update("buying_purpose", v as BuyingPurpose)}
+              >
+                <SelectTrigger className="mt-1.5 min-h-[44px]">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BUYING_PURPOSE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Purchase timeline <span className="text-destructive">*</span></Label>
+              <Select
+                value={form.purchase_timeline || undefined}
+                onValueChange={(v) => update("purchase_timeline", v as PurchaseTimeline)}
+              >
+                <SelectTrigger className="mt-1.5 min-h-[44px]">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PURCHASE_TIMELINE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Funding stage <span className="text-destructive">*</span></Label>
+              <Select
+                value={form.funding_stage || undefined}
+                onValueChange={(v) => update("funding_stage", v as FundingStage)}
+              >
+                <SelectTrigger className="mt-1.5 min-h-[44px]">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FUNDING_STAGE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </section>
+        )}
+
+        {/* ── Section 5 — Optional rental details ── */}
+        {rentActive && (
+          <section className="mt-6 rounded-xl border bg-card p-5 space-y-5">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">More details (optional)</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Helps owners find the right fit for their property and community.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Move-in by</Label>
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full min-h-[44px] justify-start text-left font-normal",
+                      !form.move_in_by && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.move_in_by ? format(form.move_in_by, "EEEE, d MMMM yyyy") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.move_in_by ?? undefined}
+                    onSelect={(d) => {
+                      update("move_in_by", d ?? null);
+                      setDatePickerOpen(false);
+                    }}
+                    disabled={(d) => d < today || d > moveInMax}
+                    className="pointer-events-auto rounded-lg border border-border p-3"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div>
+              <Label>Marital status</Label>
+              <Select
+                value={form.marital_status || undefined}
+                onValueChange={(v) => update("marital_status", v as MaritalStatus)}
+              >
+                <SelectTrigger className="mt-1.5 min-h-[44px]">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single</SelectItem>
+                  <SelectItem value="married">Married</SelectItem>
+                  <SelectItem value="family">Family</SelectItem>
+                  <SelectItem value="live_in">Live-in</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Diet preference</Label>
+              <div className="mt-1.5 grid grid-cols-2 gap-2">
+                <ToggleButton
+                  selected={form.diet_preference === "veg"}
+                  label="Veg"
+                  onClick={() => update("diet_preference", "veg")}
+                />
+                <ToggleButton
+                  selected={form.diet_preference === "non_veg"}
+                  label="Non-veg"
+                  onClick={() => update("diet_preference", "non_veg")}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-border p-4">
+              <Label htmlFor="has_pets" className="cursor-pointer">Do you have pets?</Label>
+              <Switch
+                id="has_pets"
+                checked={form.has_pets}
+                onCheckedChange={(v) => {
+                  update("has_pets", v);
+                  if (!v) update("pet_types", []);
+                }}
+              />
+            </div>
+
+            {form.has_pets && (
+              <div className="pl-1 space-y-2">
+                <Label>Pet types</Label>
+                <div className="space-y-2">
+                  {(["dog", "cat", "other"] as const).map((p) => (
+                    <label key={p} className="flex items-center gap-3 cursor-pointer">
+                      <Checkbox
+                        checked={form.pet_types.includes(p)}
+                        onCheckedChange={() => togglePet(p)}
+                      />
+                      <span className="text-sm text-foreground capitalize">
+                        {p === "other" ? "Other" : p === "dog" ? "Dog" : "Cat"}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
       {/* Sticky footer */}
@@ -569,9 +726,9 @@ function TenantPreferencesInner() {
         <div className="mx-auto max-w-2xl px-4 py-3 flex items-center justify-between gap-3">
           <span className={cn(
             "text-sm",
-            requiredComplete === 5 ? "text-foreground font-medium" : "text-muted-foreground",
+            requiredComplete === requiredTotal ? "text-foreground font-medium" : "text-muted-foreground",
           )}>
-            {requiredComplete} of 5 required fields complete
+            {requiredComplete} of {requiredTotal} required fields complete
           </span>
           <Button
             onClick={handleSave}

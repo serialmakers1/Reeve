@@ -1338,6 +1338,7 @@ const PropertyDetail: React.FC = () => {
                     ownerDisplayName={ownerDisplayName}
                     buildingName={property.building_name ?? "this property"}
                     propertyStatus={property.status}
+                    listingType={property.listing_type}
                     searchContext={searchOriginContext}
                   />
                 )}
