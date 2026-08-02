@@ -64,7 +64,7 @@ export function SearchResultsList({
 
   if (isInitialLoading) {
     return (
-      <div className="flex flex-col gap-3 p-4 desk:grid desk:grid-cols-2 2xl:grid-cols-3 desk:gap-4">
+      <div className="flex flex-col gap-3 p-4 md:grid md:grid-cols-2 md:gap-4 desk:grid-cols-3 2xl:grid-cols-4">
         {Array.from({ length: 6 }, (_, i) => (
           <SearchCardSkeleton key={i} />
         ))}
@@ -91,7 +91,7 @@ export function SearchResultsList({
   if (areaFallback) {
     if (areaFallback.status === "loading") {
       return (
-        <div className="flex flex-col gap-3 p-4 desk:grid desk:grid-cols-2 2xl:grid-cols-3 desk:gap-4">
+        <div className="flex flex-col gap-3 p-4 md:grid md:grid-cols-2 md:gap-4 desk:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => (
             <SearchCardSkeleton key={i} />
           ))}
@@ -156,7 +156,7 @@ export function SearchResultsList({
     layout === "horizontal"
       ? "flex flex-col gap-2.5 p-3"
       : columns === "responsive"
-        ? "flex flex-col gap-2.5 p-4 desk:grid desk:grid-cols-2 2xl:grid-cols-3 desk:gap-4 desk:p-4"
+        ? "flex flex-col gap-2.5 p-4 md:grid md:grid-cols-2 md:gap-4 desk:grid-cols-3 2xl:grid-cols-4"
         : "flex flex-col gap-2.5 p-4";
 
   return (
@@ -181,7 +181,7 @@ export function SearchResultsList({
       )}
       <div className={wrapperClass}>
       {isRefreshing && !showingFallback && (
-        <p className="py-2 text-center text-xs text-muted-foreground desk:col-span-full">
+        <p className="py-2 text-center text-xs text-muted-foreground md:col-span-full">
           Refreshing…
         </p>
       )}
@@ -204,13 +204,13 @@ export function SearchResultsList({
         <Link
           to={nextPageHref ?? "#"}
           onClick={(e) => { e.preventDefault(); loadMore(); }}
-          className="block w-full py-4 text-center text-sm font-medium text-primary desk:col-span-full"
+          className="block w-full py-4 text-center text-sm font-medium text-primary md:col-span-full"
         >
           Load more
         </Link>
       )}
       {isLoadingMore && (
-        <div className="desk:col-span-full">
+        <div className="md:col-span-full">
           <SearchCardSkeleton />
           <SearchCardSkeleton />
         </div>
