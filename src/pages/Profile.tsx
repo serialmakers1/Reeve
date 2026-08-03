@@ -271,7 +271,8 @@ export default function Profile() {
         return;
       }
 
-      // handle_user_updated Block 1 owns the public.users write; just refresh.
+      // verify-phone-otp syncs public.users.phone atomically (sync_verified_phone_from_auth
+      // RPC) before returning success; just refresh to pick up the converged row.
       await refreshUser();
       if (returnTo && returnTo !== '/profile') {
         // D-172: gate redirect — toast then delayed navigate so user sees confirmation.
