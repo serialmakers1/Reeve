@@ -383,7 +383,7 @@ export default function Profile() {
         {/* Verification status banner */}
         {(!phoneVerified || !emailVerified) && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
-            <p className="font-medium text-amber-800">Complete your profile to apply or schedule visits</p>
+            <p className="font-medium text-amber-800">Complete your profile to interact</p>
             <ul className="mt-1.5 space-y-1">
               {!phoneVerified && (
                 <li className="flex items-center gap-2 text-amber-700">
@@ -567,7 +567,7 @@ export default function Profile() {
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Link your Google account to verify your email and unlock applying to properties.
+                Link your Google account to verify your email and start interacting.
               </p>
               <Button
                 variant="outline"
