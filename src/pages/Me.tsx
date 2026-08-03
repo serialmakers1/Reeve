@@ -9,14 +9,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { getUserDisplayName } from "@/lib/user";
+import { mapBioError } from "@/lib/bioValidation";
 
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import ListingsGrid from "@/components/profile/ListingsGrid";
+import { BioSection } from "@/components/profile/BioSection";
 
 interface ProfileRow {
   display_name: string | null;
@@ -24,8 +24,6 @@ interface ProfileRow {
   is_public: boolean | null;
   profile_photo_url: string | null;
 }
-
-const BIO_MAX = 200;
 
 export default function Me() {
   const navigate = useNavigate();
@@ -39,9 +37,6 @@ export default function Me() {
   const [fullName, setFullName] = useState<string | null>(null);
   const [pseudonym, setPseudonym] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [bioDraft, setBioDraft] = useState("");
   const posthogFiredRef = useRef(false);
 
   useEffect(() => {
@@ -82,46 +77,36 @@ export default function Me() {
     [user, profile],
   );
 
-  const openEdit = () => {
-    setBioDraft(profile?.bio ?? "");
-    setEditing(true);
-  };
-
-  const save = async () => {
-    if (!user?.id) return;
-    const trimmedBio = bioDraft.trim();
-    if (trimmedBio.length > BIO_MAX) {
-      toast({ title: `Bio too long (max ${BIO_MAX} chars)`, variant: "destructive" });
-      return;
+  const handleSaveBio = async (rawBio: string) => {
+    try {
+      const { data, error } = await supabase.rpc("update_profile_bio", {
+        p_bio: rawBio,
+      });
+      if (error) {
+        const mapped = mapBioError(error.message ?? "");
+        if (mapped) return { ok: false as const, error: mapped };
+        toast({ title: "Could not save", description: error.message, variant: "destructive" });
+        return { ok: false as const };
+      }
+      const savedBio: string | null = data ?? null;
+      setProfile((p) => ({
+        display_name: p?.display_name ?? null,
+        bio: savedBio,
+        is_public: p?.is_public ?? true,
+        profile_photo_url: p?.profile_photo_url ?? null,
+      }));
+      posthog?.capture("commons_profile_edited", {
+        changed_fields: savedBio !== (profile?.bio ?? null) ? ["bio"] : [],
+      });
+      return { ok: true as const };
+    } catch (err) {
+      toast({
+        title: "Could not save",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+      return { ok: false as const };
     }
-    setSaving(true);
-    // D-P4-003: display_name UI removed; only bio is user-editable now.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
-      .from("profiles")
-      .upsert(
-        {
-          user_id: user.id,
-          bio: trimmedBio || null,
-        },
-        { onConflict: "user_id" },
-      );
-    setSaving(false);
-    if (error) {
-      toast({ title: "Could not save", description: error.message, variant: "destructive" });
-      return;
-    }
-    setProfile((p) => ({
-      display_name: p?.display_name ?? null,
-      bio: trimmedBio || null,
-      is_public: p?.is_public ?? true,
-      profile_photo_url: p?.profile_photo_url ?? null,
-    }));
-    posthog?.capture("commons_profile_edited", {
-      changed_fields: trimmedBio !== (profile?.bio ?? "") ? ["bio"] : [],
-    });
-    toast({ title: "Profile updated" });
-    setEditing(false);
   };
 
   if (authLoading || loading) {
@@ -163,11 +148,6 @@ export default function Me() {
                   Member since {format(new Date(createdAt), "MMMM yyyy")}
                 </p>
               )}
-              {!editing && (
-                <Button variant="outline" size="sm" onClick={openEdit} className="mt-3">
-                  <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit profile
-                </Button>
-              )}
             </div>
           </div>
         </section>
@@ -199,48 +179,8 @@ export default function Me() {
           </CardContent>
         </Card>
 
-        {/* Edit mode */}
-        {editing && (
-          <section className="rounded-xl border bg-card p-5 sm:p-6 space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-sm">Bio</Label>
-              <Textarea
-                value={bioDraft}
-                onChange={(e) => setBioDraft(e.target.value)}
-                placeholder="A short line about yourself"
-                maxLength={BIO_MAX}
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground text-right">
-                {bioDraft.length} / {BIO_MAX}
-              </p>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setEditing(false)} disabled={saving}>
-                Cancel
-              </Button>
-              <Button onClick={save} disabled={saving}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            </div>
-          </section>
-        )}
-
         {/* Bio */}
-        {!editing && (
-          <section>
-            {profile?.bio ? (
-              <p className="text-sm text-muted-foreground whitespace-pre-line">{profile.bio}</p>
-            ) : (
-              <div className="rounded-lg border border-dashed p-4 text-center">
-                <p className="text-sm text-muted-foreground">Add a bio to tell others about yourself.</p>
-                <Button variant="ghost" size="sm" onClick={openEdit} className="mt-2">
-                  <Pencil className="h-3.5 w-3.5 mr-1.5" /> Add bio
-                </Button>
-              </div>
-            )}
-          </section>
-        )}
+        <BioSection bio={profile?.bio ?? null} onSave={handleSaveBio} />
 
         {/* Listings */}
         <section>
