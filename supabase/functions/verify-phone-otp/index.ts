@@ -193,6 +193,85 @@ Deno.serve(async (req: Request) => {
       return json({ error: msg }, 500);
     }
 
+    // ── 7. Sync the confirmed phone into public.users atomically ──────────────
+    // The Admin PUT above only updates auth.users; GoTrue's phone_change flow means
+    // handle_user_updated already ran with phone=NULL (writing phone_verified=true,
+    // phone=NULL). This RPC locks the auth row, reads the authoritative confirmed
+    // phone, and writes it to public.users — converging the two under concurrency.
+    // The RPC always writes the authoritative auth phone; p_expected_phone only
+    // tells us whether this request won or lost a concurrent different-phone race.
+    const SYNC_MAX_ATTEMPTS = 3;
+    let syncRow: { synced?: boolean; expected_phone_matches?: boolean; status?: string } | null = null;
+    let syncTransientError = false;
+
+    for (let attempt = 1; attempt <= SYNC_MAX_ATTEMPTS; attempt++) {
+      syncTransientError = false;
+      let rpcRes: Response;
+      try {
+        rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/sync_verified_phone_from_auth`, {
+          method: "POST",
+          headers: {
+            "apikey": serviceRoleKey,
+            "Authorization": `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ p_user_id: googleUserId, p_expected_phone: phone }),
+        });
+      } catch (_networkErr) {
+        // Network-level failure — transient, retry.
+        syncTransientError = true;
+        console.log('STEP7_SYNC_NETWORK_ERR', { attempt });
+        if (attempt < SYNC_MAX_ATTEMPTS) { await new Promise((r) => setTimeout(r, 200 * attempt)); }
+        continue;
+      }
+
+      const rpcText = await rpcRes.text();
+      console.log('STEP7_SYNC_RESULT', { attempt, status: rpcRes.status });
+
+      // A definitive RPC exception (e.g. public_user_row_missing) is a 4xx from
+      // PostgREST — do NOT retry; treat as a hard failure below.
+      if (rpcRes.status >= 500) {
+        syncTransientError = true;
+        if (attempt < SYNC_MAX_ATTEMPTS) { await new Promise((r) => setTimeout(r, 200 * attempt)); }
+        continue;
+      }
+
+      if (!rpcRes.ok) {
+        // 4xx = definitive RPC error (bad input / raised exception). No retry.
+        console.error('STEP7_SYNC_RPC_ERROR', { status: rpcRes.status });
+        return json({ error: "Could not complete phone verification. Please try again." }, 500);
+      }
+
+      // RETURNS TABLE → PostgREST returns a JSON array even for a single row.
+      const parsed = (() => { try { return JSON.parse(rpcText); } catch { return null; } })();
+      const row = Array.isArray(parsed) ? parsed[0] : parsed;
+      if (!row || row.synced !== true) {
+        // Empty/malformed body — treat as transient and retry.
+        syncTransientError = true;
+        if (attempt < SYNC_MAX_ATTEMPTS) { await new Promise((r) => setTimeout(r, 200 * attempt)); }
+        continue;
+      }
+
+      syncRow = row;
+      break;
+    }
+
+    if (!syncRow) {
+      // Exhausted retries (transient failures). Return non-success — never claim
+      // success. auth.users has the phone; public.users may still be NULL, but
+      // get_phone_fallback keeps contact-reveal working and a retry re-converges.
+      console.error('STEP7_SYNC_FAILED', { transient: syncTransientError });
+      return json({ error: "Could not complete phone verification. Please try again." }, 500);
+    }
+
+    if (syncRow.expected_phone_matches === false) {
+      // Lost a concurrent different-phone race. The RPC already converged
+      // public.users to the authoritative auth phone; do NOT overwrite here.
+      console.log('STEP7_SYNC_CONCURRENT', { expected_phone_matches: false });
+      return json({ error: "Your phone was changed by another verification. Refresh and try again." }, 409);
+    }
+
+    console.log('STEP7_SYNC_OK', { expected_phone_matches: true });
     return json({ success: true }, 200);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
