@@ -4279,12 +4279,21 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_verified_phone_from_auth: {
+        Args: { p_expected_phone: string; p_user_id: string }
+        Returns: {
+          expected_phone_matches: boolean
+          status: string
+          synced: boolean
+        }[]
+      }
       toggle_comment_like: { Args: { p_comment_id: string }; Returns: Json }
       touch_last_login: { Args: never; Returns: undefined }
       track_property_view: {
         Args: { p_property_id: string; p_visitor_id: string }
         Returns: undefined
       }
+      update_profile_bio: { Args: { p_bio: string }; Returns: string }
     }
     Enums: {
       agreement_status:
