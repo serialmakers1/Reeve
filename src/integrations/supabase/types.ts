@@ -3670,6 +3670,27 @@ export type Database = {
           },
         ]
       }
+      search_location_preferences: {
+        Row: {
+          history: Json
+          schema_version: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          history?: Json
+          schema_version?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          history?: Json
+          schema_version?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           auth_provider: Database["public"]["Enums"]["auth_provider"]
@@ -4099,6 +4120,19 @@ export type Database = {
         Args: { p_property_id: string }
         Returns: Json
       }
+      get_public_profile: {
+        Args: { p_user_id: string }
+        Returns: {
+          bio: string
+          created_at: string
+          email_verified: boolean
+          full_name: string
+          is_public: boolean
+          phone_verified: boolean
+          profile_photo_url: string
+          user_id: string
+        }[]
+      }
       get_tenant_daily_request_count: {
         Args: { p_tenant_id: string }
         Returns: number
@@ -4294,6 +4328,10 @@ export type Database = {
         Returns: undefined
       }
       update_profile_bio: { Args: { p_bio: string }; Returns: string }
+      validate_short_text: {
+        Args: { p_max_length: number; p_text: string }
+        Returns: string
+      }
     }
     Enums: {
       agreement_status:
