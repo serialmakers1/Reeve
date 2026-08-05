@@ -1,5 +1,7 @@
 # Reeve Development Log
 
+## [2026-08-06] fix | Fixed shared furniture count input editing [00:12 IST]
+
 ## [2026-07-24] fix | Homepage visual/layout polish — S2 image box, S3 card alignment, S3 mobile overflow [IST]
 
 Files changed:
