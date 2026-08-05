@@ -7,6 +7,7 @@ import { CheckCircle2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import VerificationGate from "@/components/VerificationGate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUserDisplayName } from "@/lib/user";
 
@@ -14,31 +15,57 @@ import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import ListingsGrid from "@/components/profile/ListingsGrid";
 import RatingsBlock, { type RatingSummaryResult } from "@/components/ratings/RatingsBlock";
 
-interface PublicProfileRow {
+// Result of the get_public_profile RPC (migration 20260805142143). Identity read
+// path for /u/:userId — server enforces auth + full verification and returns only
+// public-safe columns without broadening public.users RLS.
+interface PublicProfileResult {
   user_id: string;
-  bio: string | null;
-  profile_photo_url: string | null;
-  is_public: boolean | null;
-}
-
-interface UserRow {
   full_name: string | null;
-  email: string | null;
+  profile_photo_url: string | null;
+  bio: string | null;
+  is_public: boolean | null;
   created_at: string | null;
   phone_verified: boolean | null;
   email_verified: boolean | null;
 }
 
+const ProfileSkeleton = () => (
+  <Layout>
+    <div className="container mx-auto max-w-3xl px-4 py-8 space-y-4">
+      <Skeleton className="h-32 w-full" />
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  </Layout>
+);
+
+// Outer shell: enforce logged-in (useRequireAuth) + fully-verified (VerificationGate)
+// BEFORE the profile body mounts, so the RPC fires only after both resolve and a
+// partially-verified viewer is redirected rather than stranded on a skeleton.
 export default function PublicProfile() {
   const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
-  const { user, loading: authLoading } = useRequireAuth();
+  const { isAuthenticated, loading: authLoading } = useRequireAuth();
 
-  const [publicProfile, setPublicProfile] = useState<PublicProfileRow | null>(null);
-  const [userRow, setUserRow] = useState<UserRow | null>(null);
+  if (authLoading) return <ProfileSkeleton />;
+  // Not logged in → useRequireAuth redirects to /login?returnTo=/u/:userId.
+  if (!isAuthenticated) return null;
+
+  return (
+    <VerificationGate returnTo={`/u/${userId}`}>
+      <PublicProfileContent userId={userId} />
+    </VerificationGate>
+  );
+}
+
+function PublicProfileContent({ userId }: { userId?: string }) {
+  const navigate = useNavigate();
+  const { user } = useRequireAuth();
+
+  const [profile, setProfile] = useState<PublicProfileResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [privateProfile, setPrivateProfile] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [ratingSummary, setRatingSummary] = useState<RatingSummaryResult | null>(null);
   const [ratingLoading, setRatingLoading] = useState(true);
   const posthogFiredRef = useRef(false);
@@ -47,61 +74,54 @@ export default function PublicProfile() {
   // of viewer identity so owners can preview their own public profile.
 
   useEffect(() => {
-    if (authLoading || !userId || !user?.id) return;
+    if (!userId || !user?.id) return;
     if (posthogFiredRef.current) return;
     posthogFiredRef.current = true;
     posthog?.capture("commons_profile_viewed", {
       self: user.id === userId,
       target_user_id: userId,
     });
-  }, [authLoading, userId, user?.id]);
+  }, [userId, user?.id]);
 
   useEffect(() => {
-    if (authLoading || !userId || !user?.id) return;
+    if (!userId) return;
+    let cancelled = false;
     (async () => {
-      // Read public_profiles view (see migration 20260710120800). Filters by is_public.
+      // Single verification-gated read path. TABLE-returning RPC → array; take [0].
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: pub } = await (supabase as any)
-        .from("public_profiles")
-        // D-P4-004: public profile shows real name only (from users.full_name via
-        // getUserDisplayName). display_name intentionally omitted from select.
-        .select("user_id, bio, profile_photo_url, is_public")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const { data, error } = await (supabase as any).rpc("get_public_profile", {
+        p_user_id: userId,
+      });
+      if (cancelled) return;
 
-      // Also read minimal user info (full_name, created_at, verification flags).
-      // The users RLS policy `users_select_own` is restrictive — for cross-user reads
-      // we rely on `users_owner_read_tenant_name` which permits owner→tenant reads.
-      // For public profile visibility of any user, this may return null; that's OK.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: uRow } = await (supabase as any)
-        .from("users")
-        .select("full_name, email, created_at, phone_verified, email_verified")
-        .eq("id", userId)
-        .maybeSingle();
+      // Explicit error handling: a permission/verification error must NOT be shown
+      // as "User not found." The VerificationGate should have prevented unverified
+      // callers from mounting; this is a defensive backstop.
+      if (error) {
+        setLoadError(true);
+        setLoading(false);
+        return;
+      }
 
-      if (!pub && !uRow) {
+      const row = (Array.isArray(data) ? data[0] : data) as PublicProfileResult | undefined;
+
+      // No row → nonexistent user.
+      if (!row) {
         setNotFound(true);
         setLoading(false);
         return;
       }
-      // D-173: view now exposes is_public as a column (no longer filters server-side).
-      // Guard here: treat is_public=false the same as private profile.
-      if (!pub && uRow) {
+      // Private profile: RPC returns is_public=false with all identity fields NULL.
+      if (row.is_public === false) {
         setPrivateProfile(true);
         setLoading(false);
         return;
       }
-      if (pub && (pub as PublicProfileRow).is_public === false) {
-        setPrivateProfile(true);
-        setLoading(false);
-        return;
-      }
-      setPublicProfile(pub as PublicProfileRow);
-      setUserRow((uRow ?? null) as UserRow | null);
+      setProfile(row);
       setLoading(false);
     })();
-  }, [authLoading, userId, user?.id]);
+    return () => { cancelled = true; };
+  }, [userId]);
 
   // C4: rating summary — separate effect, silent on error.
   useEffect(() => {
@@ -117,13 +137,24 @@ export default function PublicProfile() {
     return () => { cancelled = true; };
   }, [userId]);
 
-  if (authLoading || loading) {
+  if (loading) {
+    return <ProfileSkeleton />;
+  }
+
+  if (loadError) {
     return (
       <Layout>
-        <div className="container mx-auto max-w-3xl px-4 py-8 space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-64 w-full" />
+        <div className="container mx-auto max-w-3xl px-4 py-16 text-center">
+          <h1 className="text-lg font-semibold text-foreground">Couldn't load this profile</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Something went wrong. Please try again.
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="mt-4 text-sm text-primary underline"
+          >
+            Go back
+          </button>
         </div>
       </Layout>
     );
@@ -161,9 +192,10 @@ export default function PublicProfile() {
     );
   }
 
-  // D-P4-004: full_name (from users) only; display_name intentionally not consulted here.
-  const displayName = getUserDisplayName(userRow);
-  const verified = !!userRow?.phone_verified || !!userRow?.email_verified;
+  // D-P4-004: full_name (from users.full_name via the RPC) only; display_name
+  // intentionally not consulted here.
+  const displayName = getUserDisplayName(profile);
+  const verified = !!profile?.phone_verified || !!profile?.email_verified;
 
   return (
     <Layout>
@@ -172,7 +204,7 @@ export default function PublicProfile() {
         <section className="rounded-xl border bg-card p-5 sm:p-6">
           <div className="flex items-start gap-4">
             <ProfileAvatar
-              photoUrl={publicProfile?.profile_photo_url}
+              photoUrl={profile?.profile_photo_url}
               displayName={displayName}
               size="xl"
             />
@@ -190,9 +222,9 @@ export default function PublicProfile() {
                   </span>
                 )}
               </div>
-              {userRow?.created_at && (
+              {profile?.created_at && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Member since {format(new Date(userRow.created_at), "MMMM yyyy")}
+                  Member since {format(new Date(profile.created_at), "MMMM yyyy")}
                 </p>
               )}
             </div>
@@ -200,9 +232,9 @@ export default function PublicProfile() {
         </section>
 
         {/* Bio */}
-        {publicProfile?.bio && (
+        {profile?.bio && (
           <section>
-            <p className="text-sm text-muted-foreground whitespace-pre-line">{publicProfile.bio}</p>
+            <p className="text-sm text-muted-foreground whitespace-pre-line">{profile.bio}</p>
           </section>
         )}
 
