@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { MapPin } from "lucide-react";
+import { MapPin, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RentBuySelector } from "./RentBuySelector";
 import { CitySearchInput } from "./CitySearchInput";
@@ -59,13 +59,17 @@ export interface SearchSetupPanelProps {
   onCityInteraction?: () => void;
   /** Remembered recent city names (most-recent first) for quick re-selection. */
   recentCities?: string[];
-  /** City-scoped memory accessor (last selection + recent-area pool). */
-  getCityMemory?: (city: string) => { lastSelectedAreas: LocationToken[]; recentAreas: LocationToken[] };
-  /** Confirmed-save callback — invoked on submit (with a city) to persist memory. */
-  onConfirmLocation?: (city: string, areas: LocationToken[]) => void;
+  /** City-scoped memory accessor (last selection + recent-area pool + mode + property types). */
+  getCityMemory?: (city: string) => { lastSelectedAreas: LocationToken[]; recentAreas: LocationToken[]; mode: SearchMode; propertyTypes: string[] };
+  /** Confirmed-save callback — invoked on submit (with a city) to persist the full setup. */
+  onConfirmSetup?: (setup: { city: string; areas: LocationToken[]; mode: SearchMode; propertyTypes: string[] }) => void;
+  /** Remove a single remembered city. */
+  onRemoveCity?: (city: string) => void;
+  /** Clear all remembered cities. */
+  onClearRecent?: () => void;
 }
 
-export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, onCityInteraction, recentCities, getCityMemory, onConfirmLocation }: SearchSetupPanelProps) {
+export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, onCityInteraction, recentCities, getCityMemory, onConfirmSetup, onRemoveCity, onClearRecent }: SearchSetupPanelProps) {
   const { state, setContext } = useSearchState();
   const { resolveCityByName, isReady: placesReady } = useResolveCity();
 
@@ -169,10 +173,18 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
       const resolved = await resolveCityByName(cityName);
       if (resolved) {
         applyNewCity(resolved.city, resolved.displayLabel, resolved.placeId, resolved.viewport);
+        // Restore that city's full remembered setup (areas + mode + property types).
         const mem = getCityMemory?.(resolved.city);
-        if (mem && mem.lastSelectedAreas.length > 0) {
+        if (mem) {
           setDraft((d) =>
-            d.city === resolved.city ? { ...d, locations: mem.lastSelectedAreas.slice(0, 5) } : d,
+            d.city === resolved.city
+              ? {
+                  ...d,
+                  locations: mem.lastSelectedAreas.slice(0, 5),
+                  mode: mem.mode,
+                  propertyTypes: mem.propertyTypes,
+                }
+              : d,
           );
         }
       }
@@ -251,8 +263,15 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
       propertyTypes: draft.propertyTypes,
     };
     setContext(committed);
-    // Submitting with a city is an explicit confirmation → persist to memory.
-    if (committed.city) onConfirmLocation?.(committed.city, rpcLocations);
+    // Submitting with a city is an explicit confirmation → persist the full setup.
+    if (committed.city) {
+      onConfirmSetup?.({
+        city: committed.city,
+        areas: rpcLocations,
+        mode: committed.mode,
+        propertyTypes: committed.propertyTypes,
+      });
+    }
     onSubmit?.(committed);
     onOpenChange(false);
   }
@@ -298,30 +317,63 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                   Approximate location
                 </p>
               )}
-              {/* Recent cities — remembered, resolve canonically on selection */}
+              {/* Recent cities — remembered; select restores full setup, × removes one */}
               {recentCities && recentCities.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="pt-1 text-xs font-medium text-muted-foreground">Recent cities</p>
+                  <div className="flex items-center justify-between pt-1">
+                    <p className="text-xs font-medium text-muted-foreground">Recent cities</p>
+                    {onClearRecent && (
+                      <button
+                        type="button"
+                        onClick={onClearRecent}
+                        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded"
+                      >
+                        Clear recent cities
+                      </button>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {recentCities.map((name) => {
                       const label = name.charAt(0).toUpperCase() + name.slice(1);
                       const selected = draft.city === name;
                       return (
-                        <Button
+                        <div
                           key={name}
-                          type="button"
-                          variant={selected ? "default" : "outline"}
-                          size="sm"
-                          aria-pressed={selected}
                           className={cn(
-                            "h-9 rounded-lg px-3.5 text-sm font-medium",
-                            selected && "bg-primary text-primary-foreground hover:bg-primary/90",
+                            "flex items-center rounded-lg border",
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-input bg-background",
                           )}
-                          disabled={resolvingPopular !== null}
-                          onClick={() => handleRecentCity(name)}
                         >
-                          {resolvingPopular === name ? "…" : label}
-                        </Button>
+                          <button
+                            type="button"
+                            aria-pressed={selected}
+                            disabled={resolvingPopular !== null}
+                            onClick={() => handleRecentCity(name)}
+                            className={cn(
+                              "h-9 rounded-l-lg pl-3.5 pr-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60",
+                              !selected && "hover:text-foreground",
+                            )}
+                          >
+                            {resolvingPopular === name ? "…" : label}
+                          </button>
+                          {onRemoveCity && (
+                            <button
+                              type="button"
+                              aria-label={`Remove ${label}`}
+                              onClick={() => onRemoveCity(name)}
+                              className={cn(
+                                "flex h-9 w-8 items-center justify-center rounded-r-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                                selected
+                                  ? "hover:bg-primary-foreground/20"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                              )}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       );
                     })}
                   </div>

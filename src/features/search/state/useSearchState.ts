@@ -119,6 +119,27 @@ export function useSearchState() {
     push({ ...fresh, context: state.context });
   }, [state, push]);
 
+  // Atomic restore of a complete remembered setup in ONE URL replacement. Applies
+  // mode via changeSearchMode (so incompatible filters/sort are handled), then sets
+  // city/locations/propertyTypes and resets the cursor — no intermediate URL states.
+  const replaceSearchSetup = useCallback(
+    (setup: { mode: SearchMode; city: string | null; locations: SearchContext["locations"]; propertyTypes: string[] }) => {
+      const base = changeSearchMode(state, setup.mode);
+      push({
+        ...base,
+        context: {
+          ...base.context,
+          mode: setup.mode,
+          city: setup.city,
+          locations: setup.locations,
+          propertyTypes: setup.propertyTypes,
+        },
+        cursor: null,
+      });
+    },
+    [state, push],
+  );
+
   return {
     state,
     setMode,
@@ -131,6 +152,7 @@ export function useSearchState() {
     setMapBounds,
     setSelectedPropertyId,
     resetFilters,
+    replaceSearchSetup,
     hasValidContext: hasValidSearchContext(state),
   };
 }

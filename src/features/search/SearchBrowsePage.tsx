@@ -31,7 +31,7 @@ const SearchMapView = lazy(() =>
 );
 
 export default function SearchBrowsePage() {
-  const { state, setView, hasValidContext } = useSearchState();
+  const { state, setView, setMode, hasValidContext } = useSearchState();
   const search = useSearchResults();
   const { isFavourited, toggleFavourite, isLoggedIn } = useFavourites();
   const routeLocation = useLocation();
@@ -131,6 +131,19 @@ export default function SearchBrowsePage() {
   }, [state.view, isDesktopSplit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openSetup = () => setIsPanelOpen(true);
+
+  // Explicit Rent/Buy toggle from the toolbar: change mode live, then persist the
+  // current city's full setup with the new mode (only when a committed city exists).
+  const handleModeChange = useCallback(
+    (mode: "rent" | "buy") => {
+      setMode(mode);
+      const c = state.context;
+      if (c.city) {
+        bootstrap.confirmSetup({ city: c.city, areas: c.locations, mode, propertyTypes: c.propertyTypes });
+      }
+    },
+    [setMode, state.context, bootstrap],
+  );
 
   // ── search_results_loaded / no_results_viewed — criteria fingerprint dedup ─
   const lastFiredCriteriaRef = useRef<string | null>(null);
@@ -283,7 +296,9 @@ export default function SearchBrowsePage() {
         onCityInteraction={bootstrap.markUserInteracted}
         recentCities={bootstrap.recentCities}
         getCityMemory={bootstrap.getCityMemory}
-        onConfirmLocation={bootstrap.confirmLocation}
+        onConfirmSetup={bootstrap.confirmSetup}
+        onRemoveCity={bootstrap.removeRememberedCity}
+        onClearRecent={bootstrap.clearRememberedHistory}
       />
       <SearchFilterPanel open={isFilterPanelOpen} onOpenChange={setIsFilterPanelOpen} />
 
@@ -306,6 +321,7 @@ export default function SearchBrowsePage() {
           onOpenFilters={() => setIsFilterPanelOpen(true)}
           view={state.view}
           onSetView={setView}
+          onModeChange={handleModeChange}
           loadedCount={search.results.length}
           hasNextPage={search.hasNextPage}
         />
@@ -326,7 +342,14 @@ export default function SearchBrowsePage() {
               size="sm"
               variant="secondary"
               className="h-8"
-              onClick={() => bootstrap.confirmLocation(bootstrap.ipNoticeCity!, state.context.locations)}
+              onClick={() =>
+                bootstrap.confirmSetup({
+                  city: bootstrap.ipNoticeCity!,
+                  areas: state.context.locations,
+                  mode: state.context.mode ?? "rent",
+                  propertyTypes: state.context.propertyTypes,
+                })
+              }
             >
               Keep {bootstrap.ipNoticeCity.charAt(0).toUpperCase() + bootstrap.ipNoticeCity.slice(1)}
             </Button>
