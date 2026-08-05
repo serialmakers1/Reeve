@@ -31,7 +31,7 @@ vi.mock("@/hooks/useFavourites", () => ({
 
 const invalidContext = {
   state: {
-    context: { mode: null as null, city: null as null, locations: [] as [], propertyType: null as null },
+    context: { mode: null as null, city: null as null, locations: [] as [], propertyTypes: [] as string[] },
     filters: {} as Record<string, never>,
     sort: "newest" as const,
     cursor: null,
@@ -52,7 +52,7 @@ const invalidContext = {
 
 const validRentContext = {
   state: {
-    context: { mode: "rent" as const, city: "bengaluru", locations: [] as [], propertyType: null as null },
+    context: { mode: "rent" as const, city: "bengaluru", locations: [] as [], propertyTypes: [] as string[] },
     filters: {} as Record<string, never>,
     sort: "newest" as const,
     cursor: null,

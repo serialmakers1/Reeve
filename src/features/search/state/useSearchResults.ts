@@ -44,7 +44,7 @@ function computeSearchKey(state: ReturnType<typeof useSearchState>["state"]): st
     mode: state.context.mode,
     city: state.context.city,
     locationIds: state.context.locations.map((l) => l.id),
-    propertyType: state.context.propertyType,
+    propertyTypes: state.context.propertyTypes,
     sort: state.sort,
     filters: state.filters,
   });

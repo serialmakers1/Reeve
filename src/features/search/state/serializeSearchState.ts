@@ -7,6 +7,7 @@ import {
   URL_PARAMS,
 } from "../domain/searchConstants";
 import type { SerializedLocationsPayloadV1 } from "./parseSearchUrl";
+import { propertyTypesToCsv } from "../domain/propertyTypes";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -80,7 +81,8 @@ export function serializeSearchState(state: SearchState): URLSearchParams {
     params.set(P.locationsData, encodeLocationsData(context.locations));
   }
 
-  if (context.propertyType) params.set(P.propertyType, context.propertyType);
+  const ptCsv = propertyTypesToCsv(context.propertyTypes);
+  if (ptCsv) params.set(P.propertyType, ptCsv);
 
   // ── Sort / view / page ──
   setIfNonDefault(params, P.sort, sort, DEFAULT_SORT);

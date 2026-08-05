@@ -71,7 +71,7 @@ export interface MapMarkersInput {
   // ── Shared membership filters ───────────────────────────────────────────────
   locationIds?: string[]; // legacy placeId list (kept for RPC compat; sent as [])
   areaBoxes?: { swLat: number; swLng: number; neLat: number; neLng: number }[]; // geographic Area filter (OR)
-  propertyType?: string | null;
+  propertyTypes?: string[]; // multi-select; sent to the RPC as a deterministic CSV string
   bhk?: string[];
   furnishing?: string[];
   minPrice?: number | null;

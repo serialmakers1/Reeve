@@ -7,9 +7,9 @@ import { useSearchState } from "@/features/search";
 import { useSearchResults } from "@/features/search/state/useSearchResults";
 import { useFavourites } from "@/hooks/useFavourites";
 import { useSearchMeta } from "@/features/search/hooks/useSearchMeta";
-import { useVercelGeoCity } from "@/features/search/hooks/useVercelGeoCity";
+import { useSearchBootstrap } from "@/features/search/state/useSearchBootstrap";
 import { SEARCH_MAP_ENABLED } from "@/features/search/domain/searchFeatureFlags";
-import { shouldAutoOpenSetup, canAdoptGeoCity } from "@/features/search/state/searchSetupGating";
+import { formatSearchHeading } from "@/features/search/state/formatSearchHeading";
 import {
   SEARCH_EVENTS,
   newSearchSessionId,
@@ -31,45 +31,30 @@ const SearchMapView = lazy(() =>
 );
 
 export default function SearchBrowsePage() {
-  const { state, setView, setContext, hasValidContext } = useSearchState();
+  const { state, setView, hasValidContext } = useSearchState();
   const search = useSearchResults();
   const { isFavourited, toggleFavourite, isLoggedIn } = useFavourites();
   const routeLocation = useLocation();
   useSearchMeta();
 
-  // Auto-open Setup once ONLY when there is no committed location (no city AND no
-  // areas) in the URL. A restored/URL/user City or Areas goes straight to results.
-  const [isPanelOpen, setIsPanelOpen] = useState(() => shouldAutoOpenSetup(routeLocation.search));
+  // Deterministic location bootstrap: confirmed memory → Vercel IP → setup panel.
+  const bootstrap = useSearchBootstrap();
 
-  // Approximate city from coarse Vercel IP geo (India-only, canonical, once per mount).
-  // Precedence: explicit URL location > committed user location > Setup draft > Vercel.
-  // Only attempt when NO location (city or areas) was present at mount.
-  const hadLocationAtMountRef = useRef(!!state.context.city || state.context.locations.length > 0);
-  const userSelectedCityRef = useRef(false);
-  const geoSeededRef = useRef(false);
-  const { approxCity } = useVercelGeoCity(!hadLocationAtMountRef.current);
-
-  // Adopt the approximate city ONLY to seed a fully-empty search, once. Re-check
-  // committed state + user interaction at apply time so a late async response never
-  // overwrites a URL/user/area location. When the panel is open, the panel adopts it
-  // via `suggestedCity` (adopt-if-draft-empty + !userTouched) instead.
+  // Setup starts closed; the bootstrap opens it exactly once when it resolves to
+  // needs_setup. Closing it must not reopen on every render, so guard with a ref
+  // that only resets for a genuinely new empty bootstrap (status back to checking).
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const autoOpenedRef = useRef(false);
   useEffect(() => {
-    if (
-      !canAdoptGeoCity({
-        hasApproxCity: !!approxCity,
-        alreadySeeded: geoSeededRef.current,
-        userSelectedCity: userSelectedCityRef.current,
-        committedCity: !!state.context.city,
-        committedAreaCount: state.context.locations.length,
-        panelOpen: isPanelOpen,
-      })
-    ) {
+    if (bootstrap.status === "checking") {
+      autoOpenedRef.current = false;
       return;
     }
-    geoSeededRef.current = true;
-    setContext({ city: approxCity!.city });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [approxCity, isPanelOpen, state.context.city]);
+    if (bootstrap.status === "needs_setup" && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      setIsPanelOpen(true);
+    }
+  }, [bootstrap.status]);
 
   // Normalize a stale ?view=map|split in the URL to List once (replace, no new entry).
   useEffect(() => {
@@ -81,14 +66,15 @@ export default function SearchBrowsePage() {
 
   // ── search_context_submitted ───────────────────────────────────────────────
   const handleContextSubmitted = useCallback(
-    (submittedCtx: { mode: string; city: string | null; locations: { id: string }[]; propertyType: string | null }) => {
+    (submittedCtx: { mode: string; city: string | null; locations: { id: string }[]; propertyTypes: string[] }) => {
       const sessionId = newSearchSessionId();
       posthog?.capture(SEARCH_EVENTS.CONTEXT_SUBMITTED, {
         search_session_id: sessionId,
         listing_mode: submittedCtx.mode,
         city_id: null,
         selected_location_count: submittedCtx.locations.length,
-        property_type: submittedCtx.propertyType ?? null,
+        property_types: submittedCtx.propertyTypes,
+        property_type: submittedCtx.propertyTypes.length === 1 ? submittedCtx.propertyTypes[0] : null,
         filter_groups: [],
         result_count_bucket: "unknown",
         view_mode: state.view,
@@ -154,7 +140,7 @@ export default function SearchBrowsePage() {
       mode: state.context.mode,
       city: state.context.city,
       locationIds: state.context.locations.map((l) => l.id).sort(),
-      propertyType: state.context.propertyType,
+      propertyTypes: state.context.propertyTypes,
       filters: state.filters,
     });
     if (fp === lastFiredCriteriaRef.current) return;
@@ -270,17 +256,13 @@ export default function SearchBrowsePage() {
     return `/search?${params.toString()}`;
   }, [search.hasNextPage, search.nextCursor, routeLocation.search]);
 
-  // ── Derived H1 text from search context ───────────────────────────────────
+  // ── Derived H1 text from search context (shared formatter — see useSearchMeta) ─
   const h1Text = hasValidContext
-    ? [
-        state.context.mode === "buy" ? "Properties for Sale" : "Rental Properties",
-        state.context.propertyType ?? null,
-        state.context.city
-          ? `in ${state.context.city.charAt(0).toUpperCase() + state.context.city.slice(1)}`
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" ")
+    ? formatSearchHeading({
+        mode: state.context.mode,
+        city: state.context.city,
+        propertyTypes: state.context.propertyTypes,
+      })
     : "Search Properties";
 
   // ── Map wrapper positioning — caller owns all positioning ──────────────────
@@ -297,8 +279,11 @@ export default function SearchBrowsePage() {
         open={isPanelOpen}
         onOpenChange={setIsPanelOpen}
         onSubmit={handleContextSubmitted}
-        suggestedCity={approxCity}
-        onCityInteraction={() => { userSelectedCityRef.current = true; }}
+        suggestedCity={bootstrap.approxCity}
+        onCityInteraction={bootstrap.markUserInteracted}
+        recentCities={bootstrap.recentCities}
+        getCityMemory={bootstrap.getCityMemory}
+        onConfirmLocation={bootstrap.confirmLocation}
       />
       <SearchFilterPanel open={isFilterPanelOpen} onOpenChange={setIsFilterPanelOpen} />
 
@@ -324,6 +309,32 @@ export default function SearchBrowsePage() {
           loadedCount={search.results.length}
           hasNextPage={search.hasNextPage}
         />
+      )}
+
+      {/* IP-approximate location notice — non-blocking, hidden for URL/remembered locations */}
+      {bootstrap.ipNoticeCity && !isMapView && (
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 text-sm lg:px-6">
+          <span className="text-muted-foreground">
+            Showing{" "}
+            <span className="font-medium text-foreground">
+              {bootstrap.ipNoticeCity.charAt(0).toUpperCase() + bootstrap.ipNoticeCity.slice(1)}
+            </span>{" "}
+            based on your approximate location.
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8"
+              onClick={() => bootstrap.confirmLocation(bootstrap.ipNoticeCity!, state.context.locations)}
+            >
+              Keep {bootstrap.ipNoticeCity.charAt(0).toUpperCase() + bootstrap.ipNoticeCity.slice(1)}
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8" onClick={openSetup}>
+              Change
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Results pane — hidden only on fullscreen map */}

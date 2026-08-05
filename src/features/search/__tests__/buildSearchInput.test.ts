@@ -9,7 +9,7 @@ import type { SearchState, RentFilters, BuyFilters } from "../domain/searchTypes
 function rentState(overrides: Partial<SearchState> = {}): SearchState {
   return {
     ...getDefaultSearchState("rent"),
-    context: { mode: "rent", city: "bengaluru", locations: [], propertyType: null },
+    context: { mode: "rent", city: "bengaluru", locations: [], propertyTypes: [] },
     ...overrides,
   };
 }
@@ -17,7 +17,7 @@ function rentState(overrides: Partial<SearchState> = {}): SearchState {
 function buyState(overrides: Partial<SearchState> = {}): SearchState {
   return {
     ...getDefaultSearchState("buy"),
-    context: { mode: "buy", city: "mumbai", locations: [], propertyType: null },
+    context: { mode: "buy", city: "mumbai", locations: [], propertyTypes: [] },
     ...overrides,
   };
 }
@@ -32,7 +32,7 @@ describe("buildSearchInput — disabled cases", () => {
   it("returns non-null with city=null when only mode is set (city is optional)", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: null, locations: [], propertyType: null },
+      context: { mode: "rent", city: null, locations: [], propertyTypes: [] },
     };
     const input = buildSearchInput(state);
     expect(input).not.toBeNull();
@@ -42,7 +42,7 @@ describe("buildSearchInput — disabled cases", () => {
   it("returns non-null with city='' passed through when city is empty string", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "", locations: [], propertyType: null },
+      context: { mode: "rent", city: "", locations: [], propertyTypes: [] },
     };
     const input = buildSearchInput(state);
     expect(input).not.toBeNull();
@@ -89,7 +89,7 @@ describe("buildSearchInput — context fields", () => {
           // viewport-less token contributes no box (hydration gate handles readiness elsewhere)
           { id: "loc2", label: "Indiranagar", type: "area", cityId: "bengaluru", placeId: "p2", viewport: null },
         ],
-        propertyType: null,
+        propertyTypes: [],
       },
     });
     const input = buildSearchInput(state)!;
@@ -101,15 +101,27 @@ describe("buildSearchInput — context fields", () => {
     expect(buildSearchInput(rentState())!.locationIds).toEqual([]);
   });
 
-  it("maps propertyType", () => {
+  it("maps propertyTypes (single)", () => {
     const state = rentState({
-      context: { mode: "rent", city: "bengaluru", locations: [], propertyType: "apartment" },
+      context: { mode: "rent", city: "bengaluru", locations: [], propertyTypes: ["apartment"] },
     });
-    expect(buildSearchInput(state)!.propertyType).toBe("apartment");
+    expect(buildSearchInput(state)!.propertyTypes).toEqual(["apartment"]);
   });
 
-  it("null propertyType passes through", () => {
-    expect(buildSearchInput(rentState())!.propertyType).toBeNull();
+  it("maps propertyTypes (multiple)", () => {
+    const state = rentState({
+      context: {
+        mode: "rent",
+        city: "bengaluru",
+        locations: [],
+        propertyTypes: ["apartment", "duplex_apartment"],
+      },
+    });
+    expect(buildSearchInput(state)!.propertyTypes).toEqual(["apartment", "duplex_apartment"]);
+  });
+
+  it("empty propertyTypes passes through", () => {
+    expect(buildSearchInput(rentState())!.propertyTypes).toEqual([]);
   });
 });
 

@@ -16,7 +16,7 @@ const setSortSpy = vi.fn();
 const resetFiltersSpy = vi.fn();
 
 const defaultMockState = {
-  context: { mode: "rent" as const, city: "bengaluru", locations: [], propertyType: null },
+  context: { mode: "rent" as const, city: "bengaluru", locations: [], propertyTypes: [] },
   filters: {} as RentFilters,
   sort: "newest" as const,
   view: "list" as const,

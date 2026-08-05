@@ -68,7 +68,7 @@ describe("serializeSearchState", () => {
     const token = { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null };
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: [token], propertyType: null },
+      context: { mode: "rent", city: "bengaluru", locations: [token], propertyTypes: [] },
     };
     const out = serializeSearchState(state);
     expect(out.has("locations_data")).toBe(true);
@@ -131,7 +131,7 @@ describe("serializeSearchState", () => {
     const token = { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null };
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: [token], propertyType: null },
+      context: { mode: "rent", city: "bengaluru", locations: [token], propertyTypes: [] },
     };
     const out = serializeSearchState(state);
     expect(out.get("locations")).toBe("loc1");
@@ -145,7 +145,7 @@ describe("serializeSearchState", () => {
     ];
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: tokens, propertyType: null },
+      context: { mode: "rent", city: "bengaluru", locations: tokens, propertyTypes: [] },
     };
     const rt = parseSearchUrl(serializeSearchState(state));
     expect(rt.context.locations).toHaveLength(2);
@@ -172,7 +172,7 @@ describe("serializeSearchState", () => {
   it("round-trip: rent state with filters", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: [], propertyType: null },
+      context: { mode: "rent", city: "bengaluru", locations: [], propertyTypes: [] },
       filters: { bhk: ["2BHK", "3BHK"], minPrice: 20000, maxPrice: 50000 } as RentFilters,
       sort: "price_asc",
     };
@@ -187,7 +187,7 @@ describe("serializeSearchState", () => {
   it("round-trip: buy state with filters", () => {
     const state: SearchState = {
       ...getDefaultSearchState("buy"),
-      context: { mode: "buy", city: "mumbai", locations: [], propertyType: null },
+      context: { mode: "buy", city: "mumbai", locations: [], propertyTypes: [] },
       filters: {
         possessionStatus: ["ready_to_move"],
         negotiable: true,
@@ -205,7 +205,7 @@ describe("serializeSearchState", () => {
   it("round-trip equality: parseSearchUrl(serializeSearchState(state)) equals normalizeSearchState(state)", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: [], propertyType: null },
+      context: { mode: "rent", city: "bengaluru", locations: [], propertyTypes: [] },
       filters: { bhk: ["1BHK"], maxPrice: 35000 } as RentFilters,
       sort: "price_desc",
     };
@@ -227,7 +227,7 @@ describe("serializeSearchState", () => {
     const state: SearchState = {
       ...getDefaultSearchState("buy"),
       sort: "price_asc",
-      context: { mode: "buy", city: "mumbai", locations: [], propertyType: null },
+      context: { mode: "buy", city: "mumbai", locations: [], propertyTypes: [] },
       cursor: cur,
     };
     const rt = parseSearchUrl(serializeSearchState(state));

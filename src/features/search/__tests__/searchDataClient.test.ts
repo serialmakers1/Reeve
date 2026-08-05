@@ -6,7 +6,7 @@ import type { SearchPropertyRpcRow } from "../data/searchResultContract";
 
 function baseInput(overrides: Partial<SearchPropertiesInput> = {}): SearchPropertiesInput {
   return {
-    mode: "rent", city: "bengaluru", locationIds: [], areaBoxes: [], propertyType: null,
+    mode: "rent", city: "bengaluru", locationIds: [], areaBoxes: [], propertyTypes: [],
     minPrice: null, maxPrice: null, bhk: [], furnishing: [], possessionStatus: [],
     availableBy: null, listedWithin: null, availabilityConfirmedWithin: null, maxDeposit: null,
     maxLockIn: null, maxNotice: null, maxAnnualIncrease: null, maxMoveInCharges: null, petPolicy: [],

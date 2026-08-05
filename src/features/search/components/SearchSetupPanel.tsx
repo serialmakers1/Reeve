@@ -38,7 +38,7 @@ interface SearchSetupDraft {
   cityPlaceId: string | null;
   cityViewport: Viewport | null;
   locations: LocationToken[];
-  propertyType: string | null;
+  propertyTypes: string[];
   showManualCity: boolean;
 }
 
@@ -52,14 +52,20 @@ interface PendingCityChange {
 export interface SearchSetupPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit?: (ctx: { mode: SearchMode; city: string | null; locations: LocationToken[]; propertyType: string | null }) => void;
+  onSubmit?: (ctx: { mode: SearchMode; city: string | null; locations: LocationToken[]; propertyTypes: string[] }) => void;
   /** Approximate canonical city from Vercel geo — adopted into the draft only if the user hasn't picked a city. */
   suggestedCity?: CanonicalCity | null;
   /** Fired the first time the user selects/changes the city — stops geo prefill from overwriting. */
   onCityInteraction?: () => void;
+  /** Remembered recent city names (most-recent first) for quick re-selection. */
+  recentCities?: string[];
+  /** City-scoped memory accessor (last selection + recent-area pool). */
+  getCityMemory?: (city: string) => { lastSelectedAreas: LocationToken[]; recentAreas: LocationToken[] };
+  /** Confirmed-save callback — invoked on submit (with a city) to persist memory. */
+  onConfirmLocation?: (city: string, areas: LocationToken[]) => void;
 }
 
-export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, onCityInteraction }: SearchSetupPanelProps) {
+export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, onCityInteraction, recentCities, getCityMemory, onConfirmLocation }: SearchSetupPanelProps) {
   const { state, setContext } = useSearchState();
   const { resolveCityByName, isReady: placesReady } = useResolveCity();
 
@@ -83,7 +89,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
       cityId: l.cityId,
       placeId: l.placeId,
     })),
-    propertyType: state.context.propertyType,
+    propertyTypes: state.context.propertyTypes,
   });
 
   const [draft, setDraft] = useState<SearchSetupDraft>({
@@ -93,7 +99,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
     cityPlaceId: null,
     cityViewport: null,
     locations: state.context.locations,
-    propertyType: state.context.propertyType,
+    propertyTypes: state.context.propertyTypes,
     showManualCity: false,
   });
 
@@ -109,7 +115,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
       cityPlaceId: null,
       cityViewport: null,
       locations: state.context.locations,
-      propertyType: state.context.propertyType,
+      propertyTypes: state.context.propertyTypes,
       showManualCity: false,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,6 +158,31 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
       setResolvingPopular(null);
     }
   }
+
+  // Recent (remembered) city: resolve canonically like a popular city, then load that
+  // city's remembered last selection. Areas are always city-scoped — applyNewCity
+  // clears the prior city's areas first, so no cross-city mixing can occur.
+  async function handleRecentCity(cityName: string) {
+    markCityTouched();
+    setResolvingPopular(cityName);
+    try {
+      const resolved = await resolveCityByName(cityName);
+      if (resolved) {
+        applyNewCity(resolved.city, resolved.displayLabel, resolved.placeId, resolved.viewport);
+        const mem = getCityMemory?.(resolved.city);
+        if (mem && mem.lastSelectedAreas.length > 0) {
+          setDraft((d) =>
+            d.city === resolved.city ? { ...d, locations: mem.lastSelectedAreas.slice(0, 5) } : d,
+          );
+        }
+      }
+    } finally {
+      setResolvingPopular(null);
+    }
+  }
+
+  // Recent-area quick picks for the city currently in the draft (never another city).
+  const recentAreasForDraftCity = draft.city ? getCityMemory?.(draft.city).recentAreas ?? [] : [];
 
   // Adopt the geo-suggested approximate city into the draft — only while the user
   // hasn't touched the city and the draft has no city yet. Never overrides a choice.
@@ -217,9 +248,11 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
       mode: draft.mode!,
       city: draft.city,
       locations: rpcLocations,
-      propertyType: draft.propertyType,
+      propertyTypes: draft.propertyTypes,
     };
     setContext(committed);
+    // Submitting with a city is an explicit confirmation → persist to memory.
+    if (committed.city) onConfirmLocation?.(committed.city, rpcLocations);
     onSubmit?.(committed);
     onOpenChange(false);
   }
@@ -235,7 +268,8 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5 desk:grid desk:grid-cols-2 desk:gap-6 desk:space-y-0 desk:items-start">
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5">
+            <div className="space-y-5 desk:grid desk:grid-cols-2 desk:gap-6 desk:space-y-0 desk:items-start">
             {/* Left column: Looking to, City, Popular Cities */}
             <div className="space-y-5 min-w-0">
             {/* Rent / Buy */}
@@ -264,6 +298,35 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                   Approximate location
                 </p>
               )}
+              {/* Recent cities — remembered, resolve canonically on selection */}
+              {recentCities && recentCities.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="pt-1 text-xs font-medium text-muted-foreground">Recent cities</p>
+                  <div className="flex flex-wrap gap-2">
+                    {recentCities.map((name) => {
+                      const label = name.charAt(0).toUpperCase() + name.slice(1);
+                      const selected = draft.city === name;
+                      return (
+                        <Button
+                          key={name}
+                          type="button"
+                          variant={selected ? "default" : "outline"}
+                          size="sm"
+                          aria-pressed={selected}
+                          className={cn(
+                            "h-9 rounded-lg px-3.5 text-sm font-medium",
+                            selected && "bg-primary text-primary-foreground hover:bg-primary/90",
+                          )}
+                          disabled={resolvingPopular !== null}
+                          onClick={() => handleRecentCity(name)}
+                        >
+                          {resolvingPopular === name ? "…" : label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {/* Popular cities — resolve canonically via the shared Google flow */}
               <p className="pt-1 text-xs font-medium text-muted-foreground">Popular cities</p>
               <div className="flex flex-wrap gap-2">
@@ -291,7 +354,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
             </section>
             </div>
 
-            {/* Right column: Areas, Property type */}
+            {/* Right column: Areas */}
             <div className="space-y-5 min-w-0">
 
             {/* Locations */}
@@ -300,6 +363,43 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                 <p className="text-sm font-medium">
                   Areas <span className="text-muted-foreground font-normal">(optional)</span>
                 </p>
+                {recentAreasForDraftCity.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Recent areas in {draft.cityDisplayValue || (draft.city.charAt(0).toUpperCase() + draft.city.slice(1))}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {recentAreasForDraftCity.map((area) => {
+                        const picked = draft.locations.some((l) => l.id === area.id);
+                        return (
+                          <Button
+                            key={area.id}
+                            type="button"
+                            variant={picked ? "default" : "outline"}
+                            size="sm"
+                            aria-pressed={picked}
+                            disabled={!picked && draft.locations.length >= 5}
+                            className={cn(
+                              "h-8 rounded-lg px-3 text-xs font-medium",
+                              picked && "bg-primary text-primary-foreground hover:bg-primary/90",
+                            )}
+                            onClick={() =>
+                              setDraft((d) =>
+                                d.locations.some((l) => l.id === area.id)
+                                  ? { ...d, locations: d.locations.filter((l) => l.id !== area.id) }
+                                  : d.locations.length >= 5
+                                    ? d
+                                    : { ...d, locations: [...d.locations, area] },
+                              )
+                            }
+                          >
+                            {area.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <LocationSearchInput
                   city={draft.city}
                   cityViewport={draft.cityViewport}
@@ -319,18 +419,19 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                 />
               </section>
             )}
+            </div>
+            </div>
 
-            {/* Property Type */}
+            {/* Property Type — full-width row below the two-column region */}
             <section className="space-y-2">
               <p className="text-sm font-medium">
                 Property type <span className="text-muted-foreground font-normal">(optional)</span>
               </p>
               <PropertyTypeSelector
-                value={draft.propertyType}
-                onChange={(v) => setDraft((d) => ({ ...d, propertyType: v }))}
+                value={draft.propertyTypes}
+                onChange={(v) => setDraft((d) => ({ ...d, propertyTypes: v }))}
               />
             </section>
-            </div>
           </div>
 
           {/* Footer CTA */}

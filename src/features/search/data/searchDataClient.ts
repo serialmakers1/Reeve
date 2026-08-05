@@ -7,6 +7,7 @@ import type { SearchPropertiesInput } from "./searchContracts";
 import { SEARCH_PAGE_SIZE } from "./searchContracts";
 import type { MapMarkersInput, SearchMapMarker, SearchMapMarkerRpcRow } from "./searchMarkerContract";
 import { mapRpcRowToMarker } from "./searchMarkerContract";
+import { propertyTypesToCsv } from "@/features/search/domain/propertyTypes";
 
 export interface SearchPropertiesResult {
   results: SearchPropertyResult[];
@@ -43,7 +44,7 @@ export async function searchProperties(
       ne_lat: b.neLat,
       ne_lng: b.neLng,
     })),
-    p_property_type: input.propertyType,
+    p_property_type: propertyTypesToCsv(input.propertyTypes),
     p_min_price: input.minPrice,
     p_max_price: input.maxPrice,
     p_bhk: input.bhk.length > 0 ? input.bhk : null,
@@ -184,7 +185,7 @@ export async function fetchMapMarkers(
       ne_lat: b.neLat,
       ne_lng: b.neLng,
     })),
-    p_property_type: input.propertyType ?? null,
+    p_property_type: propertyTypesToCsv(input.propertyTypes ?? []),
     p_bhk: input.bhk ?? [],
     p_furnishing: input.furnishing ?? [],
     p_min_price: input.minPrice ?? null,

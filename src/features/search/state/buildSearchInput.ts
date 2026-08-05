@@ -7,7 +7,7 @@ import { SEARCH_PAGE_SIZE } from "../data/searchContracts";
  * Returns null when the search context is not yet valid (no mode or no city).
  */
 export function buildSearchInput(state: SearchState): SearchPropertiesInput | null {
-  const { mode, city, locations, propertyType } = state.context;
+  const { mode, city, locations, propertyTypes } = state.context;
   if (!mode) return null;
 
   const f = state.filters as RentFilters & BuyFilters;
@@ -26,7 +26,7 @@ export function buildSearchInput(state: SearchState): SearchPropertiesInput | nu
         neLat: l.viewport!.ne.lat,
         neLng: l.viewport!.ne.lng,
       })),
-    propertyType: propertyType ?? null,
+    propertyTypes: propertyTypes ?? [],
 
     minPrice: f.minPrice ?? null,
     maxPrice: f.maxPrice ?? null,

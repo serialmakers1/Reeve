@@ -16,7 +16,7 @@ export function getDefaultBuyFilters(): BuyFilters {
 }
 
 export function getDefaultSearchContext(): SearchContext {
-  return { mode: null, city: null, locations: [], propertyType: null };
+  return { mode: null, city: null, locations: [], propertyTypes: [] };
 }
 
 export function getDefaultSearchState(mode: SearchMode | null): SearchState {

@@ -1,10 +1,26 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { useSearchState } from "@/features/search/state/useSearchState";
+import { formatSearchHeading } from "@/features/search/state/formatSearchHeading";
 
 export function useSearchMeta() {
   const { search } = useLocation();
+  const { state, hasValidContext } = useSearchState();
+
+  // propertyTypes-aware document title, consistent with the page H1. Falls back to a
+  // generic title when the search context is not yet valid.
+  const title = hasValidContext
+    ? `${formatSearchHeading({
+        mode: state.context.mode,
+        city: state.context.city,
+        propertyTypes: state.context.propertyTypes,
+      })} | Reeve`
+    : "Search Properties | Reeve";
 
   useEffect(() => {
+    const prevTitle = document.title;
+    document.title = title;
+
     const isDynamic = search.length > 0;
 
     // robots meta
@@ -32,6 +48,7 @@ export function useSearchMeta() {
     canonical.href = "https://reeve.in/search";
 
     return () => {
+      document.title = prevTitle;
       if (createdRobots) {
         robotsMeta?.parentNode?.removeChild(robotsMeta);
       } else if (robotsMeta) {
@@ -43,5 +60,5 @@ export function useSearchMeta() {
         canonical.href = prevCanonicalHref;
       }
     };
-  }, [search]);
+  }, [search, title]);
 }

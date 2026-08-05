@@ -1,5 +1,5 @@
 import { parseSearchMode } from "../domain/searchMode";
-import type { SearchState, SearchCursor, RentFilters, BuyFilters, LocationToken, LocationTokenType, MapBounds, BhkValue, FurnishingValue, ParkingValue, PossessionValue, PetPolicyValue, KhataValue } from "../domain/searchTypes";
+import type { SearchState, SearchCursor, RentFilters, BuyFilters, LocationToken, MapBounds, BhkValue, FurnishingValue, ParkingValue, PossessionValue, PetPolicyValue, KhataValue } from "../domain/searchTypes";
 import {
   BHK_VALUES,
   FURNISHING_VALUES,
@@ -7,7 +7,6 @@ import {
   POSSESSION_VALUES,
   PET_POLICY_VALUES,
   KHATA_VALUES,
-  PROPERTY_TYPE_VALUES,
   RENT_SORT_KEYS,
   BUY_SORT_KEYS,
   SEARCH_VIEW_MODES,
@@ -19,6 +18,8 @@ import {
 } from "../domain/searchConstants";
 import { getDefaultSearchState } from "../domain/searchDefaults";
 import { SEARCH_MAP_ENABLED } from "../domain/searchFeatureFlags";
+import { normalizePropertyTypes } from "../domain/propertyTypes";
+import { validateLocationToken } from "./locationTokenValidation";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -56,16 +57,6 @@ export interface SerializedLocationsPayloadV1 {
   items: unknown[];
 }
 
-const INJECTION_PATTERNS = ["<", ">", "javascript:", "data:"];
-
-function isInjectionSafe(s: string): boolean {
-  return !INJECTION_PATTERNS.some((p) => s.includes(p));
-}
-
-const LOCATION_TOKEN_TYPES: ReadonlySet<string> = new Set([
-  "area", "sublocality", "neighbourhood", "building", "project", "pincode", "landmark",
-]);
-
 function decodeLocationsData(raw: string | null): LocationToken[] {
   if (!raw) return [];
   try {
@@ -84,27 +75,11 @@ function decodeLocationsData(raw: string | null): LocationToken[] {
     const result: LocationToken[] = [];
     for (const item of items.slice(0, MAX_SELECTED_LOCATIONS)) {
       if (result.length >= MAX_SELECTED_LOCATIONS) break;
-      if (typeof item !== "object" || item === null) continue;
-      const obj = item as Record<string, unknown>;
-      const id = obj.id;
-      const label = obj.label;
-      const type = obj.type;
-      if (typeof id !== "string" || id.length === 0 || id.length > 200) continue;
-      if (typeof label !== "string" || label.length === 0 || label.length > 150) continue;
-      if (typeof type !== "string" || !LOCATION_TOKEN_TYPES.has(type)) continue;
-      if (!isInjectionSafe(id) || !isInjectionSafe(label)) continue;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const cityId = typeof obj.cityId === "string" ? obj.cityId : null;
-      const placeId = typeof obj.placeId === "string" ? obj.placeId : null;
-      // Optional area viewport: accept only when all 4 coords are finite numbers.
-      const vp = obj.viewport as Record<string, any> | undefined;
-      const fin = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
-      const viewport =
-        vp && vp.sw && vp.ne && fin(vp.sw.lat) && fin(vp.sw.lng) && fin(vp.ne.lat) && fin(vp.ne.lng)
-          ? { sw: { lat: vp.sw.lat, lng: vp.sw.lng }, ne: { lat: vp.ne.lat, lng: vp.ne.lng } }
-          : null;
-      result.push({ id, label, type: type as LocationTokenType, cityId, placeId, viewport });
+      const token = validateLocationToken(item);
+      if (!token) continue;
+      if (seen.has(token.id)) continue;
+      seen.add(token.id);
+      result.push(token);
     }
     return result;
   } catch {
@@ -191,11 +166,9 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
     .filter((t): t is LocationToken => t !== undefined)
     .slice(0, MAX_SELECTED_LOCATIONS);
 
-  const rawPt = params.get(P.propertyType);
-  const propertyType =
-    rawPt && (PROPERTY_TYPE_VALUES as readonly string[]).includes(rawPt)
-      ? rawPt
-      : null;
+  // Multi-select property types. Accepts legacy single value (?pt=villa) and
+  // comma-joined (?pt=apartment,duplex_apartment); normalized to valid/dedup/ordered.
+  const propertyTypes = normalizePropertyTypes(splitComma(params.get(P.propertyType)));
 
   // ── Price ──
   let minPrice = parsePositiveInt(params.get(P.minPrice)) ?? undefined;
@@ -366,7 +339,7 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
   void defaults; // defaults used for mode-gated fallback above
 
   return {
-    context: { mode, city, locations, propertyType },
+    context: { mode, city, locations, propertyTypes },
     filters,
     sort,
     view,
