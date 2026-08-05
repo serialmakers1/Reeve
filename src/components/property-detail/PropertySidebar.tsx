@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useOwnerCard } from "@/hooks/useOwnerCard";
 import { useContactRequestStatus } from "@/hooks/useContactRequestStatus";
+import { formatSalePrice } from "@/utils/property/formatSalePrice";
 
 interface PropertyLike {
   id: string;
@@ -102,9 +103,10 @@ export default function PropertySidebar({
 
   const price =
     property.listing_type === "sale"
-      ? typeof property.sale_price === "number" && property.sale_price > 0
-        ? { primary: fmtINR(property.sale_price), suffix: undefined as string | undefined }
-        : null
+      ? (() => {
+          const formatted = formatSalePrice(property.sale_price);
+          return formatted ? { primary: formatted, suffix: undefined as string | undefined } : null;
+        })()
       : typeof property.listed_rent === "number" && property.listed_rent > 0
         ? { primary: fmtINR(property.listed_rent), suffix: "/month" }
         : null;

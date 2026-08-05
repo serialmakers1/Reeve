@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useContactRequestStatus } from "@/hooks/useContactRequestStatus";
+import { formatSalePrice } from "@/utils/property/formatSalePrice";
 
 interface PropertyCTABarProps {
   // propertyId is read from useParams — the bar renders inside /property/:id
@@ -40,10 +41,8 @@ function priceLabel(
   salePrice: number | null | undefined,
 ): { primary: string; suffix?: string } | null {
   if (listingType === "sale") {
-    if (typeof salePrice === "number" && salePrice > 0) {
-      return { primary: `₹${formatINR(salePrice)}` };
-    }
-    return null;
+    const formatted = formatSalePrice(salePrice);
+    return formatted ? { primary: formatted } : null;
   }
   if (typeof listedRent === "number" && listedRent > 0) {
     return { primary: `₹${formatINR(listedRent)}`, suffix: "/mo" };
