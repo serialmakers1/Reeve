@@ -58,6 +58,7 @@ export function SearchResultsList({
   areaFallback,
 }: SearchResultsListProps) {
   const { state, setContext } = useSearchState();
+  const skeletonMode = state.context.mode;
 
   const areaNames = areaFallback?.areaLabels.join(", ") ?? "";
   const clearAreas = () => setContext({ locations: [] });
@@ -66,7 +67,7 @@ export function SearchResultsList({
     return (
       <div className="flex flex-col gap-3 p-4 md:grid md:grid-cols-2 md:gap-4 desk:grid-cols-3 2xl:grid-cols-4">
         {Array.from({ length: 6 }, (_, i) => (
-          <SearchCardSkeleton key={i} />
+          <SearchCardSkeleton key={i} listingMode={skeletonMode} />
         ))}
       </div>
     );
@@ -93,7 +94,7 @@ export function SearchResultsList({
       return (
         <div className="flex flex-col gap-3 p-4 md:grid md:grid-cols-2 md:gap-4 desk:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => (
-            <SearchCardSkeleton key={i} />
+            <SearchCardSkeleton key={i} listingMode={skeletonMode} />
           ))}
         </div>
       );
@@ -211,8 +212,8 @@ export function SearchResultsList({
       )}
       {isLoadingMore && (
         <div className="md:col-span-full">
-          <SearchCardSkeleton />
-          <SearchCardSkeleton />
+          <SearchCardSkeleton listingMode={skeletonMode} />
+          <SearchCardSkeleton listingMode={skeletonMode} />
         </div>
       )}
       </div>

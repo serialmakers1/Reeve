@@ -114,14 +114,14 @@ describe("SearchPropertyCard — rent card", () => {
     expect(screen.getByText(/Sunrise Apartments/)).toBeTruthy();
   });
 
-  it("renders comparison facts (max 3) with explicit labels; size is exclusive", () => {
+  it("renders feature tiles with explicit labels; size is exclusive (carpet over super built-up)", () => {
     renderCard(makeResult());
-    // carpet (Space) → Semi-furnished + 4W parking (Utility). Super built-up is the
-    // same `size` concept as carpet, so it is NOT also shown.
-    expect(screen.getByText("900 sq.ft carpet")).toBeTruthy();
+    // carpet (home-spec) → Semi-furnished (condition) → parking backfill. Super
+    // built-up is the same `size` concept as carpet, so it is NOT also shown.
+    expect(screen.getByText("900 sq ft")).toBeTruthy();
+    expect(screen.getByText("Carpet")).toBeTruthy();
     expect(screen.getByText("Semi-furnished")).toBeTruthy();
-    expect(screen.getByText("4W parking")).toBeTruthy();
-    expect(screen.queryByText("1,100 sq.ft super built-up")).toBeNull();
+    expect(screen.queryByText("Super built-up")).toBeNull();
   });
 
   it("favourite button is a sibling of the link, not nested inside it", () => {
@@ -147,12 +147,13 @@ describe("SearchPropertyCard — rent card", () => {
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 
-  it("renders response rate when available", () => {
+  it("renders response rate when available (compact visible + full aria)", () => {
     renderCard(makeResult({ responseRatePct: 80 }));
-    expect(screen.getByText(/Responds to 80%/)).toBeTruthy();
+    expect(screen.getByText("Responds 80%")).toBeTruthy();
+    expect(screen.getByText("Responds to 80 percent of enquiries")).toBeTruthy();
   });
 
-  it("renders view count when >= 10", () => {
+  it("renders view count when >= 10 (sr-only accessible phrase)", () => {
     renderCard(makeResult({ viewCount: 25 }));
     expect(screen.getByText("25 views")).toBeTruthy();
   });
@@ -221,15 +222,63 @@ describe("SearchPropertyCard — broken image", () => {
   });
 });
 
-describe("SearchPropertyCard — lister row", () => {
+describe("SearchPropertyCard — footer deck", () => {
   it("shows Owner label for owner lister", () => {
     renderCard(makeResult({ listerRole: "owner" }));
-    expect(screen.getByText("Owner")).toBeTruthy();
+    // Visible (aria-hidden) + sr-only both carry the label → getAllByText.
+    expect(screen.getAllByText("Owner").length).toBeGreaterThan(0);
   });
 
-  it("shows New on Reeve chip alongside response rate (additive, not replacing)", () => {
+  it("shows Property Manager label", () => {
+    renderCard(makeResult({ listerRole: "property_manager" }));
+    expect(screen.getAllByText("Property Manager").length).toBeGreaterThan(0);
+  });
+
+  it("never renders 'New on Reeve' (removed in redesign)", () => {
     renderCard(makeResult({ isNewOnReeve: true, responseRatePct: 70 }));
-    expect(screen.getByText("New on Reeve")).toBeTruthy();
-    expect(screen.getByText(/Responds to 70%/)).toBeTruthy();
+    expect(screen.queryByText("New on Reeve")).toBeNull();
+    expect(screen.getByText("Responds 70%")).toBeTruthy();
+  });
+});
+
+describe("SearchPropertyCard — activity + header", () => {
+  it("does not render comments segment when commentCount is 0", () => {
+    renderCard(makeResult({ commentCount: 0, viewCount: 25 }));
+    expect(screen.queryByText(/comments?$/)).toBeNull();
+  });
+
+  it("renders comment count when > 0", () => {
+    renderCard(makeResult({ commentCount: 3, viewCount: 25 }));
+    expect(screen.getByText("3 comments")).toBeTruthy();
+  });
+
+  it("omits the price header cleanly when price is null (no TOTAL MONTHLY)", () => {
+    renderCard(makeResult({ price: null, viewCount: 0, commentCount: 0 }));
+    expect(screen.queryByText("Total monthly")).toBeNull();
+    expect(screen.queryByText(/undefined/)).toBeNull();
+  });
+});
+
+describe("SearchPropertyCard — Split isolation (layout=horizontal)", () => {
+  function renderSplit(result: SearchPropertyResult) {
+    return render(
+      <MemoryRouter initialEntries={["/search?type=rent&city=bengaluru"]}>
+        <SearchPropertyCard
+          result={result}
+          layout="horizontal"
+          isFavourited={() => false}
+          onToggleFavourite={toggleSpy}
+          isLoggedIn
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  it("does not render the new footer deck / feature grid in Split", () => {
+    renderSplit(makeResult({ responseRatePct: 80 }));
+    // The vibrant footer response segment is List-only.
+    expect(screen.queryByText("Responds 80%")).toBeNull();
+    // Split keeps its chip facts instead of feature tiles.
+    expect(screen.queryByText("Carpet")).toBeNull();
   });
 });
