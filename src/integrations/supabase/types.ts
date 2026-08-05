@@ -4328,6 +4328,10 @@ export type Database = {
         Returns: undefined
       }
       update_profile_bio: { Args: { p_bio: string }; Returns: string }
+      validate_property_field_text: {
+        Args: { p_field: string; p_text: string }
+        Returns: string
+      }
       validate_short_text: {
         Args: { p_max_length: number; p_text: string }
         Returns: string

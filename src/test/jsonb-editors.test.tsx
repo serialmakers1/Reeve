@@ -190,6 +190,134 @@ describe("FurnishingEditor — count input blank-state fix", () => {
   });
 });
 
+// ── Owner-limited custom-item mode (customLimit prop) ──────────────────────
+function AmenitiesEditorWrapper({ initial, customLimit }: { initial: string[]; customLimit?: number }) {
+  const [value, setValue] = useState(initial);
+  return (
+    <>
+      <AmenitiesEditor value={value} onChange={setValue} customLimit={customLimit} />
+      <output data-testid="amenities-state">{JSON.stringify(value)}</output>
+    </>
+  );
+}
+
+describe("AmenitiesEditor — owner limits (customLimit)", () => {
+  it("shows the usage counter and an Add button", () => {
+    render(<AmenitiesEditorWrapper initial={[]} customLimit={5} />);
+    expect(screen.getByText("0 of 5 custom items added")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled(); // blank
+  });
+
+  it("adds a valid unique custom name via staging input", () => {
+    render(<AmenitiesEditorWrapper initial={[]} customLimit={5} />);
+    const input = screen.getByPlaceholderText("Add a custom amenity");
+    fireEvent.change(input, { target: { value: "Rooftop terrace" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(screen.getByTestId("amenities-state")).toHaveTextContent('"Rooftop terrace"');
+  });
+
+  it("blocks a canonical duplicate and directs to the option", () => {
+    render(<AmenitiesEditorWrapper initial={[]} customLimit={5} />);
+    const input = screen.getByPlaceholderText("Add a custom amenity");
+    fireEvent.change(input, { target: { value: "lift" } });
+    expect(screen.getByText(/already available above as "Lift"/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+  });
+
+  it("blocks a custom duplicate", () => {
+    render(<AmenitiesEditorWrapper initial={["Terrace"]} customLimit={5} />);
+    const input = screen.getByPlaceholderText("Add a custom amenity");
+    fireEvent.change(input, { target: { value: "terrace" } });
+    expect(screen.getByText(/already added "Terrace"/)).toBeInTheDocument();
+  });
+
+  it("disables Add once 5 customs exist", () => {
+    render(<AmenitiesEditorWrapper initial={["a", "b", "c", "d", "e"]} customLimit={5} />);
+    expect(screen.getByText("5 of 5 custom items added")).toBeInTheDocument();
+    const input = screen.getByPlaceholderText("Add a custom amenity");
+    fireEvent.change(input, { target: { value: "Sixth" } });
+    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+  });
+
+  it("Enter in the staging input adds (and does not throw / submit)", () => {
+    render(<AmenitiesEditorWrapper initial={[]} customLimit={5} />);
+    const input = screen.getByPlaceholderText("Add a custom amenity");
+    fireEvent.change(input, { target: { value: "Garden gym" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.getByTestId("amenities-state")).toHaveTextContent('"Garden gym"');
+  });
+
+  it("legacy 7-item value renders all rows editable + Add disabled (never truncated)", () => {
+    const legacy = ["one", "two", "three", "four", "five", "six", "seven"];
+    render(<AmenitiesEditorWrapper initial={legacy} customLimit={5} />);
+    for (const name of legacy) expect(screen.getByDisplayValue(name)).toBeInTheDocument();
+    expect(screen.getByText("7 of 5 custom items added")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+  });
+
+  it("edit mode: renaming an existing row to a valid unique name commits (limit skipped even at/over 5)", () => {
+    render(<AmenitiesEditorWrapper initial={["a", "b", "c", "d", "e"]} customLimit={5} />);
+    const input = screen.getByDisplayValue("a");
+    fireEvent.change(input, { target: { value: "Alpha" } });
+    fireEvent.blur(input);
+    expect(screen.getByTestId("amenities-state")).toHaveTextContent('"Alpha"');
+  });
+
+  it("edit mode: renaming to a duplicate shows an error and does not commit", () => {
+    render(<AmenitiesEditorWrapper initial={["a", "b"]} customLimit={5} />);
+    const input = screen.getByDisplayValue("a");
+    fireEvent.change(input, { target: { value: "b" } });
+    expect(screen.getByText(/already added "b"/)).toBeInTheDocument();
+    fireEvent.blur(input);
+    // reverted to "a"; state unchanged
+    expect(screen.getByTestId("amenities-state")).toHaveTextContent('["a","b"]');
+  });
+});
+
+describe("AmenitiesEditor — admin (no customLimit) stays unrestricted", () => {
+  it("appends beyond 5 custom items via '+ Add amenity'", () => {
+    const onChange = vi.fn();
+    render(<AmenitiesEditor value={["a", "b", "c", "d", "e"]} onChange={onChange} />);
+    fireEvent.click(screen.getByText("+ Add amenity"));
+    expect(onChange).toHaveBeenCalledWith(["a", "b", "c", "d", "e", ""]);
+  });
+
+  it("renders legacy 7-item value fully with no Add button / counter", () => {
+    render(<AmenitiesEditor value={["1", "2", "3", "4", "5", "6", "7"]} onChange={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/custom items added/)).not.toBeInTheDocument();
+    expect(screen.getByText("+ Add amenity")).toBeInTheDocument();
+  });
+});
+
+describe("FurnishingEditor — owner limits (customLimit)", () => {
+  it("adds a valid custom furniture item with count 1", () => {
+    function Wrap() {
+      const [value, setValue] = useState<FurnishingDetailItem[]>([]);
+      return (
+        <>
+          <FurnishingEditor value={value} onChange={setValue} customLimit={5} />
+          <output data-testid="f-state">{JSON.stringify(value)}</output>
+        </>
+      );
+    }
+    render(<Wrap />);
+    const input = screen.getByPlaceholderText("Add a custom item");
+    fireEvent.change(input, { target: { value: "Shoe rack" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(screen.getByTestId("f-state")).toHaveTextContent('"item":"Shoe rack"');
+    expect(screen.getByTestId("f-state")).toHaveTextContent('"custom":true');
+  });
+
+  it("blocks 'AC' as a canonical duplicate via the alias map", () => {
+    render(<FurnishingEditor value={[]} onChange={() => {}} customLimit={5} />);
+    const input = screen.getByPlaceholderText("Add a custom item");
+    fireEvent.change(input, { target: { value: "Air Conditioner" } });
+    expect(screen.getByText(/already available above as "AC"/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+  });
+});
+
 describe("buildAmenitiesJson (D-170)", () => {
   it("preserves flat building array + derives furnishing_items from non-custom detail entries", async () => {
     const { buildAmenitiesJson } = await import("@/types/property");
