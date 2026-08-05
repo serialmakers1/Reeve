@@ -16,6 +16,9 @@ import { cn } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
 import { FURNISHING_ITEM_OPTIONS } from "@/config/property-form";
 import type { FurnishingDetailItem } from "@/types/property";
+import { EditableCustomName } from "@/components/property/EditableCustomName";
+import { CustomItemAdder } from "@/components/property/CustomItemAdder";
+import { validateCustomName } from "@/utils/property/customItemValidation";
 
 interface FurnitureCountInputProps {
   value: number;
@@ -70,12 +73,20 @@ export interface FurnishingEditorProps {
   value: FurnishingDetailItem[];
   onChange: (updated: FurnishingDetailItem[]) => void;
   className?: string;
+  /**
+   * When set (owner form passes 5), enforces a max-N custom cap + duplicate/length
+   * validation via a staging input. When undefined (admin), the editor keeps its
+   * original unrestricted append-blank behaviour.
+   */
+  customLimit?: number;
 }
 
-export function FurnishingEditor({ value, onChange, className }: FurnishingEditorProps) {
+export function FurnishingEditor({ value, onChange, className, customLimit }: FurnishingEditorProps) {
   const items = value ?? [];
   const findIndex = (key: string) => items.findIndex((i) => i.item === key && !i.custom);
   const customs = items.map((it, idx) => ({ it, idx })).filter((x) => x.it.custom);
+  const limited = customLimit != null;
+  const customNames = customs.map((c) => c.it.item ?? "");
 
   const toggleStandard = (opt: (typeof FURNISHING_ITEM_OPTIONS)[number]) => {
     const idx = findIndex(opt.value);
@@ -93,6 +104,8 @@ export function FurnishingEditor({ value, onChange, className }: FurnishingEdito
   };
 
   const addCustom = () => onChange([...items, { item: "", custom: true }]);
+  const addCustomNamed = (name: string) =>
+    onChange([...items, { item: name, custom: true, count: 1 }]);
   const updateCustom = (idx: number, patch: Partial<FurnishingDetailItem>) => {
     onChange(items.map((i, ix) => (ix === idx ? { ...i, ...patch } : i)));
   };
@@ -152,30 +165,71 @@ export function FurnishingEditor({ value, onChange, className }: FurnishingEdito
         </div>
       </div>
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <Label className="text-sm font-medium">Something else? Add it</Label>
-          <button type="button" onClick={addCustom} className="text-sm text-primary hover:underline">
-            + Add item
-          </button>
-        </div>
-        {customs.map(({ it, idx }) => (
-          <div key={idx} className="flex items-center gap-2 mb-2">
-            <Input
-              value={it.item}
-              placeholder="e.g. Study table"
-              onChange={(e) => updateCustom(idx, { item: e.target.value })}
-              className="min-h-[40px] flex-1"
+        <Label className="text-sm font-medium mb-2 block">Something else? Add it</Label>
+        {limited ? (
+          <>
+            {customs.map(({ it, idx }) => (
+              <EditableCustomName
+                key={idx}
+                value={it.item}
+                placeholder="e.g. Study table"
+                validate={(name) =>
+                  validateCustomName(name, {
+                    mode: "edit",
+                    existingCustoms: customNames,
+                    canonicalOptions: FURNISHING_ITEM_OPTIONS,
+                    limit: customLimit!,
+                    noun: "furniture items",
+                    selfIndex: idx,
+                  })
+                }
+                onCommit={(name) => updateCustom(idx, { item: name })}
+                onDelete={() => deleteCustom(idx)}
+                trailing={
+                  <FurnitureCountInput
+                    value={it.count ?? 1}
+                    onChange={(n) => updateCustom(idx, { count: n })}
+                    className="w-20 h-10"
+                  />
+                }
+              />
+            ))}
+            <CustomItemAdder
+              existingCustoms={customNames}
+              canonicalOptions={FURNISHING_ITEM_OPTIONS}
+              limit={customLimit!}
+              noun="furniture items"
+              onAdd={addCustomNamed}
+              placeholder="Add a custom item"
             />
-            <FurnitureCountInput
-              value={it.count ?? 1}
-              onChange={(n) => updateCustom(idx, { count: n })}
-              className="w-20 h-10"
-            />
-            <button type="button" onClick={() => deleteCustom(idx)}>
-              <Trash2 className="h-4 w-4 text-muted-foreground" />
-            </button>
-          </div>
-        ))}
+          </>
+        ) : (
+          <>
+            <div className="flex justify-end mb-2">
+              <button type="button" onClick={addCustom} className="text-sm text-primary hover:underline">
+                + Add item
+              </button>
+            </div>
+            {customs.map(({ it, idx }) => (
+              <div key={idx} className="flex items-center gap-2 mb-2">
+                <Input
+                  value={it.item}
+                  placeholder="e.g. Study table"
+                  onChange={(e) => updateCustom(idx, { item: e.target.value })}
+                  className="min-h-[40px] flex-1"
+                />
+                <FurnitureCountInput
+                  value={it.count ?? 1}
+                  onChange={(n) => updateCustom(idx, { count: n })}
+                  className="w-20 h-10"
+                />
+                <button type="button" onClick={() => deleteCustom(idx)}>
+                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );

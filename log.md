@@ -1170,3 +1170,7 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-08-02] ui | Added decision-first Search cards, bounded grid and filter hierarchy [11:21 IST]
 
 ## [2026-08-05] ui | Vibrant Rent/Sale Search property cards — price+activity header, financial row, icon-led feature tiles, footer deck; pure cardTilesResolver, static tile styles; Split card unchanged [21:25 IST]
+
+## [2026-08-06] diagnose | Reviewed owner text validation and custom-item limits [18:50 IST]
+
+## [2026-08-06] fix | Added owner text validation and custom-item limits [19:50 IST]

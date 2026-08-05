@@ -39,6 +39,13 @@ import { type FurnishingDetailItem, buildAmenitiesJson } from "@/types/property"
 import { computeDepositMonths } from "@/utils/property/financialConversions";
 import { FurnishingEditor } from "@/components/property/FurnishingEditor";
 import { AmenitiesEditor } from "@/components/property/AmenitiesEditor";
+import {
+  OWNER_TEXT_MAX,
+  validatePropertyFieldText,
+  validateYoutubeUrl,
+  YOUTUBE_MESSAGE,
+  type ServerTextField,
+} from "@/lib/ownerTextValidation";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -520,7 +527,13 @@ export default function ListProperty() {
   const [showDraftLimit, setShowDraftLimit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [insertingDraft, setInsertingDraft] = useState(false);
+  // Owner-only public-text validation errors, keyed by field. Never blocks autosave.
+  const [textErrors, setTextErrors] = useState<Record<string, string | null>>({});
   const draftCheckedRef = useRef(false);
+  // Live mirror of `form` so async blur-validation can compare against the current
+  // value (a closed-over `form` would be stale and defeat the stale-response guard).
+  const formRef = useRef(form);
+  useEffect(() => { formRef.current = form; }, [form]);
   const pageOpenedRef = useRef(false);
   const sectionCompletionRef = useRef<Record<SectionNum, boolean>>({ 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false });
 
@@ -777,6 +790,8 @@ export default function ListProperty() {
   // Path B (listed/edit_pending_review): accumulates into editRequestPayload.field_changes.
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K], dbPatch?: Record<string, unknown>) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    // Clear any stale inline validation error the moment the field is edited.
+    setTextErrors((e) => (e[key as string] ? { ...e, [key as string]: null } : e));
     if (readOnly) return; // no writes while pending edit is under review
     const rawPayload = dbPatch ?? mapFieldToDb(key, value);
     if (!rawPayload || Object.keys(rawPayload).length === 0) return;
@@ -801,6 +816,38 @@ export default function ListProperty() {
       patch(payload);
     }
   }, [patch, path, readOnly]);
+
+  // ─── Owner public-text validation (blur + submit) ────────────────────────
+  // Server-validate one text field on blur. Applies the result only if the field's
+  // current value still matches what was validated (stale-response guard via ref).
+  const runFieldValidation = useCallback(async (field: ServerTextField) => {
+    const validated = formRef.current[field] as string;
+    const res = await validatePropertyFieldText(field, validated);
+    if (formRef.current[field] !== validated) return; // superseded by a newer edit
+    if (res.ok) {
+      setTextErrors((e) => ({ ...e, [field]: null }));
+    } else if (res.error) {
+      setTextErrors((e) => ({ ...e, [field]: res.error }));
+    } else {
+      // Network / unknown failure — toast, keep field un-errored inline.
+      setTextErrors((e) => ({ ...e, [field]: null }));
+      toast({
+        variant: "destructive",
+        title: "Couldn't validate",
+        description: "Check your connection and try again.",
+      });
+    }
+  }, [toast]);
+
+  // YouTube validation is local/sync (never the RPC — a URL trips CONTAINS_URL).
+  const runYoutubeValidation = useCallback(() => {
+    const res = validateYoutubeUrl(formRef.current.youtube_walkthrough_url);
+    setTextErrors((e) => ({
+      ...e,
+      youtube_walkthrough_url: res.ok ? null : YOUTUBE_MESSAGE[res.reason],
+    }));
+    return res.ok;
+  }, []);
 
   // ─── Address resolved callback (PropertyAddressInput → form + DB) ────────
   const handleAddressResolved = useCallback((data: AddressData) => {
@@ -1097,6 +1144,51 @@ export default function ListProperty() {
       setTimeout(() => {
         document.getElementById(`section-${first}-header`)?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
+      return;
+    }
+
+    // Owner public-text safety re-check (visible fields only). Blocks submit on any
+    // policy error OR an RPC/network failure — a failed validation is never valid.
+    // Never the first reveal — blur already surfaced these.
+    const serverFields: ServerTextField[] = ["parking_notes", "building_notes"];
+    if (form.listing_type !== "sale") serverFields.push("building_rules");
+    const nextTextErrors: Record<string, string | null> = {};
+    let hadFailure = false;
+    for (const f of serverFields) {
+      const res = await validatePropertyFieldText(f, form[f] as string);
+      if (res.ok) {
+        nextTextErrors[f] = null;
+      } else if (res.error) {
+        nextTextErrors[f] = res.error;
+      } else {
+        hadFailure = true;
+      }
+    }
+    const yt = validateYoutubeUrl(form.youtube_walkthrough_url);
+    if (!yt.ok) nextTextErrors.youtube_walkthrough_url = YOUTUBE_MESSAGE[yt.reason];
+
+    const firstBadField = [...serverFields, "youtube_walkthrough_url"].find(
+      (f) => nextTextErrors[f],
+    );
+    if (firstBadField || hadFailure) {
+      setTextErrors((e) => ({ ...e, ...nextTextErrors }));
+      if (hadFailure) {
+        toast({
+          variant: "destructive",
+          title: "Couldn't validate",
+          description: "Check your connection and try again.",
+        });
+      }
+      if (firstBadField) {
+        const sec = DB_COLUMN_TO_SECTION[firstBadField];
+        if (sec) {
+          setOpenAccordion(`section-${sec}`);
+          setTimeout(() => {
+            document.getElementById(`section-${sec}-header`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 100);
+        }
+        toast({ title: "Fix the highlighted field before submitting", variant: "destructive" });
+      }
       return;
     }
 
@@ -1715,6 +1807,7 @@ export default function ListProperty() {
               {/* D-170: shared JSONB editor. Same component used on admin form. */}
               <FurnishingEditor
                 value={form.furnishing_detail}
+                customLimit={5}
                 onChange={(updated) => {
                   setForm((f) => ({ ...f, furnishing_detail: updated }));
                   patch({
@@ -1736,6 +1829,7 @@ export default function ListProperty() {
               {/* D-170: shared JSONB editor. Same component used on admin form. */}
               <AmenitiesEditor
                 value={form.building_amenities}
+                customLimit={5}
                 onChange={(updated) => {
                   setForm((f) => ({ ...f, building_amenities: updated }));
                   patch({ amenities: buildAmenitiesJson(updated, form.furnishing_detail) });
@@ -1760,7 +1854,16 @@ export default function ListProperty() {
                 </FormField>
                 <SpecField fieldKey="parking_4w_count" surface="owner_form" value={form.parking_4w_count} onChange={(v: string) => updateField("parking_4w_count", v)} />
               </div>
-              <SpecField fieldKey="parking_notes" surface="owner_form" value={form.parking_notes} onChange={(v: string) => updateField("parking_notes", v)} />
+              <SpecField
+                fieldKey="parking_notes"
+                surface="owner_form"
+                value={form.parking_notes}
+                onChange={(v: string) => updateField("parking_notes", v)}
+                maxLengthOverride={OWNER_TEXT_MAX.parking_notes}
+                showCounter
+                error={textErrors.parking_notes ?? undefined}
+                onBlur={() => runFieldValidation("parking_notes")}
+              />
               <SpecField fieldKey="water_storage" surface="owner_form" value={form.water_storage} onChange={(v: string) => updateField("water_storage", v)} className="max-w-xs" />
               {/* P3: water source multi-select (text[] column). */}
               <div className="space-y-2">
@@ -1818,6 +1921,10 @@ export default function ListProperty() {
                   value={form.building_rules}
                   onChange={(v: string) => updateField("building_rules", v)}
                   helperOverride="Vegetarian only? No smoking? Curfew? Anything tenants should know."
+                  maxLengthOverride={OWNER_TEXT_MAX.building_rules}
+                  showCounter
+                  error={textErrors.building_rules ?? undefined}
+                  onBlur={() => runFieldValidation("building_rules")}
                 />
               )}
               {/* TODO(spec): fold helper into PROPERTY_FIELDS.building_notes.helper in Prompt 6 bundle */}
@@ -1827,6 +1934,10 @@ export default function ListProperty() {
                 value={form.building_notes}
                 onChange={(v: string) => updateField("building_notes", v)}
                 helperOverride="Gated society? Near a Metro? 5-min walk to market? Sell your building."
+                maxLengthOverride={OWNER_TEXT_MAX.building_notes}
+                showCounter
+                error={textErrors.building_notes ?? undefined}
+                onBlur={() => runFieldValidation("building_notes")}
               />
             </div>
           </SectionShell>
@@ -1883,7 +1994,21 @@ export default function ListProperty() {
                   );
                 })}
                 <FormField label="YouTube walkthrough URL" hint="Paste a YouTube link for a full walkthrough tour">
-                  <Input value={form.youtube_walkthrough_url} onChange={(e) => updateField("youtube_walkthrough_url", e.target.value)} placeholder="https://youtube.com/watch?v=..." className="min-h-[44px]" />
+                  <Input
+                    value={form.youtube_walkthrough_url}
+                    onChange={(e) => {
+                      updateField("youtube_walkthrough_url", e.target.value);
+                      // Bespoke input: clear its stale error explicitly on every change.
+                      setTextErrors((er) => ({ ...er, youtube_walkthrough_url: null }));
+                    }}
+                    onBlur={runYoutubeValidation}
+                    maxLength={OWNER_TEXT_MAX.youtube_walkthrough_url}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="min-h-[44px]"
+                  />
+                  {textErrors.youtube_walkthrough_url && (
+                    <p className="text-sm text-destructive mt-1">{textErrors.youtube_walkthrough_url}</p>
+                  )}
                 </FormField>
               </div>
             )}

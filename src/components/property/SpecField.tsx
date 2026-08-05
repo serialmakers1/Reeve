@@ -87,6 +87,19 @@ const PUBLIC_ICON_REGISTRY: Record<string, ReactNode> = {
 export type SpecFieldOverrides = {
   helperOverride?: string;
   placeholderOverride?: string;
+  /**
+   * Owner-form character cap for text/textarea. Applied ONLY via this prop so the
+   * shared `property-fields.ts` spec (used by admin) is never newly restricted.
+   * Text inputs already honour `field.maxLength`; this override takes precedence.
+   * The textarea branch has no spec-driven maxLength and relies solely on this.
+   */
+  maxLengthOverride?: number;
+  /** Inline validation error rendered under the control (text/textarea only). */
+  error?: string;
+  /** Show a live `{len}/{max}` counter (text/textarea; needs an effective max). */
+  showCounter?: boolean;
+  /** Blur handler (text/textarea) — used for on-blur validation. */
+  onBlur?: () => void;
 };
 
 export type SpecFieldProps<T = unknown> = SpecFieldOverrides & {
@@ -179,6 +192,10 @@ export function SpecField<T = unknown>(props: SpecFieldProps<T>) {
     onChange,
     helperOverride,
     placeholderOverride,
+    maxLengthOverride,
+    error,
+    showCounter,
+    onBlur,
     readOnly,
     children,
     className,
@@ -268,28 +285,46 @@ export function SpecField<T = unknown>(props: SpecFieldProps<T>) {
 
   switch (field.input) {
     case "text": {
+      // Text inputs already honour field.maxLength; override just adds owner caps.
+      const effectiveMaxLength = maxLengthOverride ?? field.maxLength;
+      const len = ((value as string | undefined) ?? "").length;
       return (
         <Shell label={label} helper={helper} className={className}>
           <Input
             value={(value as string | undefined) ?? ""}
             onChange={(e) => emit(e.target.value)}
+            onBlur={onBlur}
             placeholder={placeholder}
-            maxLength={field.maxLength}
+            maxLength={effectiveMaxLength}
             className="min-h-[44px]"
           />
+          {showCounter && effectiveMaxLength != null && (
+            <p className="text-xs text-muted-foreground text-right">{len} / {effectiveMaxLength}</p>
+          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           {children}
         </Shell>
       );
     }
     case "textarea": {
+      // Textarea has NO spec-driven maxLength (would restrict admin) — cap comes
+      // solely from maxLengthOverride.
+      const effectiveMaxLength = maxLengthOverride;
+      const len = ((value as string | undefined) ?? "").length;
       return (
         <Shell label={label} helper={helper} className={className}>
           <Textarea
             value={(value as string | undefined) ?? ""}
             onChange={(e) => emit(e.target.value)}
+            onBlur={onBlur}
             placeholder={placeholder}
+            maxLength={effectiveMaxLength}
             rows={3}
           />
+          {showCounter && effectiveMaxLength != null && (
+            <p className="text-xs text-muted-foreground text-right">{len} / {effectiveMaxLength}</p>
+          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           {children}
         </Shell>
       );
