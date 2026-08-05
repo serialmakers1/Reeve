@@ -1,7 +1,7 @@
 // Phase 3 Prompt 2.1 — resend-reveal
 // Either party (tenant or owner) can re-request the approval notification.
 // Rewrite: replaces direct Resend call with fire-and-forget POST to n8n.
-// Gates unchanged: 1 per hour, 5 per day per caller per contact_request.
+// Gates: 15-day expiry from approved_at (added), 1 per hour, 5 per day per caller per contact_request.
 
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const N8N_RESEND_WEBHOOK = "https://n8n.reeve.in/webhook/contact-resend-reveal";
@@ -17,6 +17,13 @@ function json(body: unknown, status: number): Response {
     status,
     headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
+}
+
+function isResendExpiredAt(approvedAt: string | null, nowMs: number): boolean {
+  if (!approvedAt) return true;
+  const approvedAtMs = Date.parse(approvedAt);
+  if (!Number.isFinite(approvedAtMs)) return true;
+  return nowMs - approvedAtMs > 15 * 24 * 60 * 60 * 1000;
 }
 
 Deno.serve(async (req: Request) => {
@@ -54,11 +61,11 @@ Deno.serve(async (req: Request) => {
 
     // 3. Fetch contact_request
     const crRes = await fetch(
-      `${supabaseUrl}/rest/v1/contact_requests?id=eq.${crId}&select=id,property_id,tenant_id,owner_id,status`,
+      `${supabaseUrl}/rest/v1/contact_requests?id=eq.${crId}&select=id,property_id,tenant_id,owner_id,status,approved_at`,
       { headers: srHeaders },
     );
     if (!crRes.ok) return json({ error: "Failed to fetch contact request" }, 500);
-    const cr: { id: string; property_id: string; tenant_id: string; owner_id: string; status: string } | undefined =
+    const cr: { id: string; property_id: string; tenant_id: string; owner_id: string; status: string; approved_at: string | null } | undefined =
       (await crRes.json())?.[0];
     if (!cr) return json({ error: "Contact request not found" }, 404);
 
@@ -70,6 +77,11 @@ Deno.serve(async (req: Request) => {
 
     // 5. Status
     if (cr.status !== "approved") return json({ error: "not_approved" }, 422);
+
+    // 5a. 15-day expiry from approved_at
+    if (isResendExpiredAt(cr.approved_at, Date.now())) {
+      return json({ error: "resend_expired" }, 422);
+    }
 
     // 6. Cooldown: 1 per hour by recipient (caller)
     // Cooldown reads dispatch rows including the n8n_* event types since those
