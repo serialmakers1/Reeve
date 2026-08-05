@@ -23,7 +23,7 @@ beforeEach(() => {
 
 describe("anon history", () => {
   it("round-trips", () => {
-    const h = confirmSelection(emptyHistory(), "bengaluru", [area("wf")], 1);
+    const h = confirmSelection(emptyHistory(), "bengaluru", [area("wf")], "rent", [], 1);
     writeAnonHistory(h);
     expect(readAnonHistory().cities[0].city).toBe("bengaluru");
   });
@@ -41,7 +41,7 @@ describe("anon history", () => {
 
 describe("account cache — per-user isolation", () => {
   it("stores under a user-specific key and does not leak across users", () => {
-    const h = confirmSelection(emptyHistory(), "mumbai", [], 1);
+    const h = confirmSelection(emptyHistory(), "mumbai", [], "rent", [], 1);
     writeAccountCache("userA", { version: 1, history: h, serverUpdatedAt: null });
     expect(readAccountCache("userA")?.history.cities[0].city).toBe("mumbai");
     expect(readAccountCache("userB")).toBeNull();
@@ -58,16 +58,18 @@ describe("account cache — per-user isolation", () => {
 
 describe("pending confirmation (sessionStorage)", () => {
   it("round-trips while unexpired", () => {
-    writePendingConfirm("bengaluru", [area("wf")]);
+    writePendingConfirm("bengaluru", [area("wf")], "buy", ["apartment"]);
     const p = readPendingConfirm();
     expect(p?.city).toBe("bengaluru");
     expect(p?.areas.map((a) => a.id)).toEqual(["wf"]);
+    expect(p?.mode).toBe("buy");
+    expect(p?.propertyTypes).toEqual(["apartment"]);
   });
 
   it("returns null once expired", () => {
     vi.useFakeTimers();
     try {
-      writePendingConfirm("bengaluru", []);
+      writePendingConfirm("bengaluru", [], "rent", []);
       vi.advanceTimersByTime(11 * 60 * 1000); // > 10 min TTL
       expect(readPendingConfirm()).toBeNull();
     } finally {
@@ -76,7 +78,7 @@ describe("pending confirmation (sessionStorage)", () => {
   });
 
   it("clearPendingConfirm removes it", () => {
-    writePendingConfirm("pune", []);
+    writePendingConfirm("pune", [], "rent", []);
     clearPendingConfirm();
     expect(readPendingConfirm()).toBeNull();
   });

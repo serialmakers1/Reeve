@@ -1,6 +1,7 @@
 import type { LocationToken } from "../domain/searchTypes";
+import type { SearchMode } from "../domain/searchMode";
 import {
-  type SearchLocationHistoryV1,
+  type SearchLocationHistory,
   emptyHistory,
   validateHistory,
 } from "./searchLocationHistory";
@@ -51,30 +52,31 @@ const session = () => window.sessionStorage;
 
 // ─── Anonymous history (localStorage) ─────────────────────────────────────────
 
-export function readAnonHistory(): SearchLocationHistoryV1 {
+export function readAnonHistory(fallbackMode?: SearchMode): SearchLocationHistory {
   const raw = safeGet(local, ANON_KEY);
   if (!raw) return emptyHistory();
   try {
-    return validateHistory(JSON.parse(raw));
+    return validateHistory(JSON.parse(raw), fallbackMode);
   } catch {
     return emptyHistory();
   }
 }
 
-export function writeAnonHistory(history: SearchLocationHistoryV1): void {
+export function writeAnonHistory(history: SearchLocationHistory): void {
   safeSet(local, ANON_KEY, JSON.stringify(history));
 }
 
 // ─── Account cache (localStorage, per-user) ───────────────────────────────────
 
 export interface AccountCacheV1 {
+  /** Envelope version — independent of the inner history schema version (1 or 2). */
   version: 1;
-  history: SearchLocationHistoryV1;
+  history: SearchLocationHistory;
   /** ISO timestamp of the last successfully-synced Supabase row; null before first sync. */
   serverUpdatedAt: string | null;
 }
 
-export function readAccountCache(userId: string): AccountCacheV1 | null {
+export function readAccountCache(userId: string, fallbackMode?: SearchMode): AccountCacheV1 | null {
   if (!userId) return null;
   const raw = safeGet(local, accountKey(userId));
   if (!raw) return null;
@@ -83,7 +85,7 @@ export function readAccountCache(userId: string): AccountCacheV1 | null {
     if (parsed?.version !== 1) return null;
     return {
       version: 1,
-      history: validateHistory(parsed.history),
+      history: validateHistory(parsed.history, fallbackMode),
       serverUpdatedAt:
         typeof parsed.serverUpdatedAt === "string" ? parsed.serverUpdatedAt : null,
     };
@@ -108,16 +110,25 @@ export interface PendingConfirmV1 {
   version: 1;
   city: string;
   areas: LocationToken[];
+  mode: SearchMode;
+  propertyTypes: string[];
   confirmedAt: number;
   expiresAt: number;
 }
 
-export function writePendingConfirm(city: string, areas: LocationToken[]): void {
+export function writePendingConfirm(
+  city: string,
+  areas: LocationToken[],
+  mode: SearchMode,
+  propertyTypes: string[],
+): void {
   const now = Date.now();
   const payload: PendingConfirmV1 = {
     version: 1,
     city,
     areas,
+    mode,
+    propertyTypes,
     confirmedAt: now,
     expiresAt: now + PENDING_CONFIRM_TTL_MS,
   };
@@ -134,16 +145,27 @@ export function readPendingConfirm(): PendingConfirmV1 | null {
     if (typeof parsed.city !== "string" || !parsed.city) return null;
     if (typeof parsed.expiresAt !== "number" || parsed.expiresAt < Date.now()) return null;
     const areas = Array.isArray(parsed.areas) ? (parsed.areas as LocationToken[]) : [];
+    const mode: SearchMode = parsed.mode === "buy" ? "buy" : "rent";
+    const propertyTypes = Array.isArray(parsed.propertyTypes)
+      ? (parsed.propertyTypes as unknown[]).filter((x): x is string => typeof x === "string")
+      : [];
     return {
       version: 1,
       city: parsed.city,
       areas,
+      mode,
+      propertyTypes,
       confirmedAt: typeof parsed.confirmedAt === "number" ? parsed.confirmedAt : 0,
       expiresAt: parsed.expiresAt,
     };
   } catch {
     return null;
   }
+}
+
+/** Reads the pending confirmation's city (unexpired), or null. Used for targeted clearing. */
+export function readPendingConfirmCity(): string | null {
+  return readPendingConfirm()?.city ?? null;
 }
 
 export function clearPendingConfirm(): void {

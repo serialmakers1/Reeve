@@ -18,6 +18,8 @@ interface DesktopSearchToolbarProps {
   onOpenFilters: () => void;
   view: SearchViewMode;
   onSetView: (v: SearchViewMode) => void;
+  /** Explicit Rent/Buy change — when provided, persists memory in addition to setMode. */
+  onModeChange?: (mode: "rent" | "buy") => void;
   loadedCount: number;
   hasNextPage: boolean;
 }
@@ -31,8 +33,10 @@ export function DesktopSearchToolbar({
   onOpenFilters,
   view,
   onSetView,
+  onModeChange,
 }: DesktopSearchToolbarProps) {
   const { state, setMode } = useSearchState();
+  const handleMode = onModeChange ?? setMode;
   const { mode, city, locations } = state.context;
   const resolvedMode = mode ?? "rent";
 
@@ -53,7 +57,7 @@ export function DesktopSearchToolbar({
     <div className="sticky top-16 z-40 hidden h-14 items-center gap-2 border-b bg-background px-4 desk:flex">
       {/* Rent / Buy — segmented control */}
       <div className="w-[148px] shrink-0">
-        <RentBuySelector value={resolvedMode} onChange={setMode} />
+        <RentBuySelector value={resolvedMode} onChange={handleMode} />
       </div>
 
       {/* Prominent location / context control */}

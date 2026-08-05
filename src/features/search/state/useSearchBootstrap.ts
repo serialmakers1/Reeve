@@ -1,21 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import type { LocationToken } from "../domain/searchTypes";
+import type { SearchMode } from "../domain/searchMode";
+import { URL_PARAMS } from "../domain/searchConstants";
 import { useAuth } from "@/hooks/useAuth";
 import { useSearchState } from "./useSearchState";
 import { useVercelGeoCity } from "../hooks/useVercelGeoCity";
 import type { CanonicalCity } from "../hooks/useResolveCity";
 import {
-  type SearchLocationHistoryV1,
+  type SearchLocationHistory,
   cityMemory,
   emptyHistory,
   latestSelection,
   recentCities as recentCitiesFn,
 } from "./searchLocationHistory";
 import {
+  type ConfirmedSearchSetup,
   type LocationSource,
-  confirmSearchLocation,
+  clearRememberedHistory as clearRememberedHistoryFn,
+  confirmSearchSetup,
   loadCachedHistory,
   reconcileAccountHistory,
+  removeRememberedCity as removeRememberedCityFn,
 } from "./searchLocationMemory";
 
 export type BootstrapStatus = "checking" | "resolved" | "needs_setup";
@@ -23,86 +29,118 @@ export type BootstrapStatus = "checking" | "resolved" | "needs_setup";
 const SERVER_READ_TIMEOUT_MS = 4000;
 const IP_TIMEOUT_MS = 6000;
 
-function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
-  ]);
+export interface CityMemoryView {
+  lastSelectedAreas: LocationToken[];
+  recentAreas: LocationToken[];
+  mode: SearchMode;
+  propertyTypes: string[];
 }
 
 export interface SearchBootstrap {
   status: BootstrapStatus;
-  /** Approximate city seeded from IP, still unconfirmed — drives the non-blocking notice. */
   ipNoticeCity: string | null;
-  /** Approx city object for the panel's "Approximate location" hint. */
   approxCity: CanonicalCity | null;
   recentCities: string[];
-  /** City-scoped memory (last selection + recent-area pool) for the setup panel. */
-  getCityMemory: (city: string) => { lastSelectedAreas: LocationToken[]; recentAreas: LocationToken[] };
-  /** The ONLY confirmed-save path — call from Keep-city / submit / manual-select. */
-  confirmLocation: (city: string, areas: LocationToken[]) => void;
-  /** Marks that the user has started choosing a city/area (stops IP/memory overrides). */
+  getCityMemory: (city: string) => CityMemoryView;
+  /** The ONLY confirmed-save path — full setup (city+areas+mode+propertyTypes). */
+  confirmSetup: (setup: ConfirmedSearchSetup) => void;
+  /** Marks that the user has started choosing (stops IP/memory overrides). */
   markUserInteracted: () => void;
+  /** Remove a single remembered city (and its areas/mode/propertyTypes). */
+  removeRememberedCity: (city: string) => void;
+  /** Clear all remembered cities. */
+  clearRememberedHistory: () => void;
 }
 
 /**
  * Single deterministic bootstrap orchestrator for /search.
- * Precedence for a bare URL:  confirmed memory → Vercel IP city → setup panel.
- * A populated URL is always honored and never overwritten.
- * Seeding commits through URL state (history-replace); refs guard against late
- * async responses overwriting an explicit URL, restored memory, or user input.
+ * Bare-URL precedence: confirmed account/anon memory → Vercel IP → setup panel.
+ * A populated URL is always honored; explicit `type=`/`pt=` on a partial URL win over
+ * memory (field-aware). Seeding commits atomically through URL history-replace. A
+ * generation guard (not re-render cancellation) rejects only genuinely stale async.
  */
 export function useSearchBootstrap(): SearchBootstrap {
-  const { state, setContext } = useSearchState();
+  const { state, replaceSearchSetup, setContext } = useSearchState();
   const { user, isLoading: authLoading } = useAuth();
   const userId = user?.id ?? null;
+  const { search: rawSearch } = useLocation();
 
-  const hadUrlLocationAtMount = useRef(
-    !!state.context.city || state.context.locations.length > 0,
-  ).current;
+  // Live refs (updated every render) so the stable main effect never needs these as deps.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const rawSearchRef = useRef(rawSearch);
+  rawSearchRef.current = rawSearch;
+  const applyRef = useRef(replaceSearchSetup);
+  applyRef.current = replaceSearchSetup;
+  const setContextRef = useRef(setContext);
+  setContextRef.current = setContext;
+
+  const initialHasLocation =
+    !!state.context.city || state.context.locations.length > 0;
 
   const committedRef = useRef(false);
   const userInteractedRef = useRef(false);
-  const provenanceRef = useRef<LocationSource | null>(hadUrlLocationAtMount ? "url" : null);
+  const provenanceRef = useRef<LocationSource | null>(initialHasLocation ? "url" : null);
   const prevUserIdRef = useRef<string | null>(userId);
   const bootstrapRanRef = useRef(false);
+  const runIdRef = useRef(0);
+  const prevHasUrlLocationRef = useRef(initialHasLocation);
 
-  const [history, setHistory] = useState<SearchLocationHistoryV1>(emptyHistory());
+  const [history, setHistory] = useState<SearchLocationHistory>(emptyHistory());
   const [status, setStatus] = useState<BootstrapStatus>(
-    hadUrlLocationAtMount ? "resolved" : "checking",
+    initialHasLocation ? "resolved" : "checking",
   );
   const [needIp, setNeedIp] = useState(false);
   const [ipCity, setIpCity] = useState<string | null>(null);
+  const [bootstrapEpoch, setBootstrapEpoch] = useState(0);
 
   const { approxCity, status: geoStatus } = useVercelGeoCity(needIp);
 
-  // Keep the current city in a ref so background reconcile can compare without
-  // re-subscribing to state each render.
-  const currentCityRef = useRef(state.context.city);
-  currentCityRef.current = state.context.city;
+  // Snapshot the CURRENT raw URL each run (never mount-captured — a re-armed run must
+  // see the live URL, not stale mount flags).
+  const snapshotUrl = useCallback(() => {
+    const s = stateRef.current;
+    const sp = new URLSearchParams(rawSearchRef.current);
+    return {
+      hadUrlLocation: !!s.context.city || s.context.locations.length > 0,
+      urlMode: (s.context.mode ?? "rent") as SearchMode,
+      urlHadExplicitMode: sp.has(URL_PARAMS.type),
+      urlPropertyTypes: s.context.propertyTypes,
+      urlHadExplicitPropertyTypes: sp.has(URL_PARAMS.propertyType),
+    };
+  }, []);
 
-  const seedMemory = useCallback(
-    (city: string, areas: LocationToken[]) => {
+  // Atomic memory restore with field-aware precedence (explicit URL mode/pt win).
+  const restoreFromMemory = useCallback(
+    (setup: { city: string; areas: LocationToken[]; mode: SearchMode; propertyTypes: string[] }) => {
+      const snap = snapshotUrl();
       provenanceRef.current = "memory";
       committedRef.current = true;
-      setContext({ city, locations: areas });
+      applyRef.current({
+        mode: snap.urlHadExplicitMode ? snap.urlMode : setup.mode,
+        city: setup.city,
+        locations: setup.areas,
+        propertyTypes: snap.urlHadExplicitPropertyTypes ? snap.urlPropertyTypes : setup.propertyTypes,
+      });
       setStatus("resolved");
     },
-    [setContext],
+    [snapshotUrl],
   );
 
-  // ── Main bootstrap (runs once per identity, after auth resolves) ─────────────
+  // ── Main bootstrap — stable deps; re-fires only on identity/epoch change ──────
   useEffect(() => {
     if (bootstrapRanRef.current) return;
 
+    const snap = snapshotUrl();
+
     // Phase A — URL already carries a location: honor it, never seed/override.
-    if (hadUrlLocationAtMount) {
+    if (snap.hadUrlLocation) {
       bootstrapRanRef.current = true;
       committedRef.current = true;
       provenanceRef.current = "url";
       setStatus("resolved");
-      setHistory(loadCachedHistory(userId));
-      if (userId) reconcileAccountHistory(userId).then(setHistory).catch(() => {});
+      setHistory(loadCachedHistory(userId, snap.urlMode));
+      if (userId) reconcileAccountHistory(userId, snap.urlMode).then(setHistory).catch(() => {});
       return;
     }
 
@@ -110,44 +148,47 @@ export function useSearchBootstrap(): SearchBootstrap {
     if (authLoading) return;
     bootstrapRanRef.current = true;
 
-    let cancelled = false;
+    const myRun = ++runIdRef.current;
+    const ac = new AbortController();
+
     (async () => {
-      const cached = loadCachedHistory(userId);
-      if (!cancelled) setHistory(cached);
+      const cached = loadCachedHistory(userId, snap.urlMode);
+      if (runIdRef.current === myRun) setHistory(cached);
       let latest = latestSelection(cached);
 
       if (!latest && userId) {
-        // No cache for a logged-in user → wait (bounded) for the server before IP.
-        const merged = await withTimeout(
-          reconcileAccountHistory(userId),
-          SERVER_READ_TIMEOUT_MS,
-          null as SearchLocationHistoryV1 | null,
-        );
-        if (!cancelled && merged) {
+        // No local cache → read the server before falling through to IP (bounded).
+        const timeout = new Promise<null>((r) => setTimeout(() => r(null), SERVER_READ_TIMEOUT_MS));
+        const merged = await Promise.race([
+          reconcileAccountHistory(userId, snap.urlMode, ac.signal),
+          timeout,
+        ]).catch(() => null);
+        if (runIdRef.current === myRun && merged) {
           setHistory(merged);
           latest = latestSelection(merged);
         }
       } else if (userId) {
-        // Had a cache → reconcile in the background; may re-seed if the server is
+        // Had a cache → reconcile in the background; may re-seed only if the server is
         // newer AND the user hasn't interacted AND memory is still the active source.
-        reconcileAccountHistory(userId)
+        reconcileAccountHistory(userId, snap.urlMode, ac.signal)
           .then((merged) => {
-            if (cancelled) return;
+            if (runIdRef.current !== myRun) return;
             setHistory(merged);
             const newLatest = latestSelection(merged);
             if (
               newLatest &&
               !userInteractedRef.current &&
               provenanceRef.current === "memory" &&
-              newLatest.city !== currentCityRef.current
+              newLatest.city !== stateRef.current.context.city
             ) {
-              seedMemory(newLatest.city, newLatest.areas);
+              restoreFromMemory(newLatest);
             }
           })
           .catch(() => {});
       }
 
-      if (cancelled || committedRef.current) return;
+      // Stale run (a newer bootstrap started) or user already acted → stop.
+      if (runIdRef.current !== myRun) return;
       if (userInteractedRef.current) {
         committedRef.current = true;
         setStatus("resolved");
@@ -155,16 +196,35 @@ export function useSearchBootstrap(): SearchBootstrap {
       }
 
       if (latest) {
-        seedMemory(latest.city, latest.areas);
+        restoreFromMemory(latest);
       } else {
         setNeedIp(true); // no confirmed memory anywhere → try IP
       }
     })();
 
     return () => {
-      cancelled = true;
+      ac.abort();
     };
-  }, [authLoading, userId, hadUrlLocationAtMount, seedMemory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, userId, bootstrapEpoch]);
+
+  // ── Re-arm for a genuinely new empty search (has-location → no-location) ──────
+  useEffect(() => {
+    const hasLocation = !!state.context.city || state.context.locations.length > 0;
+    const prev = prevHasUrlLocationRef.current;
+    prevHasUrlLocationRef.current = hasLocation;
+    if (prev && !hasLocation) {
+      // The URL lost its location. Re-run bootstrap from scratch for this identity.
+      bootstrapRanRef.current = false;
+      committedRef.current = false;
+      provenanceRef.current = null;
+      userInteractedRef.current = false;
+      setNeedIp(false);
+      setIpCity(null);
+      setStatus("checking");
+      setBootstrapEpoch((n) => n + 1); // the state bump is what re-fires the main effect
+    }
+  }, [state.context.city, state.context.locations.length]);
 
   // ── IP phase: seed the city (unconfirmed) or fall through to setup ───────────
   useEffect(() => {
@@ -175,16 +235,24 @@ export function useSearchBootstrap(): SearchBootstrap {
       return;
     }
     if (approxCity) {
+      const snap = snapshotUrl();
       provenanceRef.current = "ip_unconfirmed";
       committedRef.current = true;
-      setContext({ city: approxCity.city });
+      // City-only seed; preserve any explicit URL mode/property types.
+      applyRef.current({
+        mode: snap.urlMode,
+        city: approxCity.city,
+        locations: [],
+        propertyTypes: snap.urlPropertyTypes,
+      });
       setIpCity(approxCity.city);
       setStatus("resolved");
     } else if (geoStatus === "done") {
       committedRef.current = true;
       setStatus("needs_setup");
     }
-  }, [needIp, approxCity, geoStatus, setContext]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needIp, approxCity, geoStatus]);
 
   // Bounded IP timeout — if geo hangs, open setup rather than spin forever.
   useEffect(() => {
@@ -209,25 +277,41 @@ export function useSearchBootstrap(): SearchBootstrap {
   const markUserInteracted = useCallback(() => {
     userInteractedRef.current = true;
     provenanceRef.current = "user";
-    setIpCity(null); // dismiss IP notice the moment the user starts choosing
+    runIdRef.current++; // invalidate any in-flight bootstrap async
+    setIpCity(null);
   }, []);
 
-  const confirmLocation = useCallback(
-    (city: string, areas: LocationToken[]) => {
+  const confirmSetup = useCallback(
+    (setup: ConfirmedSearchSetup) => {
       userInteractedRef.current = true;
       provenanceRef.current = "user";
+      runIdRef.current++;
       setIpCity(null);
-      confirmSearchLocation({ userId, city, areas })
-        .then(setHistory)
-        .catch(() => {});
+      confirmSearchSetup({ userId, setup }).then(setHistory).catch(() => {});
     },
     [userId],
   );
 
-  const recentCities = recentCitiesFn(history);
-  const getCityMemory = useCallback((city: string) => cityMemory(history, city), [history]);
+  const removeRememberedCity = useCallback(
+    (city: string) => {
+      // Removal is a user interaction: block any in-flight bootstrap read from
+      // restoring the deleted history, but do NOT change the active search.
+      userInteractedRef.current = true;
+      runIdRef.current++;
+      removeRememberedCityFn({ userId, city }).then(setHistory).catch(() => {});
+    },
+    [userId],
+  );
 
-  // Show the IP notice only while the IP city is still the active, unconfirmed city.
+  const clearRememberedHistory = useCallback(() => {
+    userInteractedRef.current = true;
+    runIdRef.current++;
+    clearRememberedHistoryFn({ userId }).then(setHistory).catch(() => {});
+  }, [userId]);
+
+  const recentCities = recentCitiesFn(history);
+  const getCityMemory = useCallback((city: string): CityMemoryView => cityMemory(history, city), [history]);
+
   const ipNoticeCity =
     ipCity && state.context.city === ipCity && !userInteractedRef.current ? ipCity : null;
 
@@ -237,7 +321,9 @@ export function useSearchBootstrap(): SearchBootstrap {
     approxCity,
     recentCities,
     getCityMemory,
-    confirmLocation,
+    confirmSetup,
     markUserInteracted,
+    removeRememberedCity,
+    clearRememberedHistory,
   };
 }
