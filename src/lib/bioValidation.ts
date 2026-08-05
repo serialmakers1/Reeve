@@ -1,6 +1,12 @@
 export const BIO_MAX = 200;
 
-const CONTACT_CODES = ["CONTAINS_URL", "CONTAINS_EMAIL", "CONTAINS_PHONE"];
+const CONTACT_CODES = [
+  "CONTAINS_URL",
+  "CONTAINS_EMAIL",
+  "CONTAINS_PHONE",
+  "CONTAINS_SOCIAL_HANDLE",
+  "BLOCKED_CONTENT",
+];
 
 export function mapBioError(message: string): string | null {
   if (message.includes("BIO_TOO_LONG"))

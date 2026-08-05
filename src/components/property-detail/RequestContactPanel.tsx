@@ -28,6 +28,7 @@ import {
   isRentModeActive,
   isBuyModeActive,
 } from "@/lib/preferenceHelpers";
+import { mapContactMessageError } from "@/lib/contactMessageValidation";
 
 // Phase 3 Prompt 3 — Request Contact panel.
 // Owns all 7 button-state logic (D-P3-006), consent capture (D-P3-010),
@@ -89,6 +90,7 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
 
   // Panel form state
   const [message, setMessage] = useState("");
+  const [messageError, setMessageError] = useState<string | null>(null);
   const [consentTerms, setConsentTerms] = useState(false);
   const [consentShare, setConsentShare] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -273,6 +275,14 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
 
       // Error path
       const code = errBody?.error;
+
+      // Inline message validation errors — preserve message text, no toast
+      const msgErr = mapContactMessageError(code);
+      if (msgErr) {
+        setMessageError(msgErr);
+        return;
+      }
+
       if (status === 409 || code === "request_already_active") {
         toast.error("You already have an active request for this property.");
         await refetchTenantData();
@@ -540,13 +550,19 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
           <div className="space-y-1">
             <Textarea
               value={message}
-              onChange={(e) => setMessage(e.target.value.slice(0, 200))}
+              onChange={(e) => {
+                const chars = Array.from(e.target.value);
+                setMessage(chars.slice(0, 200).join(""));
+                setMessageError(null);
+              }}
               placeholder="Introduce yourself (optional) — e.g. your move-in date, why you like this place"
-              maxLength={200}
               rows={3}
               disabled={prefsIncomplete}
             />
-            <p className="text-xs text-muted-foreground text-right">{message.length}/200</p>
+            <p className="text-xs text-muted-foreground text-right">{Array.from(message).length}/200</p>
+            {messageError && (
+              <p className="text-xs text-destructive mt-1" role="alert">{messageError}</p>
+            )}
           </div>
 
           <div className="space-y-2">

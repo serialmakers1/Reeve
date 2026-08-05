@@ -329,7 +329,7 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
               onClick={() => setVisibleCount(Number.POSITIVE_INFINITY)}
               className="text-sm font-medium text-primary"
             >
-              View all {topLevelCount} questions
+              View all {topLevelCount} {topLevelCount === 1 ? "comment" : "comments"}
             </button>
           )}
         </>

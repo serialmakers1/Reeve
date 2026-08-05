@@ -4,10 +4,12 @@
  * brokerage/pricePerSqft/possession). Asking price is the only always-shown
  * row for sale listings.
  */
+import { parseISO, isValid, format } from "date-fns";
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
 import { isFieldSet } from "@/utils/property/isFieldSet";
+import { formatSalePrice } from "@/utils/property/formatSalePrice";
 
 type Dot = "green" | "amber" | "red" | "none";
 
@@ -27,6 +29,8 @@ interface Row {
   dot: Dot;
   /** Optional bigger amount style for the top "Asking price" row. */
   emphasise?: boolean;
+  /** Optional second line rendered below value in smaller muted text. */
+  valueLine2?: string;
 }
 
 const DOT_CLASS: Record<Dot, string> = {
@@ -36,17 +40,25 @@ const DOT_CLASS: Record<Dot, string> = {
   none: "bg-transparent",
 };
 
+function formatPossessionDate(iso: string): string | null {
+  const d = parseISO(iso);
+  return isValid(d) ? format(d, "d MMM yyyy") : null;
+}
+
 function buildRows(p: Property): Row[] {
   const rows: Row[] = [];
 
   // Asking price — always shown for sale, no dot.
   if (isFieldSet("sale_price", p.sale_price)) {
-    rows.push({
-      label: "Asking price",
-      value: `₹${p.sale_price!.toLocaleString("en-IN")}`,
-      dot: "none",
-      emphasise: true,
-    });
+    const formatted = formatSalePrice(p.sale_price);
+    if (formatted) {
+      rows.push({
+        label: "Asking price",
+        value: formatted,
+        dot: "none",
+        emphasise: true,
+      });
+    }
   }
 
   // Price per sqft — no dot.
@@ -58,12 +70,12 @@ function buildRows(p: Property): Row[] {
     });
   }
 
-  // Negotiable — show only when true.
-  if (p.price_negotiable === true) {
+  // Negotiation — show when non-null: true → "Open to offers" (green), false → "Firm price" (none).
+  if (p.price_negotiable !== null && p.price_negotiable !== undefined) {
     rows.push({
-      label: "Negotiable",
-      value: "Open to negotiation",
-      dot: "green",
+      label: "Negotiation",
+      value: p.price_negotiable ? "Open to offers" : "Firm price",
+      dot: p.price_negotiable ? "green" : "none",
     });
   }
 
@@ -89,19 +101,20 @@ function buildRows(p: Property): Row[] {
     });
   }
 
-  // Possession — ready_to_move green; else amber. Include date when non-ready.
+  // Possession — ready_to_move green; else amber. Show date on second line when non-ready.
   if (isFieldSet("possession_status", p.possession_status)) {
     const status = p.possession_status!;
     const label = formatEnumLabel("possession_status", status);
-    const value =
-      status !== "ready_to_move" && p.possession_date
-        ? `${label} · ${p.possession_date}`
-        : label;
-    rows.push({
+    const row: Row = {
       label: "Possession",
-      value,
+      value: label,
       dot: status === "ready_to_move" ? "green" : "amber",
-    });
+    };
+    if (status !== "ready_to_move" && p.possession_date) {
+      const formatted = formatPossessionDate(p.possession_date);
+      if (formatted) row.valueLine2 = `Possession by ${formatted}`;
+    }
+    rows.push(row);
   }
 
   return rows;
@@ -122,16 +135,34 @@ export default function PriceAndTerms({ property }: { property: Property }) {
       </div>
       <ul className="space-y-2">
         {rows.map((r) => (
-          <li key={r.label} className="flex items-center gap-3 text-sm">
-            <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", DOT_CLASS[r.dot])} />
-            <span className="min-w-0 flex-1 text-muted-foreground">{r.label}</span>
+          <li key={r.label} className="min-w-0 flex flex-col gap-0.5 sm:flex-row sm:items-start sm:gap-3 text-sm">
+            {/* Mobile: inline dot + label */}
+            <span className="sm:hidden inline-flex items-center gap-1.5">
+              <span className={cn("h-2 w-2 shrink-0 rounded-full", DOT_CLASS[r.dot])} />
+              <span className="text-muted-foreground">{r.label}</span>
+            </span>
+            {/* Desktop: dot (sits beside label) */}
+            <span className={cn(
+              "hidden sm:inline-block mt-1 h-2.5 w-2.5 shrink-0 rounded-full",
+              DOT_CLASS[r.dot]
+            )} />
+            {/* Desktop: label */}
+            <span className="hidden sm:block min-w-0 flex-1 text-muted-foreground">{r.label}</span>
+            {/* Value (both breakpoints) */}
             <span
               className={cn(
-                "text-right text-foreground",
+                "min-w-0 sm:max-w-[60%] text-foreground [overflow-wrap:anywhere]",
                 r.emphasise ? "text-xl font-bold" : "font-medium",
+                "sm:text-right"
               )}
             >
               {r.value}
+              {r.valueLine2 && (
+                <>
+                  <br />
+                  <span className="text-xs font-normal text-muted-foreground">{r.valueLine2}</span>
+                </>
+              )}
             </span>
           </li>
         ))}

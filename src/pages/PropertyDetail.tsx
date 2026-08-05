@@ -1255,7 +1255,7 @@ const PropertyDetail: React.FC = () => {
                         onClick={scrollToComments}
                         className="inline-flex items-center gap-1 hover:text-foreground"
                       >
-                        <MessageCircle className="h-3.5 w-3.5" /> {propertyStats!.comment_count} questions
+                        <MessageCircle className="h-3.5 w-3.5" /> {propertyStats!.comment_count === 1 ? "1 comment" : `${propertyStats!.comment_count} comments`}
                       </button>
                     )}
                   </p>

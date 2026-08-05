@@ -133,8 +133,9 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Missing property_id" }, 400);
     }
     const tenantMessage = typeof body?.tenant_message === "string" ? body.tenant_message : null;
-    if (tenantMessage !== null && tenantMessage.length > 200) {
-      return json({ error: "tenant_message exceeds 200 characters" }, 400);
+    // Unicode-safe length check: Array.from counts code points, matching PostgreSQL char_length()
+    if (tenantMessage !== null && Array.from(tenantMessage).length > 200) {
+      return json({ error: "message_too_long" }, 400);
     }
     const consentCheckedAt = body?.consent_checked_at;
     if (!consentCheckedAt || typeof consentCheckedAt !== "string") {
@@ -142,6 +143,36 @@ Deno.serve(async (req: Request) => {
     }
 
     const srHeaders = { "apikey": serviceRoleKey, "Authorization": `Bearer ${serviceRoleKey}` };
+
+    // ── 2b. Content validation via validate_short_text (service_role RPC) ──────
+    if (tenantMessage) {
+      const valRes = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/validate_short_text`,
+        {
+          method: "POST",
+          headers: { ...srHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_text: tenantMessage, p_max_length: 200 }),
+        },
+      );
+      if (!valRes.ok) {
+        let pgMsg = "";
+        try {
+          const errJson = await valRes.json();
+          pgMsg = errJson?.message ?? errJson?.error ?? "";
+        } catch { /* ignore parse failure */ }
+
+        if (pgMsg.includes("TEXT_TOO_LONG"))           return json({ error: "message_too_long" }, 400);
+        if (pgMsg.includes("CONTAINS_PHONE"))          return json({ error: "message_contains_phone" }, 422);
+        if (pgMsg.includes("CONTAINS_EMAIL"))          return json({ error: "message_contains_email" }, 422);
+        if (pgMsg.includes("CONTAINS_URL"))            return json({ error: "message_contains_url" }, 422);
+        if (pgMsg.includes("CONTAINS_SOCIAL_HANDLE"))  return json({ error: "message_contains_contact_handle" }, 422);
+        if (pgMsg.includes("BLOCKED_CONTENT"))         return json({ error: "message_contains_contact_channel" }, 422);
+        if (pgMsg.includes("BLOCKED_WORD"))            return json({ error: "message_blocked_content" }, 422);
+
+        console.error("VALIDATE_SHORT_TEXT_UNKNOWN_ERROR", { status: valRes.status });
+        return json({ error: "Internal server error" }, 500);
+      }
+    }
 
     // ── 3. Property lookup — owner_id + status + listing_type ───────────────
     const propRes = await fetch(

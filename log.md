@@ -1,3 +1,5 @@
+## [2026-08-05] fix | Property Detail sale UI, lister comment exemption and contact-message validation [12:00 IST]
+
 ## [2026-08-01] ui | Redesigned Login page right-side content around Reeve transparency principles [14:00 IST]
 
 ## [2026-08-01] fix | Moved AdminLayout Reeve links from sidebar and mobile Sheet to account dropdown [13:15 IST]
