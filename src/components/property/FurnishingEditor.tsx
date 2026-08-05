@@ -8,6 +8,7 @@
  *   - Canonical items grid from FURNISHING_ITEM_OPTIONS (checkbox + count + optional size/rooms)
  *   - Custom items list (owner-added via "+ Add item"), each editable + deletable
  */
+import { useEffect, useRef, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,55 @@ import { cn } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
 import { FURNISHING_ITEM_OPTIONS } from "@/config/property-form";
 import type { FurnishingDetailItem } from "@/types/property";
+
+interface FurnitureCountInputProps {
+  value: number;
+  onChange: (n: number) => void;
+  className?: string;
+}
+
+function FurnitureCountInput({ value, onChange, className }: FurnitureCountInputProps) {
+  const [display, setDisplay] = useState(() => String(value));
+  const isFocusedRef = useRef(false);
+
+  // Sync from parent only when not actively editing
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setDisplay(String(value));
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (raw !== "" && !/^\d+$/.test(raw)) return; // reject non-digits silently
+    setDisplay(raw);
+    if (raw !== "") {
+      const n = Math.min(99, Math.max(1, parseInt(raw, 10)));
+      onChange(n);
+    }
+  };
+
+  const handleBlur = () => {
+    isFocusedRef.current = false;
+    const n = parseInt(display, 10);
+    const final = !Number.isFinite(n) || n < 1 ? 1 : Math.min(99, n);
+    setDisplay(String(final));
+    onChange(final);
+  };
+
+  return (
+    <Input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={display}
+      onFocus={() => { isFocusedRef.current = true; }}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className={className}
+    />
+  );
+}
 
 export interface FurnishingEditorProps {
   value: FurnishingDetailItem[];
@@ -69,12 +119,9 @@ export function FurnishingEditor({ value, onChange, className }: FurnishingEdito
                   <Checkbox checked={checked} onCheckedChange={() => toggleStandard(opt)} />
                   <span className="text-sm flex-1">{opt.label}</span>
                   {checked && !opt.yesNoOnly && (
-                    <Input
-                      type="number"
-                      min={1}
-                      max={20}
+                    <FurnitureCountInput
                       value={detail?.count ?? 1}
-                      onChange={(e) => updateStandard(opt.value, { count: Number(e.target.value) || 1 })}
+                      onChange={(n) => updateStandard(opt.value, { count: n })}
                       className="w-14 h-8 text-sm"
                     />
                   )}
@@ -119,12 +166,9 @@ export function FurnishingEditor({ value, onChange, className }: FurnishingEdito
               onChange={(e) => updateCustom(idx, { item: e.target.value })}
               className="min-h-[40px] flex-1"
             />
-            <Input
-              type="number"
-              min={1}
+            <FurnitureCountInput
               value={it.count ?? 1}
-              placeholder="Qty"
-              onChange={(e) => updateCustom(idx, { count: Number(e.target.value) || 1 })}
+              onChange={(n) => updateCustom(idx, { count: n })}
               className="w-20 h-10"
             />
             <button type="button" onClick={() => deleteCustom(idx)}>
