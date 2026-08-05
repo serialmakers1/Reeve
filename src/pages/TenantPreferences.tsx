@@ -752,7 +752,7 @@ function TenantPreferencesInner() {
 export default function TenantPreferences() {
   return (
     <VerificationGate returnTo="/tenant-dashboard/preferences">
-      <Layout>
+      <Layout hideBottomNav>
         <TenantPreferencesInner />
       </Layout>
     </VerificationGate>
