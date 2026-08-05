@@ -56,6 +56,7 @@ const ApplicationDetail      = React.lazy(() => import("./pages/ApplicationDetai
 const VisitsList             = React.lazy(() => import("./pages/VisitsList"));
 const TenantPreferences      = React.lazy(() => import("./pages/TenantPreferences"));
 const TenantDashboard        = React.lazy(() => import("./pages/TenantDashboard"));
+const ContactRequestsPage    = React.lazy(() => import("./pages/ContactRequestsPage"));
 
 // Admin
 const OwnerPipeline          = React.lazy(() => import("./pages/admin/OwnerPipeline"));
@@ -167,6 +168,7 @@ function AppInner() {
         <Route path="/dashboard/applications/:id" element={<ApplicationDetail />} />
         <Route path="/tenant-dashboard" element={<TenantDashboard />} />
         <Route path="/tenant-dashboard/preferences" element={<TenantPreferences />} />
+        <Route path="/tenant-dashboard/contact-requests" element={<ContactRequestsPage />} />
         <Route path="/admin" element={<Navigate to="/admin/owners" replace />} />
         <Route path="/admin/tenants" element={<Navigate to="/admin/applications" replace />} />
         <Route path="/admin/owners" element={<OwnerPipeline />} />

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Circle, Heart, Settings2 } from "lucide-react";
 
 import Layout from "@/components/Layout";
-import ContactRequestsCard from "@/components/tenant-dashboard/ContactRequestsCard";
+import ContactRequestsSummaryCard from "@/components/tenant-dashboard/ContactRequestsSummaryCard";
 import PendingRatingsSection from "@/components/ratings/PendingRatingsSection";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -96,7 +96,7 @@ export default function TenantDashboard() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           {/* ── Card 1 — Contact Requests (Phase 3 Prompt 5 — live) ── */}
-          <ContactRequestsCard />
+          <ContactRequestsSummaryCard />
 
           {/* ── Card 2 — Saved Properties ── */}
           <section className="rounded-xl border bg-card p-5 space-y-3">
