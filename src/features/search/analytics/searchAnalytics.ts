@@ -120,7 +120,10 @@ export function buildSearchContext(
     listing_mode: state.context.mode ?? null,
     city_id: null, // no canonical city ID in current search context
     selected_location_count: state.context.locations.length,
-    property_type: state.context.propertyType ?? null,
+    // Normalized multi-select array + legacy scalar (single value when exactly one, else null).
+    property_types: state.context.propertyTypes ?? [],
+    property_type:
+      (state.context.propertyTypes ?? []).length === 1 ? state.context.propertyTypes[0] : null,
     filter_groups: getActiveFilterGroups(state.filters, mode),
     result_count_bucket: bucketResultCount(extra.resultsCount),
     view_mode: effectiveViewMode,

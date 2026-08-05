@@ -166,8 +166,19 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     posthog.reset();
+    // Clear this user's search-location account cache before the session is torn down
+    // (at SIGNED_OUT `user` is already null, so the id must be captured here).
+    // Key format mirrors src/features/search/state/searchLocationStorage.ts.
+    const priorUserId = state.user?.id;
+    if (priorUserId) {
+      try {
+        window.localStorage.removeItem(`reeve_search_location_account_v1:${priorUserId}`);
+      } catch {
+        /* storage unavailable — ignore */
+      }
+    }
     await supabase.auth.signOut();
-  }, []);
+  }, [state.user?.id]);
 
   /** Force re-fetch user data (e.g. after name update) */
   const refreshUser = useCallback(async () => {

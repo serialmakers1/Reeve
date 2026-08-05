@@ -33,7 +33,7 @@ export function useMapMarkers(enabled: boolean) {
         neLat: l.viewport!.ne.lat,
         neLng: l.viewport!.ne.lng,
       })),
-    propertyType: state.context.propertyType ?? null,
+    propertyTypes: state.context.propertyTypes ?? [],
     bhk: f.bhk ?? [],
     furnishing: f.furnishing ?? [],
     minPrice: f.minPrice ?? null,

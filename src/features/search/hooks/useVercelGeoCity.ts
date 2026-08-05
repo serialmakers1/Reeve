@@ -9,15 +9,23 @@ import { useResolveCity, type CanonicalCity } from "@/features/search/hooks/useR
  * Does NOT apply anything to state; the caller decides whether/how to apply it,
  * guarding against overwriting a user selection.
  */
-export function useVercelGeoCity(enabled: boolean): { approxCity: CanonicalCity | null } {
+export type VercelGeoStatus = "idle" | "loading" | "done";
+
+export function useVercelGeoCity(
+  enabled: boolean,
+): { approxCity: CanonicalCity | null; status: VercelGeoStatus } {
   const { resolveCityByName, isReady } = useResolveCity();
   const [approxCity, setApproxCity] = useState<CanonicalCity | null>(null);
+  // "done" means the attempt finished (success or failure) — the bootstrap uses this
+  // to fall through to the setup panel when no usable city was resolved.
+  const [status, setStatus] = useState<VercelGeoStatus>("idle");
   const ranRef = useRef(false);
 
   useEffect(() => {
     if (!enabled || !isReady || ranRef.current) return;
     ranRef.current = true;
     let cancelled = false;
+    setStatus("loading");
 
     (async () => {
       try {
@@ -30,6 +38,8 @@ export function useVercelGeoCity(enabled: boolean): { approxCity: CanonicalCity 
         if (!cancelled && canonical) setApproxCity(canonical);
       } catch {
         /* nationwide fallback */
+      } finally {
+        if (!cancelled) setStatus("done");
       }
     })();
 
@@ -38,5 +48,5 @@ export function useVercelGeoCity(enabled: boolean): { approxCity: CanonicalCity 
     };
   }, [enabled, isReady, resolveCityByName]);
 
-  return { approxCity };
+  return { approxCity, status };
 }

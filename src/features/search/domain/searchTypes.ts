@@ -68,7 +68,11 @@ export interface SearchContext {
    */
   city: string | null;
   locations: LocationToken[]; // max 5
-  propertyType: string | null;
+  /**
+   * Selected property types (multi-select). Empty array = all property types.
+   * Normalized: valid-only, deduped, ordered by canonical PROPERTY_TYPE_VALUES order.
+   */
+  propertyTypes: string[];
 }
 
 // ─── Filters ──────────────────────────────────────────────────────────────────

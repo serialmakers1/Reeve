@@ -21,7 +21,7 @@ describe("search contracts", () => {
       mode: "rent",
       city: "bengaluru",
       locationIds: [],
-      propertyType: null,
+      propertyTypes: [],
       minPrice: null,
       maxPrice: null,
       bhk: ["2BHK"],

@@ -4,6 +4,7 @@ import { useSearchState } from "@/features/search/state/useSearchState";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { quickFilterLabel } from "@/features/search/state/filterSummary";
 import type { RentFilters, BuyFilters } from "../domain/searchTypes";
+import { PROPERTY_TYPE_OPTIONS } from "@/config/property-form";
 
 interface SearchControlRowProps {
   onOpenSetup: () => void;
@@ -24,8 +25,16 @@ function titleCase(s: string): string {
 // Mobile-only control row. Sort + count now live in the result header.
 export function SearchControlRow({ onOpenSetup, onOpenFilters }: SearchControlRowProps) {
   const { state } = useSearchState();
-  const { mode, city, locations, propertyType } = state.context;
+  const { mode, city, locations, propertyTypes } = state.context;
   const resolvedMode = mode ?? "rent";
+
+  // Compact property-type label: first type's label, "+N" for the rest.
+  const propertyTypeLabel = (() => {
+    if (propertyTypes.length === 0) return null;
+    const first = PROPERTY_TYPE_OPTIONS.find((o) => o.value === propertyTypes[0])?.label;
+    if (!first) return null;
+    return propertyTypes.length > 1 ? `${first} +${propertyTypes.length - 1}` : first;
+  })();
 
   // Line 1: mode · primary location (area or city)
   const areaLabel =
@@ -38,7 +47,7 @@ export function SearchControlRow({ onOpenSetup, onOpenFilters }: SearchControlRo
 
   // Line 2: property type · city (graceful omissions)
   const secondaryLine =
-    [propertyType ? titleCase(propertyType) : null, locations.length > 0 && city ? titleCase(city) : null]
+    [propertyTypeLabel, locations.length > 0 && city ? titleCase(city) : null]
       .filter(Boolean)
       .join(" · ") || (resolvedMode === "rent" ? "Rentals" : "For sale");
 

@@ -6,7 +6,7 @@ import type { SearchState, LocationToken } from "../domain/searchTypes";
 function stateWith(city: string | null, locations: LocationToken[] = []): SearchState {
   return {
     ...getDefaultSearchState("rent"),
-    context: { mode: "rent", city, locations, propertyType: null },
+    context: { mode: "rent", city, locations, propertyTypes: [] },
   };
 }
 

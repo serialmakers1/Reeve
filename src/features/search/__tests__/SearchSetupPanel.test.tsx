@@ -29,7 +29,7 @@ const mockSetContext = vi.fn();
 
 const noContextState = {
   state: {
-    context: { mode: null, city: null, locations: [], propertyType: null },
+    context: { mode: null, city: null, locations: [], propertyTypes: [] },
     filters: {},
     sort: "newest" as const,
     cursor: null,
@@ -52,7 +52,7 @@ const rentBengaluruState = {
   ...noContextState,
   state: {
     ...noContextState.state,
-    context: { mode: "rent" as const, city: "bengaluru", locations: [], propertyType: null },
+    context: { mode: "rent" as const, city: "bengaluru", locations: [], propertyTypes: [] },
   },
   hasValidContext: true,
   setContext: mockSetContext,
@@ -204,12 +204,12 @@ describe("SearchSetupPanel — RentBuySelector", () => {
   });
 });
 
-describe("SearchSetupPanel — geolocation", () => {
+describe("SearchSetupPanel — no browser geolocation", () => {
   beforeEach(() => {
     vi.mocked(useSearchState).mockReturnValue(noContextState as ReturnType<typeof useSearchState>);
   });
 
-  it("does NOT call geolocation on mount", () => {
+  it("does NOT call geolocation on mount and exposes no 'Use my location' control", () => {
     const getCurrentPosition = vi.fn();
     Object.defineProperty(navigator, "geolocation", {
       value: { getCurrentPosition },
@@ -217,18 +217,7 @@ describe("SearchSetupPanel — geolocation", () => {
     });
     renderPanel({ open: true });
     expect(getCurrentPosition).not.toHaveBeenCalled();
-  });
-
-  it("calls getCurrentPosition only after 'Use my location' button click", async () => {
-    const getCurrentPosition = vi.fn();
-    Object.defineProperty(navigator, "geolocation", {
-      value: { getCurrentPosition },
-      configurable: true,
-    });
-    renderPanel({ open: true });
-    const btn = screen.getByRole("button", { name: /use my location/i });
-    fireEvent.click(btn);
-    expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /use my location/i })).not.toBeInTheDocument();
   });
 });
 
