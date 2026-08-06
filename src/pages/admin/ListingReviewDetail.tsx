@@ -157,6 +157,7 @@ export default function ListingReviewDetail() {
   const [priorRevisions, setPriorRevisions] = useState<EditRequestRow[]>([]);
   const [expandedRev, setExpandedRev] = useState<string | null>(null);
   const [images, setImages] = useState<Array<{ id: string; url: string; is_primary: boolean; section: string | null }>>([]);
+  const [imagesError, setImagesError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [showReject, setShowReject] = useState(false);
@@ -200,12 +201,21 @@ export default function ListingReviewDetail() {
     setProperty(prop as PropertyRow);
     setOwnerName((prop as PropertyRow).owner?.full_name ?? "Owner");
 
-    // Photos
+    // Photos — reset stale state before the query so a route change never shows
+    // the previous property's photos, and a prior error never persists.
+    setImagesError(false);
+    setImages([]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: imgs } = await (supabase as any).from("property_images")
+    const { data: imgs, error: imgsError } = await (supabase as any).from("property_images")
       .select("id, url, is_primary, section").eq("property_id", propertyId)
       .order("is_primary", { ascending: false });
-    setImages((imgs ?? []) as Array<{ id: string; url: string; is_primary: boolean; section: string | null }>);
+    if (imgsError) {
+      // A failed read must NOT look like a genuine empty gallery.
+      setImagesError(true);
+      toast({ title: "Couldn't load photos", description: imgsError.message, variant: "destructive" });
+    } else {
+      setImages((imgs ?? []) as Array<{ id: string; url: string; is_primary: boolean; section: string | null }>);
+    }
 
     // Prior revisions for edit type
     if (type === "edit") {
@@ -340,15 +350,16 @@ export default function ListingReviewDetail() {
   const photoAdd = editRequest?.payload.photo_changes?.add ?? [];
   const photoDelete = editRequest?.payload.photo_changes?.delete ?? [];
 
-  // Build grouped image map for new-listing gallery
+  // Build grouped image map — shown for BOTH new-listing and edit reviews. For
+  // edit reviews this is the current live (approved) gallery; the staged add/
+  // remove diff sections below render proposed changes separately and are never
+  // merged into this gallery.
   const imageGroups: Map<string, typeof images> = new Map();
-  if (isNewType) {
-    images.forEach((img) => {
-      const key = img.section ?? "Other";
-      if (!imageGroups.has(key)) imageGroups.set(key, []);
-      imageGroups.get(key)!.push(img);
-    });
-  }
+  images.forEach((img) => {
+    const key = img.section ?? "Other";
+    if (!imageGroups.has(key)) imageGroups.set(key, []);
+    imageGroups.get(key)!.push(img);
+  });
 
   return (
     <AdminLayout>
@@ -682,8 +693,19 @@ export default function ListingReviewDetail() {
           </section>
         )}
 
-        {/* Photos gallery — new-listing reviews only, grouped by section with clickable thumbnails */}
-        {isNewType && images.length > 0 && (
+        {/* Photos read failure — distinct from a genuine empty gallery. */}
+        {imagesError && (
+          <section className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+            <h2 className="text-sm font-semibold text-destructive">Couldn't load photos</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              The photo read failed — this is not the same as the listing having no photos. Refresh to retry.
+            </p>
+          </section>
+        )}
+
+        {/* Photos gallery — current live/approved photos, grouped by section with
+            clickable thumbnails. Shown for both new-listing and edit reviews. */}
+        {!imagesError && images.length > 0 && (
           <section className="rounded-lg border bg-card p-4 space-y-4">
             <h2 className="text-sm font-semibold">Photos ({images.length})</h2>
             {Array.from(imageGroups.entries()).map(([section, imgs]) => (

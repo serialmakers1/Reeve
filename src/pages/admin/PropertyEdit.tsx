@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { SpecField } from "@/components/property/SpecField";
@@ -248,6 +248,7 @@ export default function PropertyEdit() {
   // Photos
   const [images, setImages] = useState<PropertyImage[]>([]);
   const [imagesLoading, setImagesLoading] = useState(false);
+  const [imagesError, setImagesError] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
   const [showSectionInput, setShowSectionInput] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
@@ -406,20 +407,35 @@ export default function PropertyEdit() {
     fetchProperty();
   }, [id, authLoading, navigate, toast]);
 
-  useEffect(() => {
+  // Single reusable image loader — called on mount and after every upload/delete
+  // so the UI always reflects fresh server state (incl. server-side cover
+  // promotion after a delete). Resets error state per call; on failure clears
+  // stale server rows (keeps any transient "__placeholder__" section rows) so a
+  // failed read never masquerades as a real empty gallery.
+  const loadImages = useCallback(async () => {
     if (!id) return;
     setImagesLoading(true);
-    supabase
+    setImagesError(false);
+    const { data, error } = await supabase
       .from("property_images")
       .select("id, url, caption, is_primary, is_floor_plan, sort_order, section")
       .eq("property_id", id)
       .order("section", { ascending: true, nullsFirst: true })
-      .order("sort_order", { ascending: true })
-      .then(({ data, error }) => {
-        if (!error && data) setImages(data as unknown as PropertyImage[]);
-        setImagesLoading(false);
-      });
-  }, [id]);
+      .order("sort_order", { ascending: true });
+    if (error) {
+      setImagesError(true);
+      setImages((prev) => prev.filter((i) => i.id.startsWith("__placeholder__")));
+      toast({ title: "Couldn't load photos", description: error.message, variant: "destructive" });
+    } else {
+      setImages((prev) => [
+        ...prev.filter((i) => i.id.startsWith("__placeholder__")),
+        ...((data ?? []) as unknown as PropertyImage[]),
+      ]);
+    }
+    setImagesLoading(false);
+  }, [id, toast]);
+
+  useEffect(() => { void loadImages(); }, [loadImages]);
 
   const toggleItem = (list: string[], setList: (v: string[]) => void, value: string) => {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -708,9 +724,11 @@ export default function PropertyEdit() {
           }
         } else {
           setUploadErrors(prev => ({ ...prev, [fileKey]: json.error || "Upload failed" }));
+          toast({ title: "Photo upload failed", description: json.error || "Upload failed", variant: "destructive" });
         }
       } catch (e) {
         setUploadErrors(prev => ({ ...prev, [fileKey]: "Network error" }));
+        toast({ title: "Photo upload failed", description: "Network error", variant: "destructive" });
       } finally {
         setUploadingFiles(prev => { const n = { ...prev }; delete n[fileKey]; return n; });
       }
@@ -735,10 +753,16 @@ export default function PropertyEdit() {
       );
       const json = await res.json();
       if (json.success) {
+        // Optimistic removal, then refetch so any server-side cover promotion
+        // (new is_primary on a remaining image) is reflected in DB + UI.
         setImages(prev => prev.filter(img => img.id !== imageId));
+        await loadImages();
+      } else {
+        toast({ title: "Failed to delete photo", description: json.error || "Delete failed", variant: "destructive" });
       }
     } catch (e) {
       console.error("Delete failed", e);
+      toast({ title: "Failed to delete photo", description: "Network error", variant: "destructive" });
     }
   };
 
@@ -866,6 +890,14 @@ export default function PropertyEdit() {
           )}
           {imagesLoading ? (
             <p className="text-sm text-muted-foreground">Loading photos...</p>
+          ) : imagesError ? (
+            <div className="border-2 border-dashed border-destructive/40 bg-destructive/5 rounded-lg p-8 text-center">
+              <p className="text-destructive text-sm font-medium">Couldn&rsquo;t load photos.</p>
+              <p className="text-muted-foreground text-xs mt-1">The read failed — this isn&rsquo;t the same as having no photos.</p>
+              <button type="button" onClick={() => void loadImages()} className="text-sm text-blue-600 hover:text-blue-700 font-medium mt-2">
+                Retry
+              </button>
+            </div>
           ) : groupedImages.size === 0 ? (
             <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
               <p className="text-muted-foreground text-sm">No photos yet. Click &ldquo;+ Add Section&rdquo; to get started.</p>

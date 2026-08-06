@@ -240,8 +240,30 @@ Deno.serve(async (req: Request) => {
       { method: "DELETE", headers: srHeaders },
     );
 
-    // K) Return success
-    return new Response(JSON.stringify({ success: true }), {
+    // J.5) Cover-photo invariant: if the deleted image was the primary and other
+    // images remain, promote one (lowest sort_order, then oldest) to primary.
+    // If none remain, the property is left with no primary. Enforced here (server
+    // side) so the invariant does not depend on any single React page.
+    let newPrimaryId: string | null = null;
+    if (imageRow.is_primary) {
+      const remainRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/property_images?property_id=eq.${propertyId}&select=id&order=sort_order.asc,created_at.asc&limit=1`,
+        { headers: srHeaders },
+      );
+      const remainRows = await remainRes.json();
+      const candidateId: string | null =
+        Array.isArray(remainRows) && remainRows[0]?.id ? remainRows[0].id : null;
+      if (candidateId) {
+        await fetch(
+          `${SUPABASE_URL}/rest/v1/property_images?id=eq.${candidateId}`,
+          { method: "PATCH", headers: srHeaders, body: JSON.stringify({ is_primary: true }) },
+        );
+        newPrimaryId = candidateId;
+      }
+    }
+
+    // K) Return success (new_primary_id lets the UI reconcile the promotion)
+    return new Response(JSON.stringify({ success: true, new_primary_id: newPrimaryId }), {
       status: 200,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
