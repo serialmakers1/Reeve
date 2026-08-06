@@ -12,10 +12,27 @@
 
 import { useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
-import { CheckCircle2, Circle, RefreshCcw, Archive } from "lucide-react";
+import { CheckCircle2, Circle, RefreshCcw, Archive, IndianRupee } from "lucide-react";
 import type { ActivityLogPayload } from "@/types/activity-log";
 import { getStatusDisplay } from "@/lib/propertyStatus";
+import { formatPricePair } from "@/utils/property/priceHistoryFormat";
 import { cn } from "@/lib/utils";
+
+/**
+ * Safely render a `price_changed` summary. Returns null on any malformed or
+ * legacy payload so callers fall back to a generic line instead of crashing.
+ */
+function priceChangeSummary(payload: Record<string, unknown>): string | null {
+  const listingType = payload.listing_type;
+  const from = payload.from_price;
+  const to = payload.to_price;
+  if (listingType !== "rent" && listingType !== "sale") return null;
+  if (typeof from !== "number" || typeof to !== "number") return null;
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
+  if (from <= 0 || to <= 0) return null;
+  const pair = formatPricePair(from, to, listingType);
+  return `${pair.from} → ${pair.to}`;
+}
 
 export interface PublicTimelineRow {
   id: string;
@@ -46,6 +63,10 @@ function summaryFor(row: PublicTimelineRow): string {
   // P6-F1: public-voice copy for edit_approved wins over the payload summary
   // (which uses owner-facing wording "Your edit was approved").
   if (row.action === "edit_approved") return "Property details updated";
+  // Public price-change history: "₹48k → ₹45k". Falls back safely if malformed.
+  if (row.action === "price_changed") {
+    return priceChangeSummary(row.payload as Record<string, unknown>) ?? "Price updated";
+  }
   if (p.summary) return p.summary;
   switch (row.action) {
     case "listing_approved": return "Listed on Reeve";
@@ -62,6 +83,7 @@ function iconFor(action: string) {
     case "listed":
     case "relisted":     return <CheckCircle2 className="h-4 w-4 text-green-600" />;
     case "unlisted":     return <Archive className="h-4 w-4 text-gray-400" />;
+    case "price_changed": return <IndianRupee className="h-4 w-4 text-primary" />;
     case "edit_approved": return <RefreshCcw className="h-4 w-4 text-blue-600" />;
     default:              return <Circle className="h-4 w-4 text-muted-foreground" />;
   }
