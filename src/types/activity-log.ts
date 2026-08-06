@@ -109,6 +109,14 @@ export type ActivityLogPayload =
       action: "sale_listing_confirmed";
       summary: string;
     }
+  // ── Public price-change history ──────────────────────────────────────────
+  | {
+      action: "price_changed";
+      listing_type: "rent" | "sale";
+      from_price: number;
+      to_price: number;
+      summary?: string;
+    }
   | {
       action: "auto_unlisted";
       summary: string;

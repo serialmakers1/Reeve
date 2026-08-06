@@ -2643,6 +2643,8 @@ export type Database = {
           khata_type: string | null
           landmark: string | null
           last_leased_at: string | null
+          last_public_listed_rent: number | null
+          last_public_sale_price: number | null
           latitude: number | null
           legal_owner_name: string | null
           listed_at: string | null
@@ -2780,6 +2782,8 @@ export type Database = {
           khata_type?: string | null
           landmark?: string | null
           last_leased_at?: string | null
+          last_public_listed_rent?: number | null
+          last_public_sale_price?: number | null
           latitude?: number | null
           legal_owner_name?: string | null
           listed_at?: string | null
@@ -2917,6 +2921,8 @@ export type Database = {
           khata_type?: string | null
           landmark?: string | null
           last_leased_at?: string | null
+          last_public_listed_rent?: number | null
+          last_public_sale_price?: number | null
           latitude?: number | null
           legal_owner_name?: string | null
           listed_at?: string | null
