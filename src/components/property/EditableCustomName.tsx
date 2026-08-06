@@ -8,7 +8,7 @@
  * sibling deletion that shifts this row's value in never leaks a stale draft/error
  * (index-as-key is therefore safe).
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,13 @@ export interface EditableCustomNameProps {
   /** Optional trailing control (e.g. furniture count input). */
   trailing?: ReactNode;
   placeholder?: string;
+  /**
+   * Reports whether this row currently holds a genuine invalid EDIT (draft changed
+   * away from its committed baseline and not committable). Keyed by a stable UI-only
+   * token so callers can aggregate across rows without index churn. Fires `false` on
+   * unmount. Owner form uses this to block submission; admin never passes it.
+   */
+  onValidityChange?: (token: string, invalid: boolean) => void;
 }
 
 function displayForm(s: string): string {
@@ -38,11 +45,15 @@ export function EditableCustomName({
   onDelete,
   trailing,
   placeholder,
+  onValidityChange,
 }: EditableCustomNameProps) {
+  const token = useId();
   const [draft, setDraft] = useState(value);
   const startRef = useRef(value);
 
   // Resync when the underlying value changes externally (e.g. sibling deleted).
+  // Sets BOTH draft and the edit baseline so a committed/loaded value is never
+  // compared against a stale baseline.
   useEffect(() => {
     setDraft(value);
     startRef.current = value;
@@ -50,6 +61,15 @@ export function EditableCustomName({
 
   const result = validate(draft);
   const showError = result.code !== "OK" && result.code !== "BLANK";
+
+  // Genuine invalid edit = the draft moved off its committed baseline AND is not
+  // committable. Unchanged / valid / blank-unchanged rows report false.
+  const invalidEdit = draft !== startRef.current && result.code !== "OK";
+  useEffect(() => {
+    onValidityChange?.(token, invalidEdit);
+  }, [token, invalidEdit, onValidityChange]);
+  // Clear this row's signal when it unmounts (e.g. deleted).
+  useEffect(() => () => onValidityChange?.(token, false), [token, onValidityChange]);
 
   const commit = () => {
     if (result.code === "OK") {

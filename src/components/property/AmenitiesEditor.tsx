@@ -10,6 +10,7 @@
  * Emits the same flat shape on onChange. Caller wraps into the amenities JSONB
  * (`{ building, furnishing_items }`) using `buildAmenitiesJson` from types.
  */
+import { useCallback, useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,16 +31,37 @@ export interface AmenitiesEditorProps {
    * original unrestricted append-blank behaviour.
    */
   customLimit?: number;
+  /**
+   * Owner form only: reports true whenever any custom row currently holds a genuine
+   * invalid edit (used to block submission). Admin never passes it.
+   */
+  onInvalidDraftChange?: (invalid: boolean) => void;
 }
 
 const CANONICAL_VALUES: Set<string> = new Set(BUILDING_AMENITIES.map((a) => a.value as string));
 
-export function AmenitiesEditor({ value, onChange, className, customLimit }: AmenitiesEditorProps) {
+export function AmenitiesEditor({ value, onChange, className, customLimit, onInvalidDraftChange }: AmenitiesEditorProps) {
   const items = value ?? [];
   const canonical = items.filter((v) => CANONICAL_VALUES.has(v));
   const customs = items.map((v, idx) => ({ v, idx })).filter((x) => !CANONICAL_VALUES.has(x.v));
   const limited = customLimit != null;
   const customNames = customs.map((c) => c.v);
+
+  // Aggregate invalid-edit signals from custom rows, keyed by stable token so
+  // add/delete index churn never moves a blocker to the wrong row.
+  const [invalidTokens, setInvalidTokens] = useState<Set<string>>(() => new Set());
+  const handleRowValidity = useCallback((token: string, invalid: boolean) => {
+    setInvalidTokens((prev) => {
+      if (invalid === prev.has(token)) return prev;
+      const next = new Set(prev);
+      if (invalid) next.add(token);
+      else next.delete(token);
+      return next;
+    });
+  }, []);
+  useEffect(() => {
+    onInvalidDraftChange?.(invalidTokens.size > 0);
+  }, [invalidTokens, onInvalidDraftChange]);
 
   const toggleCanonical = (val: string) => {
     if (canonical.includes(val)) {
@@ -75,7 +97,7 @@ export function AmenitiesEditor({ value, onChange, className, customLimit }: Ame
         <Label className="text-sm font-medium mb-2 block">Something else? Add it</Label>
         {limited ? (
           <>
-            {customs.map(({ v, idx }) => (
+            {customs.map(({ v, idx }, pos) => (
               <EditableCustomName
                 key={idx}
                 value={v}
@@ -87,11 +109,12 @@ export function AmenitiesEditor({ value, onChange, className, customLimit }: Ame
                     canonicalOptions: BUILDING_AMENITIES,
                     limit: customLimit!,
                     noun: "amenities",
-                    selfIndex: idx,
+                    selfIndex: pos,
                   })
                 }
                 onCommit={(name) => updateCustom(idx, name)}
                 onDelete={() => deleteCustom(idx)}
+                onValidityChange={handleRowValidity}
               />
             ))}
             <CustomItemAdder

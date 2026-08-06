@@ -94,11 +94,24 @@ describe("AmenitiesEditor (D-170)", () => {
 
 // Stateful wrapper — re-renders FurnishingEditor with updated value after onChange;
 // exposes committed parent state via <output> for assertion
-function FurnishingEditorWrapper({ initial }: { initial: FurnishingDetailItem[] }) {
+function FurnishingEditorWrapper({
+  initial,
+  customLimit,
+  onInvalidDraftChange,
+}: {
+  initial: FurnishingDetailItem[];
+  customLimit?: number;
+  onInvalidDraftChange?: (invalid: boolean) => void;
+}) {
   const [value, setValue] = useState(initial);
   return (
     <>
-      <FurnishingEditor value={value} onChange={setValue} />
+      <FurnishingEditor
+        value={value}
+        onChange={setValue}
+        customLimit={customLimit}
+        onInvalidDraftChange={onInvalidDraftChange}
+      />
       <output data-testid="furnishing-state">{JSON.stringify(value)}</output>
     </>
   );
@@ -191,11 +204,24 @@ describe("FurnishingEditor — count input blank-state fix", () => {
 });
 
 // ── Owner-limited custom-item mode (customLimit prop) ──────────────────────
-function AmenitiesEditorWrapper({ initial, customLimit }: { initial: string[]; customLimit?: number }) {
+function AmenitiesEditorWrapper({
+  initial,
+  customLimit,
+  onInvalidDraftChange,
+}: {
+  initial: string[];
+  customLimit?: number;
+  onInvalidDraftChange?: (invalid: boolean) => void;
+}) {
   const [value, setValue] = useState(initial);
   return (
     <>
-      <AmenitiesEditor value={value} onChange={setValue} customLimit={customLimit} />
+      <AmenitiesEditor
+        value={value}
+        onChange={setValue}
+        customLimit={customLimit}
+        onInvalidDraftChange={onInvalidDraftChange}
+      />
       <output data-testid="amenities-state">{JSON.stringify(value)}</output>
     </>
   );
@@ -329,5 +355,176 @@ describe("buildAmenitiesJson (D-170)", () => {
     const result = buildAmenitiesJson(["lift", "custom"], detail);
     expect(result.building).toEqual(["lift", "custom"]);
     expect(result.furnishing_items).toEqual(["bed", "ac"]);
+  });
+});
+
+// ── Part A: false self-duplicate when canonical items precede custom rows ──────
+// The mixed canonical+custom array index must NOT be used as `selfIndex` against
+// the compacted custom-only list — otherwise a unique custom row compares against
+// itself and shows a false `You have already added "X".`
+describe("Custom self-duplicate regression (mixed canonical/custom indexes)", () => {
+  it("furniture: canonical bed + one unique custom → no false duplicate error", () => {
+    render(
+      <FurnishingEditorWrapper
+        initial={[
+          { item: "bed", count: 1 },
+          { item: "Study table", custom: true, count: 1 },
+        ]}
+        customLimit={5}
+      />,
+    );
+    expect(screen.getByDisplayValue("Study table")).toBeInTheDocument();
+    expect(screen.queryByText(/already added/i)).not.toBeInTheDocument();
+  });
+
+  it("furniture: canonical bed + two different customs → neither row errors", () => {
+    render(
+      <FurnishingEditorWrapper
+        initial={[
+          { item: "bed", count: 1 },
+          { item: "Study table", custom: true, count: 1 },
+          { item: "Shoe rack", custom: true, count: 1 },
+        ]}
+        customLimit={5}
+      />,
+    );
+    expect(screen.queryByText(/already added/i)).not.toBeInTheDocument();
+  });
+
+  it("amenities: canonical lift + one unique custom → no false duplicate error", () => {
+    render(<AmenitiesEditorWrapper initial={["lift", "Rooftop terrace"]} customLimit={5} />);
+    expect(screen.getByDisplayValue("Rooftop terrace")).toBeInTheDocument();
+    expect(screen.queryByText(/already added/i)).not.toBeInTheDocument();
+  });
+
+  it("amenities: focusing/blurring an unchanged custom row shows no self-dup error", () => {
+    render(<AmenitiesEditorWrapper initial={["gym", "Rooftop terrace"]} customLimit={5} />);
+    const input = screen.getByDisplayValue("Rooftop terrace");
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+    expect(screen.queryByText(/already added/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("amenities-state")).toHaveTextContent('["gym","Rooftop terrace"]');
+  });
+
+  it("amenities: renaming a row (canonical present) to another custom → real DUP_CUSTOM error", () => {
+    render(<AmenitiesEditorWrapper initial={["gym", "Terrace", "Balcony"]} customLimit={5} />);
+    const input = screen.getByDisplayValue("Terrace");
+    fireEvent.change(input, { target: { value: "Balcony" } });
+    expect(screen.getByText(/already added "Balcony"/)).toBeInTheDocument();
+    fireEvent.blur(input);
+    // reverts, unchanged
+    expect(screen.getByTestId("amenities-state")).toHaveTextContent('["gym","Terrace","Balcony"]');
+  });
+
+  it("furniture: renaming a custom row to a canonical option → real DUP_CANONICAL error", () => {
+    render(
+      <FurnishingEditorWrapper
+        initial={[
+          { item: "bed", count: 1 },
+          { item: "Study table", custom: true, count: 1 },
+        ]}
+        customLimit={5}
+      />,
+    );
+    const input = screen.getByDisplayValue("Study table");
+    fireEvent.change(input, { target: { value: "Wardrobe" } });
+    expect(screen.getByText(/already available above as "Wardrobe"/)).toBeInTheDocument();
+  });
+
+  it("amenities: loading a submitted listing (canonical + several customs) → no false errors", () => {
+    render(
+      <AmenitiesEditorWrapper
+        initial={["lift", "gym", "Rooftop terrace", "Zen garden", "Home theatre"]}
+        customLimit={5}
+      />,
+    );
+    for (const name of ["Rooftop terrace", "Zen garden", "Home theatre"]) {
+      expect(screen.getByDisplayValue(name)).toBeInTheDocument();
+    }
+    expect(screen.queryByText(/already added/i)).not.toBeInTheDocument();
+  });
+});
+
+// ── Part B: onInvalidDraftChange contract (blocks submission upstream) ─────────
+describe("onInvalidDraftChange — invalid-draft signal", () => {
+  it("amenities: adding a unique new row keeps the signal false", () => {
+    const onInvalid = vi.fn();
+    render(
+      <AmenitiesEditorWrapper initial={["lift"]} customLimit={5} onInvalidDraftChange={onInvalid} />,
+    );
+    const input = screen.getByPlaceholderText("Add a custom amenity");
+    fireEvent.change(input, { target: { value: "Rooftop terrace" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(screen.getByTestId("amenities-state")).toHaveTextContent('"Rooftop terrace"');
+    // Never signalled invalid for the freshly-added valid row.
+    expect(onInvalid).not.toHaveBeenCalledWith(true);
+  });
+
+  it("amenities: editing an existing row to a duplicate raises then clears the signal", () => {
+    const onInvalid = vi.fn();
+    render(
+      <AmenitiesEditorWrapper
+        initial={["lift", "Terrace", "Balcony"]}
+        customLimit={5}
+        onInvalidDraftChange={onInvalid}
+      />,
+    );
+    const input = screen.getByDisplayValue("Terrace");
+    fireEvent.change(input, { target: { value: "Balcony" } });
+    expect(onInvalid).toHaveBeenLastCalledWith(true);
+    // Correcting to a valid unique value clears it.
+    fireEvent.change(input, { target: { value: "Sky Lounge" } });
+    expect(onInvalid).toHaveBeenLastCalledWith(false);
+  });
+
+  it("amenities: Escape-reverting an invalid edit clears the signal", () => {
+    const onInvalid = vi.fn();
+    render(
+      <AmenitiesEditorWrapper
+        initial={["lift", "Terrace", "Balcony"]}
+        customLimit={5}
+        onInvalidDraftChange={onInvalid}
+      />,
+    );
+    const input = screen.getByDisplayValue("Terrace");
+    fireEvent.change(input, { target: { value: "Balcony" } });
+    expect(onInvalid).toHaveBeenLastCalledWith(true);
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(onInvalid).toHaveBeenLastCalledWith(false);
+  });
+
+  it("amenities: deleting the row that holds an invalid draft clears the signal", () => {
+    const onInvalid = vi.fn();
+    render(
+      <AmenitiesEditorWrapper
+        initial={["lift", "Terrace", "Balcony"]}
+        customLimit={5}
+        onInvalidDraftChange={onInvalid}
+      />,
+    );
+    const input = screen.getByDisplayValue("Terrace");
+    fireEvent.change(input, { target: { value: "Balcony" } });
+    expect(onInvalid).toHaveBeenLastCalledWith(true);
+    // Delete the "Terrace" row (first Remove button).
+    const removeButtons = screen.getAllByRole("button", { name: "Remove item" });
+    fireEvent.click(removeButtons[0]);
+    expect(onInvalid).toHaveBeenLastCalledWith(false);
+  });
+
+  it("furniture: editing an existing custom row to a too-long name raises the signal", () => {
+    const onInvalid = vi.fn();
+    render(
+      <FurnishingEditorWrapper
+        initial={[
+          { item: "bed", count: 1 },
+          { item: "Study table", custom: true, count: 1 },
+        ]}
+        customLimit={5}
+        onInvalidDraftChange={onInvalid}
+      />,
+    );
+    const input = screen.getByDisplayValue("Study table");
+    fireEvent.change(input, { target: { value: "one two three four" } });
+    expect(onInvalid).toHaveBeenLastCalledWith(true);
   });
 });
