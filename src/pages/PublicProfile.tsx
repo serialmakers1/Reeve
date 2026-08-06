@@ -13,7 +13,7 @@ import { getUserDisplayName } from "@/lib/user";
 
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import ListingsGrid from "@/components/profile/ListingsGrid";
-import RatingsBlock, { type RatingSummaryResult } from "@/components/ratings/RatingsBlock";
+import ReputationSummary from "@/components/ratings/ReputationSummary";
 
 // Result of the get_public_profile RPC (migration 20260805142143). Identity read
 // path for /u/:userId — server enforces auth + full verification and returns only
@@ -66,8 +66,6 @@ function PublicProfileContent({ userId }: { userId?: string }) {
   const [notFound, setNotFound] = useState(false);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const [ratingSummary, setRatingSummary] = useState<RatingSummaryResult | null>(null);
-  const [ratingLoading, setRatingLoading] = useState(true);
   const posthogFiredRef = useRef(false);
 
   // F2 (D-151): no self-redirect. /u/:userId renders the public view regardless
@@ -123,19 +121,6 @@ function PublicProfileContent({ userId }: { userId?: string }) {
     return () => { cancelled = true; };
   }, [userId]);
 
-  // C4: rating summary — separate effect, silent on error.
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    (async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any).rpc("get_user_rating_summary", { p_user_id: userId });
-      if (cancelled) return;
-      if (!error && data) setRatingSummary(data as RatingSummaryResult);
-      setRatingLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [userId]);
 
   if (loading) {
     return <ProfileSkeleton />;
@@ -216,11 +201,6 @@ function PublicProfileContent({ userId }: { userId?: string }) {
                 {verified && (
                   <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" aria-label="Verified" />
                 )}
-                {ratingSummary?.status === "new" && (
-                  <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-                    ✓ New on Reeve
-                  </span>
-                )}
               </div>
               {profile?.created_at && (
                 <p className="text-xs text-muted-foreground mt-1">
@@ -252,8 +232,12 @@ function PublicProfileContent({ userId }: { userId?: string }) {
           </section>
         )}
 
-        {/* C4: Interaction ratings block (separate from OwnerStatsBlock contact response rate). */}
-        <RatingsBlock summary={ratingSummary} loading={ratingLoading} />
+        {/* Reputation summary v2 (separate from OwnerStatsBlock contact response rate). */}
+        {userId && (
+          <section>
+            <ReputationSummary userId={userId} />
+          </section>
+        )}
       </div>
     </Layout>
   );

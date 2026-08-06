@@ -16,6 +16,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { isResendExpiredAt } from "@/lib/resendExpiry";
+import InteractionRatingAccordion from "@/components/ratings/InteractionRatingAccordion";
+import { useRateableInteractions, type RateableInteraction } from "@/components/ratings/useRateableInteractions";
+import type { RatingAnswers } from "@/components/ratings/ratingQuestions";
 
 const DECLINE_LABELS: Record<string, string> = {
   preferences_dont_fit: "Preferences don't fit",
@@ -92,12 +95,14 @@ export default function ContactRequestsPage() {
   const refetch = useCallback(async () => {
     if (!user?.id) return;
     const sb = supabase as unknown as { from: (t: string) => any };
+    // Unfiltered LEFT join on properties — filtering on joined-relation columns
+    // would silently drop rows. Approved requests must persist even when the
+    // property is later unlisted/archived (so they remain ratable). Visibility
+    // is decided client-side below.
     const { data, error } = await sb
       .from("contact_requests")
-      .select("id, property_id, status, attempt_number, decline_reason, created_at, approved_at, declined_at, withdrawn_at, auto_cancelled_at, tenant_profile_snapshot, properties!inner(id, building_name, locality, status, is_active)")
+      .select("id, property_id, status, attempt_number, decline_reason, created_at, approved_at, declined_at, withdrawn_at, auto_cancelled_at, tenant_profile_snapshot, properties(id, building_name, locality, status, is_active)")
       .eq("tenant_id", user.id)
-      .in("properties.status", ["listed", "edit_pending_review"])
-      .eq("properties.is_active", true)
       .order("created_at", { ascending: false });
     if (error) {
       console.error("CR_PAGE_FETCH_ERROR", error);
@@ -220,8 +225,24 @@ export default function ContactRequestsPage() {
     }
   };
 
+  // Rating state — one batched fetch; single accordion open at a time.
+  const { interactions: rateableList, submit: submitRating } = useRateableInteractions();
+  const rateableByCr = useMemo(
+    () => new Map(rateableList.map((i) => [i.contact_request_id, i])),
+    [rateableList],
+  );
+  const [openRatingId, setOpenRatingId] = useState<string | null>(null);
+
+  // Visibility (client-side): keep every approved request regardless of current
+  // status or property availability (they stay ratable forever); keep other
+  // requests only while the property is still active and listed.
+  const isPropertyListed = (p: PropertyBrief | null) =>
+    !!p && p.is_active === true && (p.status === "listed" || p.status === "edit_pending_review");
+
   // Tab data
-  const allRows = rows ?? [];
+  const allRows = (rows ?? []).filter(
+    (r) => r.approved_at != null || isPropertyListed(r.properties),
+  );
   const tabData = {
     all: allRows,
     pending: allRows.filter((r) => r.status === "pending"),
@@ -229,6 +250,23 @@ export default function ContactRequestsPage() {
     declined: allRows.filter((r) => r.status === "declined"),
     closed: allRows.filter((r) => r.status === "withdrawn" || r.status === "auto_cancelled"),
   };
+
+  const renderCard = (r: CrRow) => (
+    <RequestCard
+      key={r.id}
+      r={r}
+      nowMs={nowMs}
+      resending={resending}
+      serverExpiredIds={serverExpiredIds}
+      onWithdraw={setWithdrawTarget}
+      onResend={handleResend}
+      navigate={navigate}
+      rateable={rateableByCr.get(r.id)}
+      ratingOpen={openRatingId === r.id}
+      onRatingOpenChange={(open) => setOpenRatingId(open ? r.id : null)}
+      onRatingSubmit={submitRating}
+    />
+  );
 
   if (authLoading || rows === null) {
     return (
@@ -303,31 +341,31 @@ export default function ContactRequestsPage() {
               <TabsContent value="all" className="space-y-3 mt-4">
                 {tabData.all.length === 0
                   ? <EmptyTab message="No requests to show." />
-                  : tabData.all.map((r) => <RequestCard key={r.id} r={r} nowMs={nowMs} resending={resending} serverExpiredIds={serverExpiredIds} onWithdraw={setWithdrawTarget} onResend={handleResend} navigate={navigate} />)}
+                  : tabData.all.map(renderCard)}
               </TabsContent>
 
               <TabsContent value="pending" className="space-y-3 mt-4">
                 {tabData.pending.length === 0
                   ? <EmptyTab message="No pending requests." />
-                  : tabData.pending.map((r) => <RequestCard key={r.id} r={r} nowMs={nowMs} resending={resending} serverExpiredIds={serverExpiredIds} onWithdraw={setWithdrawTarget} onResend={handleResend} navigate={navigate} />)}
+                  : tabData.pending.map(renderCard)}
               </TabsContent>
 
               <TabsContent value="approved" className="space-y-3 mt-4">
                 {tabData.approved.length === 0
                   ? <EmptyTab message="No approved requests." />
-                  : tabData.approved.map((r) => <RequestCard key={r.id} r={r} nowMs={nowMs} resending={resending} serverExpiredIds={serverExpiredIds} onWithdraw={setWithdrawTarget} onResend={handleResend} navigate={navigate} />)}
+                  : tabData.approved.map(renderCard)}
               </TabsContent>
 
               <TabsContent value="declined" className="space-y-3 mt-4">
                 {tabData.declined.length === 0
                   ? <EmptyTab message="No declined requests." />
-                  : tabData.declined.map((r) => <RequestCard key={r.id} r={r} nowMs={nowMs} resending={resending} serverExpiredIds={serverExpiredIds} onWithdraw={setWithdrawTarget} onResend={handleResend} navigate={navigate} />)}
+                  : tabData.declined.map(renderCard)}
               </TabsContent>
 
               <TabsContent value="closed" className="space-y-3 mt-4">
                 {tabData.closed.length === 0
                   ? <EmptyTab message="No closed requests." />
-                  : tabData.closed.map((r) => <RequestCard key={r.id} r={r} nowMs={nowMs} resending={resending} serverExpiredIds={serverExpiredIds} onWithdraw={setWithdrawTarget} onResend={handleResend} navigate={navigate} />)}
+                  : tabData.closed.map(renderCard)}
               </TabsContent>
             </Tabs>
 
@@ -362,6 +400,7 @@ function EmptyTab({ message }: { message: string }) {
 
 function RequestCard({
   r, nowMs, resending, serverExpiredIds, onWithdraw, onResend, navigate,
+  rateable, ratingOpen, onRatingOpenChange, onRatingSubmit,
 }: {
   r: CrRow;
   nowMs: number;
@@ -370,10 +409,22 @@ function RequestCard({
   onWithdraw: (id: string) => void;
   onResend: (r: CrRow) => void;
   navigate: ReturnType<typeof useNavigate>;
+  rateable?: RateableInteraction;
+  ratingOpen: boolean;
+  onRatingOpenChange: (open: boolean) => void;
+  onRatingSubmit: (contactRequestId: string, answers: RatingAnswers, counterpartyUserId: string) => Promise<void>;
 }) {
-  const propertyLabel =
-    r.properties?.building_name?.trim() ||
-    (r.properties?.locality ? `Property in ${r.properties.locality}` : "Property");
+  // Property RLS may hide an unavailable property (properties: null). For
+  // approved rows, fall back to the SECURITY DEFINER rateable payload so the
+  // card never renders blank; link only when the property is publicly viewable.
+  const buildingName = r.properties?.building_name?.trim() || rateable?.building_name?.trim() || null;
+  const locality = r.properties?.locality?.trim() || rateable?.locality?.trim() || null;
+  const propertyViewable = rateable
+    ? rateable.property_viewable
+    : !!r.properties && r.properties.is_active === true &&
+      (r.properties.status === "listed" || r.properties.status === "edit_pending_review");
+  const propertyLabel = buildingName || (locality ? `Property in ${locality}` : null) ||
+    (r.status === "approved" ? "Property no longer available" : "Property");
 
   const preferenceType = r.tenant_profile_snapshot?.preference_type;
   const prefLabel = preferenceType === "buy" ? "Buy" : preferenceType === "rent" ? "Rent" : null;
@@ -385,11 +436,15 @@ function RequestCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <Link to={`/property/${propertyId}`} className="text-sm font-medium text-foreground hover:underline">
-            {propertyLabel}
-          </Link>
-          {r.properties?.locality && r.properties.building_name && (
-            <p className="text-xs text-muted-foreground">{r.properties.locality}</p>
+          {propertyViewable ? (
+            <Link to={`/property/${propertyId}`} className="text-sm font-medium text-foreground hover:underline">
+              {propertyLabel}
+            </Link>
+          ) : (
+            <p className="text-sm font-medium text-foreground">{propertyLabel}</p>
+          )}
+          {locality && buildingName && (
+            <p className="text-xs text-muted-foreground">{locality}</p>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -407,6 +462,10 @@ function RequestCard({
           resending={resending}
           serverExpiredIds={serverExpiredIds}
           onResend={onResend}
+          rateable={rateable}
+          ratingOpen={ratingOpen}
+          onRatingOpenChange={onRatingOpenChange}
+          onRatingSubmit={onRatingSubmit}
         />
       )}
       {r.status === "declined" && <DeclinedContent r={r} nowMs={nowMs} navigate={navigate} />}
@@ -435,11 +494,16 @@ function PendingContent({ r, onWithdraw }: { r: CrRow; onWithdraw: (id: string) 
 
 function ApprovedContent({
   r, resending, serverExpiredIds, onResend,
+  rateable, ratingOpen, onRatingOpenChange, onRatingSubmit,
 }: {
   r: CrRow;
   resending: Record<string, boolean>;
   serverExpiredIds: Set<string>;
   onResend: (r: CrRow) => void;
+  rateable?: RateableInteraction;
+  ratingOpen: boolean;
+  onRatingOpenChange: (open: boolean) => void;
+  onRatingSubmit: (contactRequestId: string, answers: RatingAnswers, counterpartyUserId: string) => Promise<void>;
 }) {
   const expired = isResendExpiredAt(r.approved_at, Date.now()) || serverExpiredIds.has(r.id);
 
@@ -469,7 +533,16 @@ function ApprovedContent({
           </Button>
         </div>
       )}
-      {/* REVIEW_SLOT: future <PendingRatingsSection onlyForContactRequestId={r.id} /> */}
+      {rateable && (
+        <div className="pt-1">
+          <InteractionRatingAccordion
+            interaction={rateable}
+            open={ratingOpen}
+            onOpenChange={onRatingOpenChange}
+            onSubmit={onRatingSubmit}
+          />
+        </div>
+      )}
     </>
   );
 }

@@ -117,7 +117,6 @@ function makeResult(id: string): SearchPropertyResult {
     listerRole: "owner",
     responseHandledCount: 0,
     responseRatePct: null,
-    isNewOnReeve: true,
     viewCount: 0,
     commentCount: 0,
     experienceFeedback: null,

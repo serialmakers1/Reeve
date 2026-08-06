@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Mock Layout to avoid auth-state and Header/Footer supabase calls (no JSX to avoid React hoist issues)
 vi.mock("@/components/Layout", () => ({
@@ -56,6 +57,8 @@ vi.mock("@/integrations/supabase/client", () => ({
     }),
     channel: vi.fn(() => channelMock),
     removeChannel: vi.fn(),
+    // Rating-state batched read — empty for these pre-rating page tests.
+    rpc: vi.fn(async () => ({ data: [], error: null })),
     functions: {
       invoke: vi.fn(async () => mockFunctionsInvoke()),
     },
@@ -66,6 +69,14 @@ vi.mock("@/hooks/useRequireAuth", () => ({
   useRequireAuth: () => ({
     user: { id: "user-1" },
     loading: false,
+  }),
+}));
+
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: { id: "user-1" },
+    isAuthenticated: true,
+    isLoading: false,
   }),
 }));
 
@@ -109,10 +120,13 @@ function makeRow(overrides: Partial<MockRow> = {}): MockRow {
 }
 
 function renderPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter>
-      <ContactRequestsPage />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <ContactRequestsPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

@@ -18,6 +18,9 @@ import {
 import { useResendReveal } from "@/hooks/useResendReveal";
 import { isResendExpiredAt } from "@/lib/resendExpiry";
 import RequestFilterControls from "./RequestFilterControls";
+import InteractionRatingAccordion from "@/components/ratings/InteractionRatingAccordion";
+import { useRateableInteractions, type RateableInteraction } from "@/components/ratings/useRateableInteractions";
+import type { RatingAnswers } from "@/components/ratings/ratingQuestions";
 import {
   type RequestFilters, type SortKey, type SnapshotMode,
   EMPTY_FILTERS, snapshotMode, filterRequests, sortRequests,
@@ -298,12 +301,17 @@ function PendingCard(props: {
 // ── Approved read-only card ────────────────────────────────────────────────
 function ApprovedCard({
   cr, listingType, onResend, resending, expired,
+  rateable, ratingOpen, onRatingOpenChange, onRatingSubmit,
 }: {
   cr: CrRow;
   listingType?: string | null;
   onResend: (id: string) => void;
   resending: boolean;
   expired: boolean;
+  rateable?: RateableInteraction;
+  ratingOpen: boolean;
+  onRatingOpenChange: (open: boolean) => void;
+  onRatingSubmit: (contactRequestId: string, answers: RatingAnswers, counterpartyUserId: string) => Promise<void>;
 }) {
   const snap = cr.tenant_profile_snapshot;
   const name = displayName(snap);
@@ -336,6 +344,14 @@ function ApprovedCard({
             {expired ? "Resend window closed" : "Resend tenant contact to my email"}
           </Button>
         </div>
+        {rateable && (
+          <InteractionRatingAccordion
+            interaction={rateable}
+            open={ratingOpen}
+            onOpenChange={onRatingOpenChange}
+            onSubmit={onRatingSubmit}
+          />
+        )}
       </CardContent>
     </Card>
   );
@@ -383,6 +399,14 @@ export default function RequestsTab({ propertyId, propertyStatus, listingType }:
   const [declineTarget, setDeclineTarget] = useState<string | null>(null);
   const [declining, setDeclining] = useState(false);
   const { resend, isResending, isServerExpired } = useResendReveal();
+
+  // Rating state — one batched fetch; single accordion open at a time.
+  const { interactions: rateableList, submit: submitRating } = useRateableInteractions();
+  const rateableByCr = useMemo(
+    () => new Map(rateableList.map((i) => [i.contact_request_id, i])),
+    [rateableList],
+  );
+  const [openRatingId, setOpenRatingId] = useState<string | null>(null);
 
   // Filter/sort state bound to { propertyId, mode } so a mounted tab never
   // writes the previous property's/mode's state into the new key.
@@ -562,6 +586,10 @@ export default function RequestsTab({ propertyId, propertyStatus, listingType }:
             onResend={resend}
             resending={isResending(cr.id)}
             expired={isResendExpiredAt(cr.approved_at, Date.now()) || isServerExpired(cr.id)}
+            rateable={rateableByCr.get(cr.id)}
+            ratingOpen={openRatingId === cr.id}
+            onRatingOpenChange={(open) => setOpenRatingId(open ? cr.id : null)}
+            onRatingSubmit={submitRating}
           />
         );
       case "declined":

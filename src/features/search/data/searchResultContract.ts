@@ -60,7 +60,6 @@ export interface SearchPropertyResult {
   listerRole: string;                   // "owner" | "broker" | "property_manager" | "builder"
   responseHandledCount: number;         // all_time_handled
   responseRatePct: number | null;       // null below threshold; 0–100 when eligible
-  isNewOnReeve: boolean;                // responseHandledCount < RESPONSE_RATE_MIN_HANDLED
 
   // ── Public activity ────────────────────────────────────────────────────────
   viewCount: number;                    // 0 when none — never null
@@ -95,7 +94,6 @@ export interface SearchPropertyResult {
  * Derivations performed by the mapper (not present in this row):
  * - isFavourited: frontend overlay via useFavourites
  * - detailUrl: constructed as `/property/${property_id}`
- * - isNewOnReeve: response_handled_count < RESPONSE_RATE_MIN_HANDLED
  * - viewCount / commentCount: from get_property_counts batch RPC
  * owner_id is internal and excluded from SearchPropertyResult.
  */
@@ -171,8 +169,6 @@ export interface SearchPropertyRpcRow {
   price_negotiable: boolean | null;
 }
 
-const RESPONSE_RATE_MIN_HANDLED = 5;
-
 /**
  * Maps a raw SearchPropertyRpcRow to SearchPropertyResult.
  * Called after:
@@ -232,7 +228,6 @@ export function mapRpcRowToResult(
     listerRole: row.lister_role,
     responseHandledCount: row.response_handled_count,
     responseRatePct: row.response_rate_pct,
-    isNewOnReeve: row.response_handled_count < RESPONSE_RATE_MIN_HANDLED,
     viewCount,
     commentCount,
     experienceFeedback: row.experience_feedback,

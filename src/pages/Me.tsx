@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import posthog from "posthog-js";
 import { format } from "date-fns";
-import { CheckCircle2, Pencil, Settings, Star } from "lucide-react";
+import { CheckCircle2, Pencil, Settings, Award } from "lucide-react";
 
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ import { mapBioError } from "@/lib/bioValidation";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import ListingsGrid from "@/components/profile/ListingsGrid";
 import { BioSection } from "@/components/profile/BioSection";
+import ReputationSummary from "@/components/ratings/ReputationSummary";
 
 interface ProfileRow {
   display_name: string | null;
@@ -187,17 +188,13 @@ export default function Me() {
           <ListingsGrid userId={user.id} heading="My listings" />
         </section>
 
-        {/* Ratings placeholder */}
+        {/* Reputation summary (v2) */}
         <section>
           <div className="flex items-center gap-2 mb-2">
-            <Star className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Ratings & Reviews</h2>
+            <Award className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Reputation</h2>
           </div>
-          <div className="rounded-lg border border-dashed p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              No ratings yet — ratings will appear here after your first tenant interaction.
-            </p>
-          </div>
+          <ReputationSummary userId={user.id} />
         </section>
 
         {/* Account settings */}

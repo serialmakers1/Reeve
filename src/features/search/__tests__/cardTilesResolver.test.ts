@@ -44,7 +44,6 @@ function makeResult(overrides: Partial<SearchPropertyResult> = {}): SearchProper
     listerRole: "owner",
     responseHandledCount: 10,
     responseRatePct: null,
-    isNewOnReeve: false,
     viewCount: 0,
     commentCount: 0,
     experienceFeedback: null,
