@@ -3996,6 +3996,46 @@ export type Database = {
       earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
       generate_pseudonym: { Args: never; Returns: string }
+      get_admin_properties_page: {
+        Args: {
+          p_city?: string
+          p_limit?: number
+          p_listing_type?: string
+          p_offset?: number
+          p_search?: string
+          p_sort?: string
+          p_status?: string
+        }
+        Returns: {
+          accepted_contact_requests: number
+          bhk: string
+          building_name: string
+          city: string
+          comment_count: number
+          listed_at: string
+          listed_rent: number
+          listing_type: string
+          locality: string
+          owner_email: string
+          owner_name: string
+          owner_phone: string
+          pending_contact_requests: number
+          property_id: string
+          rejected_contact_requests: number
+          sale_price: number
+          status: string
+          total_contact_requests: number
+          total_count: number
+          updated_at: string
+          view_count: number
+        }[]
+      }
+      get_admin_property_cities: {
+        Args: never
+        Returns: {
+          city: string
+        }[]
+      }
       get_map_markers: {
         Args: {
           p_amenities?: string[]

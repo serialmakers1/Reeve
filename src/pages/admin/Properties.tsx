@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,27 +28,14 @@ import {
 import { format } from "date-fns";
 import { getStatusDisplay } from "@/lib/propertyStatus";
 import {
-  formatLocalityCity, bucketApplications, resolveAdminPrice,
-  getStatusTargetsFor, buildStatusUpdatePayload,
-  type AppBucket, type AppStatusRow,
+  formatLocalityCity, resolveAdminPrice, getStatusTargetsFor,
+  buildStatusUpdatePayload, parsePageParam, totalPages, getPageWindow,
+  validateSort, validateListingType, ADMIN_PAGE_SIZE,
+  ADMIN_SORT_OPTIONS, LISTING_TYPE_OPTIONS,
 } from "@/pages/admin/adminPropertyHelpers";
 
-// Prompt 12 (D-164) — status filter options. Commons statuses shown individually;
-// legacy PM statuses grouped under a single "Legacy PM" option to keep the
-// dropdown scannable. "" = no filter.
-const LEGACY_PM_STATUSES = [
-  "inspection_proposed",
-  "inspection_accepted",
-  "inspection_scheduled",
-  "inspected",
-  "agreement_pending",
-  "occupied",
-  "off_market",
-  "expiring",
-  "turnover",
-  "inactive",
-] as const;
-
+// Status filter options for the dropdown. Commons statuses shown individually;
+// legacy PM statuses collapse to a single "Legacy PM" value the RPC expands.
 const STATUS_FILTER_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "all", label: "All" },
   { value: "draft", label: getStatusDisplay("draft").label },
@@ -61,19 +48,31 @@ const STATUS_FILTER_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "legacy_pm", label: "Legacy PM" },
 ];
 
-interface Property {
-  id: string;
+export { STATUS_FILTER_OPTIONS };
+
+/** Row shape returned by get_admin_properties_page. */
+interface PropertyRow {
+  property_id: string;
   building_name: string;
   locality: string | null;
   city: string | null;
   bhk: string;
   status: string;
-  is_active: boolean;
-  listing_type: "rent" | "sale" | null;
+  listing_type: string | null;
   listed_rent: number | null;
   sale_price: number | null;
+  listed_at: string | null;
   updated_at: string;
-  owner: { full_name: string | null; email: string | null; phone: string | null } | null;
+  owner_name: string | null;
+  owner_email: string | null;
+  owner_phone: string | null;
+  accepted_contact_requests: number;
+  pending_contact_requests: number;
+  rejected_contact_requests: number;
+  total_contact_requests: number;
+  view_count: number;
+  comment_count: number;
+  total_count: number;
 }
 
 interface FinalRent {
@@ -83,46 +82,14 @@ interface FinalRent {
   owner_counter_rent: number | null;
 }
 
-interface ActivityCount {
-  views: number;
-  comments: number;
-}
-
-/**
- * Prompt 12 (D-164) — client-side search across building + owner fields.
- * Exported for test coverage. Case-insensitive substring match.
- */
-export function filterPropertiesBySearch<
-  T extends {
-    building_name: string;
-    owner: { full_name: string | null; email: string | null; phone: string | null } | null;
-  },
->(rows: T[], rawQuery: string): T[] {
-  const q = rawQuery.trim().toLowerCase();
-  if (!q) return rows;
-  return rows.filter((p) => {
-    const haystack = [
-      p.building_name,
-      p.owner?.full_name,
-      p.owner?.email,
-      p.owner?.phone,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(q);
-  });
-}
-
-/** Exported so tests + docs can enumerate the same set. */
-export { LEGACY_PM_STATUSES, STATUS_FILTER_OPTIONS };
+type EmptyPageFallback = "first" | "previous";
 
 /** Confirmation copy for a status change, keyed on target + restore semantics. */
 function statusDialogCopy(
-  property: Property,
+  currentStatus: string,
   target: string,
 ): { title: string; description: string; action: string } {
-  const isRestore = property.status === "archived" && target === "draft";
+  const isRestore = currentStatus === "archived" && target === "draft";
   if (isRestore) {
     return {
       title: "Restore this property?",
@@ -178,155 +145,157 @@ export default function AdminProperties() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading } = useRequireAuth({ requireAdmin: true });
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [appMap, setAppMap] = useState<Map<string, AppBucket>>(new Map());
-  const [rentMap, setRentMap] = useState<Map<string, number>>(new Map());
-  const [countMap, setCountMap] = useState<Map<string, ActivityCount>>(new Map());
+
+  const [rows, setRows] = useState<PropertyRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [cities, setCities] = useState<string[]>([]);
+  const [finalRentMap, setFinalRentMap] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
+  const seqRef = useRef(0);
 
-  // Prompt 12 (D-164) — filter + search state; URL param persistence.
+  // ── URL is the single source of truth for filters/sort/page ────────────────
   const [searchParams, setSearchParams] = useSearchParams();
-  const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get("status") || "all");
-  const [searchInput, setSearchInput] = useState<string>(() => searchParams.get("q") || "");
-  const [debouncedSearch, setDebouncedSearch] = useState<string>(searchInput);
+  const statusFilter = searchParams.get("status") || "all";
+  const cityFilter = searchParams.get("city") || "";
+  const typeFilter = validateListingType(searchParams.get("type"));
+  const sort = validateSort(searchParams.get("sort"));
+  const page = parsePageParam(searchParams.get("page"));
+  const qParam = searchParams.get("q") || "";
 
-  // Debounce search input → debouncedSearch (300ms).
+  const [searchInput, setSearchInput] = useState<string>(qParam);
+
+  // Keep the input in sync when q changes externally (Back/forward, copied URL).
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchInput), 300);
+    setSearchInput(qParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qParam]);
+
+  // Write a param patch. Empty/default values are dropped from the URL. Any
+  // filter/search/sort change resets to page 1; page navigation passes resetPage=false.
+  const setParams = useCallback(
+    (patch: Record<string, string | null>, resetPage = true) => {
+      const next = new URLSearchParams(searchParams);
+      for (const [k, v] of Object.entries(patch)) {
+        const isDefault =
+          v === null || v === "" ||
+          (k === "status" && v === "all") ||
+          (k === "type" && v === "all") ||
+          (k === "sort" && v === "latest") ||
+          (k === "page" && v === "1");
+        if (isDefault) next.delete(k);
+        else next.set(k, v);
+      }
+      if (resetPage) next.delete("page");
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const gotoPage = useCallback((n: number) => setParams({ page: String(n) }, false), [setParams]);
+
+  // Debounce the search box → URL q (resets to page 1).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchInput !== qParam) setParams({ q: searchInput || null });
+    }, 300);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
-  // Write URL params on filter/search change.
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams);
-    if (statusFilter === "all") params.delete("status");
-    else params.set("status", statusFilter);
-    if (!debouncedSearch) params.delete("q");
-    else params.set("q", debouncedSearch);
-    setSearchParams(params, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, debouncedSearch]);
-
   // Row-action state.
-  const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
-  const [statusTarget, setStatusTarget] = useState<{ property: Property; target: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PropertyRow | null>(null);
+  const [statusTarget, setStatusTarget] = useState<{ property: PropertyRow; target: string } | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    // Prompt 12: server-side status filter for perf. Search stays client-side —
-    // multi-column ILIKE across joined `users` is awkward; admin dataset size
-    // fits in memory. Revisit if / when it doesn't.
-    let query = supabase
-      .from("properties")
-      .select(`
-        id, building_name, locality, city, bhk, status, is_active,
-        listing_type, listed_rent, sale_price, updated_at,
-        owner:users!properties_owner_id_fkey(full_name, email, phone)
-      `)
-      .order("updated_at", { ascending: false });
-
-    if (statusFilter === "legacy_pm") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      query = (query as any).in("status", LEGACY_PM_STATUSES);
-    } else if (statusFilter !== "all") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      query = (query as any).eq("status", statusFilter);
-    }
-
-    const { data: props, error: propsError } = await query;
-
-    if (propsError) {
-      // Property list is essential — this is a fatal page-load error.
-      toast({ title: "Failed to load properties", description: propsError.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    const rows = (props as unknown as Property[]) ?? [];
-    const ids = rows.map((p) => p.id);
-
-    setProperties(rows);
-
-    // No rows → skip secondary queries (never issue `.in("property_id", [])`).
-    if (ids.length === 0) {
-      setAppMap(new Map());
-      setRentMap(new Map());
-      setCountMap(new Map());
-      setLoading(false);
-      return;
-    }
-
-    // Secondary engagement/count queries run in parallel and degrade independently:
-    // a failure in one must not discard the others, and must not blank the list.
-    // Supabase resolves with { data, error } even on DB failure, so inspect .error
-    // (and treat a rejected settle the same way).
-    const [appRes, rentRes, countRes] = await Promise.allSettled([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any).from("applications").select("property_id, status").in("property_id", ids),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any)
-        .from("applications")
-        .select("property_id, proposed_rent, final_agreed_rent, owner_counter_rent")
-        .eq("status", "lease_active")
-        .in("property_id", ids),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any).rpc("get_property_counts", { p_property_ids: ids }),
-    ]);
-
-    // 1) Application buckets.
-    if (appRes.status === "fulfilled" && !appRes.value.error) {
-      setAppMap(bucketApplications((appRes.value.data as AppStatusRow[]) ?? []));
-    } else {
-      const msg = appRes.status === "fulfilled" ? appRes.value.error?.message : String(appRes.reason);
-      toast({ title: "Failed to load application counts", description: msg, variant: "destructive" });
-      setAppMap(new Map());
-    }
-
-    // 2) Final (occupied) rent override.
-    if (rentRes.status === "fulfilled" && !rentRes.value.error) {
-      const rMap = new Map<string, number>();
-      for (const a of (rentRes.value.data as FinalRent[]) ?? []) {
-        const rent = a.final_agreed_rent ?? a.owner_counter_rent ?? a.proposed_rent;
-        if (rent != null) rMap.set(a.property_id, rent);
+  // ── Load the current page from the RPC ─────────────────────────────────────
+  const load = useCallback(
+    async (emptyPageFallback: EmptyPageFallback = "first") => {
+      if (!user) {
+        setLoading(false);
+        return;
       }
-      setRentMap(rMap);
-    } else {
-      const msg = rentRes.status === "fulfilled" ? rentRes.value.error?.message : String(rentRes.reason);
-      toast({ title: "Failed to load rent data", description: msg, variant: "destructive" });
-      setRentMap(new Map());
-    }
+      setLoading(true);
+      const seq = ++seqRef.current;
 
-    // 3) View + comment counts (batched RPC).
-    if (countRes.status === "fulfilled" && !countRes.value.error) {
-      const cMap = new Map<string, ActivityCount>();
-      for (const r of (countRes.value.data as Array<{ property_id: string; view_count: number; comment_count: number }>) ?? []) {
-        cMap.set(r.property_id, { views: Number(r.view_count) || 0, comments: Number(r.comment_count) || 0 });
+      const { data, error } = await supabase.rpc("get_admin_properties_page", {
+        p_search: qParam || null,
+        p_status: statusFilter,
+        p_city: cityFilter || null,
+        p_listing_type: typeFilter,
+        p_sort: sort,
+        p_limit: ADMIN_PAGE_SIZE,
+        p_offset: (page - 1) * ADMIN_PAGE_SIZE,
+      });
+
+      if (seq !== seqRef.current) return; // a newer load superseded this one
+
+      if (error) {
+        toast({ title: "Failed to load properties", description: error.message, variant: "destructive" });
+        setLoading(false);
+        return;
       }
-      setCountMap(cMap);
-    } else {
-      const msg = countRes.status === "fulfilled" ? countRes.value.error?.message : String(countRes.reason);
-      toast({ title: "Failed to load view/comment counts", description: msg, variant: "destructive" });
-      setCountMap(new Map());
-    }
 
-    setLoading(false);
-  }, [user, statusFilter, toast]);
+      const resultRows = (data as unknown as PropertyRow[]) ?? [];
+
+      // Empty page beyond the first: out-of-range URL → page 1; post-action → previous.
+      if (resultRows.length === 0 && page > 1) {
+        setLoading(false);
+        gotoPage(emptyPageFallback === "previous" ? page - 1 : 1);
+        return;
+      }
+
+      setRows(resultRows);
+      setTotal(resultRows[0]?.total_count ?? 0);
+
+      // Final agreed rent override — occupied rentals only, scoped to this page's ids.
+      const rentIds = resultRows
+        .filter((r) => r.status === "occupied" && r.listing_type !== "sale")
+        .map((r) => r.property_id);
+
+      if (rentIds.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: fr, error: frErr } = await (supabase as any)
+          .from("applications")
+          .select("property_id, proposed_rent, final_agreed_rent, owner_counter_rent")
+          .eq("status", "lease_active")
+          .in("property_id", rentIds);
+        if (seq !== seqRef.current) return;
+        if (frErr) {
+          toast({ title: "Failed to load rent data", description: frErr.message, variant: "destructive" });
+          setFinalRentMap(new Map());
+        } else {
+          const rMap = new Map<string, number>();
+          for (const a of (fr as FinalRent[]) ?? []) {
+            const rent = a.final_agreed_rent ?? a.owner_counter_rent ?? a.proposed_rent;
+            if (rent != null) rMap.set(a.property_id, rent);
+          }
+          setFinalRentMap(rMap);
+        }
+      } else {
+        setFinalRentMap(new Map());
+      }
+
+      setLoading(false);
+    },
+    [user, qParam, statusFilter, cityFilter, typeFilter, sort, page, toast, gotoPage],
+  );
 
   useEffect(() => {
-    load();
+    load("first");
   }, [load]);
 
-  // Prompt 12 — client-side search across building_name + owner.full_name/email/phone.
-  const visibleProperties = useMemo(
-    () => filterPropertiesBySearch(properties, debouncedSearch),
-    [properties, debouncedSearch],
-  );
+  // Distinct cities — loaded once (admin-only RPC).
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data, error } = await supabase.rpc("get_admin_property_cities");
+      if (error) {
+        toast({ title: "Failed to load cities", description: error.message, variant: "destructive" });
+        return;
+      }
+      setCities(((data as unknown as Array<{ city: string }>) ?? []).map((r) => r.city).filter(Boolean));
+    })();
+  }, [user, toast]);
 
   const confirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
@@ -334,25 +303,21 @@ export default function AdminProperties() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase as any).rpc("admin_delete_draft_property", {
-        p_property_id: deleteTarget.id,
+        p_property_id: deleteTarget.property_id,
       });
       if (error) {
-        // RPC surfaces guard errors ("Property has N applications", etc.) as a
-        // Postgres RAISE — legibly show them.
         toast({ title: "Cannot delete draft", description: error.message, variant: "destructive" });
         return;
       }
       toast({ title: "Draft deleted" });
       setDeleteTarget(null);
-      await load();
+      await load("previous");
     } finally {
       setActionBusy(false);
     }
   }, [deleteTarget, toast, load]);
 
-  // Shared status-change mutation. Restore (archived → draft) is derived, not a
-  // separate path. Admin bypasses enforce_property_owner_transitions; existing
-  // triggers manage is_active + activity logging.
+  // Shared status-change mutation. Restore (archived → draft) is derived, not passed.
   const confirmStatusChange = useCallback(async () => {
     if (!statusTarget) return;
     const { property, target } = statusTarget;
@@ -363,7 +328,7 @@ export default function AdminProperties() {
       const { data, error } = await (supabase as any)
         .from("properties")
         .update(buildStatusUpdatePayload(target))
-        .eq("id", property.id)
+        .eq("id", property.property_id)
         .eq("status", property.status) // optimistic concurrency guard
         .select("id");
       if (error) {
@@ -371,25 +336,24 @@ export default function AdminProperties() {
         return;
       }
       if (!data || data.length === 0) {
-        // 0 rows updated → the status changed elsewhere since we loaded.
         toast({
           title: "Status changed elsewhere",
           description: "This property's status changed elsewhere. The list has been refreshed.",
           variant: "destructive",
         });
         setStatusTarget(null);
-        await load();
+        await load("previous");
         return;
       }
       toast({ title: isRestore ? "Property restored to draft" : "Status updated" });
       setStatusTarget(null);
-      await load();
+      await load("previous");
     } finally {
       setActionBusy(false);
     }
   }, [statusTarget, toast, load]);
 
-  if (authLoading || loading) {
+  if (authLoading || (loading && rows.length === 0)) {
     return (
       <AdminLayout>
         <div className="space-y-4 max-w-6xl">
@@ -402,7 +366,10 @@ export default function AdminProperties() {
     );
   }
 
-  const dialogCopy = statusTarget ? statusDialogCopy(statusTarget.property, statusTarget.target) : null;
+  const dialogCopy = statusTarget ? statusDialogCopy(statusTarget.property.status, statusTarget.target) : null;
+  const pageCount = totalPages(total);
+  const firstRow = total === 0 ? 0 : (page - 1) * ADMIN_PAGE_SIZE + 1;
+  const lastRow = Math.min(page * ADMIN_PAGE_SIZE, total);
 
   const renderStatusBadge = (status: string) => {
     const d = getStatusDisplay(status);
@@ -413,55 +380,45 @@ export default function AdminProperties() {
     );
   };
 
-  const renderAppsPopover = (p: Property) => {
-    const b = appMap.get(p.id) ?? { total: 0, accepted: 0, pending: 0, rejected: 0 };
-    return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`${b.total} applications — view breakdown`}
-          >
-            {b.total}
-            <ChevronDown className="h-3 w-3 text-muted-foreground" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-44 p-3"
+  const renderContactPopover = (p: PropertyRow) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
           onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`${p.total_contact_requests} contact requests — view breakdown`}
         >
-          <p className="text-xs font-medium text-muted-foreground mb-2">Applications</p>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between"><span>Accepted</span><span className="font-medium">{b.accepted}</span></div>
-            <div className="flex justify-between"><span>Pending</span><span className="font-medium">{b.pending}</span></div>
-            <div className="flex justify-between"><span>Rejected</span><span className="font-medium">{b.rejected}</span></div>
-            <div className="flex justify-between border-t pt-1 mt-1"><span>Total</span><span className="font-medium">{b.total}</span></div>
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
-  };
+          {p.total_contact_requests}
+          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-3" onClick={(e) => e.stopPropagation()}>
+        <p className="text-xs font-medium text-muted-foreground mb-2">Contact requests</p>
+        <div className="space-y-1 text-sm">
+          <div className="flex justify-between"><span>Accepted</span><span className="font-medium">{p.accepted_contact_requests}</span></div>
+          <div className="flex justify-between"><span>Pending</span><span className="font-medium">{p.pending_contact_requests}</span></div>
+          <div className="flex justify-between"><span>Rejected</span><span className="font-medium">{p.rejected_contact_requests}</span></div>
+          <div className="flex justify-between border-t pt-1 mt-1"><span>Total</span><span className="font-medium">{p.total_contact_requests}</span></div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 
-  const renderActivity = (p: Property) => {
-    const c = countMap.get(p.id) ?? { views: 0, comments: 0 };
-    return (
-      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-1" aria-label={`${c.views} views`}>
-          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-          {c.views}
-        </span>
-        <span className="inline-flex items-center gap-1" aria-label={`${c.comments} comments`}>
-          <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
-          {c.comments}
-        </span>
-      </div>
-    );
-  };
+  const renderActivity = (p: PropertyRow) => (
+    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+      <span className="inline-flex items-center gap-1" aria-label={`${p.view_count} views`}>
+        <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+        {p.view_count}
+      </span>
+      <span className="inline-flex items-center gap-1" aria-label={`${p.comment_count} comments`}>
+        <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+        {p.comment_count}
+      </span>
+    </div>
+  );
 
-  // Actions cluster (shared desktop + mobile). All controls stopPropagation.
-  const renderActions = (p: Property) => {
+  const renderActions = (p: PropertyRow) => {
     const targets = getStatusTargetsFor(p.status);
     return (
       <div className="flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -501,12 +458,7 @@ export default function AdminProperties() {
         {p.status !== "archived" && p.status !== "edit_pending_review" && targets.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(e) => e.stopPropagation()}
-                className="h-7 text-xs"
-              >
+              <Button size="sm" variant="outline" onClick={(e) => e.stopPropagation()} className="h-7 text-xs">
                 Change status <ChevronDown className="h-3 w-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
@@ -526,21 +478,22 @@ export default function AdminProperties() {
     );
   };
 
-  const GRID = "grid-cols-[1.8fr_0.6fr_1fr_1fr_1.3fr_0.8fr_1fr_1.6fr]";
+  const GRID = "grid-cols-[1.8fr_0.6fr_1fr_1fr_1.3fr_0.9fr_1fr_1.6fr]";
+  const pageWindow = getPageWindow(page, pageCount);
 
   return (
     <AdminLayout>
       <div className="max-w-6xl space-y-4">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold text-foreground">Properties</h1>
-          <Badge variant="secondary">{visibleProperties.length}</Badge>
+          <Badge variant="secondary">{total}</Badge>
         </div>
 
-        {/* Prompt 12 (D-164) — filter + search bar. */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-56">
-              <SelectValue placeholder="Filter by status" />
+        {/* Filters + search. */}
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
+          <Select value={statusFilter} onValueChange={(v) => setParams({ status: v })}>
+            <SelectTrigger className="w-full sm:w-44" aria-label="Filter by status">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               {STATUS_FILTER_OPTIONS.map((o) => (
@@ -548,53 +501,86 @@ export default function AdminProperties() {
               ))}
             </SelectContent>
           </Select>
-          <div className="relative flex-1">
+
+          <Select value={cityFilter || "all"} onValueChange={(v) => setParams({ city: v === "all" ? null : v })}>
+            <SelectTrigger className="w-full sm:w-44" aria-label="Filter by city">
+              <SelectValue placeholder="City" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All cities</SelectItem>
+              {cities.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={typeFilter} onValueChange={(v) => setParams({ type: v })}>
+            <SelectTrigger className="w-full sm:w-32" aria-label="Filter by listing type">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              {LISTING_TYPE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={sort} onValueChange={(v) => setParams({ sort: v })}>
+            <SelectTrigger className="w-full sm:w-48" aria-label="Sort properties">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              {ADMIN_SORT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="relative flex-1 min-w-[12rem]">
             <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by building, owner name, email, or phone"
+              placeholder="Search building, locality, city, owner…"
               className="pl-9"
               aria-label="Search properties"
             />
           </div>
         </div>
 
-        {visibleProperties.length === 0 ? (
+        {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-8 text-center">No properties found.</p>
         ) : (
           <div className="rounded-lg border overflow-hidden">
-            {/* Table header. */}
             <div className={`hidden md:grid ${GRID} gap-4 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground uppercase tracking-wide`}>
               <span>Property</span>
               <span>BHK</span>
               <span>Status</span>
               <span>Price</span>
               <span>Owner</span>
-              <span>Applications</span>
+              <span>Contact Requests</span>
               <span>Activity</span>
               <span className="text-right">Actions</span>
             </div>
 
-            {/* Rows. Row-scope click/keyboard navigates to detail; nested controls
-                stopPropagation, and the keyboard handler ignores keys bubbling from
-                nested controls (event.target !== event.currentTarget). */}
-            {visibleProperties.map((p) => {
-              const price = resolveAdminPrice(p, rentMap);
+            {rows.map((p) => {
+              const price = resolveAdminPrice(
+                { id: p.property_id, status: p.status, listing_type: p.listing_type, listed_rent: p.listed_rent, sale_price: p.sale_price },
+                finalRentMap,
+              );
               const location = formatLocalityCity(p.locality, p.city);
-              const bucket = appMap.get(p.id) ?? { total: 0, accepted: 0, pending: 0, rejected: 0 };
 
               return (
                 <div
-                  key={p.id}
+                  key={p.property_id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => navigate(`/admin/properties/${p.id}`)}
+                  onClick={() => navigate(`/admin/properties/${p.property_id}`)}
                   onKeyDown={(event) => {
                     if (event.target !== event.currentTarget) return;
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      navigate(`/admin/properties/${p.id}`);
+                      navigate(`/admin/properties/${p.property_id}`);
                     }
                   }}
                   className="w-full text-left border-t first:border-t-0 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
@@ -608,21 +594,21 @@ export default function AdminProperties() {
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       {location !== "—" && <span>{location}</span>}
                       <span>{p.bhk}</span>
-                      <span>{p.owner?.full_name ?? "—"}</span>
+                      <span>{p.owner_name ?? "—"}</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs">
                       <span className="text-foreground">
                         {price.amount}
                         <span className="ml-1 text-muted-foreground">{price.kind}</span>
                       </span>
-                      <span className="text-muted-foreground">{bucket.total} apps</span>
+                      <span className="text-muted-foreground">{p.total_contact_requests} requests</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs">
                       {renderActivity(p)}
                       <span className="text-muted-foreground">{format(new Date(p.updated_at), "d MMM yyyy")}</span>
                     </div>
                     <div className="flex items-center gap-2 pt-1">
-                      {renderAppsPopover(p)}
+                      {renderContactPopover(p)}
                       {renderActions(p)}
                     </div>
                   </div>
@@ -639,10 +625,10 @@ export default function AdminProperties() {
                       {price.amount}
                       <span className="block text-xs text-muted-foreground">{price.kind}</span>
                     </span>
-                    <span className="text-sm text-foreground truncate" title={p.owner?.email ?? undefined}>
-                      {p.owner?.full_name ?? "—"}
+                    <span className="text-sm text-foreground truncate" title={p.owner_email ?? undefined}>
+                      {p.owner_name ?? "—"}
                     </span>
-                    <span>{renderAppsPopover(p)}</span>
+                    <span>{renderContactPopover(p)}</span>
                     {renderActivity(p)}
                     <div className="flex justify-end">{renderActions(p)}</div>
                   </div>
@@ -652,7 +638,55 @@ export default function AdminProperties() {
           </div>
         )}
 
-        {/* Delete-draft confirmation. RPC pre-checks applications/visits — errors surface via toast. */}
+        {/* Pagination */}
+        {total > 0 && (
+          <nav className="flex flex-col sm:flex-row items-center justify-between gap-3" aria-label="Pagination">
+            <p className="text-xs text-muted-foreground">
+              Showing {firstRow}–{lastRow} of {total}
+            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                disabled={page <= 1}
+                onClick={() => gotoPage(page - 1)}
+                aria-label="Previous page"
+              >
+                Previous
+              </Button>
+              {pageWindow.map((tok, i) =>
+                tok === "ellipsis" ? (
+                  <span key={`e${i}`} className="px-1.5 text-muted-foreground" aria-hidden="true">…</span>
+                ) : (
+                  <Button
+                    key={tok}
+                    size="sm"
+                    variant={tok === page ? "default" : "outline"}
+                    className="h-8 w-8 p-0"
+                    aria-label={`Page ${tok}`}
+                    aria-current={tok === page ? "page" : undefined}
+                    onClick={() => gotoPage(tok)}
+                  >
+                    {tok}
+                  </Button>
+                ),
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                disabled={page >= pageCount}
+                onClick={() => gotoPage(page + 1)}
+                aria-label="Next page"
+              >
+                Next
+              </Button>
+            </div>
+          </nav>
+        )}
+
+        {/* Delete-draft confirmation. */}
         <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -662,7 +696,7 @@ export default function AdminProperties() {
                 {deleteTarget && (
                   <span className="block mt-2 text-foreground font-medium">
                     {deleteTarget.building_name}
-                    {deleteTarget.owner?.full_name && ` · ${deleteTarget.owner.full_name}`}
+                    {deleteTarget.owner_name && ` · ${deleteTarget.owner_name}`}
                   </span>
                 )}
               </AlertDialogDescription>
@@ -680,8 +714,7 @@ export default function AdminProperties() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Status-change confirmation. Admin bypasses enforce_property_owner_transitions;
-            triggers manage is_active + activity logging. */}
+        {/* Status-change confirmation. */}
         <AlertDialog open={!!statusTarget} onOpenChange={(o) => { if (!o) setStatusTarget(null); }}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -691,7 +724,7 @@ export default function AdminProperties() {
                 {statusTarget && (
                   <span className="block mt-2 text-foreground font-medium">
                     {statusTarget.property.building_name}
-                    {statusTarget.property.owner?.full_name && ` · ${statusTarget.property.owner.full_name}`}
+                    {statusTarget.property.owner_name && ` · ${statusTarget.property.owner_name}`}
                   </span>
                 )}
               </AlertDialogDescription>
