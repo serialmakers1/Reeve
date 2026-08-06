@@ -195,7 +195,7 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
   const displayCount = loaded ? rows.filter((r) => r.parent_comment_id === null).length : commentCount;
 
   return (
-    <section id="comments" className="space-y-3 px-4 lg:px-0">
+    <section className="space-y-3 px-4 lg:px-0">
       {/* F1F-7: section-level toggle; body loads on open (defers RPC + auto-load). */}
       <button
         type="button"

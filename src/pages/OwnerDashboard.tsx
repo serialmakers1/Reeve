@@ -36,11 +36,15 @@ interface OwnerProperty {
   city: string | null;
   bhk: string | null;
   listed_rent: number | null;
+  sale_price: number | null;
   status: string;
   is_active: boolean;
   created_at: string;
   listing_type?: string | null;
   availability_confirmed_at: string | null;
+  sale_listing_confirmed_at: string | null;
+  current_listed_period_started_at: string | null;
+  listed_at: string | null;
 }
 
 export default function OwnerDashboard() {
@@ -50,8 +54,7 @@ export default function OwnerDashboard() {
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [properties, setProperties] = useState<OwnerProperty[]>([]);
   const [photoMap, setPhotoMap] = useState<Record<string, string>>({});
-  const [unansweredMap, setUnansweredMap] = useState<Record<string, number>>({});
-  const [availMap, setAvailMap] = useState<Record<string, { confirmedAt: string; nextAt: string }>>({});
+  const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [showDraftLimit, setShowDraftLimit] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
@@ -69,7 +72,7 @@ export default function OwnerDashboard() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: props } = await (supabase as any)
         .from("properties")
-        .select("id, building_name, locality, city, bhk, listed_rent, status, is_active, created_at, listing_type, availability_confirmed_at")
+        .select("id, building_name, locality, city, bhk, listed_rent, sale_price, status, is_active, created_at, listing_type, availability_confirmed_at, sale_listing_confirmed_at, current_listed_period_started_at, listed_at")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: false });
       const rows = (props ?? []) as OwnerProperty[];
@@ -90,15 +93,16 @@ export default function OwnerDashboard() {
         }
         setPhotoMap(map);
 
-        // B7: batched unanswered comment counts. Fire-and-forget; card badge appears when data lands.
+        // Batched total comment counts (incl. 0). Reuses the shared
+        // get_property_counts RPC. Fire-and-forget; card count fills in on land.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase as any)
-          .rpc("get_unanswered_comment_counts", { p_property_ids: ids })
+          .rpc("get_property_counts", { p_property_ids: ids })
           .then(({ data }: { data: unknown }) => {
-            const arr = Array.isArray(data) ? (data as { property_id: string; unanswered_count: number | string }[]) : [];
+            const arr = Array.isArray(data) ? (data as { property_id: string; comment_count: number | string }[]) : [];
             const m: Record<string, number> = {};
-            for (const row of arr) m[row.property_id] = Number(row.unanswered_count ?? 0);
-            setUnansweredMap(m);
+            for (const row of arr) m[row.property_id] = Number(row.comment_count ?? 0);
+            setCommentMap(m);
           })
           .catch(() => { /* silent */ });
       }
@@ -136,6 +140,9 @@ export default function OwnerDashboard() {
     navigate("/list");
   };
 
+  const patchProperty = (id: string, patch: Partial<OwnerProperty>) =>
+    setProperties((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+
   async function handleConfirmAvailability(propertyId: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any).rpc("confirm_availability_of_rental", {
@@ -146,11 +153,48 @@ export default function OwnerDashboard() {
       return;
     }
     const row = Array.isArray(data) ? data[0] : data;
-    setAvailMap((prev) => ({
-      ...prev,
-      [propertyId]: { confirmedAt: row.confirmed_at, nextAt: row.next_confirmation_at },
-    }));
+    patchProperty(propertyId, { availability_confirmed_at: row.confirmed_at });
     toast({ title: "Availability confirmed", description: "Tenants will see your listing as recently confirmed." });
+  }
+
+  async function handleConfirmSale(propertyId: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc("confirm_sale_listing", {
+      p_property_id: propertyId,
+    });
+    if (error) {
+      toast({ title: "Could not confirm listing", description: error.message, variant: "destructive" });
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    patchProperty(propertyId, { sale_listing_confirmed_at: row.confirmed_at });
+    toast({ title: "Listing confirmed", description: "Buyers will see your listing as recently confirmed." });
+  }
+
+  async function handleRelist(propertyId: string) {
+    // Relist via the existing owner flow, then re-read the trigger-generated
+    // freshness fields so the card shows the fresh deadline immediately.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("properties")
+      .update({ status: "listed" })
+      .eq("id", propertyId)
+      .select("status, is_active, current_listed_period_started_at, availability_confirmed_at, sale_listing_confirmed_at, listed_at")
+      .maybeSingle();
+    if (error || !data) {
+      toast({ title: "Could not re-list", description: error?.message, variant: "destructive" });
+      return;
+    }
+    patchProperty(propertyId, {
+      status: data.status,
+      is_active: data.is_active,
+      current_listed_period_started_at: data.current_listed_period_started_at,
+      availability_confirmed_at: data.availability_confirmed_at,
+      sale_listing_confirmed_at: data.sale_listing_confirmed_at,
+      listed_at: data.listed_at,
+    });
+    posthog?.capture("commons_property_action", { action: "relist", property_id: propertyId, from_status: "unlisted", to_status: "listed" });
+    toast({ title: "Re-listed", description: "Your listing is visible to tenants again." });
   }
 
   const goToProperty = (p: OwnerProperty) => {
@@ -264,10 +308,10 @@ export default function OwnerDashboard() {
                     key={p.id}
                     property={p}
                     primaryPhotoUrl={photoMap[p.id] ?? null}
-                    unansweredCount={unansweredMap[p.id]}
-                    availabilityConfirmedAt={availMap[p.id]?.confirmedAt ?? p.availability_confirmed_at}
-                    nextConfirmationAt={availMap[p.id]?.nextAt ?? null}
+                    commentCount={commentMap[p.id] ?? 0}
                     onConfirmAvailability={() => handleConfirmAvailability(p.id)}
+                    onConfirmSale={() => handleConfirmSale(p.id)}
+                    onRelist={() => handleRelist(p.id)}
                     onClick={() => goToProperty(p)}
                   />
                 ))}

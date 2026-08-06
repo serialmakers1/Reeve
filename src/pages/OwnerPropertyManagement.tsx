@@ -11,12 +11,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import posthog from "posthog-js";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { AlertCircle, ExternalLink, Pencil } from "lucide-react";
 
 import Layout from "@/components/Layout";
 import RejectionPanel from "@/components/property-management/RejectionPanel";
 import StatusGuidance from "@/components/property-management/StatusGuidance";
+import StatusActionGlossary from "@/components/property-management/StatusActionGlossary";
+import { getOwnerActions } from "@/lib/ownerStatusGlossary";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getStatusDisplay } from "@/lib/propertyStatus";
+import { formatSalePrice } from "@/utils/property/formatSalePrice";
+import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
 import {
   BHK_OPTIONS, PROPERTY_TYPE_OPTIONS, FURNISHING_OPTIONS, BUILDING_AMENITIES,
   FURNISHING_ITEM_OPTIONS, PARKING_OPTIONS, PET_POLICY_OPTIONS,
@@ -84,6 +88,7 @@ interface PropertyRow {
   parking_notes: string | null;
   listing_type: string | null;
   sale_price: number | null;
+  sale_brokerage_pct: number | null;
   price_negotiable: boolean | null;
   expected_price_per_sqft: number | null;
   possession_status: string | null;
@@ -114,6 +119,14 @@ const labelForValue = (opts: readonly { value: string; label: string }[], v: str
 
 const formatRupees = (n: number | null): string =>
   n && n > 0 ? "₹" + n.toLocaleString("en-IN") : "—";
+
+// Safe date-only formatter — parseISO avoids the UTC/Safari day-shift that
+// `new Date("YYYY-MM-DD")` causes. Returns null for missing/invalid values.
+const formatDateOnly = (iso: string | null | undefined): string | null => {
+  if (!iso) return null;
+  const d = parseISO(iso);
+  return isValid(d) ? format(d, "PPP") : null;
+};
 
 export default function OwnerPropertyManagement() {
   const { id } = useParams<{ id: string }>();
@@ -325,10 +338,24 @@ export default function OwnerPropertyManagement() {
               {[property.locality, property.city].filter(Boolean).join(", ") || "—"}
             </p>
             <div className="flex items-baseline justify-between pt-1 gap-3">
-              <p className="text-sm text-foreground">
-                {formatRupees(property.listed_rent)}<span className="text-xs text-muted-foreground">/mo</span>
-                <span className="text-xs text-muted-foreground ml-3">Deposit {formatRupees(property.security_deposit_amount)}</span>
-              </p>
+              {property.listing_type === "sale" ? (
+                <p className="text-sm text-foreground">
+                  {formatSalePrice(property.sale_price) ?? "Sale price not set"}
+                </p>
+              ) : (
+                <p className="text-sm text-foreground">
+                  {property.listed_rent && property.listed_rent > 0 ? (
+                    <>
+                      {formatRupees(property.listed_rent)}<span className="text-xs text-muted-foreground">/mo</span>
+                      {property.security_deposit_amount && property.security_deposit_amount > 0 && (
+                        <span className="text-xs text-muted-foreground ml-3">Deposit {formatRupees(property.security_deposit_amount)}</span>
+                      )}
+                    </>
+                  ) : (
+                    "Rent not set"
+                  )}
+                </p>
+              )}
               {property.status === "listed" || property.status === "edit_pending_review" ? (
                 <a
                   href={`/property/${property.id}`} target="_blank" rel="noopener noreferrer"
@@ -385,6 +412,9 @@ export default function OwnerPropertyManagement() {
           <TabsContent value="details" className="space-y-6">
             {/* Prompt 11 (H3, D-138) — always-visible status explainer. */}
             <StatusGuidance status={property.status} />
+            {/* Full status + action glossary (collapsible). Complements the
+                current-status card above. */}
+            {isCommons && <StatusActionGlossary status={property.status} />}
             {/* Prompt 11 (H1/H2, D-140/D-141) — persistent amber rejection panel;
                 ack scoped to activity_log_id so second rejection reappears. */}
             {user?.id && <RejectionPanel propertyId={property.id} userId={user.id} />}
@@ -419,35 +449,91 @@ export default function OwnerPropertyManagement() {
               <FieldRow k="Super built-up area" v={view.super_built_up_area ? `${view.super_built_up_area} sqft` : null} />
             </DetailsSection>
 
-            <DetailsSection title="Rent & Deposit">
-              <FieldRow k="Rent/mo" v={formatRupees(view.listed_rent)} pending={pendingFieldKeys.has("listed_rent")} live={formatRupees(property.listed_rent)} />
-              <FieldRow k="Deposit" v={formatRupees(view.security_deposit_amount)} pending={pendingFieldKeys.has("security_deposit_amount")} live={formatRupees(property.security_deposit_amount)} />
-              <FieldRow k="Society maintenance" v={formatRupees(view.society_maintenance_approx)} pending={pendingFieldKeys.has("society_maintenance_approx")} live={formatRupees(property.society_maintenance_approx)} />
-              <FieldRow k="Maintenance included" v={view.maintenance_included_in_rent ? "Yes" : "No"} pending={pendingFieldKeys.has("maintenance_included_in_rent")} live={property.maintenance_included_in_rent ? "Yes" : "No"} />
-              <FieldRow k="Available from" v={view.available_from ? format(new Date(view.available_from), "PPP") : null} pending={pendingFieldKeys.has("available_from")} live={property.available_from ? format(new Date(property.available_from), "PPP") : null} />
-              {view.listing_type !== "sale" && (
+            <DetailsSection title="Price & Terms">
+              {view.listing_type === "sale" ? (
                 <>
-                  <FieldRow k="Lock-in" v={view.lock_in_months ? `${view.lock_in_months} months` : null} />
-                  <FieldRow k="Notice period" v={view.notice_period_days ? `${view.notice_period_days} days` : null} />
-                  <FieldRow k="Annual increase" v={view.annual_rent_increase_pct != null ? `${view.annual_rent_increase_pct}%` : null} />
-                  <FieldRow k="Move-in charges" v={formatRupees(view.move_in_charges_amount)} />
-                  <FieldRow k="Brokerage" v={formatRupees(view.rent_brokerage_fixed_amount)} />
+                  {/* Primary price — always shown (non-empty fallback keeps FieldRow visible) */}
+                  <FieldRow
+                    k="Sale price"
+                    v={formatSalePrice(view.sale_price) ?? "Sale price not set"}
+                    pending={pendingFieldKeys.has("sale_price")}
+                    live={formatSalePrice(property.sale_price) ?? "Sale price not set"}
+                  />
+                  <FieldRow
+                    k="Price/sqft"
+                    v={formatRupees(view.expected_price_per_sqft)}
+                    pending={pendingFieldKeys.has("expected_price_per_sqft")}
+                    live={formatRupees(property.expected_price_per_sqft)}
+                  />
+                  <FieldRow
+                    k="Negotiable"
+                    v={view.price_negotiable == null ? null : view.price_negotiable ? "Open to offers" : "Firm price"}
+                    pending={pendingFieldKeys.has("price_negotiable")}
+                    live={property.price_negotiable == null ? null : property.price_negotiable ? "Open to offers" : "Firm price"}
+                  />
+                  <FieldRow
+                    k="Brokerage"
+                    v={view.sale_brokerage_pct != null ? `${view.sale_brokerage_pct}%` : null}
+                    pending={pendingFieldKeys.has("sale_brokerage_pct")}
+                    live={property.sale_brokerage_pct != null ? `${property.sale_brokerage_pct}%` : null}
+                  />
+                  <FieldRow
+                    k="Possession"
+                    v={formatEnumLabel("possession_status", view.possession_status)}
+                    pending={pendingFieldKeys.has("possession_status")}
+                    live={formatEnumLabel("possession_status", property.possession_status)}
+                  />
+                  <FieldRow
+                    k="Possession date"
+                    v={formatDateOnly(view.possession_date)}
+                    pending={pendingFieldKeys.has("possession_date")}
+                    live={formatDateOnly(property.possession_date)}
+                  />
+                  <FieldRow
+                    k="RERA no."
+                    v={view.rera_registration_number}
+                    pending={pendingFieldKeys.has("rera_registration_number")}
+                    live={property.rera_registration_number}
+                  />
+                  <FieldRow
+                    k="Khata type"
+                    v={formatEnumLabel("khata_type", view.khata_type)}
+                    pending={pendingFieldKeys.has("khata_type")}
+                    live={formatEnumLabel("khata_type", property.khata_type)}
+                  />
+                  <FieldRow
+                    k="Property tax paid upto"
+                    v={formatDateOnly(view.property_tax_paid_upto)}
+                    pending={pendingFieldKeys.has("property_tax_paid_upto")}
+                    live={formatDateOnly(property.property_tax_paid_upto)}
+                  />
+                </>
+              ) : (
+                <>
+                  {/* Primary price — always shown (non-empty fallback keeps FieldRow visible) */}
+                  <FieldRow
+                    k="Rent/mo"
+                    v={view.listed_rent && view.listed_rent > 0 ? formatRupees(view.listed_rent) : "Rent not set"}
+                    pending={pendingFieldKeys.has("listed_rent")}
+                    live={property.listed_rent && property.listed_rent > 0 ? formatRupees(property.listed_rent) : "Rent not set"}
+                  />
+                  <FieldRow k="Society maintenance" v={formatRupees(view.society_maintenance_approx)} pending={pendingFieldKeys.has("society_maintenance_approx")} live={formatRupees(property.society_maintenance_approx)} />
+                  <FieldRow
+                    k="Maintenance included"
+                    v={view.maintenance_included_in_rent == null ? null : view.maintenance_included_in_rent ? "Yes" : "No"}
+                    pending={pendingFieldKeys.has("maintenance_included_in_rent")}
+                    live={property.maintenance_included_in_rent == null ? null : property.maintenance_included_in_rent ? "Yes" : "No"}
+                  />
+                  <FieldRow k="Deposit" v={formatRupees(view.security_deposit_amount)} pending={pendingFieldKeys.has("security_deposit_amount")} live={formatRupees(property.security_deposit_amount)} />
+                  <FieldRow k="Available from" v={formatDateOnly(view.available_from)} pending={pendingFieldKeys.has("available_from")} live={formatDateOnly(property.available_from)} />
+                  <FieldRow k="Lock-in" v={view.lock_in_months ? `${view.lock_in_months} months` : null} pending={pendingFieldKeys.has("lock_in_months")} live={property.lock_in_months ? `${property.lock_in_months} months` : null} />
+                  <FieldRow k="Notice period" v={view.notice_period_days ? `${view.notice_period_days} days` : null} pending={pendingFieldKeys.has("notice_period_days")} live={property.notice_period_days ? `${property.notice_period_days} days` : null} />
+                  <FieldRow k="Annual increase" v={view.annual_rent_increase_pct != null ? `${view.annual_rent_increase_pct}%` : null} pending={pendingFieldKeys.has("annual_rent_increase_pct")} live={property.annual_rent_increase_pct != null ? `${property.annual_rent_increase_pct}%` : null} />
+                  <FieldRow k="Move-in charges" v={formatRupees(view.move_in_charges_amount)} pending={pendingFieldKeys.has("move_in_charges_amount")} live={formatRupees(property.move_in_charges_amount)} />
+                  <FieldRow k="Brokerage" v={formatRupees(view.rent_brokerage_fixed_amount)} pending={pendingFieldKeys.has("rent_brokerage_fixed_amount")} live={formatRupees(property.rent_brokerage_fixed_amount)} />
                 </>
               )}
             </DetailsSection>
-
-            {view.listing_type === "sale" && (
-              <DetailsSection title="Sale">
-                <FieldRow k="Sale price" v={formatRupees(view.sale_price)} />
-                <FieldRow k="Negotiable" v={view.price_negotiable ? "Yes" : null} />
-                <FieldRow k="Price/sqft" v={formatRupees(view.expected_price_per_sqft)} />
-                <FieldRow k="Possession" v={view.possession_status} />
-                <FieldRow k="Possession date" v={view.possession_date ? format(new Date(view.possession_date), "PPP") : null} />
-                <FieldRow k="RERA no." v={view.rera_registration_number} />
-                <FieldRow k="Khata type" v={view.khata_type} />
-                <FieldRow k="Property tax paid upto" v={view.property_tax_paid_upto ? format(new Date(view.property_tax_paid_upto), "PPP") : null} />
-              </DetailsSection>
-            )}
 
             <DetailsSection title="Furnishing">
               <FieldRow k="Type" v={labelForValue(FURNISHING_OPTIONS as unknown as { value:string; label:string }[], view.furnishing)} pending={pendingFieldKeys.has("furnishing")} live={labelForValue(FURNISHING_OPTIONS as unknown as { value:string; label:string }[], property.furnishing)} />
@@ -586,27 +672,32 @@ export default function OwnerPropertyManagement() {
       {/* Confirmation modals */}
       <ConfirmDialog
         open={confirmKind === "withdraw"} onOpenChange={(v) => !v && setConfirmKind(null)}
-        title="Withdraw your submission?" description="Your listing will go back to draft. You can edit and resubmit anytime."
+        title="Withdraw your submission?"
+        description="This takes your listing out of the review queue and back to draft. It stays hidden from tenants, and you can edit and submit it again anytime."
         confirmLabel="Withdraw" onConfirm={() => doTransition("draft", "withdraw")}
       />
       <ConfirmDialog
         open={confirmKind === "archive"} onOpenChange={(v) => !v && setConfirmKind(null)}
-        title="Cancel this listing?" description="It will be archived and hidden from your dashboard. Contact support to restore it."
+        title="Cancel this listing?"
+        description="This archives the listing and removes it from your dashboard and from tenants. Any pending contact requests are cancelled. You'll need to contact support to restore it."
         confirmLabel="Yes, archive" variant="destructive" onConfirm={() => doTransition("archived", "archive")}
       />
       <ConfirmDialog
         open={confirmKind === "unlist"} onOpenChange={(v) => !v && setConfirmKind(null)}
-        title="Unlist this property?" description="It won't be visible to tenants until you re-list it."
+        title="Unlist this property?"
+        description="Tenants won't see this listing until you re-list it. Your details are kept and nothing is deleted — re-listing makes it visible again."
         confirmLabel="Unlist" variant="destructive" onConfirm={() => doTransition("unlisted", "unlist")}
       />
       <ConfirmDialog
         open={confirmKind === "relist"} onOpenChange={(v) => !v && setConfirmKind(null)}
-        title="Re-list this property?" description="It will be visible to tenants immediately."
+        title="Re-list this property?"
+        description="This makes your listing visible to tenants again immediately. If you haven't changed anything, it goes live right away."
         confirmLabel="Re-list" onConfirm={() => doTransition("listed", "relist")}
       />
       <ConfirmDialog
         open={confirmKind === "cancel_edit"} onOpenChange={(v) => !v && setConfirmKind(null)}
-        title="Cancel your pending edit?" description="Your live listing will stay as it is now."
+        title="Cancel your pending edit?"
+        description="This discards the edit that's under review. Your live listing keeps its current details and tenants see no change."
         confirmLabel="Yes, cancel edit" onConfirm={doCancelPendingEdit}
       />
     </Layout>
@@ -662,20 +753,32 @@ function ActionsBar({
   onRelist: () => void;
   onCancelEdit: () => void;
 }) {
+  // getOwnerActions is the single source of truth for availability (shared with
+  // the card info trigger). Labels/variants/handlers stay identical to before.
+  const actions = getOwnerActions(status);
+  const editLabel =
+    status === "listed" ? "Edit listing" : status === "edit_pending_review" ? "Modify edit" : "Continue editing";
+
   return (
     <div className="pt-2 flex flex-wrap gap-2">
-      {(status === "draft" || status === "changes_requested") && (
-        <Button onClick={onEdit}><Pencil className="h-4 w-4 mr-1.5" /> Continue editing</Button>
-      )}
-      {status === "listed" && <Button onClick={onEdit}><Pencil className="h-4 w-4 mr-1.5" /> Edit listing</Button>}
-      {status === "edit_pending_review" && <Button onClick={onEdit}><Pencil className="h-4 w-4 mr-1.5" /> Modify edit</Button>}
-      {status === "pending_review" && <Button variant="outline" onClick={onWithdraw}>Withdraw submission</Button>}
-      {status === "listed" && <Button variant="outline" onClick={onUnlist} className="text-destructive">Unlist</Button>}
-      {status === "unlisted" && <Button onClick={onRelist}>Re-list</Button>}
-      {status === "edit_pending_review" && <Button variant="outline" onClick={onCancelEdit}>Cancel pending edit</Button>}
-      {(status === "draft" || status === "pending_review" || status === "changes_requested" || status === "listed" || status === "edit_pending_review" || status === "unlisted") && (
-        <Button variant="ghost" onClick={onArchive} className="text-destructive">Cancel listing</Button>
-      )}
+      {actions.map((a) => {
+        switch (a) {
+          case "edit":
+            return <Button key={a} onClick={onEdit}><Pencil className="h-4 w-4 mr-1.5" /> {editLabel}</Button>;
+          case "withdraw_submission":
+            return <Button key={a} variant="outline" onClick={onWithdraw}>Withdraw submission</Button>;
+          case "unlist":
+            return <Button key={a} variant="outline" onClick={onUnlist} className="text-destructive">Unlist</Button>;
+          case "relist":
+            return <Button key={a} onClick={onRelist}>Re-list</Button>;
+          case "cancel_edit":
+            return <Button key={a} variant="outline" onClick={onCancelEdit}>Cancel pending edit</Button>;
+          case "archive":
+            return <Button key={a} variant="ghost" onClick={onArchive} className="text-destructive">Cancel listing</Button>;
+          default:
+            return null;
+        }
+      })}
     </div>
   );
 }

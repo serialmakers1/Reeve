@@ -45,15 +45,7 @@ import {
 } from "@/lib/reviewAmenities";
 import { validateYoutubeUrl } from "@/lib/ownerTextValidation";
 import { cn } from "@/lib/utils";
-
-const REJECTION_REASONS = [
-  { value: "incomplete_details", label: "Incomplete details" },
-  { value: "photos_insufficient", label: "Photos insufficient" },
-  { value: "pricing_unclear", label: "Pricing unclear" },
-  { value: "duplicate_listing", label: "Duplicate listing" },
-  { value: "policy_violation", label: "Policy violation" },
-  { value: "other", label: "Other" },
-] as const;
+import { REJECTION_REASONS, formatRejectionReason } from "@/lib/rejectionReasons";
 
 interface PropertyRow {
   id: string; owner_id: string; status: string;
@@ -421,11 +413,12 @@ export default function ListingReviewDetail() {
     // writes the listing_rejected activity_log entry atomically. The
     // property_activity_log_writer trigger skips its automatic log for the
     // pending_review→changes_requested transition, so no double-log.
-    const reasonLabel = REJECTION_REASONS.find((r) => r.value === reason)?.label ?? reason;
+    // Store the raw category value (consistent with reject_edit_request); the UI
+    // renders it via formatRejectionReason. See src/lib/rejectionReasons.ts.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).rpc("reject_property_listing", {
       p_property_id: property.id,
-      p_reason: reasonLabel,
+      p_reason: reason,
       p_reason_text: reasonText.trim() || null,
     });
     setBusy(false);
@@ -931,7 +924,7 @@ export default function ListingReviewDetail() {
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {Object.keys(fc).length} field change{Object.keys(fc).length === 1 ? "" : "s"}
-                          {r.rejection_reason ? ` · reason: ${r.rejection_reason}` : ""}
+                          {formatRejectionReason(r.rejection_reason) ? ` · reason: ${formatRejectionReason(r.rejection_reason)}` : ""}
                         </p>
                       </div>
                       <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />

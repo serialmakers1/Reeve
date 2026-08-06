@@ -8,13 +8,21 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Clock, ExternalLink, Loader2, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Loader2, Mail } from "lucide-react";
 import DeclineReasonModal, { DECLINE_REASONS } from "./DeclineReasonModal";
 import {
   BUYING_PURPOSE_LABELS,
   PURCHASE_TIMELINE_LABELS,
   FUNDING_STAGE_LABELS,
 } from "@/lib/preferenceHelpers";
+import { useResendReveal } from "@/hooks/useResendReveal";
+import { isResendExpiredAt } from "@/lib/resendExpiry";
+import RequestFilterControls from "./RequestFilterControls";
+import {
+  type RequestFilters, type SortKey, type SnapshotMode,
+  EMPTY_FILTERS, snapshotMode, filterRequests, sortRequests,
+  sanitizeFilters, isSortValidForListing,
+} from "./requestFilters";
 
 // Phase 3 Prompt 4 — owner-side Requests tab.
 // Renders a live, grouped log of every contact_request against this property.
@@ -288,7 +296,15 @@ function PendingCard(props: {
 }
 
 // ── Approved read-only card ────────────────────────────────────────────────
-function ApprovedCard({ cr, listingType }: { cr: CrRow; listingType?: string | null }) {
+function ApprovedCard({
+  cr, listingType, onResend, resending, expired,
+}: {
+  cr: CrRow;
+  listingType?: string | null;
+  onResend: (id: string) => void;
+  resending: boolean;
+  expired: boolean;
+}) {
   const snap = cr.tenant_profile_snapshot;
   const name = displayName(snap);
   return (
@@ -307,19 +323,89 @@ function ApprovedCard({ cr, listingType }: { cr: CrRow; listingType?: string | n
           </div>
         </div>
         <SnapshotPrefBlock snap={snap} listingType={listingType} />
+        <div className="pt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-[40px]"
+            onClick={() => onResend(cr.id)}
+            disabled={resending || expired}
+            title={expired ? "The 15-day resend window has closed." : undefined}
+          >
+            {resending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Mail className="h-3.5 w-3.5 mr-1.5" />}
+            {expired ? "Resend window closed" : "Resend tenant contact to my email"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
 }
 
+// ── Per-property sessionStorage (filters + sort persisted separately) ────────
+const filtersKey = (id: string) => `owner-requests-filters:${id}`;
+const sortKey_ = (id: string) => `owner-requests-sort:${id}`;
+
+function loadFilters(id: string, mode: SnapshotMode): RequestFilters {
+  try {
+    const raw = sessionStorage.getItem(filtersKey(id));
+    return sanitizeFilters(raw ? JSON.parse(raw) : null, mode);
+  } catch { return EMPTY_FILTERS; }
+}
+function loadSort(id: string, mode: SnapshotMode): SortKey {
+  try {
+    const raw = sessionStorage.getItem(sortKey_(id));
+    const s = (raw ? JSON.parse(raw) : "pending_first") as SortKey;
+    return isSortValidForListing(s, mode) ? s : "pending_first";
+  } catch { return "pending_first"; }
+}
+function saveFilters(id: string, f: RequestFilters) {
+  try { sessionStorage.setItem(filtersKey(id), JSON.stringify(f)); } catch { /* ignore */ }
+}
+function saveSort(id: string, s: SortKey) {
+  try { sessionStorage.setItem(sortKey_(id), JSON.stringify(s)); } catch { /* ignore */ }
+}
+
+const STATUS_CHIP: Record<CrStatus, { label: string; cls: string }> = {
+  pending: { label: "Pending", cls: "border-amber-300 text-amber-700 bg-amber-50" },
+  approved: { label: "Approved", cls: "border-emerald-300 text-emerald-700 bg-emerald-50" },
+  declined: { label: "Declined", cls: "border-border text-muted-foreground bg-muted" },
+  withdrawn: { label: "Withdrawn", cls: "border-border text-muted-foreground bg-muted" },
+  auto_cancelled: { label: "Auto-cancelled", cls: "border-border text-muted-foreground bg-muted" },
+};
+
 // ── Main component ─────────────────────────────────────────────────────────
-export default function RequestsTab({ propertyId, listingType }: RequestsTabProps) {
+export default function RequestsTab({ propertyId, propertyStatus, listingType }: RequestsTabProps) {
+  const mode = snapshotMode(listingType);
   const [rows, setRows] = useState<CrRow[] | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [approving, setApproving] = useState<Record<string, boolean>>({});
   const [approveWarnings, setApproveWarnings] = useState<Record<string, boolean>>({});
   const [declineTarget, setDeclineTarget] = useState<string | null>(null);
   const [declining, setDeclining] = useState(false);
+  const { resend, isResending, isServerExpired } = useResendReveal();
+
+  // Filter/sort state bound to { propertyId, mode } so a mounted tab never
+  // writes the previous property's/mode's state into the new key.
+  const [fstate, setFstate] = useState<{ propertyId: string; mode: SnapshotMode; filters: RequestFilters; sortKey: SortKey }>(
+    () => ({ propertyId, mode, filters: loadFilters(propertyId, mode), sortKey: loadSort(propertyId, mode) }),
+  );
+  useEffect(() => {
+    setFstate({ propertyId, mode, filters: loadFilters(propertyId, mode), sortKey: loadSort(propertyId, mode) });
+  }, [propertyId, mode]);
+
+  const isHydrated = fstate.propertyId === propertyId && fstate.mode === mode;
+  const effectiveFilters = isHydrated ? fstate.filters : EMPTY_FILTERS;
+  const effectiveSort = isHydrated ? fstate.sortKey : "pending_first";
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    saveFilters(propertyId, fstate.filters);
+    saveSort(propertyId, fstate.sortKey);
+  }, [isHydrated, propertyId, fstate.filters, fstate.sortKey]);
+
+  const setFilters = (next: RequestFilters) => setFstate((p) => ({ ...p, filters: sanitizeFilters(next, mode) }));
+  const setSort = (next: SortKey) => setFstate((p) => ({ ...p, sortKey: next }));
+  const clearAll = () => setFstate((p) => ({ ...p, filters: EMPTY_FILTERS }));
 
   const refetch = useCallback(async () => {
     const sb = supabase as unknown as { from: (t: string) => any };
@@ -350,13 +436,6 @@ export default function RequestsTab({ propertyId, listingType }: RequestsTabProp
     return () => { supabase.removeChannel(channel); };
   }, [propertyId, refetch]);
 
-  const grouped = useMemo(() => {
-    const list = rows ?? [];
-    const g = { pending: [] as CrRow[], approved: [] as CrRow[], declined: [] as CrRow[], withdrawn: [] as CrRow[], auto_cancelled: [] as CrRow[] };
-    for (const r of list) g[r.status].push(r);
-    return g;
-  }, [rows]);
-
   // Newest attempt-number per tenant — used to flag "tenant has re-requested"
   // against older declined rows.
   const maxAttemptPerTenant = useMemo(() => {
@@ -377,6 +456,12 @@ export default function RequestsTab({ propertyId, listingType }: RequestsTabProp
     }
     return m;
   }, [rows]);
+
+  // Filtered + sorted flat list (client-side; reads the frozen snapshot only).
+  const visible = useMemo(
+    () => sortRequests(filterRequests(rows ?? [], effectiveFilters, mode), effectiveSort),
+    [rows, effectiveFilters, effectiveSort, mode],
+  );
 
   const handleApprove = async (id: string) => {
     setApproving((s) => ({ ...s, [id]: true }));
@@ -432,97 +517,100 @@ export default function RequestsTab({ propertyId, listingType }: RequestsTabProp
   }
 
   const total = rows.length;
+  const unlistedBanner = propertyStatus === "unlisted" ? (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3" role="status">
+      <p className="text-sm text-amber-800">
+        This listing is currently unlisted. Existing requests can still be handled, but no new requests can be received.
+      </p>
+    </div>
+  ) : null;
+
   if (total === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-8 text-center">
-        <p className="text-sm text-muted-foreground">
-          No requests yet — once your property is live, tenants can request your contact.
-        </p>
+      <div className="space-y-4">
+        {unlistedBanner}
+        <div className="rounded-lg border border-dashed p-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            No requests yet — once your property is live, tenants can request your contact.
+          </p>
+        </div>
       </div>
     );
   }
 
+  const renderCard = (cr: CrRow) => {
+    switch (cr.status) {
+      case "pending":
+        return (
+          <PendingCard
+            cr={cr}
+            expanded={expanded[cr.id] ?? true}
+            onToggle={() => setExpanded((s) => ({ ...s, [cr.id]: !(s[cr.id] ?? true) }))}
+            onApprove={handleApprove}
+            onDeclineClick={(id) => setDeclineTarget(id)}
+            approving={approving[cr.id] ?? false}
+            approveWarning={approveWarnings[cr.id] ?? false}
+            priorDeclinedAt={priorDeclinedByTenant.get(cr.tenant_id) ?? null}
+            listingType={listingType}
+          />
+        );
+      case "approved":
+        return (
+          <ApprovedCard
+            cr={cr}
+            listingType={listingType}
+            onResend={resend}
+            resending={isResending(cr.id)}
+            expired={isResendExpiredAt(cr.approved_at, Date.now()) || isServerExpired(cr.id)}
+          />
+        );
+      case "declined":
+        return (
+          <CompactCard
+            cr={cr}
+            title={`Declined — ${reasonLabel(cr.decline_reason)}`}
+            detail={fmt(cr.declined_at)}
+            hasSubsequentAttempt={(maxAttemptPerTenant.get(cr.tenant_id) ?? 0) > cr.attempt_number}
+          />
+        );
+      case "withdrawn":
+        return <CompactCard cr={cr} title="Tenant withdrew this request." detail={fmt(cr.withdrawn_at)} />;
+      case "auto_cancelled":
+        return <CompactCard cr={cr} title="Request cancelled — property was archived." detail={fmt(cr.auto_cancelled_at)} />;
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Pending */}
-      {grouped.pending.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold text-foreground mb-2 inline-flex items-center gap-2">
-            <Clock className="h-4 w-4" /> Pending ({grouped.pending.length})
-          </h3>
-          <div className="space-y-3">
-            {grouped.pending.map((cr) => (
-              <PendingCard
-                key={cr.id}
-                cr={cr}
-                expanded={expanded[cr.id] ?? true}
-                onToggle={() => setExpanded((s) => ({ ...s, [cr.id]: !(s[cr.id] ?? true) }))}
-                onApprove={handleApprove}
-                onDeclineClick={(id) => setDeclineTarget(id)}
-                approving={approving[cr.id] ?? false}
-                approveWarning={approveWarnings[cr.id] ?? false}
-                priorDeclinedAt={priorDeclinedByTenant.get(cr.tenant_id) ?? null}
-                listingType={listingType}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+    <div className="space-y-4">
+      {unlistedBanner}
 
-      {/* Approved */}
-      {grouped.approved.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold text-foreground mb-2 inline-flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Approved ({grouped.approved.length})
-          </h3>
-          <div className="space-y-3">
-            {grouped.approved.map((cr) => <ApprovedCard key={cr.id} cr={cr} listingType={listingType} />)}
-          </div>
-        </section>
-      )}
+      <RequestFilterControls
+        mode={mode}
+        filters={effectiveFilters}
+        sortKey={effectiveSort}
+        onFiltersChange={setFilters}
+        onSortChange={setSort}
+        onClearAll={clearAll}
+      />
 
-      {/* Declined */}
-      {grouped.declined.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold text-foreground mb-2 inline-flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-muted-foreground" /> Declined ({grouped.declined.length})
-          </h3>
-          <div className="space-y-3">
-            {grouped.declined.map((cr) => (
-              <CompactCard
-                key={cr.id}
-                cr={cr}
-                title={`Declined — ${reasonLabel(cr.decline_reason)}`}
-                detail={fmt(cr.declined_at)}
-                hasSubsequentAttempt={(maxAttemptPerTenant.get(cr.tenant_id) ?? 0) > cr.attempt_number}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Withdrawn */}
-      {grouped.withdrawn.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold text-foreground mb-2">Withdrawn ({grouped.withdrawn.length})</h3>
-          <div className="space-y-3">
-            {grouped.withdrawn.map((cr) => (
-              <CompactCard key={cr.id} cr={cr} title="Tenant withdrew this request." detail={fmt(cr.withdrawn_at)} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Auto-cancelled */}
-      {grouped.auto_cancelled.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold text-foreground mb-2">Auto-cancelled ({grouped.auto_cancelled.length})</h3>
-          <div className="space-y-3">
-            {grouped.auto_cancelled.map((cr) => (
-              <CompactCard key={cr.id} cr={cr} title="Request cancelled — property was archived." detail={fmt(cr.auto_cancelled_at)} />
-            ))}
-          </div>
-        </section>
+      {visible.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-8 text-center space-y-3">
+          <p className="text-sm text-muted-foreground">No requests match these filters.</p>
+          <Button variant="outline" size="sm" onClick={clearAll}>Clear all filters</Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {visible.map((cr) => (
+            <div key={cr.id} className="space-y-1.5">
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_CHIP[cr.status].cls}`}>
+                {STATUS_CHIP[cr.status].label}
+              </span>
+              {renderCard(cr)}
+            </div>
+          ))}
+        </div>
       )}
 
       <DeclineReasonModal
