@@ -1,9 +1,13 @@
 /**
  * Pure, testable helpers for the admin Properties page (src/pages/admin/Properties.tsx).
  *
- * Kept free of React / Supabase so the behaviour that matters (status bucketing,
- * price resolution, status-target curation, update payload shape) is unit-tested
- * without jsdom / Radix / supabase-mock scaffolding.
+ * Kept free of React / Supabase so the behaviour that matters (price resolution,
+ * status-target curation, update payload shape, pagination + sort parsing) is
+ * unit-tested without jsdom / Radix / supabase-mock scaffolding.
+ *
+ * Note: contact-request bucketing lives ONLY in the get_admin_properties_page SQL
+ * (single source of truth). The page consumes the already-bucketed counts the RPC
+ * returns; there is no JS bucketing helper to drift from the SQL.
  */
 import { formatSalePrice } from "@/utils/property/formatSalePrice";
 import { formatIndianRupee } from "@/features/search/domain/formatCurrency";
@@ -31,63 +35,13 @@ export function formatLocalityCity(
   return `${loc}, ${cty}`;
 }
 
-// ── Application bucketing ────────────────────────────────────────────────────
+// ── Contact-request counts (shape only; buckets computed server-side) ────────
 
-export interface AppBucket {
+export interface ContactRequestCounts {
   total: number;
   accepted: number;
   pending: number;
   rejected: number;
-}
-
-/** Statuses that never enter the operational total. */
-const EXCLUDED_APP_STATUSES = new Set(["draft", "withdrawn", "expired"]);
-
-const ACCEPTED_APP_STATUSES = new Set([
-  "owner_accepted",
-  "payment_pending",
-  "payment_received",
-  "kyc_pending",
-  "kyc_passed",
-  "kyc_failed",
-  "agreement_pending",
-  "lease_active",
-]);
-
-const REJECTED_APP_STATUSES = new Set(["owner_rejected", "platform_rejected"]);
-
-// Pending (explicit, for documentation): submitted, platform_review, sent_to_owner,
-// owner_countered, tenant_countered, on_hold. Any UNKNOWN/future status also falls
-// here so `total` always reconciles rather than silently dropping a row.
-
-export interface AppStatusRow {
-  property_id: string;
-  status: string;
-}
-
-/**
- * Build a per-property {total, accepted, pending, rejected} map.
- * `total` is derived from the three buckets (never an independent count), so the
- * displayed total always equals accepted + pending + rejected.
- */
-export function bucketApplications(rows: AppStatusRow[]): Map<string, AppBucket> {
-  const map = new Map<string, AppBucket>();
-  for (const row of rows) {
-    if (EXCLUDED_APP_STATUSES.has(row.status)) continue;
-
-    let bucket = map.get(row.property_id);
-    if (!bucket) {
-      bucket = { total: 0, accepted: 0, pending: 0, rejected: 0 };
-      map.set(row.property_id, bucket);
-    }
-
-    if (ACCEPTED_APP_STATUSES.has(row.status)) bucket.accepted += 1;
-    else if (REJECTED_APP_STATUSES.has(row.status)) bucket.rejected += 1;
-    else bucket.pending += 1; // known-pending OR unknown/future → pending
-
-    bucket.total = bucket.accepted + bucket.pending + bucket.rejected;
-  }
-  return map;
 }
 
 // ── Price resolution ────────────────────────────────────────────────────────
@@ -95,7 +49,7 @@ export function bucketApplications(rows: AppStatusRow[]): Map<string, AppBucket>
 export interface AdminPriceInput {
   id: string;
   status: string;
-  listing_type: "rent" | "sale" | null;
+  listing_type: string | null;
   listed_rent: number | null;
   sale_price: number | null;
 }
@@ -166,4 +120,81 @@ export function buildStatusUpdatePayload(target: string): Record<string, unknown
     payload.availability_confirmed_at = null;
   }
   return payload;
+}
+
+// ── Pagination ──────────────────────────────────────────────────────────────
+
+export const ADMIN_PAGE_SIZE = 25;
+
+/**
+ * Largest page whose zero-based offset ((page-1)*ADMIN_PAGE_SIZE) still fits in a
+ * Postgres int4. Guards the RPC's integer offset argument from overflow even for
+ * values that pass Number.isSafeInteger().
+ */
+export const MAX_PAGE = Math.floor(2_147_483_647 / ADMIN_PAGE_SIZE) + 1;
+
+/** Parse a URL page param → a positive in-range integer; anything else → 1. */
+export function parsePageParam(raw: string | null | undefined): number {
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value >= 1 && value <= MAX_PAGE ? value : 1;
+}
+
+/** Total pages for a row count; 0 results still yields 1 page. */
+export function totalPages(total: number, size: number = ADMIN_PAGE_SIZE): number {
+  if (!Number.isFinite(total) || total <= 0) return 1;
+  return Math.max(1, Math.ceil(total / size));
+}
+
+export type PageToken = number | "ellipsis";
+
+/**
+ * Compact page window: first, last, current and up to two neighbours each side,
+ * with "ellipsis" markers for skipped ranges. Small totals show every page.
+ */
+export function getPageWindow(current: number, total: number): PageToken[] {
+  if (total <= 1) return [1];
+  const nums = new Set<number>([1, total]);
+  for (let d = -2; d <= 2; d++) {
+    const p = current + d;
+    if (p >= 1 && p <= total) nums.add(p);
+  }
+  const sorted = [...nums].sort((a, b) => a - b);
+  const out: PageToken[] = [];
+  let prev = 0;
+  for (const n of sorted) {
+    if (prev && n - prev > 1) out.push("ellipsis");
+    out.push(n);
+    prev = n;
+  }
+  return out;
+}
+
+// ── Sort ────────────────────────────────────────────────────────────────────
+
+export const ADMIN_SORT_OPTIONS = [
+  { value: "latest", label: "Latest listed" },
+  { value: "views", label: "Highest views" },
+  { value: "contact", label: "Most contact requests" },
+] as const;
+
+export type AdminSort = "latest" | "views" | "contact";
+
+/** Validate a URL sort param; unknown → "latest". */
+export function validateSort(raw: string | null | undefined): AdminSort {
+  return raw === "views" || raw === "contact" ? raw : "latest";
+}
+
+// ── Listing-type filter ─────────────────────────────────────────────────────
+
+export const LISTING_TYPE_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "sale", label: "Buy" },
+  { value: "rent", label: "Rent" },
+] as const;
+
+export type ListingTypeFilter = "all" | "sale" | "rent";
+
+/** Validate a URL listing-type param; Buy → "sale", Rent → "rent", else "all". */
+export function validateListingType(raw: string | null | undefined): ListingTypeFilter {
+  return raw === "sale" || raw === "rent" ? raw : "all";
 }

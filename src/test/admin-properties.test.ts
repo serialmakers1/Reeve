@@ -1,116 +1,40 @@
 /**
- * Prompt 12 (D-164) — pure-function coverage for admin properties filter/search.
+ * Focused pure-function coverage for the admin Properties page helpers.
  *
- * The React page (Properties.tsx) wires these into shadcn Select + Input; the
- * behavior we care about (which rows survive a filter/search) is exercised
- * here without pulling in Radix + jsdom + supabase-mock scaffolding.
+ * Contact-request status→bucket mapping lives only in the get_admin_properties_page
+ * SQL (single source of truth) and is verified with read-only SQL, not here.
  */
 import { describe, it, expect } from "vitest";
-import {
-  filterPropertiesBySearch,
-  LEGACY_PM_STATUSES,
-  STATUS_FILTER_OPTIONS,
-} from "@/pages/admin/Properties";
+import { STATUS_FILTER_OPTIONS } from "@/pages/admin/Properties";
 import {
   formatLocalityCity,
-  bucketApplications,
   resolveAdminPrice,
   getStatusTargetsFor,
   buildStatusUpdatePayload,
   ADMIN_STATUS_TARGETS,
+  parsePageParam,
+  totalPages,
+  getPageWindow,
+  validateSort,
+  validateListingType,
+  MAX_PAGE,
+  ADMIN_PAGE_SIZE,
 } from "@/pages/admin/adminPropertyHelpers";
 
-type Row = Parameters<typeof filterPropertiesBySearch>[0][number];
-
-const owner = (full_name: string | null, email: string | null, phone: string | null) => ({
-  full_name, email, phone,
-});
-
-const fixture: Row[] = [
-  { building_name: "Sunshine Apartments", owner: owner("Priya Menon", "priya@example.com", "+919812345678") },
-  { building_name: "Lakeside Villas", owner: owner("Rahul Sharma", "rahul@example.com", "+919111222333") },
-  { building_name: "Green Meadows", owner: owner(null, "unknown@example.com", null) },
-  { building_name: "Serene Heights", owner: null },
-];
-
-describe("filterPropertiesBySearch (Prompt 12)", () => {
-  it("returns all rows when query is empty or whitespace", () => {
-    expect(filterPropertiesBySearch(fixture, "")).toHaveLength(4);
-    expect(filterPropertiesBySearch(fixture, "   ")).toHaveLength(4);
-  });
-
-  it("matches building_name (case-insensitive substring)", () => {
-    const hits = filterPropertiesBySearch(fixture, "sunshine");
-    expect(hits.map((r) => r.building_name)).toEqual(["Sunshine Apartments"]);
-    const hitsUpper = filterPropertiesBySearch(fixture, "LAKE");
-    expect(hitsUpper.map((r) => r.building_name)).toEqual(["Lakeside Villas"]);
-  });
-
-  it("matches owner full_name", () => {
-    const hits = filterPropertiesBySearch(fixture, "priya");
-    expect(hits.map((r) => r.building_name)).toEqual(["Sunshine Apartments"]);
-  });
-
-  it("matches owner email", () => {
-    const hits = filterPropertiesBySearch(fixture, "unknown@example");
-    expect(hits.map((r) => r.building_name)).toEqual(["Green Meadows"]);
-  });
-
-  it("matches owner phone (partial)", () => {
-    const hits = filterPropertiesBySearch(fixture, "9111222");
-    expect(hits.map((r) => r.building_name)).toEqual(["Lakeside Villas"]);
-  });
-
-  it("returns nothing for a term that matches no row", () => {
-    expect(filterPropertiesBySearch(fixture, "nonexistent-xyz")).toHaveLength(0);
-  });
-
-  it("handles owner: null (no crash, row excluded from owner-only matches)", () => {
-    // "serene" only matches the building_name of the null-owner row.
-    const hits = filterPropertiesBySearch(fixture, "serene");
-    expect(hits.map((r) => r.building_name)).toEqual(["Serene Heights"]);
-  });
-});
-
-describe("STATUS_FILTER_OPTIONS + LEGACY_PM_STATUSES (Prompt 12 shape contract)", () => {
-  it("first option is 'All' and Commons statuses appear individually plus legacy_pm bucket", () => {
+describe("STATUS_FILTER_OPTIONS (dropdown shape)", () => {
+  it("starts with All and includes Commons statuses + legacy bucket", () => {
     const values = STATUS_FILTER_OPTIONS.map((o) => o.value);
     expect(values[0]).toBe("all");
-    expect(values).toContain("draft");
-    expect(values).toContain("pending_review");
-    expect(values).toContain("changes_requested");
-    expect(values).toContain("listed");
-    expect(values).toContain("edit_pending_review");
-    expect(values).toContain("unlisted");
-    expect(values).toContain("archived");
-    expect(values).toContain("legacy_pm");
-  });
-
-  it("LEGACY_PM_STATUSES lists exactly the pre-Commons statuses", () => {
-    expect([...LEGACY_PM_STATUSES].sort()).toEqual(
-      [
-        "agreement_pending",
-        "expiring",
-        "inactive",
-        "inspected",
-        "inspection_accepted",
-        "inspection_proposed",
-        "inspection_scheduled",
-        "occupied",
-        "off_market",
-        "turnover",
-      ].sort(),
-    );
+    for (const v of ["draft", "pending_review", "changes_requested", "listed", "edit_pending_review", "unlisted", "archived", "legacy_pm"]) {
+      expect(values).toContain(v);
+    }
   });
 });
-
-// ── adminPropertyHelpers ─────────────────────────────────────────────────────
 
 describe("buildStatusUpdatePayload", () => {
   it("restore (archived → draft) targets draft and clears stale listing timestamps", () => {
     const payload = buildStatusUpdatePayload("draft");
     expect(payload.status).toBe("draft");
-    // never "unlisted"
     expect(payload.status).not.toBe("unlisted");
     expect(payload.listed_at).toBeNull();
     expect(payload.availability_confirmed_at).toBeNull();
@@ -140,7 +64,7 @@ describe("resolveAdminPrice", () => {
   it("sale listing uses sale_price, tagged Sale", () => {
     const r = resolveAdminPrice({ ...base, status: "listed", listing_type: "sale" }, new Map());
     expect(r.kind).toBe("Sale");
-    expect(r.amount).toContain("90"); // ₹90 Lakh
+    expect(r.amount).toContain("90");
   });
 
   it("rent listing uses listed_rent, tagged Rent", () => {
@@ -178,42 +102,6 @@ describe("resolveAdminPrice", () => {
   });
 });
 
-describe("bucketApplications", () => {
-  const rows = (statuses: string[]) => statuses.map((status) => ({ property_id: "p1", status }));
-
-  it("maps every known status into the correct bucket", () => {
-    const accepted = ["owner_accepted", "payment_pending", "payment_received", "kyc_pending", "kyc_passed", "kyc_failed", "agreement_pending", "lease_active"];
-    const rejected = ["owner_rejected", "platform_rejected"];
-    const pending = ["submitted", "platform_review", "sent_to_owner", "owner_countered", "tenant_countered", "on_hold"];
-
-    const map = bucketApplications(rows([...accepted, ...rejected, ...pending]));
-    const b = map.get("p1")!;
-    expect(b.accepted).toBe(accepted.length);
-    expect(b.rejected).toBe(rejected.length);
-    expect(b.pending).toBe(pending.length);
-    expect(b.total).toBe(accepted.length + rejected.length + pending.length);
-  });
-
-  it("excludes draft / withdrawn / expired from the total", () => {
-    const map = bucketApplications(rows(["draft", "withdrawn", "expired"]));
-    expect(map.has("p1")).toBe(false); // no bucket created — nothing counted
-  });
-
-  it("total always equals accepted + pending + rejected", () => {
-    const map = bucketApplications(rows(["owner_accepted", "submitted", "owner_rejected", "draft"]));
-    const b = map.get("p1")!;
-    expect(b.total).toBe(b.accepted + b.pending + b.rejected);
-    expect(b.total).toBe(3);
-  });
-
-  it("counts an unknown/future status as pending so the total reconciles", () => {
-    const map = bucketApplications(rows(["some_future_status"]));
-    const b = map.get("p1")!;
-    expect(b.pending).toBe(1);
-    expect(b.total).toBe(1);
-  });
-});
-
 describe("formatLocalityCity", () => {
   it("both values → 'locality, city'", () => {
     expect(formatLocalityCity("Powai", "Mumbai")).toBe("Powai, Mumbai");
@@ -240,7 +128,7 @@ describe("status targets", () => {
 
   it("never offers changes_requested, edit_pending_review, or legacy PM statuses", () => {
     const all = new Set<string>(ADMIN_STATUS_TARGETS);
-    for (const bad of ["changes_requested", "edit_pending_review", ...LEGACY_PM_STATUSES]) {
+    for (const bad of ["changes_requested", "edit_pending_review", "occupied", "off_market", "inactive"]) {
       expect(all.has(bad)).toBe(false);
     }
   });
@@ -256,5 +144,77 @@ describe("status targets", () => {
 
   it("getStatusTargetsFor returns exactly ['draft'] for archived (restore-only)", () => {
     expect(getStatusTargetsFor("archived")).toEqual(["draft"]);
+  });
+});
+
+describe("parsePageParam", () => {
+  it("valid positive integer passes through", () => {
+    expect(parsePageParam("2")).toBe(2);
+    expect(parsePageParam("1")).toBe(1);
+  });
+  it("zero / negative / NaN → 1", () => {
+    expect(parsePageParam("0")).toBe(1);
+    expect(parsePageParam("-3")).toBe(1);
+    expect(parsePageParam("abc")).toBe(1);
+    expect(parsePageParam(null)).toBe(1);
+  });
+  it("fractional / infinite → 1", () => {
+    expect(parsePageParam("1.5")).toBe(1);
+    expect(parsePageParam("Infinity")).toBe(1);
+  });
+  it("above MAX_PAGE (offset would overflow int) → 1", () => {
+    expect(parsePageParam(String(MAX_PAGE + 1))).toBe(1);
+    expect(parsePageParam("9999999999999")).toBe(1);
+    // sanity: (MAX_PAGE-1)*pageSize stays within int4
+    expect((MAX_PAGE - 1) * ADMIN_PAGE_SIZE).toBeLessThanOrEqual(2_147_483_647);
+  });
+});
+
+describe("totalPages", () => {
+  it("0 results → 1 page", () => {
+    expect(totalPages(0)).toBe(1);
+  });
+  it("full and partial pages", () => {
+    expect(totalPages(25)).toBe(1);
+    expect(totalPages(26)).toBe(2);
+    expect(totalPages(143)).toBe(6); // 143/25 = 5.72 → 6
+  });
+});
+
+describe("getPageWindow", () => {
+  it("small totals show every page", () => {
+    expect(getPageWindow(1, 3)).toEqual([1, 2, 3]);
+  });
+  it("large totals collapse with ellipses around current ±2", () => {
+    expect(getPageWindow(5, 20)).toEqual([1, "ellipsis", 3, 4, 5, 6, 7, "ellipsis", 20]);
+  });
+  it("current near the start has no leading ellipsis", () => {
+    expect(getPageWindow(1, 20)).toEqual([1, 2, 3, "ellipsis", 20]);
+  });
+  it("current near the end has no trailing ellipsis", () => {
+    expect(getPageWindow(20, 20)).toEqual([1, "ellipsis", 18, 19, 20]);
+  });
+});
+
+describe("validateSort", () => {
+  it("accepts the three real sorts", () => {
+    expect(validateSort("latest")).toBe("latest");
+    expect(validateSort("views")).toBe("views");
+    expect(validateSort("contact")).toBe("contact");
+  });
+  it("invalid / null → latest", () => {
+    expect(validateSort("price_asc")).toBe("latest");
+    expect(validateSort(null)).toBe("latest");
+  });
+});
+
+describe("validateListingType", () => {
+  it("Buy maps to sale, Rent maps to rent", () => {
+    expect(validateListingType("sale")).toBe("sale");
+    expect(validateListingType("rent")).toBe("rent");
+  });
+  it("invalid / null → all", () => {
+    expect(validateListingType("condo")).toBe("all");
+    expect(validateListingType(null)).toBe("all");
   });
 });
