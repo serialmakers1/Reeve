@@ -8,7 +8,7 @@
  *   - Canonical items grid from FURNISHING_ITEM_OPTIONS (checkbox + count + optional size/rooms)
  *   - Custom items list (owner-added via "+ Add item"), each editable + deletable
  */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,14 +79,35 @@ export interface FurnishingEditorProps {
    * original unrestricted append-blank behaviour.
    */
   customLimit?: number;
+  /**
+   * Owner form only: reports true whenever any custom row currently holds a genuine
+   * invalid edit (used to block submission). Admin never passes it.
+   */
+  onInvalidDraftChange?: (invalid: boolean) => void;
 }
 
-export function FurnishingEditor({ value, onChange, className, customLimit }: FurnishingEditorProps) {
+export function FurnishingEditor({ value, onChange, className, customLimit, onInvalidDraftChange }: FurnishingEditorProps) {
   const items = value ?? [];
   const findIndex = (key: string) => items.findIndex((i) => i.item === key && !i.custom);
   const customs = items.map((it, idx) => ({ it, idx })).filter((x) => x.it.custom);
   const limited = customLimit != null;
   const customNames = customs.map((c) => c.it.item ?? "");
+
+  // Aggregate invalid-edit signals from custom rows, keyed by stable token so
+  // add/delete index churn never moves a blocker to the wrong row.
+  const [invalidTokens, setInvalidTokens] = useState<Set<string>>(() => new Set());
+  const handleRowValidity = useCallback((token: string, invalid: boolean) => {
+    setInvalidTokens((prev) => {
+      if (invalid === prev.has(token)) return prev;
+      const next = new Set(prev);
+      if (invalid) next.add(token);
+      else next.delete(token);
+      return next;
+    });
+  }, []);
+  useEffect(() => {
+    onInvalidDraftChange?.(invalidTokens.size > 0);
+  }, [invalidTokens, onInvalidDraftChange]);
 
   const toggleStandard = (opt: (typeof FURNISHING_ITEM_OPTIONS)[number]) => {
     const idx = findIndex(opt.value);
@@ -168,7 +189,7 @@ export function FurnishingEditor({ value, onChange, className, customLimit }: Fu
         <Label className="text-sm font-medium mb-2 block">Something else? Add it</Label>
         {limited ? (
           <>
-            {customs.map(({ it, idx }) => (
+            {customs.map(({ it, idx }, pos) => (
               <EditableCustomName
                 key={idx}
                 value={it.item}
@@ -180,11 +201,12 @@ export function FurnishingEditor({ value, onChange, className, customLimit }: Fu
                     canonicalOptions: FURNISHING_ITEM_OPTIONS,
                     limit: customLimit!,
                     noun: "furniture items",
-                    selfIndex: idx,
+                    selfIndex: pos,
                   })
                 }
                 onCommit={(name) => updateCustom(idx, { item: name })}
                 onDelete={() => deleteCustom(idx)}
+                onValidityChange={handleRowValidity}
                 trailing={
                   <FurnitureCountInput
                     value={it.count ?? 1}

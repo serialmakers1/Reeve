@@ -48,7 +48,8 @@ vi.mock("@/hooks/useListingSave", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
+const toastMock = vi.fn();
+vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: toastMock }) }));
 // Avoids pulling the optional `browser-image-compression` dep into the test graph.
 vi.mock("@/lib/photo", () => ({ processPhotoForUpload: vi.fn() }));
 vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
@@ -62,11 +63,18 @@ vi.mock("@/components/VerificationGate", () => ({
 
 // Configurable current property row.
 let currentProp: Record<string, unknown> = {};
+// Observable status-write + edit-request spies (Part C submit-gate assertions).
+const updateMock = vi.fn();
+const rpcMock = vi.fn().mockResolvedValue({ data: "new-edit-id", error: null });
 function makeChain(result: unknown) {
   const chain: Record<string, unknown> = {};
   for (const m of ["select", "eq", "order", "in", "is", "limit"]) {
     chain[m] = () => chain;
   }
+  chain.update = (...args: unknown[]) => {
+    updateMock(...args);
+    return chain;
+  };
   chain.maybeSingle = () => Promise.resolve(result);
   chain.single = () => Promise.resolve(result);
   chain.then = (res: (v: unknown) => unknown) => Promise.resolve(result).then(res);
@@ -79,13 +87,16 @@ vi.mock("@/integrations/supabase/client", () => ({
       if (table === "property_images") return makeChain({ data: [], error: null });
       return makeChain({ data: null, error: null });
     },
-    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+    rpc: (...args: unknown[]) => rpcMock(...args),
     auth: {
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: vi.fn() } } }),
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),
     },
   },
 }));
+
+// jsdom has no scrollIntoView; the submit gate calls it after opening a section.
+Element.prototype.scrollIntoView = vi.fn();
 
 import ListProperty from "@/pages/ListProperty";
 import { MemoryRouter } from "react-router-dom";
@@ -147,5 +158,67 @@ describe.each([
     await openSection("Rules & preferences");
     expect(await screen.findByText(/\/ 200$/)).toBeInTheDocument(); // House rules 200
     expect(screen.getByText(/\/ 300$/)).toBeInTheDocument(); // About property 300
+  });
+});
+
+// ── Part C: Submit is blocked while a genuine invalid custom draft is visible ──
+// The invalid draft is buffered inside EditableCustomName and never reaches
+// patch/saveNow, so the gate must fire BEFORE any save / status write / edit RPC.
+// "Submission proceeds after correction" is asserted via saveNow being reached
+// (the gate sits immediately above `await saveNow()`), which holds for BOTH paths
+// without requiring a fully-complete property row.
+describe.each([
+  ["Path A (draft / direct patch)", "draft"],
+  ["Path B (listed / edit request)", "listed"],
+])("ListProperty submit-gate on invalid custom draft — %s", (_label, status) => {
+  beforeEach(() => {
+    currentProp = propertyRow(status);
+    patchMock.mockReset();
+    saveNowMock.mockClear();
+    toastMock.mockClear();
+    updateMock.mockClear();
+    rpcMock.mockClear();
+  });
+
+  it("blocks Submit while invalid, runs no side effects, then proceeds after correction", async () => {
+    render(
+      <MemoryRouter initialEntries={["/list/prop-1"]}>
+        <ListProperty />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Where is your property?");
+    await openSection("What's inside the home?");
+
+    // Make one valid committed change (Bathrooms) so Path B's edit-request button is
+    // enabled — Path B accumulates field_changes only via updateField, and the custom
+    // editors route through patch(). Path A's button is always enabled. This isolates
+    // the invalid-draft gate as the reason submission is blocked below.
+    fireEvent.change(screen.getAllByRole("spinbutton")[0], { target: { value: "3" } });
+
+    const customInput = await screen.findByDisplayValue("Legacy Sofa Custom");
+    // Make the existing custom row invalid (4 words → TOO_LONG) and leave it visible.
+    fireEvent.change(customInput, { target: { value: "one two three four" } });
+
+    const submitBtn = screen.getByRole("button", { name: /Submit for review/i });
+    expect(submitBtn).not.toBeDisabled();
+    fireEvent.click(submitBtn);
+
+    // Gate fired: a toast appeared and NO save/side-effect ran.
+    await waitFor(() => expect(toastMock).toHaveBeenCalled());
+    expect(saveNowMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalledWith(
+      "submit_property_edit_request",
+      expect.anything(),
+    );
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.stringMatching(/custom item/i) }),
+    );
+
+    // Correct the draft → the invalid-draft gate passes → saveNow is reached.
+    fireEvent.change(customInput, { target: { value: "Corner Desk" } });
+    fireEvent.click(submitBtn);
+    await waitFor(() => expect(saveNowMock).toHaveBeenCalled());
   });
 });

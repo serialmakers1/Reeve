@@ -1,3 +1,19 @@
+## [2026-08-06] fix | Fixed false self-duplicate errors for custom furniture and amenities [02:37 IST]
+
+**Root cause (confirmed).** `FurnishingEditor`/`AmenitiesEditor` render custom rows from a *compacted* custom-only list (`customNames`) but passed the *mixed* canonical+custom array index as `selfIndex` to `validateCustomName`. The self-exclusion `existingCustoms.find((c, i) => i !== selfIndex ...)` indexes `existingCustoms` by compacted position while `selfIndex` was the mixed index, so whenever any canonical item preceded a custom row the row failed to exclude itself → false `DUP_CUSTOM` ("You have already added X"). Common flow (tick canonical checkboxes, then add a custom) always triggered it. Existing edit-mode tests only used pure-custom arrays where the two indexes coincided, so it was never caught.
+
+**Fix A (self-duplicate).** Use the compacted enumeration position (`pos`) for `selfIndex`; keep the mixed `idx` for mutations/keys. One line each in `FurnishingEditor.tsx` + `AmenitiesEditor.tsx`. `validateCustomName`, `CustomItemAdder` untouched. Owner limits (5 custom, 3 words/30 chars) preserved.
+
+**Fix B (invalid-draft submission blocker).** A genuine invalid edited row is buffered locally in `EditableCustomName` and never reaches `patch`/`saveNow`, so Submit could silently succeed on the previous committed value. Added optional `onValidityChange(token, invalid)` to `EditableCustomName` (stable `useId()` token, `invalid = draft !== baseline && code !== "OK"`, clears on unmount; baseline sync preserved). Editors aggregate invalid tokens in a `Set` (token-keyed, immune to index churn) and emit optional `onInvalidDraftChange`. `ListProperty` tracks `furnishing/amenitiesDraftInvalid` and gates `submit()` at the very top — **before** `saveNow`, `setSubmitting`, status `.update`, or `submit_property_edit_request` RPC — opening the offending section, scrolling, and toasting. All callbacks optional/default-off → admin `PropertyEdit` (no `customLimit`, plain input branch) unchanged.
+
+**Files changed:** `src/components/property/EditableCustomName.tsx`, `FurnishingEditor.tsx`, `AmenitiesEditor.tsx`, `src/pages/ListProperty.tsx`, `src/test/jsonb-editors.test.tsx`, `src/test/ListPropertyOwnerValidation.test.tsx`.
+
+**Tests (TDD, red→green).** +14 regression tests: jsonb-editors Part A (self-dup with canonical-before-custom; genuine custom + canonical dup still error) + Part B (`onInvalidDraftChange` true on invalid edit, false on correct/Escape/delete); ListPropertyOwnerValidation Part C (both Path A + Path B: invalid draft blocks Submit with no `saveNow`/`update`/RPC + fix toast, proceeds after correction).
+
+**Verification (worktree, deps via `npm ci`, lockfile clean).** Baselines captured before change. Full suite **688 passed / 3 failed**; the 3 failures are pre-existing (`serializeSearchState` mapBounds, `property-fields` ×2) — **zero new failures** (674→688 = +14 new). `tsc -p tsconfig.app.json --noEmit` = **392, unchanged** vs baseline (the 6 `OwnerTextResult`/`YoutubeResult` errors in ListProperty.tsx are pre-existing, only line-shifted by inserted code; none in editor files). `npm run build` ✓. `git diff --check` clean.
+
+**Remaining risk (low).** Path B custom-editor changes route through `patch()` (not `updateField`), so a listed-property edit consisting *only* of custom-item changes may not populate `editRequestPayload` — pre-existing behaviour, out of scope, unchanged. The blur-revert on invalid drafts still discards a genuinely invalid edit (by design: never persist invalid); the new gate additionally blocks Submit while such a draft is on screen.
+
 ## [2026-08-05] fix | Property Detail sale UI, lister comment exemption and contact-message validation [12:00 IST]
 
 ## [2026-08-01] ui | Redesigned Login page right-side content around Reeve transparency principles [14:00 IST]

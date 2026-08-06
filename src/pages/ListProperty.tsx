@@ -527,6 +527,11 @@ export default function ListProperty() {
   const [showDraftLimit, setShowDraftLimit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [insertingDraft, setInsertingDraft] = useState(false);
+  // Owner-limited custom-item editors report a genuine invalid edit still on screen;
+  // submission is blocked while either is true (the invalid draft is buffered locally
+  // and never reaches saveNow/patch, so the pending-changes gate can't catch it).
+  const [furnishingDraftInvalid, setFurnishingDraftInvalid] = useState(false);
+  const [amenitiesDraftInvalid, setAmenitiesDraftInvalid] = useState(false);
   // Owner-only public-text validation errors, keyed by field. Never blocks autosave.
   const [textErrors, setTextErrors] = useState<Record<string, string | null>>({});
   const draftCheckedRef = useRef(false);
@@ -1102,6 +1107,22 @@ export default function ListProperty() {
   // ─── Submit for review ───────────────────────────────────────────────────
   const submit = useCallback(async () => {
     if (!propertyId || submitting) return;
+
+    // Block BEFORE any save / status write / edit-request RPC while a custom
+    // furniture or amenity row holds a genuine invalid edit. The invalid draft is
+    // buffered inside EditableCustomName and never reaches saveNow/patch, so without
+    // this gate Submit would silently persist the previous committed value.
+    if (furnishingDraftInvalid || amenitiesDraftInvalid) {
+      const sec: SectionNum = furnishingDraftInvalid ? 4 : 5;
+      setErroredSections(new Set([sec]));
+      setOpenAccordion(`section-${sec}`);
+      toast({ title: "Fix the highlighted custom item before submitting", variant: "destructive" });
+      setTimeout(() => {
+        document.getElementById(`section-${sec}-header`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+      return;
+    }
+
     // Flush any pending edits first
     await saveNow();
 
@@ -1258,7 +1279,7 @@ export default function ListProperty() {
     });
     toast({ title: "Submitted for review!", description: "We'll review your listing within 48 hours." });
     navigate("/my-properties", { replace: true });
-  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, editRequestPayload, saveState, hasPendingChanges, lastError, poisonedKeys]);
+  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, editRequestPayload, saveState, hasPendingChanges, lastError, poisonedKeys, furnishingDraftInvalid, amenitiesDraftInvalid]);
 
   // ─── Preview data ────────────────────────────────────────────────────────
   const previewData = useMemo<PropertyPreviewData>(() => ({
@@ -1808,6 +1829,7 @@ export default function ListProperty() {
               <FurnishingEditor
                 value={form.furnishing_detail}
                 customLimit={5}
+                onInvalidDraftChange={setFurnishingDraftInvalid}
                 onChange={(updated) => {
                   setForm((f) => ({ ...f, furnishing_detail: updated }));
                   patch({
@@ -1830,6 +1852,7 @@ export default function ListProperty() {
               <AmenitiesEditor
                 value={form.building_amenities}
                 customLimit={5}
+                onInvalidDraftChange={setAmenitiesDraftInvalid}
                 onChange={(updated) => {
                   setForm((f) => ({ ...f, building_amenities: updated }));
                   patch({ amenities: buildAmenitiesJson(updated, form.furnishing_detail) });
