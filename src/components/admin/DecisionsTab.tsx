@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getStatusDisplay } from "@/lib/propertyStatus";
+import { formatRejectionReason } from "@/lib/rejectionReasons";
 import DecisionDetailDialog from "@/components/admin/DecisionDetailDialog";
 
 // ── Types ────────────────────────────────────────────────────────────────
@@ -430,8 +431,8 @@ export default function DecisionsTab() {
                       <span title={format(new Date(r.effectiveAt), "PPpp")}>
                         · {formatDistanceToNow(new Date(r.effectiveAt), { addSuffix: true })}
                       </span>
-                      {r.reason && (
-                        <span title={r.reason}>· {truncate(r.reason)}</span>
+                      {formatRejectionReason(r.reason) && (
+                        <span title={formatRejectionReason(r.reason)!}>· {truncate(formatRejectionReason(r.reason)!)}</span>
                       )}
                     </div>
                     {currentStatus && (

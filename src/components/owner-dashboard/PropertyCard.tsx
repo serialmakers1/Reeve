@@ -1,57 +1,72 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { MessageCircle, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { getStatusDisplay } from "@/lib/propertyStatus";
 import { BHK_OPTIONS } from "@/config/property-form";
+import { formatSalePrice } from "@/utils/property/formatSalePrice";
+import { computeFreshness, formatShortDate, type Freshness, type FreshnessState } from "@/lib/listingFreshness";
+import StatusInfoButton from "@/components/owner-dashboard/StatusInfoButton";
 import { cn } from "@/lib/utils";
 
+interface CardProperty {
+  id: string;
+  building_name: string | null;
+  locality: string | null;
+  city: string | null;
+  bhk: string | null;
+  listed_rent: number | null;
+  sale_price?: number | null;
+  status: string;
+  is_active: boolean;
+  created_at: string;
+  listing_type?: string | null;
+  availability_confirmed_at?: string | null;
+  sale_listing_confirmed_at?: string | null;
+  current_listed_period_started_at?: string | null;
+  listed_at?: string | null;
+}
+
 interface Props {
-  property: {
-    id: string;
-    building_name: string | null;
-    locality: string | null;
-    city: string | null;
-    bhk: string | null;
-    listed_rent: number | null;
-    status: string;
-    is_active: boolean;
-    created_at: string;
-    listing_type?: string | null;
-    availability_confirmed_at?: string | null;
-  };
+  property: CardProperty;
   primaryPhotoUrl: string | null;
-  unansweredCount?: number;
-  availabilityConfirmedAt?: string | null;
-  nextConfirmationAt?: string | null;
+  commentCount?: number;
   onConfirmAvailability?: () => void;
+  onConfirmSale?: () => void;
+  onRelist?: () => void;
   onClick: () => void;
 }
 
-function AvailabilityArea({
-  confirmedAt,
-  nextAt,
+// Per-state visuals. Colour is always paired with an icon + text label so state
+// is never communicated by colour alone.
+const STATE_STYLE: Record<Exclude<FreshnessState, "unknown">, { border: string; chip: string; label: string; Icon: typeof CheckCircle2 }> = {
+  fresh:    { border: "border-green-500",  chip: "text-green-700 bg-green-50 border-green-200",   label: "Fresh",                 Icon: CheckCircle2 },
+  reminder: { border: "border-amber-500",  chip: "text-amber-700 bg-amber-50 border-amber-200",   label: "Confirmation due soon", Icon: Clock },
+  urgent:   { border: "border-orange-500", chip: "text-orange-700 bg-orange-50 border-orange-200", label: "Confirmation urgent",   Icon: AlertTriangle },
+  overdue:  { border: "border-red-500",    chip: "text-red-700 bg-red-50 border-red-200",         label: "Confirmation overdue",  Icon: AlertTriangle },
+};
+
+function cardBorderClass(fresh: Freshness | null): string {
+  if (fresh && fresh.state !== "unknown") return STATE_STYLE[fresh.state].border;
+  return "";
+}
+
+function FreshnessArea({
+  fresh,
+  status,
   onConfirm,
 }: {
-  confirmedAt: string | null;
-  nextAt: string | null;
+  fresh: Freshness;
+  status: string;
   onConfirm: () => void;
 }) {
   const [pending, setPending] = useState(false);
-  const now = Date.now();
-  const derivedNextAt = nextAt
-    ? new Date(nextAt)
-    : confirmedAt
-    ? new Date(Date.parse(confirmedAt) + 7 * 86_400_000)
-    : null;
-  const isEligible = !derivedNextAt || derivedNextAt.getTime() <= now;
-  const confirmedDaysAgo = confirmedAt
-    ? Math.max(0, Math.floor((now - Date.parse(confirmedAt)) / 86_400_000))
-    : null;
-  const nextDateLabel = derivedNextAt
-    ? derivedNextAt.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
-    : null;
+  const isEditReview = status === "edit_pending_review";
+  const style = fresh.state === "unknown" ? null : STATE_STYLE[fresh.state];
+  const eligible = fresh.confirmEligible;
 
   async function handleClick(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!isEligible || pending) return;
+    if (!eligible || pending) return;
     setPending(true);
     try {
       await onConfirm();
@@ -61,28 +76,86 @@ function AvailabilityArea({
   }
 
   return (
-    <div className="pt-2 border-t border-border/60">
-      {confirmedDaysAgo !== null && (
-        <p className="text-[10px] text-muted-foreground mb-1">
-          {confirmedDaysAgo === 0 ? "Confirmed available today" : `Confirmed ${confirmedDaysAgo}d ago`}
+    <div className="pt-2 border-t border-border/60 space-y-1.5">
+      {style && (
+        <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium", style.chip)}>
+          <style.Icon className="h-3 w-3" aria-hidden="true" />
+          {style.label}
+        </span>
+      )}
+      {fresh.daysSince !== null && (
+        <p className="text-[10px] text-muted-foreground">
+          {fresh.daysSince === 0 ? "Confirmed today" : `Confirmed ${fresh.daysSince}d ago`}
         </p>
+      )}
+      {/* Deadline — status-dependent. A listing under edit review never
+          auto-unlists on the shown date. */}
+      {fresh.autoUnlistAt && (
+        isEditReview ? (
+          <p className="text-[10px] text-muted-foreground">
+            Freshness deadline: {formatShortDate(fresh.autoUnlistAt)}.{" "}
+            {fresh.state === "overdue"
+              ? "Overdue, but automatic unlisting only resumes once your edit review finishes and the listing is live again."
+              : "Automatic unlisting applies only after the edit review finishes and the listing becomes live again."}
+          </p>
+        ) : (
+          <p className="text-[10px] text-muted-foreground">
+            {fresh.state === "overdue"
+              ? "Confirmation overdue — confirm now to keep this listing live."
+              : `Auto-unlists on ${formatShortDate(fresh.autoUnlistAt)}`}
+          </p>
+        )
       )}
       <button
         type="button"
-        disabled={!isEligible || pending}
+        disabled={!eligible || pending}
         onClick={handleClick}
         className={cn(
           "w-full rounded-md border px-2 py-1.5 text-[11px] font-medium transition-colors",
-          isEligible && !pending
+          eligible && !pending
             ? "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10"
             : "border-border bg-muted text-muted-foreground cursor-not-allowed opacity-60",
         )}
       >
         {pending
           ? "Confirming…"
-          : isEligible
+          : eligible
           ? "Confirm still available"
-          : `Next eligible: ${nextDateLabel}`}
+          : `Next confirmation from ${formatShortDate(fresh.nextConfirmAt)}`}
+      </button>
+    </div>
+  );
+}
+
+function UnlistedArea({ onRelist }: { onRelist: () => void }) {
+  const [pending, setPending] = useState(false);
+  async function handleClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (pending) return;
+    setPending(true);
+    try {
+      await onRelist();
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <div className="pt-2 border-t border-border/60 space-y-1.5">
+      <p className="text-[10px] text-muted-foreground">
+        Not visible to tenants — re-list to make it live again.
+      </p>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={handleClick}
+        className={cn(
+          "w-full rounded-md border px-2 py-1.5 text-[11px] font-medium transition-colors",
+          pending
+            ? "border-border bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+            : "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10",
+        )}
+      >
+        {pending ? "Re-listing…" : "Re-list"}
       </button>
     </div>
   );
@@ -97,26 +170,43 @@ const formatRupees = (n: number | null): string =>
 export default function PropertyCard({
   property,
   primaryPhotoUrl,
-  unansweredCount,
-  availabilityConfirmedAt,
-  nextConfirmationAt,
+  commentCount,
   onConfirmAvailability,
+  onConfirmSale,
+  onRelist,
   onClick,
 }: Props) {
   const status = getStatusDisplay(property.status);
   const bhk = bhkLabel(property.bhk);
   const title = [bhk, property.building_name].filter(Boolean).join(" · ") || "Property";
   const subtitle = [property.locality, property.city].filter(Boolean).join(", ");
+  const isSale = property.listing_type === "sale";
   const rent = formatRupees(property.listed_rent);
+  const salePrice = formatSalePrice(property.sale_price);
 
-  const canShowAvailability =
-    property.listing_type === "rent" &&
+  // Freshness only applies while publicly listed (or under edit review, where the
+  // clock keeps running). Confirmation is per listing type.
+  const showFreshness =
     property.is_active &&
     (property.status === "listed" || property.status === "edit_pending_review") &&
-    !!onConfirmAvailability;
+    (isSale ? !!onConfirmSale : !!onConfirmAvailability);
+  const fresh = showFreshness
+    ? computeFreshness({
+        listingType: property.listing_type,
+        availabilityConfirmedAt: property.availability_confirmed_at,
+        saleListingConfirmedAt: property.sale_listing_confirmed_at,
+        currentListedPeriodStartedAt: property.current_listed_period_started_at,
+        listedAt: property.listed_at,
+      })
+    : null;
+
+  const showRelist = property.status === "unlisted" && !!onRelist;
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden hover:shadow-md transition-shadow">
+    <div className={cn(
+      "rounded-xl border bg-card overflow-hidden hover:shadow-md transition-shadow",
+      cardBorderClass(fresh),
+    )}>
       <button
         type="button"
         onClick={onClick}
@@ -153,7 +243,13 @@ export default function PropertyCard({
             <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
           )}
           <div className="flex items-baseline justify-between gap-2">
-            {rent ? (
+            {isSale ? (
+              salePrice ? (
+                <p className="text-sm text-foreground">{salePrice}</p>
+              ) : (
+                <span className="text-xs text-muted-foreground italic">Sale price not set</span>
+              )
+            ) : rent ? (
               <p className="text-sm text-foreground">
                 {rent}<span className="text-xs text-muted-foreground">/mo</span>
               </p>
@@ -162,20 +258,37 @@ export default function PropertyCard({
             )}
           </div>
           <p className="text-[11px] text-muted-foreground italic truncate">{status.nextAction}</p>
-          {typeof unansweredCount === "number" && unansweredCount >= 1 && (
-            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-              💬 {unansweredCount} unanswered
-            </span>
-          )}
         </div>
       </button>
-      {canShowAvailability && (
+
+      {/* Footer row — siblings of the navigation button (never nested), so the
+          comments link and info trigger can't fire card navigation. */}
+      <div className="flex items-center justify-between gap-2 px-3 pb-3 flex-wrap">
+        <Link
+          to={`/property/${property.id}#comments`}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`View comments on this listing (${commentCount ?? 0})`}
+          className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+          {(commentCount ?? 0) === 1 ? "1 comment" : `${commentCount ?? 0} comments`}
+        </Link>
+        <StatusInfoButton status={property.status} />
+      </div>
+
+      {fresh && (
         <div className="px-3 pb-3">
-          <AvailabilityArea
-            confirmedAt={availabilityConfirmedAt ?? null}
-            nextAt={nextConfirmationAt ?? null}
-            onConfirm={onConfirmAvailability!}
+          <FreshnessArea
+            fresh={fresh}
+            status={property.status}
+            onConfirm={isSale ? onConfirmSale! : onConfirmAvailability!}
           />
+        </div>
+      )}
+
+      {showRelist && (
+        <div className="px-3 pb-3">
+          <UnlistedArea onRelist={onRelist!} />
         </div>
       )}
     </div>

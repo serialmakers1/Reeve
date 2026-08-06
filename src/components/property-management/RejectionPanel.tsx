@@ -23,6 +23,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { formatRejectionReason } from "@/lib/rejectionReasons";
 
 interface Props {
   propertyId: string;
@@ -104,8 +105,8 @@ export default function RejectionPanel({ propertyId, userId }: Props) {
 
   const heading =
     row.action === "edit_rejected" ? "Your edit was rejected" : "Admin requested changes";
-  const reasonLabel = row.payload.reason;
-  const reasonText = row.payload.reason_text;
+  const reasonLabel = formatRejectionReason(row.payload.reason);
+  const reasonText = row.payload.reason_text?.trim() || null;
 
   return (
     <section

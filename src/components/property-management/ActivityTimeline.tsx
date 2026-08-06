@@ -7,12 +7,12 @@
  * Reason is expandable for rejection events.
  */
 
-import { useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import {
   Circle, CheckCircle2, XCircle, Edit3, ArrowUpCircle, Archive, Shield, Send, RefreshCcw,
 } from "lucide-react";
 import type { ActivityLogPayload } from "@/types/activity-log";
+import { formatRejectionReason } from "@/lib/rejectionReasons";
 
 export interface TimelineRow {
   id: string;
@@ -34,16 +34,19 @@ function summaryFor(payload: ActivityLogPayload): string {
     case "listing_started":   return "You started this listing";
     case "listing_submitted": return "You submitted for review";
     case "listing_approved":  return "Admin approved — your listing is now live";
-    case "listing_rejected":  return `Admin requested changes${payload.reason ? `: ${payload.reason}` : ""}`;
+    case "listing_rejected":  return "Changes requested";
     case "listing_withdrawn": return "You withdrew your submission";
     case "edit_submitted":    return `You submitted an edit${payload.changed_field_keys ? ` (${payload.changed_field_keys.length} fields)` : ""}`;
     case "edit_approved":     return "Admin approved your edit";
-    case "edit_rejected":     return `Admin rejected your edit: ${payload.reason}`;
+    case "edit_rejected":     return "Edit changes requested";
     case "edit_resolved":     return "Edit resolved";
     case "relisted":          return "Listing re-listed";
     case "unlisted":          return "Listing unlisted";
     case "archived":          return "Listing archived";
     case "admin_edit":        return `Admin made a direct edit${payload.changed_field_keys ? ` (${payload.changed_field_keys.length} fields)` : ""}`;
+    case "availability_confirmed": return "You confirmed this rental is still available";
+    case "sale_listing_confirmed": return "You confirmed this sale listing is still available";
+    case "auto_unlisted":     return "Automatically unlisted — availability wasn't confirmed in time";
     case "status_changed":    return `Status changed: ${payload.from_status} → ${payload.to_status}`;
     default:                  return "Activity";
   }
@@ -64,12 +67,14 @@ function iconFor(action: string) {
     case "unlisted":          return <Circle className="h-4 w-4 text-gray-400" />;
     case "archived":          return <Archive className="h-4 w-4 text-gray-400" />;
     case "admin_edit":        return <Shield className="h-4 w-4 text-blue-600" />;
+    case "availability_confirmed": return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+    case "sale_listing_confirmed": return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+    case "auto_unlisted":     return <Archive className="h-4 w-4 text-amber-600" />;
     default:                  return <Circle className="h-4 w-4 text-muted-foreground" />;
   }
 }
 
 export default function ActivityTimeline({ rows, currentUserId }: Props) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-8 text-center">
@@ -90,10 +95,14 @@ export default function ActivityTimeline({ rows, currentUserId }: Props) {
               : row.actor_role === "system"
                 ? "System"
                 : "Someone";
-        const reason = (payload as { reason?: string; reason_text?: string }).reason
-          ?? (payload as { reason_text?: string }).reason_text;
-        const canExpand = !!reason && (row.action === "edit_rejected" || row.action === "listing_rejected");
-        const isExpanded = expanded[row.id] ?? false;
+        const isRejection = row.action === "edit_rejected" || row.action === "listing_rejected";
+        const reasonCategory = isRejection
+          ? formatRejectionReason((payload as { reason?: string }).reason)
+          : null;
+        const reasonComment = isRejection
+          ? ((payload as { reason_text?: string }).reason_text?.trim() || null)
+          : null;
+        const showReasonBlock = isRejection && (reasonCategory || reasonComment);
         return (
           <li key={row.id} className="flex gap-3 rounded-lg border bg-card p-3">
             <div className="shrink-0 pt-0.5">{iconFor(row.action)}</div>
@@ -106,19 +115,19 @@ export default function ActivityTimeline({ rows, currentUserId }: Props) {
                 {" · "}
                 <span>{actorLabel}</span>
               </p>
-              {canExpand && (
-                <button
-                  type="button"
-                  onClick={() => setExpanded((e) => ({ ...e, [row.id]: !e[row.id] }))}
-                  className="mt-1 text-xs text-primary underline"
-                >
-                  {isExpanded ? "Hide reason" : "Show reason"}
-                </button>
-              )}
-              {canExpand && isExpanded && reason && (
-                <p className="mt-1 text-xs text-muted-foreground whitespace-pre-line rounded bg-muted p-2">
-                  {reason}
-                </p>
+              {showReasonBlock && (
+                <div className="mt-1.5 rounded bg-muted p-2 space-y-1">
+                  {reasonCategory && (
+                    <p className="text-xs text-foreground">
+                      <span className="text-muted-foreground">Reason: </span>{reasonCategory}
+                    </p>
+                  )}
+                  {reasonComment && (
+                    <p className="text-xs text-muted-foreground whitespace-pre-line [overflow-wrap:anywhere]">
+                      {reasonComment}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </li>

@@ -30,28 +30,27 @@ import {
   BuyingPurpose,
   PurchaseTimeline,
   FundingStage,
+  Gender,
+  MaritalStatus,
+  Occupation,
+  Diet,
+  StayDuration,
+  PetType,
   PREFERENCE_MODE_OPTIONS,
   BUYING_PURPOSE_OPTIONS,
   PURCHASE_TIMELINE_OPTIONS,
   FUNDING_STAGE_OPTIONS,
+  OCCUPATION_OPTIONS,
+  GENDER_OPTIONS,
+  MARITAL_STATUS_OPTIONS,
+  DIET_OPTIONS,
+  STAY_OPTIONS,
+  PET_TYPE_OPTIONS,
   isRentModeActive,
   isBuyModeActive,
   isRentComplete,
   isBuyComplete,
 } from "@/lib/preferenceHelpers";
-
-type Gender = "male" | "female" | "other";
-type MaritalStatus = "single" | "married" | "family" | "live_in";
-type Occupation = "salaried" | "self_employed" | "student" | "retired" | "other";
-type Diet = "veg" | "non_veg";
-type StayDuration =
-  | "less_than_6_months"
-  | "6_to_11_months"
-  | "1_year"
-  | "2_years"
-  | "3_years_plus"
-  | "flexible";
-type PetType = "dog" | "cat" | "other";
 
 interface FormState {
   preference_mode: PreferenceMode;
@@ -90,15 +89,6 @@ const INITIAL_FORM: FormState = {
   has_pets: false,
   pet_types: [],
 };
-
-const STAY_OPTIONS: { value: StayDuration; label: string }[] = [
-  { value: "less_than_6_months", label: "Less than 6 months" },
-  { value: "6_to_11_months", label: "6–11 months" },
-  { value: "1_year", label: "1 year" },
-  { value: "2_years", label: "2 years" },
-  { value: "3_years_plus", label: "3+ years" },
-  { value: "flexible", label: "Flexible" },
-];
 
 const MAX_MOVE_IN_DAYS = 90;
 
@@ -434,11 +424,9 @@ function TenantPreferencesInner() {
                 <SelectValue placeholder="Select occupation" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="salaried">Salaried</SelectItem>
-                <SelectItem value="self_employed">Self-employed</SelectItem>
-                <SelectItem value="student">Student</SelectItem>
-                <SelectItem value="retired">Retired</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                {OCCUPATION_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -486,12 +474,12 @@ function TenantPreferencesInner() {
             <div>
               <Label>Gender <span className="text-destructive">*</span></Label>
               <div className="mt-1.5 grid grid-cols-3 gap-2">
-                {(["male", "female", "other"] as const).map((g) => (
+                {GENDER_OPTIONS.map((g) => (
                   <ToggleButton
-                    key={g}
-                    selected={form.gender === g}
-                    label={g === "male" ? "Male" : g === "female" ? "Female" : "Other"}
-                    onClick={() => update("gender", g)}
+                    key={g.value}
+                    selected={form.gender === g.value}
+                    label={g.label}
+                    onClick={() => update("gender", g.value)}
                   />
                 ))}
               </div>
@@ -663,10 +651,9 @@ function TenantPreferencesInner() {
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="single">Single</SelectItem>
-                  <SelectItem value="married">Married</SelectItem>
-                  <SelectItem value="family">Family</SelectItem>
-                  <SelectItem value="live_in">Live-in</SelectItem>
+                  {MARITAL_STATUS_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -674,16 +661,14 @@ function TenantPreferencesInner() {
             <div>
               <Label>Diet preference</Label>
               <div className="mt-1.5 grid grid-cols-2 gap-2">
-                <ToggleButton
-                  selected={form.diet_preference === "veg"}
-                  label="Veg"
-                  onClick={() => update("diet_preference", "veg")}
-                />
-                <ToggleButton
-                  selected={form.diet_preference === "non_veg"}
-                  label="Non-veg"
-                  onClick={() => update("diet_preference", "non_veg")}
-                />
+                {DIET_OPTIONS.map((d) => (
+                  <ToggleButton
+                    key={d.value}
+                    selected={form.diet_preference === d.value}
+                    label={d.label}
+                    onClick={() => update("diet_preference", d.value)}
+                  />
+                ))}
               </div>
             </div>
 
@@ -703,15 +688,13 @@ function TenantPreferencesInner() {
               <div className="pl-1 space-y-2">
                 <Label>Pet types</Label>
                 <div className="space-y-2">
-                  {(["dog", "cat", "other"] as const).map((p) => (
-                    <label key={p} className="flex items-center gap-3 cursor-pointer">
+                  {PET_TYPE_OPTIONS.map((p) => (
+                    <label key={p.value} className="flex items-center gap-3 cursor-pointer">
                       <Checkbox
-                        checked={form.pet_types.includes(p)}
-                        onCheckedChange={() => togglePet(p)}
+                        checked={form.pet_types.includes(p.value)}
+                        onCheckedChange={() => togglePet(p.value)}
                       />
-                      <span className="text-sm text-foreground capitalize">
-                        {p === "other" ? "Other" : p === "dog" ? "Dog" : "Cat"}
-                      </span>
+                      <span className="text-sm text-foreground">{p.label}</span>
                     </label>
                   ))}
                 </div>

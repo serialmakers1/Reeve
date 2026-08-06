@@ -99,6 +99,22 @@ export type ActivityLogPayload =
       summary: string;
       admin_id: string;
       changed_field_keys?: string[];
+    }
+  // ── Stale-listing system ─────────────────────────────────────────────────
+  | {
+      action: "availability_confirmed";
+      summary: string;
+    }
+  | {
+      action: "sale_listing_confirmed";
+      summary: string;
+    }
+  | {
+      action: "auto_unlisted";
+      summary: string;
+      from_status?: string;
+      to_status?: string;
+      reason?: string;
     };
 
 export type ActivityLogAction = ActivityLogPayload["action"];

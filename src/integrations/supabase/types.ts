@@ -2615,6 +2615,7 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          current_listed_period_started_at: string | null
           description: string | null
           district: string | null
           draft_at: string | null
@@ -2695,6 +2696,7 @@ export type Database = {
           rera_registration_number: string | null
           route: string | null
           sale_brokerage_pct: number | null
+          sale_listing_confirmed_at: string | null
           sale_price: number | null
           security_deposit_amount: number | null
           security_deposit_months: number
@@ -2750,6 +2752,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          current_listed_period_started_at?: string | null
           description?: string | null
           district?: string | null
           draft_at?: string | null
@@ -2830,6 +2833,7 @@ export type Database = {
           rera_registration_number?: string | null
           route?: string | null
           sale_brokerage_pct?: number | null
+          sale_listing_confirmed_at?: string | null
           sale_price?: number | null
           security_deposit_amount?: number | null
           security_deposit_months?: number
@@ -2885,6 +2889,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          current_listed_period_started_at?: string | null
           description?: string | null
           district?: string | null
           draft_at?: string | null
@@ -2965,6 +2970,7 @@ export type Database = {
           rera_registration_number?: string | null
           route?: string | null
           sale_brokerage_pct?: number | null
+          sale_listing_confirmed_at?: string | null
           sale_price?: number | null
           security_deposit_amount?: number | null
           security_deposit_months?: number
@@ -3992,6 +3998,14 @@ export type Database = {
           property_id: string
         }[]
       }
+      confirm_sale_listing: {
+        Args: { p_property_id: string }
+        Returns: {
+          confirmed_at: string
+          next_confirmation_at: string
+          property_id: string
+        }[]
+      }
       delete_own_comment: { Args: { p_comment_id: string }; Returns: Json }
       earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
@@ -4242,6 +4256,7 @@ export type Database = {
         }
         Returns: string
       }
+      run_stale_listing_sweep: { Args: never; Returns: number }
       search_compact_properties: {
         Args: {
           p_amenities?: string[]

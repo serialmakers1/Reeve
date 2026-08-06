@@ -63,6 +63,74 @@ export const FUNDING_STAGE_LABELS: Record<string, string> = Object.fromEntries(
   FUNDING_STAGE_OPTIONS.map((o) => [o.value, o.label]),
 );
 
+// ── Shared rental preference option sets (single source of truth) ──────────────
+// Consumed by TenantPreferences (the form) and the owner request filters so the
+// labels never drift. Values match the rental_preferences columns / snapshot.
+
+export type Gender = "male" | "female" | "other";
+export type MaritalStatus = "single" | "married" | "family" | "live_in";
+export type Occupation = "salaried" | "self_employed" | "student" | "retired" | "other";
+export type Diet = "veg" | "non_veg";
+export type StayDuration =
+  | "less_than_6_months"
+  | "6_to_11_months"
+  | "1_year"
+  | "2_years"
+  | "3_years_plus"
+  | "flexible";
+export type PetType = "dog" | "cat" | "other";
+
+export const OCCUPATION_OPTIONS: { value: Occupation; label: string }[] = [
+  { value: "salaried", label: "Salaried" },
+  { value: "self_employed", label: "Self-employed" },
+  { value: "student", label: "Student" },
+  { value: "retired", label: "Retired" },
+  { value: "other", label: "Other" },
+];
+
+export const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+];
+
+export const MARITAL_STATUS_OPTIONS: { value: MaritalStatus; label: string }[] = [
+  { value: "single", label: "Single" },
+  { value: "married", label: "Married" },
+  { value: "family", label: "Family" },
+  { value: "live_in", label: "Live-in" },
+];
+
+export const DIET_OPTIONS: { value: Diet; label: string }[] = [
+  { value: "veg", label: "Veg" },
+  { value: "non_veg", label: "Non-veg" },
+];
+
+export const STAY_OPTIONS: { value: StayDuration; label: string }[] = [
+  { value: "less_than_6_months", label: "Less than 6 months" },
+  { value: "6_to_11_months", label: "6–11 months" },
+  { value: "1_year", label: "1 year" },
+  { value: "2_years", label: "2 years" },
+  { value: "3_years_plus", label: "3+ years" },
+  { value: "flexible", label: "Flexible" },
+];
+
+export const PET_TYPE_OPTIONS: { value: PetType; label: string }[] = [
+  { value: "dog", label: "Dog" },
+  { value: "cat", label: "Cat" },
+  { value: "other", label: "Other" },
+];
+
+const toLabelMap = (opts: { value: string; label: string }[]): Record<string, string> =>
+  Object.fromEntries(opts.map((o) => [o.value, o.label]));
+
+export const OCCUPATION_LABELS = toLabelMap(OCCUPATION_OPTIONS);
+export const GENDER_LABELS = toLabelMap(GENDER_OPTIONS);
+export const MARITAL_STATUS_LABELS = toLabelMap(MARITAL_STATUS_OPTIONS);
+export const DIET_LABELS = toLabelMap(DIET_OPTIONS);
+export const STAY_LABELS = toLabelMap(STAY_OPTIONS);
+export const PET_TYPE_LABELS = toLabelMap(PET_TYPE_OPTIONS);
+
 export function isRentModeActive(mode: PreferenceMode | null | undefined): boolean {
   return mode === "rent" || mode === "both";
 }

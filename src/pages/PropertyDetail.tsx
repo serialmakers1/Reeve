@@ -557,6 +557,24 @@ const PropertyDetail: React.FC = () => {
   const commentSectionRef = useRef<CommentSectionHandle | null>(null);
   const commentAnchorRef = useRef<HTMLDivElement | null>(null);
 
+  // #comments deep link — scroll once per navigation, after property data loads.
+  // routeLocation.key changes on every navigation (incl. re-clicking the same
+  // #comments URL), so repeated clicks scroll again.
+  const handledCommentsNavRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (loading || !property?.id) return;
+    if (routeLocation.hash !== "#comments") return;
+    const navKey = `${routeLocation.key}:${property.id}:${routeLocation.hash}`;
+    if (handledCommentsNavRef.current === navKey) return;
+    handledCommentsNavRef.current = navKey;
+    // Ensure the (lazy) comments body starts loading, then scroll after layout.
+    commentSectionRef.current?.triggerLoad();
+    const raf = requestAnimationFrame(() => {
+      commentAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [loading, property?.id, routeLocation.key, routeLocation.hash]);
+
   // Favourites
   const { isFavourited, toggleFavourite, isLoggedIn: favLoggedIn } = useFavourites();
 
@@ -1347,7 +1365,7 @@ const PropertyDetail: React.FC = () => {
 
             {/* B4/B6: Comments section — lazy loaded, ref for anchor-scroll from stats line. */}
             {property?.id && (
-              <div ref={commentAnchorRef}>
+              <div ref={commentAnchorRef} id="comments" className="scroll-mt-16">
                 <Suspense fallback={null}>
                   <CommentSection
                     ref={commentSectionRef}

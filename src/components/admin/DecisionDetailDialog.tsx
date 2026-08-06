@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getStatusDisplay } from "@/lib/propertyStatus";
+import { formatRejectionReason } from "@/lib/rejectionReasons";
 import { DECISION_META, type DecisionRow } from "@/components/admin/DecisionsTab";
 
 interface Props {
@@ -178,14 +179,14 @@ export default function DecisionDetailDialog({ decision, onClose, returnFocusRef
                     v={`${statusLabel(detail.fromStatus)} → ${statusLabel(detail.toStatus)}`}
                   />
                 )}
-                {detail.reason && <MetaRow k="Reason" v={detail.reason} />}
+                {formatRejectionReason(detail.reason) && <MetaRow k="Reason" v={formatRejectionReason(detail.reason)!} />}
                 {detail.reasonText && <MetaRow k="Message" v={detail.reasonText} multiline />}
               </>
             ) : (
               <>
                 <MetaRow k="Submitted at" v={format(new Date(detail.submittedAt), "PPpp")} />
                 {detail.reviewedAt && <MetaRow k="Decision at" v={format(new Date(detail.reviewedAt), "PPpp")} />}
-                {detail.rejectionReason && <MetaRow k="Reason" v={detail.rejectionReason} />}
+                {formatRejectionReason(detail.rejectionReason) && <MetaRow k="Reason" v={formatRejectionReason(detail.rejectionReason)!} />}
                 {detail.rejectionReasonText && <MetaRow k="Message" v={detail.rejectionReasonText} multiline />}
               </>
             )}
