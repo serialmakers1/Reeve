@@ -19,7 +19,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import posthog from "posthog-js";
 import { format, formatDistanceToNow } from "date-fns";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, MapPin } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -34,9 +34,17 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { BHK_OPTIONS, BUILDING_AMENITIES, FURNISHING_ITEM_OPTIONS } from "@/config/property-form";
+import { BHK_OPTIONS } from "@/config/property-form";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import EditRequestDiff from "@/components/property-management/EditRequestDiff";
+import { ReviewField, CustomBadge } from "@/components/admin/ReviewField";
+import { buildGoogleMapsLink } from "@/lib/googleMapsLink";
+import {
+  normalizeFurnishingForDisplay,
+  normalizeAmenitiesForDisplay,
+} from "@/lib/reviewAmenities";
+import { validateYoutubeUrl } from "@/lib/ownerTextValidation";
+import { cn } from "@/lib/utils";
 
 const REJECTION_REASONS = [
   { value: "incomplete_details", label: "Incomplete details" },
@@ -55,6 +63,11 @@ interface PropertyRow {
   // Prompt 10 (P10): new address columns
   formatted_address: string | null;
   sublocality_1: string | null;
+  // Location provenance + coordinates (used for the Google Maps link + manual warning)
+  place_id: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  address_mode: string | null;
   // Core
   bhk: string | null; property_type: string | null;
   square_footage: number | null; furnishing: string | null;
@@ -145,6 +158,142 @@ function sectionLabel(raw: string | null): string {
   return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Edit-request keys that get bespoke review rendering in the Proposed-changes
+// section. Everything else keeps the generic scalar EditRequestDiff.
+const FREE_TEXT_EDIT_KEYS = new Set([
+  "parking_notes", "pet_policy", "building_rules", "building_notes", "youtube_walkthrough_url",
+]);
+const STRUCTURED_EDIT_KEYS = new Set(["furnishing_detail", "amenities"]);
+
+/**
+ * Free-text snapshot field. Never truncates; wraps long words/URLs. On new
+ * listings (`highlight`) it renders with the amber review treatment; on edit
+ * reviews the live snapshot stays neutral (highlighting lives in the diff).
+ */
+function FreeText({
+  k, v, highlight, multiline = false, badge = "Free text — review",
+}: {
+  k: string; v: unknown; highlight: boolean; multiline?: boolean; badge?: string;
+}) {
+  if (v == null || v === "") return null;
+  const text = String(v);
+  if (highlight) {
+    return <ReviewField label={k} badge={badge} multiline={multiline}>{text}</ReviewField>;
+  }
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{k}</p>
+      <p className={cn("text-sm [overflow-wrap:anywhere] break-words", multiline && "whitespace-pre-line")}>
+        {text}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * YouTube walkthrough — always shows the exact owner-entered string (wrapping),
+ * clickable ONLY when it passes the shared validator. Invalid values are shown
+ * but explicitly labelled as not safely openable and never linked.
+ */
+function YoutubeReviewBlock({ url, highlight }: { url: string; highlight: boolean }) {
+  const valid = validateYoutubeUrl(url).ok;
+  const body = valid ? (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-sm text-primary underline [overflow-wrap:anywhere] break-all"
+    >
+      {url}
+    </a>
+  ) : (
+    <div className="space-y-0.5">
+      <p className="text-sm [overflow-wrap:anywhere] break-all">{url}</p>
+      <p className="text-xs text-destructive">Not a valid YouTube link — not safely openable.</p>
+    </div>
+  );
+  if (highlight) {
+    return <ReviewField label="Video walkthrough (YouTube)" badge="Free text — review">{body}</ReviewField>;
+  }
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">Video walkthrough (YouTube)</p>
+      {body}
+    </div>
+  );
+}
+
+/** Readable furniture list (with Custom badges). Falls back safely on bad shapes. */
+function FurnishingList({ raw }: { raw: unknown }) {
+  const { items, malformed } = normalizeFurnishingForDisplay(raw);
+  if (malformed) {
+    return (
+      <pre className="text-[11px] bg-muted rounded p-2 whitespace-pre-wrap [overflow-wrap:anywhere]">
+        Could not display (unexpected format): {JSON.stringify(raw)}
+      </pre>
+    );
+  }
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">—</p>;
+  return (
+    <ul className="space-y-1">
+      {items.map((f, i) => (
+        <li key={i} className="flex flex-wrap items-center gap-1.5 text-sm [overflow-wrap:anywhere]">
+          <span>{f.label}</span>
+          {f.count != null && <span className="text-muted-foreground">×{f.count}</span>}
+          {f.size && <span className="text-xs text-muted-foreground">({f.size})</span>}
+          {f.rooms && <span className="text-xs text-muted-foreground">[{f.rooms}]</span>}
+          {f.custom && <CustomBadge />}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Readable amenities list (Building + Furnishing chips, Custom badges). */
+function AmenitiesList({ raw }: { raw: unknown }) {
+  const { building, furnishingItems, malformed } = normalizeAmenitiesForDisplay(raw);
+  if (malformed) {
+    return (
+      <pre className="text-[11px] bg-muted rounded p-2 whitespace-pre-wrap [overflow-wrap:anywhere]">
+        Could not display (unexpected format): {JSON.stringify(raw)}
+      </pre>
+    );
+  }
+  if (building.length === 0 && furnishingItems.length === 0) {
+    return <p className="text-sm text-muted-foreground">—</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {building.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {building.map((a) => (
+            <span
+              key={a.value}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium [overflow-wrap:anywhere]",
+                a.custom
+                  ? "border-primary/40 bg-primary/5 text-primary"
+                  : "border-border/60 bg-muted/40 text-muted-foreground",
+              )}
+            >
+              {a.label}{a.custom && <CustomBadge />}
+            </span>
+          ))}
+        </div>
+      )}
+      {furnishingItems.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {furnishingItems.map((f) => (
+            <span key={f.value} className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {f.label}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ListingReviewDetail() {
   const { type, id } = useParams<{ type: "new" | "edit"; id: string }>();
   const navigate = useNavigate();
@@ -172,9 +321,16 @@ export default function ListingReviewDetail() {
 
     if (type === "edit") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: er } = await (supabase as any).from("property_edit_requests")
+      const { data: er, error: erError } = await (supabase as any).from("property_edit_requests")
         .select("id, property_id, owner_id, status, payload, created_at, rejection_reason, rejection_reason_text")
         .eq("id", id).maybeSingle();
+      // A real query/network failure must NOT masquerade as "not found" (which
+      // redirects the admin away). Only a genuinely null row is "not found".
+      if (erError) {
+        setLoading(false);
+        toast({ title: "Couldn't load edit request", description: erError.message, variant: "destructive" });
+        return;
+      }
       if (!er) {
         toast({ title: "Edit request not found", variant: "destructive" });
         navigate("/admin/listing-reviews?tab=edit", { replace: true });
@@ -190,9 +346,14 @@ export default function ListingReviewDetail() {
     // Prompt 10: owner FK join replaces the separate public_profiles query.
     // Exact syntax from Properties.tsx line 170.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: prop } = await (supabase as any).from("properties")
+    const { data: prop, error: propError } = await (supabase as any).from("properties")
       .select("*, owner:users!properties_owner_id_fkey(full_name, email, phone)")
       .eq("id", propertyId).maybeSingle();
+    if (propError) {
+      setLoading(false);
+      toast({ title: "Couldn't load property", description: propError.message, variant: "destructive" });
+      return;
+    }
     if (!prop) {
       toast({ title: "Property not found", variant: "destructive" });
       navigate("/admin/listing-reviews", { replace: true });
@@ -395,29 +556,47 @@ export default function ListingReviewDetail() {
             </span>
           </div>
 
-          {/* Admin-only flat numbers (D-091: flat_number never public) */}
-          <div className="rounded border border-amber-100 bg-amber-50/50 px-3 py-2 text-xs space-y-1">
-            <div>
+          {/* Admin-only flat / owner unit numbers (D-091: flat_number never public).
+              Amber = admin-only + owner free-text requiring review. */}
+          <div className="rounded-md border border-amber-300 bg-amber-50/60 px-3 py-2 text-xs space-y-1">
+            <div className="[overflow-wrap:anywhere] break-words">
               <span className="font-medium text-amber-900">Flat number (admin only):</span>{" "}
               <span className="text-amber-800">{property.flat_number ?? "—"}</span>
             </div>
             {property.lister_flat_number && (
-              <div>
-                <span className="font-medium text-amber-900">Lister-submitted unit:</span>{" "}
+              <div className="[overflow-wrap:anywhere] break-words">
+                <span className="font-medium text-amber-900">Lister-submitted unit (review):</span>{" "}
                 <span className="text-amber-800">{property.lister_flat_number}</span>
               </div>
             )}
           </div>
 
-          {/* Basic info */}
+          {/* Block-level manual-location warning — shown when the address was entered
+              manually or could not be matched to a Google place. Deliberately worded
+              at the location level (per-field manual provenance is not persisted). */}
+          {(property.address_mode === "manual" || !property.place_id) && (
+            <ReviewField badge="Location — review">
+              This location was entered manually or could not be matched to a Google place.
+              Verify the address details and the map pin before approving.
+            </ReviewField>
+          )}
+
+          {/* Location free-text fields — highlighted for new listings; neutral on
+              edit reviews (edits cannot change location, and the diff carries any
+              highlighting). */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            <Field k="Building" v={property.building_name} />
+            <FreeText k="Building" v={property.building_name} highlight={isNewType} />
+            <FreeText k="Address" v={property.street_address} highlight={isNewType} />
+            <FreeText k="Locality" v={property.locality} highlight={isNewType} />
+            <FreeText k="City" v={property.city} highlight={isNewType} />
+            <FreeText k="State" v={property.state} highlight={isNewType} />
+            <FreeText k="Landmark" v={property.landmark} highlight={isNewType} />
+          </div>
+
+          {/* Basic info (neutral facts) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <Field k="Formatted address" v={property.formatted_address} />
-            <Field k="Address" v={property.street_address} />
-            <Field k="Locality" v={property.locality} />
             <Field k="Neighbourhood" v={property.sublocality_1} />
-            <Field k="Landmark" v={property.landmark} />
-            <Field k="City" v={property.city} />
             <Field k="Pincode" v={property.pincode} />
             <Field k="Lister role" v={property.lister_role} />
             <Field k="BHK" v={bhkLabel(property.bhk)} />
@@ -488,83 +667,41 @@ export default function ListingReviewDetail() {
               <Field k="Main door lock" v={property.main_door_lock_type} />
             </div>
             {property.parking_notes && (
-              <div><p className="text-xs text-muted-foreground">Parking notes</p><p className="text-sm whitespace-pre-line">{property.parking_notes}</p></div>
+              <FreeText k="Parking notes" v={property.parking_notes} highlight={isNewType} multiline />
             )}
           </div>
 
-          {/* Furnishing detail (JSONB — table display) */}
-          {property.furnishing_detail != null && (() => {
-            const items = property.furnishing_detail as Array<{ item: string; count?: number; size?: string; rooms?: string; custom?: boolean }>;
-            if (!Array.isArray(items) || items.length === 0) return null;
-            const hasCount = items.some(f => f.count != null);
-            const hasSize  = items.some(f => f.size  != null);
-            const hasRooms = items.some(f => f.rooms != null);
-            return (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Furnishing detail</p>
-                <table className="w-full text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-muted/40">
-                      <th className="border border-border/60 px-2 py-1 text-left">Item</th>
-                      {hasCount && <th className="border border-border/60 px-2 py-1 text-left">Count</th>}
-                      {hasSize  && <th className="border border-border/60 px-2 py-1 text-left">Size</th>}
-                      {hasRooms && <th className="border border-border/60 px-2 py-1 text-left">Rooms</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((f, i) => (
-                      <tr key={i} className="even:bg-muted/20">
-                        <td className="border border-border/60 px-2 py-1">{f.custom ? f.item : (FURNISHING_ITEM_OPTIONS.find(o => o.value === f.item)?.label ?? f.item)}</td>
-                        {hasCount && <td className="border border-border/60 px-2 py-1">{f.count}</td>}
-                        {hasSize  && <td className="border border-border/60 px-2 py-1">{f.size}</td>}
-                        {hasRooms && <td className="border border-border/60 px-2 py-1">{f.rooms}</td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })()}
+          {/* Furnishing detail (JSONB) — readable list with Custom badges. */}
+          {property.furnishing_detail != null && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Furnishing detail</p>
+              <FurnishingList raw={property.furnishing_detail} />
+            </div>
+          )}
 
-          {/* Building amenities (JSONB — chips display) */}
-          {property.amenities != null && (() => {
-            const am = property.amenities as { building?: string[]; furnishing_items?: string[] };
-            const bldg = am.building ?? [];
-            const furn = am.furnishing_items ?? [];
-            if (bldg.length === 0 && furn.length === 0) return null;
-            return (
-              <div className="space-y-2">
-                {bldg.length > 0 && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Building amenities</p>
-                    <div className="flex flex-wrap gap-1">
-                      {bldg.map((a) => (
-                        <span key={a} className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          {BUILDING_AMENITIES.find(o => o.value === a)?.label ?? a}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {furn.length > 0 && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Furnishing amenities</p>
-                    <div className="flex flex-wrap gap-1">
-                      {furn.map((f) => (
-                        <span key={f} className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          {FURNISHING_ITEM_OPTIONS.find(o => o.value === f)?.label ?? f}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+          {/* Building / furnishing amenities (JSONB) — Custom badges on non-curated. */}
+          {property.amenities != null && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Amenities</p>
+              <AmenitiesList raw={property.amenities} />
+            </div>
+          )}
 
           {/* Location & Street View */}
           <div className="rounded border border-border/60 bg-muted/20 p-3 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Location & Street View</p>
+            {(() => {
+              const mapUrl = buildGoogleMapsLink(property);
+              return mapUrl ? (
+                <Button asChild variant="outline" size="sm" className="min-h-11 w-full sm:w-auto">
+                  <a href={mapUrl} target="_blank" rel="noopener noreferrer">
+                    <MapPin className="h-4 w-4" aria-hidden="true" /> Open in Google Maps
+                  </a>
+                </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground">Location not resolved</p>
+              );
+            })()}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Street View</p>
@@ -604,17 +741,11 @@ export default function ListingReviewDetail() {
             </div>
           </div>
 
-          {property.pet_policy && <div><p className="text-xs text-muted-foreground">Pet policy</p><p className="text-sm">{property.pet_policy}</p></div>}
-          {property.building_rules && <div><p className="text-xs text-muted-foreground">House rules</p><p className="text-sm whitespace-pre-line">{property.building_rules}</p></div>}
-          {property.building_notes && <div><p className="text-xs text-muted-foreground">About the building</p><p className="text-sm whitespace-pre-line">{property.building_notes}</p></div>}
+          <FreeText k="Pet policy" v={property.pet_policy} highlight={isNewType} multiline />
+          <FreeText k="House rules" v={property.building_rules} highlight={isNewType} multiline />
+          <FreeText k="About the Property" v={property.building_notes} highlight={isNewType} multiline />
           {property.youtube_walkthrough_url && (
-            <div>
-              <p className="text-xs text-muted-foreground">Video walkthrough</p>
-              <a href={property.youtube_walkthrough_url} target="_blank" rel="noopener noreferrer"
-                 className="text-sm text-primary underline">
-                View on YouTube →
-              </a>
-            </div>
+            <YoutubeReviewBlock url={property.youtube_walkthrough_url} highlight={isNewType} />
           )}
         </section>
 
@@ -649,14 +780,54 @@ export default function ListingReviewDetail() {
             <h2 className="text-sm font-semibold">Proposed changes</h2>
             {changedKeys.length > 0 ? (
               <div className="space-y-3">
-                {changedKeys.map((k) => (
-                  <EditRequestDiff
-                    key={k}
-                    label={k.replace(/_/g, " ")}
-                    proposedValue={formatValue(fieldChanges[k])}
-                    liveValue={formatValue((property as unknown as Record<string, unknown>)[k])}
-                  />
-                ))}
+                {changedKeys.map((k) => {
+                  const liveRaw = (property as unknown as Record<string, unknown>)[k];
+                  const label = k === "building_notes" ? "About the Property" : k.replace(/_/g, " ");
+
+                  // Structured JSON fields — render Current vs Proposed readable lists.
+                  if (STRUCTURED_EDIT_KEYS.has(k)) {
+                    const render = (val: unknown) =>
+                      k === "furnishing_detail" ? <FurnishingList raw={val} /> : <AmenitiesList raw={val} />;
+                    return (
+                      <div key={k} className="rounded-md border border-amber-300 bg-amber-50/40 p-3 space-y-2">
+                        <p className="text-xs font-medium text-amber-900 capitalize">{label} — review</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Current</p>
+                            {render(liveRaw)}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[11px] uppercase tracking-wide text-blue-700">Proposed</p>
+                            {render(fieldChanges[k])}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Free-text fields — amber review treatment on the proposed value,
+                  // with the current live value beneath (wrapping, never truncated).
+                  if (FREE_TEXT_EDIT_KEYS.has(k)) {
+                    return (
+                      <ReviewField key={k} label={label} badge="Free text — review" multiline>
+                        <span className="[overflow-wrap:anywhere] break-words">{formatValue(fieldChanges[k])}</span>
+                        <p className="text-[11px] text-amber-800/80 mt-1 whitespace-normal [overflow-wrap:anywhere]">
+                          Currently live: {formatValue(liveRaw)}
+                        </p>
+                      </ReviewField>
+                    );
+                  }
+
+                  // Scalar fields — unchanged generic diff.
+                  return (
+                    <EditRequestDiff
+                      key={k}
+                      label={label}
+                      proposedValue={formatValue(fieldChanges[k])}
+                      liveValue={formatValue(liveRaw)}
+                    />
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No field changes</p>
@@ -843,7 +1014,7 @@ function Field({ k, v }: { k: string; v: unknown }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{k}</p>
-      <p className="text-sm truncate">{String(v)}</p>
+      <p className="text-sm [overflow-wrap:anywhere] break-words">{String(v)}</p>
     </div>
   );
 }
