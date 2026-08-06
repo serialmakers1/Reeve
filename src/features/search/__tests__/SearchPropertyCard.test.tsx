@@ -53,7 +53,6 @@ function makeResult(overrides: Partial<SearchPropertyResult> = {}): SearchProper
     listerRole: "owner",
     responseHandledCount: 10,
     responseRatePct: 80,
-    isNewOnReeve: false,
     viewCount: 25,
     commentCount: 2,
     experienceFeedback: null,
@@ -235,7 +234,7 @@ describe("SearchPropertyCard — footer deck", () => {
   });
 
   it("never renders 'New on Reeve' (removed in redesign)", () => {
-    renderCard(makeResult({ isNewOnReeve: true, responseRatePct: 70 }));
+    renderCard(makeResult({ responseRatePct: 70 }));
     expect(screen.queryByText("New on Reeve")).toBeNull();
     expect(screen.getByText("Responds 70%")).toBeTruthy();
   });

@@ -1,30 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { RatingSide, RatingSummaryV2 } from "@/components/ratings/ratingQuestions";
 
 export interface OwnerCardData {
   displayName: string | null;
   profilePhotoUrl: string | null;
-  isNew: boolean;
   allTimeHandled: number;
   allTimeRate: number;
-  ratingSummary: {
-    total: number;
-    dealAgainPct: number;
-  } | null;
+  /** Reputation as a lister (v2), for the compact summary. Null when no ratings. */
+  ratingSide: RatingSide | null;
 }
 
 export const ownerCardKeys = {
   all: ["ownerCard"] as const,
   byOwner: (ownerId: string) => ["ownerCard", ownerId] as const,
 };
-
-interface RatingSummaryJson {
-  status?: "new" | "active";
-  as_owner?: {
-    total?: number;
-    deal_again_pct?: number;
-  };
-}
 
 interface ResponseRateRow {
   all_time_handled: number | string | null;
@@ -50,7 +40,8 @@ export function useOwnerCard(ownerId: string | null | undefined) {
           .eq("user_id", ownerId!)
           .maybeSingle(),
         supabase.rpc("get_owner_response_rate", { p_owner_id: ownerId! }),
-        supabase.rpc("get_user_rating_summary", { p_user_id: ownerId! }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).rpc("get_user_rating_summary_v2", { p_user_id: ownerId! }),
       ]);
 
       if (profileRes.error) throw profileRes.error;
@@ -68,24 +59,15 @@ export function useOwnerCard(ownerId: string | null | undefined) {
       const allTimeHandled = Number(rateRow?.all_time_handled ?? 0);
       const allTimeRate = Number(rateRow?.all_time_rate ?? 0);
 
-      const ratingJson = (ratingRes.data ?? null) as RatingSummaryJson | null;
-      const asOwner = ratingJson?.as_owner;
-      const total = Number(asOwner?.total ?? 0);
-      const ratingSummary =
-        total > 0
-          ? {
-              total,
-              dealAgainPct: Number(asOwner?.deal_again_pct ?? 0),
-            }
-          : null;
+      const ratingJson = (ratingRes.data ?? null) as RatingSummaryV2 | null;
+      const ratingSide = ratingJson?.as_lister ?? null;
 
       return {
         displayName: profile?.display_name ?? profile?.full_name ?? null,
         profilePhotoUrl: profile?.profile_photo_url ?? null,
-        isNew: allTimeHandled < 5,
         allTimeHandled,
         allTimeRate,
-        ratingSummary,
+        ratingSide,
       };
     },
   });
@@ -94,10 +76,9 @@ export function useOwnerCard(ownerId: string | null | undefined) {
     ...query.data,
     displayName: query.data?.displayName ?? null,
     profilePhotoUrl: query.data?.profilePhotoUrl ?? null,
-    isNew: query.data?.isNew ?? true,
     allTimeHandled: query.data?.allTimeHandled ?? 0,
     allTimeRate: query.data?.allTimeRate ?? 0,
-    ratingSummary: query.data?.ratingSummary ?? null,
+    ratingSide: query.data?.ratingSide ?? null,
     isLoading: query.isLoading,
     error: (query.error as Error | null) ?? null,
   };

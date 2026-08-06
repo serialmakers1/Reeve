@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 
 import TopRequestsStrip from "@/components/owner-dashboard/TopRequestsStrip";
 import PropertyCard from "@/components/owner-dashboard/PropertyCard";
-import PendingRatingsSection from "@/components/ratings/PendingRatingsSection";
 
 const DRAFT_LIMIT = 20;
 
@@ -246,11 +245,6 @@ export default function OwnerDashboard() {
         {/* Top requests strip (reserved for Phase 3 contact requests) */}
         <div className="mb-4">
           <TopRequestsStrip count={0} />
-        </div>
-
-        {/* C3: Pending ratings — renders nothing when empty. */}
-        <div className="mb-5">
-          <PendingRatingsSection />
         </div>
 
         {/* Pending actions row */}

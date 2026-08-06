@@ -4,7 +4,6 @@ import { CheckCircle2, Circle, Heart, Settings2 } from "lucide-react";
 
 import Layout from "@/components/Layout";
 import ContactRequestsSummaryCard from "@/components/tenant-dashboard/ContactRequestsSummaryCard";
-import PendingRatingsSection from "@/components/ratings/PendingRatingsSection";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -90,9 +89,6 @@ export default function TenantDashboard() {
             Welcome back, {user?.full_name || "there"}
           </p>
         </div>
-
-        {/* C3: Pending ratings — renders nothing when empty. */}
-        <PendingRatingsSection />
 
         <div className="grid gap-4 sm:grid-cols-2">
           {/* ── Card 1 — Contact Requests (Phase 3 Prompt 5 — live) ── */}

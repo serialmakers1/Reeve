@@ -112,23 +112,6 @@ describe("mapRpcRowToResult — price", () => {
   });
 });
 
-describe("mapRpcRowToResult — isNewOnReeve", () => {
-  it("isNewOnReeve=true when response_handled_count < 5", () => {
-    const result = mapRpcRowToResult(makeRow({ response_handled_count: 4 }), 0, 0, false);
-    expect(result.isNewOnReeve).toBe(true);
-  });
-
-  it("isNewOnReeve=false when response_handled_count >= 5", () => {
-    const result = mapRpcRowToResult(makeRow({ response_handled_count: 5 }), 0, 0, false);
-    expect(result.isNewOnReeve).toBe(false);
-  });
-
-  it("isNewOnReeve=true when response_handled_count=0", () => {
-    const result = mapRpcRowToResult(makeRow({ response_handled_count: 0 }), 0, 0, false);
-    expect(result.isNewOnReeve).toBe(true);
-  });
-});
-
 describe("mapRpcRowToResult — overlaid values (from caller)", () => {
   it("passes through isFavourited=true", () => {
     const result = mapRpcRowToResult(makeRow(), 0, 0, true);

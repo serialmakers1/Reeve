@@ -5,7 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Eye, MessageCircle, Mail, Sparkles } from "lucide-react";
+import { Eye, MessageCircle, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
@@ -187,15 +187,11 @@ export default function PropertySidebar({
             )}
             {owner.isLoading ? (
               <Skeleton className="mt-1 h-3 w-32" />
-            ) : owner.isNew ? (
-              <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-amber-700">
-                <Sparkles className="h-3 w-3" /> New on Reeve
-              </p>
-            ) : (
+            ) : owner.allTimeHandled > 0 ? (
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Responds to {owner.allTimeRate}% · {owner.allTimeHandled} handled
               </p>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
