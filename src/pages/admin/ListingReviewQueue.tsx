@@ -14,6 +14,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import DecisionsTab from "@/components/admin/DecisionsTab";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,6 +70,7 @@ const bhkLabel = (v: string | null): string =>
 export default function ListingReviewQueue() {
   const navigate = useNavigate();
   useRequireAuth({ requireAdmin: true });
+  const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab: TabValue = ((): TabValue => {
     const t = searchParams.get("tab");
@@ -148,6 +150,16 @@ export default function ListingReviewQueue() {
         : Promise.resolve({ data: [] }),
     ]);
 
+    // A thumbnail-fetch failure must not hide the queue rows — surface it once
+    // per load and fall through with no thumbnails.
+    if ((photosRes as { error?: unknown }).error) {
+      toast({
+        title: "Couldn't load listing thumbnails",
+        description: "Rows are shown without preview images. Refresh to retry.",
+        variant: "destructive",
+      });
+    }
+
     const photoMap: Record<string, string> = {};
     for (const p of (photosRes.data ?? []) as { property_id: string; url: string }[]) {
       photoMap[p.property_id] = p.url;
@@ -177,7 +189,7 @@ export default function ListingReviewQueue() {
       prior_revisions: priorCounts[r.property_id] ?? 0,
     })));
     setLoading(false);
-  }, []);
+  }, [toast]);
 
   useEffect(() => { void load(); }, [load]);
 

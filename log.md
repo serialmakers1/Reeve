@@ -1174,3 +1174,7 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-08-06] diagnose | Reviewed owner text validation and custom-item limits [18:50 IST]
 
 ## [2026-08-06] fix | Added owner text validation and custom-item limits [19:50 IST]
+
+## [2026-08-06] diagnosis | Investigated admin property-photo visibility and edit-request photo lifecycle [00:32 IST]
+
+## [2026-08-06] fix | Restored admin property-photo visibility and safe photo management [01:08 IST]

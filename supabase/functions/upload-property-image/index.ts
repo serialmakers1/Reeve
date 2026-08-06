@@ -286,7 +286,11 @@ Deno.serve(async (req: Request) => {
       "image/webp": "webp",
     };
     const ext = extMap[file.type];
-    const filePath = `properties/${propertyIdStr}/photos/${Date.now()}.${ext}`;
+    // Collision-resistant object key: timestamp alone could collide for two
+    // uploads to the same property within the same millisecond. A random UUID
+    // suffix guarantees distinct keys. Identity is still server-generated; the
+    // original filename is never used as object identity.
+    const filePath = `properties/${propertyIdStr}/photos/${Date.now()}-${crypto.randomUUID()}.${ext}`;
 
     // J) Sign and upload to R2
     const { url: r2Url, headers: r2Headers } = await signR2Request(
