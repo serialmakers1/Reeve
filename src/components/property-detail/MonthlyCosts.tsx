@@ -160,7 +160,7 @@ export default function MonthlyCosts({ property }: { property: Property }) {
         <>
           {rows.length > 0 ? <hr className="my-3 border-muted" /> : null}
           <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-            Utilities included
+            Utilities included in Maintenance
           </p>
           <div className="flex flex-wrap gap-2">{utilityChips}</div>
         </>
