@@ -34,7 +34,7 @@ interface Props {
 
 function deletedCopy(reason: string | null): string {
   if (reason === "auto_hidden_reports") return "[removed pending review]";
-  if (reason === "admin_hidden") return "[removed by moderator]";
+  if (reason === "admin_hidden") return "Comment removed by Reeve";
   return "[deleted]";
 }
 

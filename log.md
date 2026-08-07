@@ -1200,3 +1200,13 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-08-06] feat | Added public rent and sale price-change history [14:08 IST]
 
 ## [2026-08-06] implementation | Ratings and reputation v2 implemented [15:38 IST]
+
+## [2026-08-07] diagnosis | Comment moderation architecture diagnosis [09:55 IST]
+
+## [2026-08-07] implementation | Comment moderation Supabase foundation [10:48 IST]
+
+## [2026-08-07] implementation | Comment moderation admin UI [11:21 IST]
+
+## [2026-08-07] verification | Comment moderation end-to-end verification and integration fixes [11:34 IST]
+
+## [2026-08-07] fix | Report-triggered auto-hide decrements PropertyDetail comment count [14:25 IST]

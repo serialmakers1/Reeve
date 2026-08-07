@@ -22,7 +22,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   commentId: string | null;
-  onReported: (commentId: string) => void;
+  onReported: (commentId: string, autoHidden: boolean) => void;
 }
 
 export default function ReportModal({ open, onOpenChange, commentId, onReported }: Props) {
@@ -45,7 +45,7 @@ export default function ReportModal({ open, onOpenChange, commentId, onReported 
     setSubmitting(true);
     setInlineErr(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).rpc("report_comment", {
+    const { data, error } = await (supabase as any).rpc("report_comment", {
       p_comment_id: commentId,
       p_reason: reason,
       p_notes: notesTrim || undefined,
@@ -61,7 +61,7 @@ export default function ReportModal({ open, onOpenChange, commentId, onReported 
       return;
     }
     toast.success("Thanks for reporting — we review all flagged comments and remove ones that break our guidelines.");
-    onReported(commentId);
+    onReported(commentId, !!(data as { auto_hidden?: boolean } | null)?.auto_hidden);
     reset();
     onOpenChange(false);
   };
