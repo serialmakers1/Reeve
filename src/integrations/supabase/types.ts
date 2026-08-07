@@ -612,6 +612,52 @@ export type Database = {
           },
         ]
       }
+      comment_moderation_actions: {
+        Row: {
+          action: string
+          admin_id: string | null
+          comment_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          action: string
+          admin_id?: string | null
+          comment_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          admin_id?: string | null
+          comment_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_moderation_actions_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "comment_moderation_actions_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_moderation_actions_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "property_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comment_reports: {
         Row: {
           comment_id: string
@@ -620,6 +666,9 @@ export type Database = {
           notes: string | null
           reason: string
           reporter_id: string
+          resolution: string | null
+          resolved_at: string | null
+          resolved_by: string | null
         }
         Insert: {
           comment_id: string
@@ -628,6 +677,9 @@ export type Database = {
           notes?: string | null
           reason: string
           reporter_id: string
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
         }
         Update: {
           comment_id?: string
@@ -636,6 +688,9 @@ export type Database = {
           notes?: string | null
           reason?: string
           reporter_id?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
         }
         Relationships: [
           {
@@ -655,6 +710,20 @@ export type Database = {
           {
             foreignKeyName: "comment_reports_reporter_id_fkey"
             columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_reports_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "comment_reports_resolved_by_fkey"
+            columns: ["resolved_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -4028,10 +4097,12 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_comment: { Args: { p_comment_id: string }; Returns: Json }
       admin_delete_draft_property: {
         Args: { p_property_id: string }
         Returns: undefined
       }
+      admin_unhide_comment: { Args: { p_comment_id: string }; Returns: Json }
       approve_edit_request: {
         Args: { p_edit_request_id: string }
         Returns: undefined
@@ -4068,6 +4139,100 @@ export type Database = {
       earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
       generate_pseudonym: { Args: never; Returns: string }
+      get_admin_comment_report_details: {
+        Args: { p_comment_id: string }
+        Returns: {
+          created_at: string
+          notes: string
+          reason: string
+          report_id: string
+          reporter_dismissed_count: number
+          reporter_full_name: string
+          reporter_id: string
+          reporter_is_active: boolean
+          reporter_is_property_owner: boolean
+          reporter_lifetime_reports: number
+          reporter_pseudonym: string
+          reporter_reports_on_property: number
+          reporter_upheld_count: number
+          resolution: string
+          resolved_at: string
+        }[]
+      }
+      get_admin_comment_review_queue: {
+        Args: {
+          p_author_type?: string
+          p_limit?: number
+          p_offset?: number
+          p_reason?: string
+          p_search?: string
+          p_sort?: string
+        }
+        Returns: {
+          burst_seconds: number
+          comment_created_at: string
+          comment_id: string
+          comment_text: string
+          depth: number
+          hidden_at: string
+          is_reply: boolean
+          lifetime_report_count: number
+          open_report_count: number
+          open_reports: Json
+          owner_full_name: string
+          owner_id: string
+          owner_pseudonym: string
+          parent_comment_id: string
+          poster_full_name: string
+          poster_id: string
+          poster_is_active: boolean
+          poster_is_owner: boolean
+          poster_pseudonym: string
+          property_building: string
+          property_city: string
+          property_id: string
+          property_locality: string
+          property_status: string
+          total_count: number
+        }[]
+      }
+      get_admin_comments_page: {
+        Args: {
+          p_author_type?: string
+          p_limit?: number
+          p_offset?: number
+          p_property_status?: string
+          p_report_bucket?: string
+          p_search?: string
+          p_sort?: string
+          p_state?: string
+        }
+        Returns: {
+          comment_created_at: string
+          comment_id: string
+          comment_text: string
+          comment_updated_at: string
+          is_reply: boolean
+          open_report_count: number
+          owner_full_name: string
+          owner_id: string
+          owner_pseudonym: string
+          parent_comment_id: string
+          poster_full_name: string
+          poster_id: string
+          poster_is_active: boolean
+          poster_is_owner: boolean
+          poster_pseudonym: string
+          property_building: string
+          property_city: string
+          property_id: string
+          property_locality: string
+          property_status: string
+          report_count: number
+          state: string
+          total_count: number
+        }[]
+      }
       get_admin_properties_page: {
         Args: {
           p_city?: string
@@ -4106,6 +4271,31 @@ export type Database = {
         Args: never
         Returns: {
           city: string
+        }[]
+      }
+      get_admin_user_signals: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_sort?: string
+        }
+        Returns: {
+          comment_reports_received: number
+          comments_admin_deleted: number
+          comments_auto_hidden: number
+          comments_count: number
+          distinct_properties_reported: number
+          full_name: string
+          is_active: boolean
+          max_reports_single_property: number
+          pseudonym: string
+          reports_dismissed: number
+          reports_filed: number
+          reports_on_owned_property: number
+          reports_upheld: number
+          total_count: number
+          user_id: string
         }[]
       }
       get_map_markers: {

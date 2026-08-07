@@ -72,6 +72,7 @@ const Leads                  = React.lazy(() => import("./pages/admin/Leads"));
 const FieldCalendar          = React.lazy(() => import("./pages/admin/FieldCalendar"));
 const VisitLogs              = React.lazy(() => import("./pages/admin/VisitLogs"));
 const Callbacks              = React.lazy(() => import("./pages/admin/Callbacks"));
+const CommentModeration      = React.lazy(() => import("./pages/admin/CommentModeration"));
 
 // ── QueryClient ───────────────────────────────────────────────────────────────
 const queryClient = new QueryClient({
@@ -182,6 +183,7 @@ function AppInner() {
         <Route path="/admin/calendar" element={<FieldCalendar />} />
         <Route path="/admin/visits" element={<VisitLogs />} />
         <Route path="/admin/callbacks" element={<Callbacks />} />
+        <Route path="/admin/comment-moderation" element={<CommentModeration />} />
         <Route path="/admin/applications" element={<TenantPipeline />} />
         <Route path="/admin/applications/:id" element={<AdminApplicationDetail />} />
         <Route path="*" element={<NotFound />} />

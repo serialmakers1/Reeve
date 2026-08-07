@@ -46,6 +46,12 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
   const [sortMode, setSortMode] = useState<"newest" | "liked">("newest");
   const [visibleCount, setVisibleCount] = useState<number>(3);
   useEffect(() => { setVisibleCount(3); }, [propertyId]);
+  // Headline count = server total (get_property_counts: all non-deleted comments,
+  // top-level + replies) adjusted by this session's optimistic post/delete deltas.
+  // Deriving it from loaded rows was wrong — it dropped replies, counted tombstones,
+  // and shrank to the loaded page. Reset the delta when the property changes.
+  const [countDelta, setCountDelta] = useState<number>(0);
+  useEffect(() => { setCountDelta(0); }, [propertyId]);
 
   // Client-side "Most liked" sort. `rows` is a flat array; we reorder top-level
   // parents by like_count and keep children beside their parents so CommentList's
@@ -157,12 +163,14 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
       prev = r;
       return { ...r, text: "[deleted]", hidden_reason: "user_deleted" };
     }));
+    setCountDelta((d) => d - 1);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).rpc("delete_own_comment", {
       p_comment_id: commentId,
     });
     if (error) {
       setRows((rs) => rs.map((r) => (r.comment_id === commentId && prev ? prev : r)));
+      setCountDelta((d) => d + 1);
       const msg = error.message ?? "";
       if (msg === "NOT_YOUR_COMMENT") toast.error("You can only delete your own comments");
       else if (msg === "COMMENT_NOT_FOUND") toast.error("This comment no longer exists");
@@ -177,6 +185,7 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
 
   const handleReplyPosted = useCallback((row: CommentRow) => {
     setRows((prev) => [...prev, row]);
+    setCountDelta((d) => d + 1);
   }, []);
 
   const loadMore = () => {
@@ -192,7 +201,7 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
 
   const canInteract = isFullyVerified;
 
-  const displayCount = loaded ? rows.filter((r) => r.parent_comment_id === null).length : commentCount;
+  const displayCount = Math.max(0, commentCount + countDelta);
 
   return (
     <section className="space-y-3 px-4 lg:px-0">
@@ -258,7 +267,7 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
             pseudonym={pseudonym}
             currentUserId={user.id}
             currentUserFullName={user.full_name ?? null}
-            onPosted={(row) => setRows((prev) => [row, ...prev])}
+            onPosted={(row) => { setRows((prev) => [row, ...prev]); setCountDelta((d) => d + 1); }}
           />
         )
       )}
@@ -347,7 +356,17 @@ const CommentSection = forwardRef<CommentSectionHandle, Props>(function CommentS
         open={reportOpenId !== null}
         onOpenChange={(v) => { if (!v) setReportOpenId(null); }}
         commentId={reportOpenId}
-        onReported={(id) => setReportedIds((s) => new Set(s).add(id))}
+        onReported={(id, autoHidden) => {
+          setReportedIds((s) => new Set(s).add(id));
+          // If this report was the 3rd that auto-hid the comment, the server count
+          // (is_deleted=false) dropped by 1 — mirror it, and reconcile the loaded
+          // row to its tombstone so existing isDeleted gating removes interactions.
+          if (autoHidden) {
+            setCountDelta((d) => d - 1);
+            setRows((rs) => rs.map((r) =>
+              r.comment_id === id ? { ...r, hidden_reason: "auto_hidden_reports" } : r));
+          }
+        }}
       />
       </>)}
     </section>

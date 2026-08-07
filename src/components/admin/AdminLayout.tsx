@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Users, Home, FileText, Building2, ClipboardList, ClipboardCheck, UserPlus, Menu, X, User, ChevronDown, CalendarDays, ScrollText, Phone, ExternalLink, Search, PlusSquare, LayoutDashboard, UserCircle } from "lucide-react";
+import { Users, Home, FileText, Building2, ClipboardList, ClipboardCheck, UserPlus, Menu, X, User, ChevronDown, CalendarDays, ScrollText, Phone, ExternalLink, Search, PlusSquare, LayoutDashboard, UserCircle, ShieldAlert } from "lucide-react";
+import { useReviewQueueBadge } from "@/pages/admin/commentModeration/useCommentModeration";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { label: "Visit Logs", path: "/admin/visits", icon: ScrollText },
   { label: "Callbacks", path: "/admin/callbacks", icon: Phone },
   { label: "Applications", path: "/admin/applications", icon: FileText },
+  { label: "Comment Moderation", path: "/admin/comment-moderation", icon: ShieldAlert },
 ];
 
 // Access to the normal (non-admin) Reeve site from within the admin shell.
@@ -47,6 +49,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
+  // Non-blocking: runs only once admin auth is confirmed; loading/error → no badge.
+  const moderationBadge = useReviewQueueBadge(authChecked);
+  const moderationCount = moderationBadge.data ?? 0;
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -121,6 +126,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             {item.path === "/admin/listing-reviews" && pendingReviewCount > 0 && (
               <span className="ml-auto rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 min-w-[20px] text-center">
                 {pendingReviewCount}
+              </span>
+            )}
+            {item.path === "/admin/comment-moderation" && moderationCount > 0 && (
+              <span className="ml-auto rounded-full bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 min-w-[20px] text-center">
+                {moderationCount}
               </span>
             )}
           </Link>
