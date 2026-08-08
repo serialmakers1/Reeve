@@ -1666,7 +1666,7 @@ export default function ListProperty() {
                 surface="owner_form"
                 value={form.facing}
                 onChange={(v: string) => updateField("facing", v)}
-                helperOverride="Helps tenants who care about sunlight"
+                helperOverride="Helps users who care about sunlight"
                 placeholderOverride="Optional"
               />
               <SpecField fieldKey="building_age_years" surface="owner_form" value={form.building_age_years} onChange={(v: string) => updateField("building_age_years", v)} />
@@ -2064,7 +2064,7 @@ export default function ListProperty() {
               </label>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => { setShowPreview(true); posthog?.capture("commons_listing_preview_opened"); }}>
-                  <Eye className="h-4 w-4 mr-1.5" /> Preview as tenant
+                  <Eye className="h-4 w-4 mr-1.5" /> Preview the Listing
                 </Button>
               </div>
             </div>
