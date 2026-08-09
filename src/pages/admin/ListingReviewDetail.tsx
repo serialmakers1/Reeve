@@ -133,6 +133,8 @@ interface EditRequestRow {
   rejection_reason_text?: string | null;
 }
 
+const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
+
 const bhkLabel = (v: string | null): string =>
   v ? BHK_OPTIONS.find((o) => o.value === v)?.label ?? v : "";
 
@@ -155,7 +157,16 @@ function sectionLabel(raw: string | null): string {
 const FREE_TEXT_EDIT_KEYS = new Set([
   "parking_notes", "pet_policy", "building_rules", "building_notes", "youtube_walkthrough_url",
 ]);
-const STRUCTURED_EDIT_KEYS = new Set(["furnishing_detail", "amenities"]);
+// Deployed Prompt-1 payload stores custom deltas under these keys (NOT `amenities`/
+// `furnishing_detail`). Each is Current-live + Proposed-additions, rendered readably.
+const AMENITIES_ADD_KEY = "amenities_building_add";
+const FURNISHING_ADD_KEY = "furnishing_detail_add";
+const STRUCTURED_ADD_KEYS = new Set([AMENITIES_ADD_KEY, FURNISHING_ADD_KEY]);
+const EDIT_KEY_LABEL: Record<string, string> = {
+  building_notes: "About the Property",
+  [AMENITIES_ADD_KEY]: "Amenities",
+  [FURNISHING_ADD_KEY]: "Furnishing",
+};
 
 /**
  * Free-text snapshot field. Never truncates; wraps long words/URLs. On new
@@ -290,7 +301,7 @@ export default function ListingReviewDetail() {
   const { type, id } = useParams<{ type: "new" | "edit"; id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  useRequireAuth({ requireAdmin: true });
+  const { session } = useRequireAuth({ requireAdmin: true });
 
   const [property, setProperty] = useState<PropertyRow | null>(null);
   const [editRequest, setEditRequest] = useState<EditRequestRow | null>(null);
@@ -480,7 +491,37 @@ export default function ListingReviewDetail() {
       property_id: editRequest.property_id,
       reason,
     });
-    toast({ title: "Edit rejected" });
+    // Rejection is authoritative. Now best-effort clean the abandoned staged R2 objects
+    // (Prompt 1 deferred this to Prompt 3). Order matters: the DB blocks staged-delete
+    // while the request is still `pending`, so this runs only AFTER a successful reject.
+    // A cleanup failure never undoes/false-fails the rejection — surface a warning.
+    const stagedUrls = Array.from(new Set(
+      (editRequest.payload.photo_changes?.add ?? []).map((p) => p.url).filter(Boolean),
+    ));
+    if (stagedUrls.length && session?.access_token) {
+      let cleanupFailed = false;
+      for (const url of stagedUrls) {
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-property-image`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ staged_url: url, property_id: editRequest.property_id }),
+          });
+          if (!res.ok) cleanupFailed = true;
+        } catch { cleanupFailed = true; }
+      }
+      if (cleanupFailed) {
+        toast({
+          title: "Edit rejected — photo cleanup incomplete",
+          description: "The edit was rejected, but some proposed photos couldn't be removed from storage. This is safe to ignore.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Edit rejected" });
+      }
+    } else {
+      toast({ title: "Edit rejected" });
+    }
     setShowReject(false);
     navigate("/admin/listing-reviews?tab=edit");
   };
@@ -502,7 +543,6 @@ export default function ListingReviewDetail() {
   const fieldChanges = editRequest?.payload.field_changes ?? {};
   const changedKeys = Object.keys(fieldChanges);
   const photoAdd = editRequest?.payload.photo_changes?.add ?? [];
-  const photoDelete = editRequest?.payload.photo_changes?.delete ?? [];
 
   // Build grouped image map — shown for BOTH new-listing and edit reviews. For
   // edit reviews this is the current live (approved) gallery; the staged add/
@@ -514,6 +554,94 @@ export default function ListingReviewDetail() {
     if (!imageGroups.has(key)) imageGroups.set(key, []);
     imageGroups.get(key)!.push(img);
   });
+
+  // Edit-review hierarchy (Prompt 3): compact neutral context + prominent proposed changes,
+  // rendered ABOVE the full comprehensive live snapshot. New-listing review is unchanged.
+  const priceLabel = property.listing_type === "sale"
+    ? (property.sale_price ? `₹${property.sale_price.toLocaleString("en-IN")}` : "—")
+    : (property.listed_rent ? `₹${property.listed_rent.toLocaleString("en-IN")}/mo` : "—");
+  const contextBits = [
+    property.building_name, bhkLabel(property.bhk), property.property_type,
+    property.locality, priceLabel,
+    property.square_footage ? `${property.square_footage} sqft` : null,
+    property.lister_role,
+  ].filter(Boolean) as string[];
+
+  const editReviewTop = !isNewType && editRequest ? (
+    <>
+      <section className="rounded-lg border bg-muted/30 p-3">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+          {contextBits.map((b, i) => (
+            <span key={i} className="flex items-center gap-2">
+              {i > 0 && <span className="text-border">·</span>}
+              <span className="[overflow-wrap:anywhere]">{b}</span>
+            </span>
+          ))}
+        </div>
+      </section>
+      <section className="rounded-lg border border-amber-300 bg-card p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-amber-900">Changes requiring review</h2>
+        {changedKeys.length > 0 ? (
+          <div className="space-y-3">
+            {changedKeys.map((k) => {
+              const liveRaw = (property as unknown as Record<string, unknown>)[k];
+              const label = EDIT_KEY_LABEL[k] ?? k.replace(/_/g, " ");
+              if (STRUCTURED_ADD_KEYS.has(k)) {
+                const isAmenity = k === AMENITIES_ADD_KEY;
+                const additions = fieldChanges[k];
+                const proposedRaw = isAmenity
+                  ? { building: Array.isArray(additions) ? additions : [] }
+                  : additions;
+                return (
+                  <div key={k} className="rounded-md border border-amber-300 bg-amber-50/40 p-3 space-y-2">
+                    <p className="text-xs font-medium text-amber-900">{label} — new custom items to review</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Currently live</p>
+                        {isAmenity ? <AmenitiesList raw={liveRaw} /> : <FurnishingList raw={liveRaw} />}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[11px] uppercase tracking-wide text-amber-700">Proposed additions</p>
+                        {isAmenity ? <AmenitiesList raw={proposedRaw} /> : <FurnishingList raw={proposedRaw} />}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              if (FREE_TEXT_EDIT_KEYS.has(k)) {
+                return (
+                  <ReviewField key={k} label={label} badge="Free text — review" multiline>
+                    <span className="[overflow-wrap:anywhere] break-words">{formatValue(fieldChanges[k])}</span>
+                    <p className="text-[11px] text-amber-800/80 mt-1 whitespace-normal [overflow-wrap:anywhere]">
+                      Currently live: {formatValue(liveRaw)}
+                    </p>
+                  </ReviewField>
+                );
+              }
+              return (
+                <EditRequestDiff key={k} label={label} proposedValue={formatValue(fieldChanges[k])} liveValue={formatValue(liveRaw)} />
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No field changes</p>
+        )}
+        {photoAdd.length > 0 && (
+          <div className="pt-2 border-t space-y-2">
+            <p className="text-xs font-medium text-amber-900 mb-1">New photos — pending review ({photoAdd.length})</p>
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              {photoAdd.map((p, i) => (
+                <div key={i} className="relative">
+                  <img src={p.url} alt="" className="aspect-square object-cover rounded ring-2 ring-amber-400" />
+                  <span className="absolute bottom-0.5 left-0.5 rounded bg-amber-500 text-white text-[9px] font-semibold px-1 py-0.5 leading-none">Proposed</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+    </>
+  ) : null;
 
   return (
     <AdminLayout>
@@ -538,6 +666,14 @@ export default function ListingReviewDetail() {
             </div>
           </div>
         </div>
+
+        {/* Edit-review: compact context + changes-requiring-review shown ABOVE the snapshot. */}
+        {editReviewTop}
+        {!isNewType && (
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-1">
+            Current live listing details
+          </p>
+        )}
 
         {/* Property snapshot — includes India (Prompt 8) + rent/sale (Prompt 10) fields,
             admin-only flat numbers, and Prompt 10 new address/SV/verification fields. */}
@@ -564,15 +700,20 @@ export default function ListingReviewDetail() {
             )}
           </div>
 
-          {/* Block-level manual-location warning — shown when the address was entered
-              manually or could not be matched to a Google place. Deliberately worded
-              at the location level (per-field manual provenance is not persisted). */}
-          {(property.address_mode === "manual" || !property.place_id) && (
+          {/* Location provenance — distinguish genuine manual entry from a merely
+              unlinked place. Never falsely call an unlinked listing "manual". */}
+          {property.address_mode === "manual" ? (
             <ReviewField badge="Location — review">
-              This location was entered manually or could not be matched to a Google place.
-              Verify the address details and the map pin before approving.
+              Google couldn't identify this building — the owner entered it manually. The building name below is
+              owner-entered, and the location is an approximate address/locality. Verify the building, the address
+              details, and the map pin before approving.
             </ReviewField>
-          )}
+          ) : !property.place_id ? (
+            <ReviewField badge="Location — review">
+              Location requires review — this listing is not linked to a Google place. Verify the address details and
+              the map pin before approving.
+            </ReviewField>
+          ) : null}
 
           {/* Location free-text fields — highlighted for new listings; neutral on
               edit reviews (edits cannot change location, and the diff carries any
@@ -764,96 +905,6 @@ export default function ListingReviewDetail() {
                 </div>
               )}
             </div>
-          </section>
-        )}
-
-        {/* Diff view for edit type — unchanged (D-165). */}
-        {!isNewType && editRequest && (
-          <section className="rounded-lg border bg-card p-4 space-y-3">
-            <h2 className="text-sm font-semibold">Proposed changes</h2>
-            {changedKeys.length > 0 ? (
-              <div className="space-y-3">
-                {changedKeys.map((k) => {
-                  const liveRaw = (property as unknown as Record<string, unknown>)[k];
-                  const label = k === "building_notes" ? "About the Property" : k.replace(/_/g, " ");
-
-                  // Structured JSON fields — render Current vs Proposed readable lists.
-                  if (STRUCTURED_EDIT_KEYS.has(k)) {
-                    const render = (val: unknown) =>
-                      k === "furnishing_detail" ? <FurnishingList raw={val} /> : <AmenitiesList raw={val} />;
-                    return (
-                      <div key={k} className="rounded-md border border-amber-300 bg-amber-50/40 p-3 space-y-2">
-                        <p className="text-xs font-medium text-amber-900 capitalize">{label} — review</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Current</p>
-                            {render(liveRaw)}
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[11px] uppercase tracking-wide text-blue-700">Proposed</p>
-                            {render(fieldChanges[k])}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // Free-text fields — amber review treatment on the proposed value,
-                  // with the current live value beneath (wrapping, never truncated).
-                  if (FREE_TEXT_EDIT_KEYS.has(k)) {
-                    return (
-                      <ReviewField key={k} label={label} badge="Free text — review" multiline>
-                        <span className="[overflow-wrap:anywhere] break-words">{formatValue(fieldChanges[k])}</span>
-                        <p className="text-[11px] text-amber-800/80 mt-1 whitespace-normal [overflow-wrap:anywhere]">
-                          Currently live: {formatValue(liveRaw)}
-                        </p>
-                      </ReviewField>
-                    );
-                  }
-
-                  // Scalar fields — unchanged generic diff.
-                  return (
-                    <EditRequestDiff
-                      key={k}
-                      label={label}
-                      proposedValue={formatValue(fieldChanges[k])}
-                      liveValue={formatValue(liveRaw)}
-                    />
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No field changes</p>
-            )}
-            {(photoAdd.length > 0 || photoDelete.length > 0) && (
-              <div className="pt-2 border-t space-y-2">
-                {photoAdd.length > 0 && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Photos to add ({photoAdd.length})</p>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                      {photoAdd.map((p, i) => (
-                        <img key={i} src={p.url} alt="" className="aspect-square object-cover rounded" />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {photoDelete.length > 0 && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Photos to remove ({photoDelete.length})</p>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                      {images.filter((img) => photoDelete.includes(img.id)).map((img) => (
-                        <div key={img.id} className="relative">
-                          <img src={img.url} alt="" className="aspect-square object-cover rounded opacity-50" />
-                          <span className="absolute inset-0 flex items-center justify-center text-xs bg-red-500/30 rounded text-white font-semibold">
-                            REMOVE
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </section>
         )}
 

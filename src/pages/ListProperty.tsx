@@ -21,7 +21,15 @@ import { getStatusDisplay } from "@/lib/propertyStatus";
 import Layout from "@/components/Layout";
 import VerificationGate from "@/components/VerificationGate";
 import { SpecField } from "@/components/property/SpecField";
-import { ensurePrimaryPhoto } from "@/lib/property-images";
+import { ensurePrimaryPhoto, setPrimaryPhotoViaRpc } from "@/lib/property-images";
+import {
+  getOwnerEditPolicy, getOwnerEditPolicyForPayload, OWNER_REVIEW_CLEAR_IS_LIVE,
+} from "@/config/property-fields";
+import { splitAmenitiesChange, splitFurnishingChange } from "@/lib/reviewAmenities";
+import {
+  normalizeReviewPayload, isReviewEmpty, reviewEquals, toSubmitArgs, hydratePersistedReviewPayload,
+  type NormalizedReview, type ReviewLiveBaseline, type StagedPhoto,
+} from "@/lib/ownerReviewPayload";
 import RejectionPanel from "@/components/property-management/RejectionPanel";
 import StatusGuidance from "@/components/property-management/StatusGuidance";
 import { supabase } from "@/integrations/supabase/client";
@@ -475,6 +483,22 @@ function sectionSummary(section: SectionNum, f: FormState, images: PropertyImage
   }
 }
 
+// ─── Per-field owner status chip (Prompt 2b) ───────────────────────────────
+type OwnerFieldStatus = "save_failed" | "needs_review" | "under_review" | "locked" | "saved" | null;
+
+function FieldStatusChip({ status }: { status: OwnerFieldStatus }) {
+  if (!status) return null;
+  const map: Record<Exclude<OwnerFieldStatus, null>, { text: string; cls: string }> = {
+    save_failed:  { text: "Didn't save", cls: "text-red-600" },
+    needs_review: { text: "Needs review", cls: "text-amber-600" },
+    under_review: { text: "Under review", cls: "text-amber-600" },
+    locked:       { text: "Locked", cls: "text-muted-foreground" },
+    saved:        { text: "✓ Saved live", cls: "text-green-600" },
+  };
+  const s = map[status];
+  return <p className={cn("text-xs mt-1", s.cls)}>{s.text}</p>;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 type EntryStatus =
@@ -546,11 +570,20 @@ export default function ListProperty() {
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(isEditMode ? "loading" : "create");
   const [pendingEdit, setPendingEdit] = useState<PendingEditRow | null>(null);
   const [editRequestPayload, setEditRequestPayload] = useState<EditRequestPayload>(EMPTY_EDIT_PAYLOAD);
-  const [modifyingEdit, setModifyingEdit] = useState(false);
   // Prompt 11: rejection state removed — RejectionPanel owns fetch + ack (D-141).
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [pendingRestore, setPendingRestore] = useState<EditRequestPayload | null>(null);
+  const [pendingRestore, setPendingRestore] = useState<{ field_changes: Record<string, unknown>; staged: Array<StagedPhoto & { temp_id: string }> } | null>(null);
+  // Prompt 2a — staged photos (live-listing uploads, not yet reviewed), the normalized
+  // server pending baseline, and per-field "Saved live" tracking.
+  const [stagedPhotos, setStagedPhotos] = useState<Array<StagedPhoto & { temp_id: string }>>([]);
+  const [pendingBaseline, setPendingBaseline] = useState<NormalizedReview | null>(null);
+  const [savedLiveKeys, setSavedLiveKeys] = useState<Set<string>>(new Set());
+  // Authoritative safe-live JSON baseline for amenities/furnishing splits; advanced when a
+  // safe patch is QUEUED (S1/R7), reset on a failed/poisoned JSON save.
+  const safeLiveRef = useRef<{ amenities: unknown; furnishing_detail: FurnishingDetailItem[] }>({ amenities: null, furnishing_detail: [] });
+  // Current-live values of review SCALAR columns (for no-op/retract detection).
+  const reviewScalarLiveRef = useRef<Record<string, unknown>>({});
 
   // Path A: draft/changes_requested — direct patch via useListingSave.
   // Path B: listed/edit_pending_review — accumulate in editRequestPayload; Submit via RPC.
@@ -559,9 +592,20 @@ export default function ListProperty() {
     entryStatus === "listed" || entryStatus === "edit_pending_review" ? "B" :
     entryStatus === "create" ? "A" : null;
 
-  const readOnly = entryStatus === "edit_pending_review" && !modifyingEdit;
-  const tierOneLocked = entryStatus !== "create" && entryStatus !== "draft" && entryStatus !== "changes_requested";
-  const addressEditable = !tierOneLocked;
+  // Prompt 2a — status helpers + policy-based per-field locking.
+  const isLiveListing = entryStatus === "listed" || entryStatus === "edit_pending_review";
+  const isInitialEditable = entryStatus === "create" || entryStatus === "draft" || entryStatus === "changes_requested";
+  // Whole-form freeze REMOVED for edit_pending_review — live listings edit per-field by policy.
+  // pending_review/unlisted/archived never reach the form (blocked at load).
+  const readOnly = false;
+  const tierOneLocked = !isInitialEditable; // identity/address/listing_type/lister_role stay locked post-draft
+  const addressEditable = isInitialEditable;
+  // Per-field owner lock: only admin_only DB columns are read-only on a live listing.
+  // bhk/property_type are REVIEW (editable); draft/create → never locked.
+  const ownerFieldReadOnly = useCallback(
+    (dbKey: string) => isLiveListing && getOwnerEditPolicy(dbKey) === "admin_only",
+    [isLiveListing],
+  );
 
   const { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges, poisonedKeys } =
     useListingSave(propertyId);
@@ -671,8 +715,25 @@ export default function ListProperty() {
         setEntryStatus("blocked");
         return;
       }
-      // Load pending edit request when in edit_pending_review
+      // Prompt 2a — capture the LIVE baseline (before merging any pending proposal) for
+      // amenities/furnishing splits, scalar no-op detection, and dirty comparison.
+      if (status === "listed" || status === "edit_pending_review") {
+        reviewScalarLiveRef.current = {
+          building_notes: prop.building_notes, building_rules: prop.building_rules,
+          parking_notes: prop.parking_notes, rera_registration_number: prop.rera_registration_number,
+          youtube_walkthrough_url: prop.youtube_walkthrough_url, bhk: prop.bhk, property_type: prop.property_type,
+        };
+        safeLiveRef.current = {
+          amenities: (prop.amenities ?? null) as unknown,
+          furnishing_detail: (prop.furnishing_detail as FurnishingDetailItem[]) ?? [],
+        };
+      }
+
+      // Load + hydrate the pending review request (edit_pending_review only).
       let pending: PendingEditRow | null = null;
+      let proposedScalars: Record<string, unknown> = {};
+      let addAmenities: string[] = [];
+      let addFurnishing: FurnishingDetailItem[] = [];
       if (status === "edit_pending_review") {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: pendingRow } = await (supabase as any)
@@ -684,22 +745,35 @@ export default function ListProperty() {
         if (pendingRow) {
           pending = pendingRow as PendingEditRow;
           setPendingEdit(pending);
-          // Seed editRequestPayload from pending so "Modify edit" starts from current pending values
-          setEditRequestPayload({
-            field_changes: (pending.payload.field_changes ?? {}) as Record<string, unknown>,
-            photo_changes: {
-              add: (pending.payload.photo_changes?.add ?? []) as unknown[],
-              delete: (pending.payload.photo_changes?.delete ?? []) as string[],
-              update: (pending.payload.photo_changes?.update ?? []) as unknown[],
-            },
-          });
+          const hydrated = hydratePersistedReviewPayload(pending.payload);
+          const draftFc = hydrated.draftFc;
+          addAmenities = hydrated.addAmenities;
+          addFurnishing = hydrated.addFurnishing as FurnishingDetailItem[];
+          Object.assign(proposedScalars, hydrated.proposedScalars);
+          const staged = hydrated.staged;
+          setEditRequestPayload({ field_changes: draftFc, photo_changes: { add: [], delete: [], update: [] } });
+          setStagedPhotos(staged);
+          const liveBaseline: ReviewLiveBaseline = {
+            scalars: reviewScalarLiveRef.current,
+            amenities: safeLiveRef.current.amenities as { building?: string[] } | null,
+            furnishing_detail: safeLiveRef.current.furnishing_detail,
+          };
+          setPendingBaseline(normalizeReviewPayload(draftFc, staged, liveBaseline));
         }
       }
       // Prompt 11: rejection reason fetch + ack query moved into RejectionPanel (D-141).
 
-
-      const merged = pending ? { ...prop, ...pending.payload.field_changes } : prop;
+      // Merge only proposed SCALARS for display (live values otherwise).
+      const merged = pending ? { ...prop, ...proposedScalars } : prop;
       prefillFormFromRow(merged, setForm);
+      // Surface pending custom additions in the editors (display only).
+      if (addAmenities.length || addFurnishing.length) {
+        setForm((f) => ({
+          ...f,
+          building_amenities: [...f.building_amenities, ...addAmenities.filter((a) => !f.building_amenities.includes(a))],
+          furnishing_detail: [...f.furnishing_detail, ...addFurnishing],
+        }));
+      }
       setEntryStatus(status as EntryStatus);
       setPropertyId(idParam);
       posthog?.capture("commons_listing_edit_mode_opened", { status });
@@ -790,37 +864,134 @@ export default function ListProperty() {
   // ─── Minimum required INSERT fields ──────────────────────────────────────
   const canInsertDraft = !!(form.building_name.trim() && form.city.trim() && user?.id);
 
-  // ─── Field patcher ───────────────────────────────────────────────────────
-  // Path A (draft/changes_requested/create): patches DB directly via useListingSave.
-  // Path B (listed/edit_pending_review): accumulates into editRequestPayload.field_changes.
+  // ─── Field patcher (Prompt 2a: risk-based routing) ───────────────────────
+  const markSavedLive = useCallback((dbKeys: string[]) => {
+    setSavedLiveKeys((prev) => { const n = new Set(prev); for (const k of dbKeys) n.add(k); return n; });
+  }, []);
+
+  // Removal-asymmetric CLEAR of a review field: resolve any pending proposal FIRST,
+  // then live-clear. Never leave a stale proposal that could restore the value (S5/R16).
+  const resolveReviewClear = useCallback(async (dbKey: string, payload: Record<string, unknown>) => {
+    // 1) drop any UNSENT proposal for this key.
+    setEditRequestPayload((prev) => {
+      if (!(dbKey in prev.field_changes)) return prev;
+      const fc = { ...prev.field_changes }; delete fc[dbKey];
+      return { ...prev, field_changes: fc };
+    });
+    // 2) if the key is also part of the server pending request, supersede/cancel WITHOUT it first.
+    if (propertyId && pendingBaseline && dbKey in pendingBaseline.scalars) {
+      const remainingScalars = { ...pendingBaseline.scalars }; delete remainingScalars[dbKey];
+      const remaining: NormalizedReview = {
+        scalars: remainingScalars,
+        amenities_add: pendingBaseline.amenities_add,
+        furnishing_add: pendingBaseline.furnishing_add,
+        photo_add: pendingBaseline.photo_add,
+      };
+      try {
+        if (isReviewEmpty(remaining)) {
+          const { error } = await (supabase as any).rpc("cancel_pending_edit_request", { p_property_id: propertyId });
+          if (error) throw error;
+          setPendingEdit(null); setPendingBaseline(null); setEntryStatus("listed");
+        } else {
+          const args = toSubmitArgs(remaining);
+          const { error } = await (supabase as any).rpc("submit_property_edit_request", {
+            p_property_id: propertyId, p_field_changes: args.p_field_changes, p_photo_changes: args.p_photo_changes,
+          });
+          if (error) throw error;
+          setPendingBaseline(remaining);
+        }
+      } catch (e) {
+        // Failed — retain the previous value (do not show a clear that never persisted).
+        toast({ title: "Couldn't update the pending review", description: (e as Error).message, variant: "destructive" });
+        return;
+      }
+    }
+    // 3) live-clear.
+    patch(payload); markSavedLive([dbKey]);
+  }, [propertyId, pendingBaseline, patch, markSavedLive, toast]);
+
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K], dbPatch?: Record<string, unknown>) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    // Clear any stale inline validation error the moment the field is edited.
-    setTextErrors((e) => (e[key as string] ? { ...e, [key as string]: null } : e));
-    if (readOnly) return; // no writes while pending edit is under review
     const rawPayload = dbPatch ?? mapFieldToDb(key, value);
-    if (!rawPayload || Object.keys(rawPayload).length === 0) return;
-    // Defensive normalization: DATE columns must receive YYYY-MM-DD strings,
-    // not Date objects. Any caller passing a Date via dbPatch is normalized
-    // here (D-127 root cause 3 belt-and-suspenders).
     const payload: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(rawPayload)) {
-      payload[k] = v instanceof Date ? format(v, "yyyy-MM-dd") : v;
+    if (rawPayload) for (const [k, v] of Object.entries(rawPayload)) payload[k] = v instanceof Date ? format(v, "yyyy-MM-dd") : v;
+    const dbKeys = Object.keys(payload);
+
+    // Draft/create/changes_requested → direct save (initial-listing flow, unchanged).
+    if (!isLiveListing) {
+      setForm((prev) => ({ ...prev, [key]: value }));
+      setTextErrors((e) => (e[key as string] ? { ...e, [key as string]: null } : e));
+      if (dbKeys.length) patch(payload);
+      return;
     }
 
-    if (path === "B") {
-      // Owner must click "Modify edit" explicitly to enter modify mode — no auto-transition.
-      // (readOnly gate above already returns before we get here in edit_pending_review view.)
-      setEditRequestPayload((prev) => ({
-        ...prev,
-        field_changes: { ...prev.field_changes, ...payload },
-      }));
-    } else {
-      // Pre-draft (propertyId null) included: useListingSave buffers and
-      // auto-flushes once the draft row exists. Never drop pre-draft edits.
-      patch(payload);
+    // Live listing → route by policy of the DB key(s) BEFORE mutating local state (R1).
+    const policy = dbKeys.length ? getOwnerEditPolicyForPayload(dbKeys) : "live";
+    if (policy === "admin_only") return; // locked — no local mutation, no write
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setTextErrors((e) => (e[key as string] ? { ...e, [key as string]: null } : e));
+    if (!dbKeys.length) return;
+
+    if (policy === "live") { patch(payload); markSavedLive(dbKeys); return; }
+
+    // review — clear-is-live for a single removal-asymmetric text key
+    if (dbKeys.length === 1 && OWNER_REVIEW_CLEAR_IS_LIVE.has(dbKeys[0])) {
+      const v = payload[dbKeys[0]];
+      if (v == null || (typeof v === "string" && v.trim() === "")) { void resolveReviewClear(dbKeys[0], payload); return; }
     }
-  }, [patch, path, readOnly]);
+    // review add/replace → buffer only (never PATCH)
+    setEditRequestPayload((prev) => ({ ...prev, field_changes: { ...prev.field_changes, ...payload } }));
+  }, [isLiveListing, patch, markSavedLive, resolveReviewClear]);
+
+  // Amenities/furnishing change (S4): compose the ENTIRE safe-live representation together,
+  // route new customs to the review buffer, advance safeLiveRef on queue (never leak an
+  // unsent custom into the live PATCH). Draft/create → wholesale direct save (unchanged).
+  const applyJsonbChange = useCallback((nextFurnishing: FurnishingDetailItem[], nextBuilding: string[]) => {
+    if (!isLiveListing) {
+      patch({ furnishing_detail: nextFurnishing, amenities: buildAmenitiesJson(nextBuilding, nextFurnishing) });
+      return;
+    }
+    const proposedAmenities = buildAmenitiesJson(nextBuilding, nextFurnishing);
+    const fSplit = splitFurnishingChange(safeLiveRef.current.furnishing_detail, nextFurnishing);
+    const aSplit = splitAmenitiesChange(safeLiveRef.current.amenities, proposedAmenities);
+    const safeFurnishing = fSplit.live as unknown as FurnishingDetailItem[];
+    // furnishing_items derived ONLY from safe-live furnishing (never stale, no unsent custom leak).
+    const safeAmenities = buildAmenitiesJson(aSplit.live.building, safeFurnishing);
+    patch({ furnishing_detail: safeFurnishing, amenities: safeAmenities });
+    markSavedLive(["furnishing_detail", "amenities"]);
+    // advance safe-live ref ON QUEUE (S1/R7).
+    safeLiveRef.current = { amenities: safeAmenities, furnishing_detail: safeFurnishing };
+    // buffer new customs into the review draft (additions only).
+    setEditRequestPayload((prev) => {
+      const fc = { ...prev.field_changes };
+      if (fSplit.newCustomItems.length) fc.furnishing_add = fSplit.newCustomItems; else delete fc.furnishing_add;
+      if (aSplit.newCustomBuilding.length) fc.amenities_add = aSplit.newCustomBuilding; else delete fc.amenities_add;
+      return { ...prev, field_changes: fc };
+    });
+  }, [isLiveListing, patch, markSavedLive]);
+
+  // R18 — if a live amenities/furnishing save fails/poisons, reconcile authoritative JSON:
+  // refetch, reset safeLiveRef, and rebuild the editor form as (authoritative live-safe +
+  // still-valid unsent reviewed additions) so the UI never shows a state that isn't live.
+  useEffect(() => {
+    if (!isLiveListing || !propertyId) return;
+    if (!(poisonedKeys.includes("amenities") || poisonedKeys.includes("furnishing_detail"))) return;
+    (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any).from("properties").select("amenities, furnishing_detail").eq("id", propertyId).maybeSingle();
+      if (!data) return;
+      const liveFd = (data.furnishing_detail as FurnishingDetailItem[]) ?? [];
+      const liveBuilding = ((data.amenities as { building?: string[] } | null)?.building ?? []) as string[];
+      safeLiveRef.current = { amenities: (data.amenities ?? null) as unknown, furnishing_detail: liveFd };
+      const addA = (editRequestPayload.field_changes.amenities_add as string[] | undefined) ?? [];
+      const addF = (editRequestPayload.field_changes.furnishing_add as FurnishingDetailItem[] | undefined) ?? [];
+      setForm((f) => ({
+        ...f,
+        building_amenities: [...liveBuilding, ...addA.filter((a) => !liveBuilding.includes(a))],
+        furnishing_detail: [...liveFd, ...addF],
+      }));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poisonedKeys, isLiveListing, propertyId]);
 
   // ─── Owner public-text validation (blur + submit) ────────────────────────
   // Server-validate one text field on blur. Applies the result only if the field's
@@ -857,7 +1028,10 @@ export default function ListProperty() {
   // ─── Address resolved callback (PropertyAddressInput → form + DB) ────────
   const handleAddressResolved = useCallback((data: AddressData) => {
     const addressPatch = {
-      building_name: data.building_name ?? '',
+      // Manual-building mode: never let a Google address lookup wipe the typed building name.
+      building_name: data.address_mode === 'manual'
+        ? (data.building_name ?? formRef.current.building_name ?? '')
+        : (data.building_name ?? ''),
       street_address: data.street_address ?? '',
       locality: data.locality ?? '',
       city: data.city ?? '',
@@ -888,10 +1062,12 @@ export default function ListProperty() {
       location_verified_at: data.location_verified_at,
     };
     setForm((prev) => ({ ...prev, ...addressPatch }));
-    if (!readOnly) {
+    // Address is admin-only post-publication; only persist while the listing is
+    // in an initial-editable state (draft/changes_requested/create).
+    if (isInitialEditable) {
       patch(addressPatch);
     }
-  }, [setForm, patch, readOnly]);
+  }, [setForm, patch, isInitialEditable]);
 
   // ─── First-save (create draft) ───────────────────────────────────────────
   const createDraft = useCallback(async () => {
@@ -945,17 +1121,30 @@ export default function ListProperty() {
     return () => clearTimeout(t);
   }, [isEditMode, canInsertDraft, propertyId, insertingDraft, showDraftLimit, createDraft]);
 
-  // ─── Photo upload ────────────────────────────────────────────────────────
+  // ─── Photos (Prompt 2a) ──────────────────────────────────────────────────
+  // Refetch authoritative rows after any DB-authoritative live mutation (S6/R6).
+  const reloadImages = useCallback(async () => {
+    if (!propertyId) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any)
+      .from("property_images")
+      .select("id, url, is_primary, is_floor_plan, section, sort_order")
+      .eq("property_id", propertyId)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (Array.isArray(data)) setImages(data as PropertyImageRow[]);
+  }, [propertyId]);
+
   const uploadPhoto = useCallback(async (file: File, section: string) => {
     if (!propertyId || !session?.access_token) return;
-    if (images.length >= PHOTO_CONFIG.upload.maxCount) {
+    // Max-count guard counts live images + staged (R9).
+    if (images.length + stagedPhotos.length >= PHOTO_CONFIG.upload.maxCount) {
       toast({ title: `Maximum ${PHOTO_CONFIG.upload.maxCount} photos reached`, variant: "destructive" });
       return;
     }
     const key = `${section}-${file.name}-${Date.now()}`;
     setUploadingFiles((p) => ({ ...p, [key]: true }));
 
-    // Process (HEIC convert + compress)
     const processed = await processPhotoForUpload(file);
     if (processed.ok === false) {
       const messages: Record<string, string> = {
@@ -975,134 +1164,133 @@ export default function ListProperty() {
       formData.append("property_id", propertyId);
       formData.append("section", section);
       formData.append("is_floor_plan", section.toLowerCase() === "floor plan" ? "true" : "false");
-      // Path B + already-submitted edit_pending_review → route into pending edit's payload
-      if (path === "B" && pendingEdit?.id && modifyingEdit) {
-        formData.append("pending_edit_request_id", pendingEdit.id);
-      }
       const res = await fetch(`${SUPABASE_URL}/functions/v1/upload-property-image`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: formData,
       });
       const json = await res.json();
-      if (json.success) {
-        // If routed into a pending edit, the file lives only in the edit_request payload
-        // until admin approves. Local UI adds it to the visible list as an optimistic
-        // "pending" entry so owner can see and manage it. On the next render after
-        // approval / cancellation the real image list is refetched.
-        if (json.pending) {
-          setEditRequestPayload((prev) => ({
-            ...prev,
-            photo_changes: {
-              ...prev.photo_changes,
-              add: [
-                ...prev.photo_changes.add,
-                {
-                  temp_id: json.id, url: json.url, section, caption: null,
-                  is_primary: false, is_floor_plan: section.toLowerCase() === "floor plan", sort_order: 0,
-                },
-              ],
-            },
-          }));
-        } else if (path === "B" && !pendingEdit) {
-          // Uploading photos before first Submit while editing a `listed` property:
-          // Edge Function did a direct INSERT (no pending_edit_request_id available yet),
-          // but semantically these should go into photo_changes.add on Submit.
-          // We fold them into local state so on Submit they're serialized into payload.
-          setEditRequestPayload((prev) => ({
-            ...prev,
-            photo_changes: {
-              ...prev.photo_changes,
-              add: [
-                ...prev.photo_changes.add,
-                {
-                  temp_id: json.id, url: json.url, section, caption: null,
-                  is_primary: false, is_floor_plan: section.toLowerCase() === "floor plan", sort_order: 0,
-                },
-              ],
-            },
-          }));
-          setImages((prev) => [...prev, {
-            id: json.id, url: json.url, is_primary: false,
-            is_floor_plan: section.toLowerCase() === "floor plan",
-            section, sort_order: 0,
-          }]);
-        } else {
-          setImages((prev) => [...prev, {
-            id: json.id, url: json.url, is_primary: false,
-            is_floor_plan: section.toLowerCase() === "floor plan",
-            section, sort_order: 0,
-          }]);
-        }
-        // Sync Prompt 1 (D-167) — auto-select first upload as cover if property has no primary yet.
-        // Client-side prevHadPrimary check keeps local state consistent with the DB update.
-        // In edit_pending_review path (Path B) the listed property usually already has a primary
-        // — helper no-ops in that case.
-        if (propertyId) {
-          const prevHadPrimary = images.some((i) => i.is_primary);
-          await ensurePrimaryPhoto(propertyId, json.id);
-          if (!prevHadPrimary) {
-            setImages((prev) => prev.map((i) => (i.id === json.id ? { ...i, is_primary: true } : i)));
-          }
-        }
+      if (!json.success) { toast({ title: json.error || "Upload failed", variant: "destructive" }); return; }
+
+      if (json.staged) {
+        // Live listing: R2-only staged photo → pending review (no live row).
+        setStagedPhotos((prev) => [...prev, {
+          temp_id: (globalThis.crypto?.randomUUID?.() ?? `s-${Date.now()}-${Math.random()}`),
+          url: json.url, section: json.section ?? section, is_floor_plan: !!json.is_floor_plan,
+        }]);
       } else {
-        toast({ title: json.error || "Upload failed", variant: "destructive" });
+        // Draft/changes_requested: direct row (initial listing).
+        setImages((prev) => [...prev, {
+          id: json.id, url: json.url, is_primary: false,
+          is_floor_plan: section.toLowerCase() === "floor plan", section, sort_order: 0,
+        }]);
+        const prevHadPrimary = images.some((i) => i.is_primary);
+        await ensurePrimaryPhoto(propertyId, json.id);
+        if (!prevHadPrimary) setImages((prev) => prev.map((i) => (i.id === json.id ? { ...i, is_primary: true } : i)));
       }
     } catch {
       toast({ title: "Network error uploading photo", variant: "destructive" });
     } finally {
       setUploadingFiles((p) => { const n = { ...p }; delete n[key]; return n; });
     }
-  }, [propertyId, session?.access_token, images.length, toast, path, pendingEdit, modifyingEdit]);
+  }, [propertyId, session?.access_token, images, stagedPhotos.length, toast]);
 
+  // Delete an APPROVED (live) photo — DB-authoritative via the edge fn (min-3 + cover
+  // promotion handled server-side), then resync from DB.
   const deletePhoto = useCallback(async (imageId: string) => {
     if (!propertyId || !session?.access_token) return;
-    // Path B: don't actually delete — mark in photo_changes.delete for admin to apply on approval.
-    // Exception: photos added in this edit (add[] entries with matching temp_id) can be dropped locally.
-    if (path === "B") {
-      // Local-add cancel: drop from add[] if present.
-      const isLocalAdd = editRequestPayload.photo_changes.add.some((a) => (a as { temp_id: string }).temp_id === imageId);
-      if (isLocalAdd) {
-        setEditRequestPayload((prev) => ({
-          ...prev,
-          photo_changes: {
-            ...prev.photo_changes,
-            add: prev.photo_changes.add.filter((a) => (a as { temp_id: string }).temp_id !== imageId),
-          },
-        }));
-        setImages((prev) => prev.filter((i) => i.id !== imageId));
-      } else {
-        // Real existing image: queue for deletion on approval.
-        setEditRequestPayload((prev) => ({
-          ...prev,
-          photo_changes: { ...prev.photo_changes, delete: [...prev.photo_changes.delete, imageId] },
-        }));
-        setImages((prev) => prev.filter((i) => i.id !== imageId));
-      }
-      return;
-    }
-    // Path A: direct delete.
     const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-property-image`, {
       method: "POST",
       headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ image_id: imageId, property_id: propertyId }),
     });
     const json = await res.json();
-    if (json.success) {
-      setImages((prev) => prev.filter((i) => i.id !== imageId));
-    } else {
-      toast({ title: "Delete failed", variant: "destructive" });
-    }
-  }, [propertyId, session?.access_token, toast, path, editRequestPayload.photo_changes.add]);
+    if (json.success) { await reloadImages(); }
+    else { toast({ title: json.error || "Delete failed", description: json.detail, variant: "destructive" }); }
+  }, [propertyId, session?.access_token, toast, reloadImages]);
 
+  // Best-effort staged R2 cleanup for a set of URLs (used by remove/cancel/discard).
+  const stagedDeleteUrls = useCallback(async (urls: string[]) => {
+    if (!propertyId || !session?.access_token) return;
+    for (const url of urls) {
+      try {
+        await fetch(`${SUPABASE_URL}/functions/v1/delete-property-image`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ staged_url: url, property_id: propertyId }),
+        });
+      } catch { /* best-effort */ }
+    }
+  }, [propertyId, session?.access_token]);
+
+  // Remove a staged photo. If it's already referenced by the server pending request,
+  // supersede WITHOUT it first (Prompt 1 blocks deleting a still-referenced staged URL).
+  const removeStagedPhoto = useCallback(async (tempId: string) => {
+    const item = stagedPhotos.find((s) => s.temp_id === tempId);
+    if (!item) return;
+    const referenced = !!pendingBaseline && pendingBaseline.photo_add.some((p) => p.url === item.url);
+    if (referenced && propertyId) {
+      const remaining: NormalizedReview = {
+        scalars: pendingBaseline!.scalars,
+        amenities_add: pendingBaseline!.amenities_add,
+        furnishing_add: pendingBaseline!.furnishing_add,
+        photo_add: pendingBaseline!.photo_add.filter((p) => p.url !== item.url),
+      };
+      try {
+        if (isReviewEmpty(remaining)) {
+          const { error } = await (supabase as any).rpc("cancel_pending_edit_request", { p_property_id: propertyId });
+          if (error) throw error;
+          setPendingEdit(null); setPendingBaseline(null); setEntryStatus("listed");
+        } else {
+          const args = toSubmitArgs(remaining);
+          const { error } = await (supabase as any).rpc("submit_property_edit_request", {
+            p_property_id: propertyId, p_field_changes: args.p_field_changes, p_photo_changes: args.p_photo_changes,
+          });
+          if (error) throw error;
+          setPendingBaseline(remaining);
+        }
+      } catch (e) {
+        toast({ title: "Couldn't update the pending review", description: (e as Error).message, variant: "destructive" });
+        return; // keep the photo in the pending UI
+      }
+    }
+    await stagedDeleteUrls([item.url]);
+    setStagedPhotos((prev) => prev.filter((s) => s.temp_id !== tempId));
+  }, [stagedPhotos, pendingBaseline, propertyId, stagedDeleteUrls, toast]);
+
+  // Cover change on a live listing — transactional RPC, then resync (S6).
   const setPrimaryPhoto = useCallback(async (imageId: string) => {
-    if (!propertyId) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("property_images").update({ is_primary: false }).eq("property_id", propertyId);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("property_images").update({ is_primary: true }).eq("id", imageId);
-    setImages((prev) => prev.map((i) => ({ ...i, is_primary: i.id === imageId })));
-  }, [propertyId]);
+    if (!isLiveListing) {
+      // draft/create: direct (allowed) — set + refetch.
+      try { await setPrimaryPhotoViaRpc(imageId); } catch { /* draft path: fall through to direct */
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any).from("property_images").update({ is_primary: false }).eq("property_id", propertyId);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any).from("property_images").update({ is_primary: true }).eq("id", imageId);
+      }
+      await reloadImages();
+      return;
+    }
+    try { await setPrimaryPhotoViaRpc(imageId); await reloadImages(); }
+    catch (e) { toast({ title: "Couldn't set cover photo", description: (e as Error).message, variant: "destructive" }); }
+  }, [isLiveListing, propertyId, reloadImages, toast]);
+
+  // Reorder approved photos — sort_order-only (DB permits exactly this column live).
+  const reorderPhoto = useCallback(async (imageId: string, dir: -1 | 1) => {
+    const ordered = [...images].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const idx = ordered.findIndex((i) => i.id === imageId);
+    const swapIdx = idx + dir;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= ordered.length) return;
+    const a = ordered[idx], b = ordered[swapIdx];
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r1 = await (supabase as any).from("property_images").update({ sort_order: swapIdx }).eq("id", a.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r2 = await (supabase as any).from("property_images").update({ sort_order: idx }).eq("id", b.id);
+      if (r1.error || r2.error) throw (r1.error || r2.error);
+      await reloadImages();
+    } catch { toast({ title: "Couldn't reorder", variant: "destructive" }); await reloadImages(); }
+  }, [images, reloadImages, toast]);
 
   // ─── Submit for review ───────────────────────────────────────────────────
   const submit = useCallback(async () => {
@@ -1215,49 +1403,65 @@ export default function ListProperty() {
 
     setSubmitting(true);
 
-    // Path B (listed / edit_pending_review): submit via RPC as an edit request.
-    if (path === "B") {
-      // Guard: block submission if the payload has no changes at all (D-122).
-      const hasFieldChanges = Object.keys(editRequestPayload.field_changes).length > 0;
-      const hasPhotoChanges =
-        editRequestPayload.photo_changes.add.length > 0
-        || editRequestPayload.photo_changes.delete.length > 0
-        || editRequestPayload.photo_changes.update.length > 0;
-      if (!hasFieldChanges && !hasPhotoChanges) {
+    // Live listing (listed / edit_pending_review): submit review edits via RPC.
+    if (isLiveListing) {
+      // Coupled JSON guard (R19): a failed dependent Live amenities/furnishing save must
+      // block the review submit (else a rename could leave both old-live + new-approved).
+      if (poisonedKeys.includes("amenities") || poisonedKeys.includes("furnishing_detail")) {
         setSubmitting(false);
-        toast({
-          title: "No changes to submit",
-          description: "Make changes before submitting for review.",
-          variant: "destructive",
-        });
+        toast({ title: "A change didn't save", description: "Your amenities/furnishing update didn't save. Fix it and try Submit again.", variant: "destructive" });
         return;
       }
+      const liveBaseline: ReviewLiveBaseline = {
+        scalars: reviewScalarLiveRef.current,
+        amenities: safeLiveRef.current.amenities as { building?: string[] } | null,
+        furnishing_detail: safeLiveRef.current.furnishing_detail,
+      };
+      const normalized = normalizeReviewPayload(editRequestPayload.field_changes, stagedPhotos, liveBaseline);
+      const baseline = pendingBaseline ?? { scalars: {}, amenities_add: [], furnishing_add: [], photo_add: [] };
+
+      if (reviewEquals(normalized, baseline)) {
+        setSubmitting(false);
+        toast({ title: "No changes to submit", description: "Make changes before submitting for review.", variant: "destructive" });
+        return;
+      }
+
+      // Fully retracted while a pending request exists → cancel instead of a no-op submit (R13).
+      if (isReviewEmpty(normalized)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: cancelErr } = await (supabase as any).rpc("cancel_pending_edit_request", { p_property_id: propertyId });
+        setSubmitting(false);
+        if (cancelErr) { toast({ title: "Could not update review", description: cancelErr.message, variant: "destructive" }); return; }
+        try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId!)); } catch { /* ignore */ }
+        toast({ title: "Pending review cancelled", description: "Your listing keeps its current details." });
+        navigate("/my-properties", { replace: true });
+        return;
+      }
+
+      const args = toSubmitArgs(normalized);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: newEditId, error: rpcError } = await (supabase as any).rpc(
-        "submit_property_edit_request",
-        {
-          p_property_id: propertyId,
-          p_field_changes: editRequestPayload.field_changes,
-          p_photo_changes: editRequestPayload.photo_changes,
-        },
-      );
-      setSubmitting(false);
-      if (rpcError) {
-        toast({ title: "Could not submit edit", description: rpcError.message, variant: "destructive" });
-        return;
-      }
-      posthog?.capture("commons_edit_submitted", {
-        property_id: propertyId,
-        edit_request_id: newEditId as string,
-        changed_field_count: Object.keys(editRequestPayload.field_changes).length,
-        photo_change_count:
-          editRequestPayload.photo_changes.add.length +
-          editRequestPayload.photo_changes.delete.length +
-          editRequestPayload.photo_changes.update.length,
+      const { data: newEditId, error: rpcError } = await (supabase as any).rpc("submit_property_edit_request", {
+        p_property_id: propertyId, p_field_changes: args.p_field_changes, p_photo_changes: args.p_photo_changes,
       });
-      try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId)); } catch { /* ignore */ }
+      setSubmitting(false);
+      if (rpcError) { toast({ title: "Could not submit edit", description: rpcError.message, variant: "destructive" }); return; }
+      posthog?.capture("commons_edit_submitted", {
+        property_id: propertyId, edit_request_id: newEditId as string,
+        changed_field_count: Object.keys(args.p_field_changes).length,
+        photo_change_count: args.p_photo_changes.add.length,
+      });
+      try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId!)); } catch { /* ignore */ }
       toast({ title: "Edit submitted for review", description: "We'll review your changes within 48 hours." });
       navigate("/my-properties", { replace: true });
+      return;
+    }
+
+    // Initial-listing location confirmation gate (S8/R6) — create/draft/changes_requested.
+    if (isInitialEditable && !form.location_verified_by_owner) {
+      setSubmitting(false);
+      setOpenAccordion("section-1");
+      toast({ title: "Confirm the property location", description: "Tick 'I confirm this is the correct property location' in the location section before submitting.", variant: "destructive" });
+      setTimeout(() => { document.getElementById("section-1-header")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100);
       return;
     }
 
@@ -1279,7 +1483,7 @@ export default function ListProperty() {
     });
     toast({ title: "Submitted for review!", description: "We'll review your listing within 48 hours." });
     navigate("/my-properties", { replace: true });
-  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, editRequestPayload, saveState, hasPendingChanges, lastError, poisonedKeys, furnishingDraftInvalid, amenitiesDraftInvalid]);
+  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, isLiveListing, isInitialEditable, editRequestPayload, stagedPhotos, pendingBaseline, saveState, hasPendingChanges, lastError, poisonedKeys, furnishingDraftInvalid, amenitiesDraftInvalid]);
 
   // ─── Preview data ────────────────────────────────────────────────────────
   const previewData = useMemo<PropertyPreviewData>(() => ({
@@ -1301,23 +1505,11 @@ export default function ListProperty() {
     electricity_included: form.electricity_included,
     pet_policy: PET_POLICY_OPTIONS.find((o) => o.value === form.pet_policy)?.label ?? form.pet_policy_text,
     house_rules: form.building_rules, building_notes: form.building_notes,
-    // Preview should reflect what the property will look like AFTER admin approval
-    // in Path B: hide photos marked for deletion, include pending adds.
-    // In Path A: images is already the live state.
-    images: (path === "B"
-      ? [
-          ...images.filter((i) => !editRequestPayload.photo_changes.delete.includes(i.id)),
-          ...editRequestPayload.photo_changes.add.map((a) => {
-            const add = a as { temp_id?: string; url: string; section?: string | null; is_primary?: boolean };
-            return {
-              id: add.temp_id ?? `temp-${Math.random()}`,
-              url: add.url,
-              is_primary: !!add.is_primary,
-              section: add.section ?? null,
-            };
-          }),
-        ]
-      : images) as unknown as PreviewImage[],
+    // Preview = current live images + staged (pending-review) additions.
+    images: [
+      ...images,
+      ...stagedPhotos.map((s) => ({ id: s.temp_id, url: s.url, is_primary: false, section: s.section ?? null })),
+    ] as unknown as PreviewImage[],
     youtube_walkthrough_url: form.youtube_walkthrough_url,
     // Prompt 9 additions
     listing_type: form.listing_type,
@@ -1355,7 +1547,70 @@ export default function ListProperty() {
     property_tax_paid_upto: form.property_tax_paid_upto
       ? format(form.property_tax_paid_upto, "PP")
       : undefined,
-  }), [form, images]);
+  }), [form, images, stagedPhotos]);
+
+  // Review-submit is enabled only when the normalized review payload differs from the
+  // server pending baseline (or there is any staged/review change on a fresh listed row).
+  const reviewDirty = useMemo(() => {
+    if (!isLiveListing) return false;
+    const liveBaseline: ReviewLiveBaseline = {
+      scalars: reviewScalarLiveRef.current,
+      amenities: safeLiveRef.current.amenities as { building?: string[] } | null,
+      furnishing_detail: safeLiveRef.current.furnishing_detail,
+    };
+    const normalized = normalizeReviewPayload(editRequestPayload.field_changes, stagedPhotos, liveBaseline);
+    const baseline = pendingBaseline ?? { scalars: {}, amenities_add: [], furnishing_add: [], photo_add: [] };
+    return !reviewEquals(normalized, baseline);
+  }, [isLiveListing, editRequestPayload, stagedPhotos, pendingBaseline]);
+
+  // Prompt 2b — normalized current review proposal (custom-additions delta), reused for per-field status.
+  const currentNormalized = useMemo<NormalizedReview>(() => {
+    const liveBaseline: ReviewLiveBaseline = {
+      scalars: reviewScalarLiveRef.current,
+      amenities: safeLiveRef.current.amenities as { building?: string[] } | null,
+      furnishing_detail: safeLiveRef.current.furnishing_detail,
+    };
+    return normalizeReviewPayload(editRequestPayload.field_changes, stagedPhotos, liveBaseline);
+  }, [editRequestPayload, stagedPhotos]);
+
+  // Per-field owner status (live listings only). Priority: error → needs_review → under_review → locked → saved.
+  const fieldStatus = useCallback((dbKey: string): OwnerFieldStatus => {
+    if (!isLiveListing) return null;
+    if (poisonedKeys.includes(dbKey) || textErrors[dbKey]) return "save_failed";
+
+    const sameSet = (a: readonly string[], b: readonly string[]) => {
+      if (a.length !== b.length) return false;
+      const sb = new Set(b);
+      return a.every((x) => sb.has(x));
+    };
+
+    if (dbKey === "amenities" || dbKey === "furnishing_detail") {
+      const cur = dbKey === "amenities" ? currentNormalized.amenities_add : currentNormalized.furnishing_add.map((e) => e.item.trim().toLowerCase());
+      const baseArr = dbKey === "amenities"
+        ? (pendingBaseline?.amenities_add ?? [])
+        : (pendingBaseline?.furnishing_add ?? []).map((e) => e.item.trim().toLowerCase());
+      const curNorm = (dbKey === "amenities" ? cur : cur) as string[];
+      if (curNorm.length || baseArr.length) {
+        if (!sameSet(curNorm, baseArr)) return "needs_review";
+        return "under_review";
+      }
+    } else {
+      const curHas = dbKey in currentNormalized.scalars;
+      const baseHas = !!pendingBaseline && dbKey in pendingBaseline.scalars;
+      if (curHas || baseHas) {
+        const curVal = currentNormalized.scalars[dbKey];
+        const baseVal = pendingBaseline?.scalars[dbKey];
+        if (curVal !== baseVal) return "needs_review";
+        return "under_review";
+      }
+    }
+
+    if (getOwnerEditPolicy(dbKey) === "admin_only") return "locked";
+    if (savedLiveKeys.has(dbKey) && saveState === "saved" && !poisonedKeys.includes(dbKey) && !textErrors[dbKey]) return "saved";
+    return null;
+  }, [isLiveListing, poisonedKeys, textErrors, currentNormalized, pendingBaseline, savedLiveKeys, saveState]);
+
+  const ownerChip = useCallback((dbKey: string) => <FieldStatusChip status={fieldStatus(dbKey)} />, [fieldStatus]);
 
   // ─── Session storage restore prompt (Prompt 9) ───────────────────────────
   // When landing on /list/:id for a Path B property with a recently-saved payload
@@ -1365,31 +1620,20 @@ export default function ListProperty() {
   useEffect(() => {
     if (!propertyId || path !== "B") return;
     if (pendingRestore) return;
-    const currentSize = Object.keys(editRequestPayload.field_changes).length +
-      editRequestPayload.photo_changes.add.length +
-      editRequestPayload.photo_changes.delete.length +
-      editRequestPayload.photo_changes.update.length;
+    const currentSize = Object.keys(editRequestPayload.field_changes).length + stagedPhotos.length;
     if (currentSize > 0) return; // already have local changes (from pending edit merge) — don't prompt
     try {
       const raw = sessionStorage.getItem(SESSION_STORAGE_KEY(propertyId));
       if (!raw) return;
-      const parsed = JSON.parse(raw) as EditRequestPayload & { timestamp?: number };
+      const parsed = JSON.parse(raw) as { field_changes?: Record<string, unknown>; staged?: Array<StagedPhoto & { temp_id: string }>; timestamp?: number };
       const age = Date.now() - (parsed.timestamp ?? 0);
       const WEEK = 7 * 24 * 60 * 60 * 1000;
       if (age > WEEK) {
         sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId));
         return;
       }
-      const saved: EditRequestPayload = {
-        field_changes: parsed.field_changes ?? {},
-        photo_changes: {
-          add: parsed.photo_changes?.add ?? [],
-          delete: parsed.photo_changes?.delete ?? [],
-          update: parsed.photo_changes?.update ?? [],
-        },
-      };
-      const savedSize = Object.keys(saved.field_changes).length +
-        saved.photo_changes.add.length + saved.photo_changes.delete.length + saved.photo_changes.update.length;
+      const saved = { field_changes: parsed.field_changes ?? {}, staged: parsed.staged ?? [] };
+      const savedSize = Object.keys(saved.field_changes).length + saved.staged.length;
       if (savedSize > 0) setPendingRestore(saved);
     } catch {
       // ignore parse errors
@@ -1399,38 +1643,38 @@ export default function ListProperty() {
 
   const restoreSaved = useCallback(() => {
     if (!pendingRestore) return;
-    setEditRequestPayload(pendingRestore);
+    setEditRequestPayload({ field_changes: pendingRestore.field_changes, photo_changes: { add: [], delete: [], update: [] } });
+    setStagedPhotos(pendingRestore.staged);
     // Merge field_changes into form so read fields reflect saved values
     setForm((prev) => ({ ...prev, ...(pendingRestore.field_changes as Partial<FormState>) }));
-    setModifyingEdit(true);
     setPendingRestore(null);
     posthog?.capture("commons_edit_session_restored", { property_id: propertyId });
   }, [pendingRestore, propertyId]);
 
   const discardSaved = useCallback(() => {
     if (!propertyId) return;
+    // Best-effort staged R2 cleanup for the discarded draft's staged photos (R9).
+    const urls = (pendingRestore?.staged ?? []).map((s) => s.url);
+    if (urls.length) void stagedDeleteUrls(urls);
     try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId)); } catch { /* ignore */ }
     setPendingRestore(null);
     posthog?.capture("commons_edit_session_discarded", { property_id: propertyId });
-  }, [propertyId]);
+  }, [propertyId, pendingRestore, stagedDeleteUrls]);
 
   // ─── Session storage for Path B in-progress edits ────────────────────────
   // Silent save on every editRequestPayload change; silent restore on mount.
   // Cleared on submit or cancel.
   useEffect(() => {
     if (!propertyId || path !== "B") return;
-    const size = Object.keys(editRequestPayload.field_changes).length +
-      editRequestPayload.photo_changes.add.length +
-      editRequestPayload.photo_changes.delete.length +
-      editRequestPayload.photo_changes.update.length;
+    const size = Object.keys(editRequestPayload.field_changes).length + stagedPhotos.length;
     if (size === 0) return;
     try {
       sessionStorage.setItem(
         SESSION_STORAGE_KEY(propertyId),
-        JSON.stringify({ ...editRequestPayload, timestamp: Date.now() }),
+        JSON.stringify({ field_changes: editRequestPayload.field_changes, staged: stagedPhotos, timestamp: Date.now() }),
       );
     } catch { /* quota exceeded or private mode — ignore */ }
-  }, [propertyId, path, editRequestPayload]);
+  }, [propertyId, path, editRequestPayload, stagedPhotos]);
 
   // ─── Cancel pending edit (edit_pending_review → listed) ──────────────────
   const cancelPendingEdit = useCallback(async () => {
@@ -1438,16 +1682,23 @@ export default function ListProperty() {
     setCancelling(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).rpc("cancel_pending_edit_request", { p_property_id: propertyId });
-    setCancelling(false);
     if (error) {
+      setCancelling(false);
       toast({ title: "Could not cancel edit", description: error.message, variant: "destructive" });
       return;
     }
+    // After the RPC succeeds, best-effort clean the deduped union of abandoned staged URLs (R9).
+    const abandoned = Array.from(new Set([
+      ...(pendingBaseline?.photo_add ?? []).map((p) => p.url),
+      ...stagedPhotos.map((s) => s.url),
+    ]));
+    if (abandoned.length) await stagedDeleteUrls(abandoned);
+    setCancelling(false);
     try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId)); } catch { /* ignore */ }
     posthog?.capture("commons_edit_cancelled", { property_id: propertyId, edit_request_id: pendingEdit.id });
     toast({ title: "Pending edit cancelled" });
     navigate("/my-properties", { replace: true });
-  }, [propertyId, pendingEdit, cancelling, toast, navigate]);
+  }, [propertyId, pendingEdit, cancelling, toast, navigate, pendingBaseline, stagedPhotos, stagedDeleteUrls]);
 
   // Prompt 11: acknowledgeBanner removed — RejectionPanel owns the upsert with activity_log_id (D-141).
 
@@ -1495,14 +1746,15 @@ export default function ListProperty() {
           </div>
         )}
 
-        {/* edit_pending_review banner */}
-        {entryStatus === "edit_pending_review" && !modifyingEdit && (
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <p className="text-sm text-blue-800">
-              Your edit is under review — usually takes 24-48 hours. Your live listing stays visible unchanged.
+        {/* edit_pending_review banner — Live, some edits under review (amber). */}
+        {entryStatus === "edit_pending_review" && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm text-amber-800">
+              <span className="font-medium">Live · Some edits under review.</span>{" "}
+              Your listing stays visible with its current details while your submitted changes are reviewed
+              (usually 24–48 hours). Safe fields (price, availability, facts) still update instantly.
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => setModifyingEdit(true)}>Modify edit</Button>
               <Button size="sm" variant="ghost" onClick={() => setShowCancelConfirm(true)} className="text-destructive">
                 Cancel pending edit
               </Button>
@@ -1579,7 +1831,7 @@ export default function ListProperty() {
               {addressEditable ? (
                 <PropertyAddressInput
                   mode="owner"
-                  initialData={form.place_id ? {
+                  initialData={(form.place_id || form.address_mode === 'manual' || form.building_name || form.formatted_address || form.latitude != null) ? {
                     building_name: form.building_name || null,
                     place_id: form.place_id,
                     formatted_address: form.formatted_address,
@@ -1624,6 +1876,19 @@ export default function ListProperty() {
                     Address cannot be changed after submission.{' '}
                     <a href="/contact" className="underline">Contact support →</a>
                   </p>
+                  {/* Street View visibility stays LIVE-editable even when the address is locked. */}
+                  {form.streetview_available && (
+                    <label className="flex items-center justify-between rounded-lg border p-3 mt-2">
+                      <span className="text-sm">Show Street View link in listing</span>
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5"
+                        checked={!!form.streetview_show_in_listing}
+                        onChange={(e) => updateField("streetview_show_in_listing", e.target.checked)}
+                      />
+                    </label>
+                  )}
+                  {form.streetview_available && ownerChip("streetview_show_in_listing")}
                 </div>
               )}
               <SpecField
@@ -1632,8 +1897,8 @@ export default function ListProperty() {
                 value={form.lister_flat_number ?? ''}
                 onChange={(v: string) => updateField("lister_flat_number", v)}
                 readOnly={tierOneLocked}
-              />
-              <SpecField fieldKey="landmark" surface="owner_form" value={form.landmark} onChange={(v: string) => updateField("landmark", v)} />
+              >{ownerChip("lister_flat_number")}</SpecField>
+              <SpecField fieldKey="landmark" surface="owner_form" value={form.landmark} onChange={(v: string) => updateField("landmark", v)} readOnly={ownerFieldReadOnly("landmark")} />
             </div>
           </SectionShell>
 
@@ -1641,25 +1906,21 @@ export default function ListProperty() {
           <SectionShell num={2} title="The basics" status={sectionStatuses[2]} summary={sectionSummary(2, form, images)} required>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <SpecField fieldKey="bhk" surface="owner_form" value={form.bhk} onChange={(v: string) => updateField("bhk", v)} readOnly={tierOneLocked} />
-                {tierOneLocked && (
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                    <Lock className="h-3 w-3" /> Locked after submission
-                  </p>
+                <SpecField fieldKey="bhk" surface="owner_form" value={form.bhk} onChange={(v: string) => updateField("bhk", v)} readOnly={ownerFieldReadOnly("bhk")}>{ownerChip("bhk")}</SpecField>
+                {isLiveListing && (
+                  <p className="text-xs text-amber-600 mt-1">Corrections are reviewed before going live.</p>
                 )}
               </div>
               <div>
-                <SpecField fieldKey="property_type" surface="owner_form" value={form.property_type} onChange={(v: string) => updateField("property_type", v)} readOnly={tierOneLocked} />
-                {tierOneLocked && (
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                    <Lock className="h-3 w-3" /> Locked after submission
-                  </p>
+                <SpecField fieldKey="property_type" surface="owner_form" value={form.property_type} onChange={(v: string) => updateField("property_type", v)} readOnly={ownerFieldReadOnly("property_type")}>{ownerChip("property_type")}</SpecField>
+                {isLiveListing && (
+                  <p className="text-xs text-amber-600 mt-1">Corrections are reviewed before going live.</p>
                 )}
               </div>
-              <SpecField fieldKey="floor_number" surface="owner_form" value={form.floor_number} onChange={(v: string) => updateField("floor_number", v)} />
-              <SpecField fieldKey="total_floors" surface="owner_form" value={form.total_floors} onChange={(v: string) => updateField("total_floors", v)} />
-              <SpecField fieldKey="square_footage" surface="owner_form" value={form.square_footage} onChange={(v: string) => updateField("square_footage", v)} />
-              <SpecField fieldKey="super_built_up_area" surface="owner_form" value={form.super_built_up_area} onChange={(v: string) => updateField("super_built_up_area", v)} />
+              <SpecField fieldKey="floor_number" surface="owner_form" value={form.floor_number} onChange={(v: string) => updateField("floor_number", v)}>{ownerChip("floor_number")}</SpecField>
+              <SpecField fieldKey="total_floors" surface="owner_form" value={form.total_floors} onChange={(v: string) => updateField("total_floors", v)}>{ownerChip("total_floors")}</SpecField>
+              <SpecField fieldKey="square_footage" surface="owner_form" value={form.square_footage} onChange={(v: string) => updateField("square_footage", v)}>{ownerChip("square_footage")}</SpecField>
+              <SpecField fieldKey="super_built_up_area" surface="owner_form" value={form.super_built_up_area} onChange={(v: string) => updateField("super_built_up_area", v)}>{ownerChip("super_built_up_area")}</SpecField>
               {/* TODO(spec): fold helper into PROPERTY_FIELDS.facing.helper in Prompt 6 bundle */}
               <SpecField
                 fieldKey="facing"
@@ -1668,8 +1929,8 @@ export default function ListProperty() {
                 onChange={(v: string) => updateField("facing", v)}
                 helperOverride="Helps users who care about sunlight"
                 placeholderOverride="Optional"
-              />
-              <SpecField fieldKey="building_age_years" surface="owner_form" value={form.building_age_years} onChange={(v: string) => updateField("building_age_years", v)} />
+              >{ownerChip("facing")}</SpecField>
+              <SpecField fieldKey="building_age_years" surface="owner_form" value={form.building_age_years} onChange={(v: string) => updateField("building_age_years", v)}>{ownerChip("building_age_years")}</SpecField>
             </div>
           </SectionShell>
 
@@ -1685,10 +1946,10 @@ export default function ListProperty() {
           >
             {form.listing_type === "sale" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <SpecField fieldKey="sale_price" surface="owner_form" value={form.sale_price} onChange={(v: string) => updateField("sale_price", v)} />
-                <SpecField fieldKey="expected_price_per_sqft" surface="owner_form" value={form.expected_price_per_sqft} onChange={(v: string) => updateField("expected_price_per_sqft", v)} />
+                <SpecField fieldKey="sale_price" surface="owner_form" value={form.sale_price} onChange={(v: string) => updateField("sale_price", v)}>{ownerChip("sale_price")}</SpecField>
+                <SpecField fieldKey="expected_price_per_sqft" surface="owner_form" value={form.expected_price_per_sqft} onChange={(v: string) => updateField("expected_price_per_sqft", v)}>{ownerChip("expected_price_per_sqft")}</SpecField>
                 <SpecField fieldKey="price_negotiable" surface="owner_form" value={form.price_negotiable} onChange={(v: boolean) => updateField("price_negotiable", v)} />
-                <SpecField fieldKey="possession_status" surface="owner_form" value={form.possession_status} onChange={(v: string) => updateField("possession_status", v)} />
+                <SpecField fieldKey="possession_status" surface="owner_form" value={form.possession_status} onChange={(v: string) => updateField("possession_status", v)}>{ownerChip("possession_status")}</SpecField>
                 {/* D-168: spec-driven date field. visibleWhen gates render on possession_status === 'under_construction'.
                     SpecField's generic T is `unknown`: value is a Date, onChange emits ISO string | null. Cast bridges the two. */}
                 <SpecField
@@ -1702,9 +1963,9 @@ export default function ListProperty() {
                       { possession_date: iso ?? null },
                     )) as (v: unknown) => void}
                   formValues={{ possession_status: form.possession_status }}
-                />
-                <SpecField fieldKey="rera_registration_number" surface="owner_form" value={form.rera_registration_number} onChange={(v: string) => updateField("rera_registration_number", v)} />
-                <SpecField fieldKey="khata_type" surface="owner_form" value={form.khata_type} onChange={(v: string) => updateField("khata_type", v)} />
+                >{ownerChip("possession_date")}</SpecField>
+                <SpecField fieldKey="rera_registration_number" surface="owner_form" value={form.rera_registration_number} onChange={(v: string) => updateField("rera_registration_number", v)}>{ownerChip("rera_registration_number")}</SpecField>
+                <SpecField fieldKey="khata_type" surface="owner_form" value={form.khata_type} onChange={(v: string) => updateField("khata_type", v)}>{ownerChip("khata_type")}</SpecField>
                 {/* D-168: spec-driven date field (no warnOnPast, no maxDaysFromNow). */}
                 <SpecField
                   fieldKey="property_tax_paid_upto"
@@ -1716,7 +1977,7 @@ export default function ListProperty() {
                       iso ? new Date(iso + "T00:00:00") : undefined,
                       { property_tax_paid_upto: iso ?? null },
                     )) as (v: unknown) => void}
-                />
+                >{ownerChip("property_tax_paid_upto")}</SpecField>
                 {/* Phase 1.5 addendum (D-166) — sale brokerage. */}
                 <SpecField
                   fieldKey="sale_brokerage_pct"
@@ -1724,11 +1985,11 @@ export default function ListProperty() {
                   value={form.sale_brokerage_pct}
                   onChange={(v: string) => updateField("sale_brokerage_pct", v)}
                   formValues={{ listing_type: form.listing_type }}
-                />
+                >{ownerChip("sale_brokerage_pct")}</SpecField>
               </div>
             ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <SpecField fieldKey="listed_rent" surface="owner_form" value={form.listed_rent} onChange={(v: string) => updateField("listed_rent", v)} />
+              <SpecField fieldKey="listed_rent" surface="owner_form" value={form.listed_rent} onChange={(v: string) => updateField("listed_rent", v)}>{ownerChip("listed_rent")}</SpecField>
               {/* Bespoke: security_deposit_amount input + 1/2/3-month convenience chips.
                   P3: months input removed from owner UI; chips still write both
                   amount and months so the column stays populated for legacy readers. */}
@@ -1763,8 +2024,9 @@ export default function ListProperty() {
                     </>
                   );
                 })()}
+                {ownerChip("security_deposit_amount")}
               </div>
-              <SpecField fieldKey="society_maintenance_approx" surface="owner_form" value={form.society_maintenance_approx} onChange={(v: string) => updateField("society_maintenance_approx", v)} />
+              <SpecField fieldKey="society_maintenance_approx" surface="owner_form" value={form.society_maintenance_approx} onChange={(v: string) => updateField("society_maintenance_approx", v)}>{ownerChip("society_maintenance_approx")}</SpecField>
               {/* D-171: FormState key renamed to match DB column; bridge removed. */}
               <div className="sm:col-span-2">
                 <div className="flex items-center justify-between rounded-lg border p-3">
@@ -1772,6 +2034,7 @@ export default function ListProperty() {
                     <p className="text-xs text-muted-foreground">Tenants see "Included" instead of a separate amount</p></div>
                   <Switch checked={form.maintenance_included_in_rent} onCheckedChange={(v) => updateField("maintenance_included_in_rent", v)} />
                 </div>
+                {ownerChip("maintenance_included_in_rent")}
               </div>
               {/* D-168: spec-driven date field. warnOnPast + maxDaysFromNow:90 come from datePickerOptions (D-146 preserved). */}
               <SpecField
@@ -1784,13 +2047,13 @@ export default function ListProperty() {
                     iso ? new Date(iso + "T00:00:00") : undefined,
                     { available_from: iso ?? null },
                   )) as (v: unknown) => void}
-              />
+              >{ownerChip("available_from")}</SpecField>
               {/* P3: replaced notice_period_months (legacy, admin-only) with:
                     - lock_in_months (new, optional)
                     - notice_period_days (new select, replaces months on owner UI) */}
-              <SpecField fieldKey="lock_in_months" surface="owner_form" value={form.lock_in_months} onChange={(v: string) => updateField("lock_in_months", v)} formValues={form as unknown as Record<string, unknown>} />
-              <SpecField fieldKey="notice_period_days" surface="owner_form" value={form.notice_period_days} onChange={(v: string) => updateField("notice_period_days", v)} formValues={form as unknown as Record<string, unknown>} />
-              <SpecField fieldKey="annual_rent_increase_pct" surface="owner_form" value={form.annual_rent_increase_pct} onChange={(v: string) => updateField("annual_rent_increase_pct", v)} formValues={form as unknown as Record<string, unknown>} />
+              <SpecField fieldKey="lock_in_months" surface="owner_form" value={form.lock_in_months} onChange={(v: string) => updateField("lock_in_months", v)} formValues={form as unknown as Record<string, unknown>}>{ownerChip("lock_in_months")}</SpecField>
+              <SpecField fieldKey="notice_period_days" surface="owner_form" value={form.notice_period_days} onChange={(v: string) => updateField("notice_period_days", v)} formValues={form as unknown as Record<string, unknown>}>{ownerChip("notice_period_days")}</SpecField>
+              <SpecField fieldKey="annual_rent_increase_pct" surface="owner_form" value={form.annual_rent_increase_pct} onChange={(v: string) => updateField("annual_rent_increase_pct", v)} formValues={form as unknown as Record<string, unknown>}>{ownerChip("annual_rent_increase_pct")}</SpecField>
               {/* Phase 1.5 addendum (D-166) — One-time charges sub-heading + move-in +
                   brokerage. Section 3 hit 10 fields in rent mode; the divider prevents
                   a wall-of-inputs feel. col-span-2 spans both grid columns. */}
@@ -1803,7 +2066,7 @@ export default function ListProperty() {
                 value={form.move_in_charges_amount}
                 onChange={(v: string) => updateField("move_in_charges_amount", v)}
                 formValues={{ listing_type: form.listing_type }}
-              />
+              >{ownerChip("move_in_charges_amount")}</SpecField>
               {/* F2-D2: brokerage collapsed to a single flat amount input. */}
               <SpecField
                 fieldKey="rent_brokerage_fixed_amount"
@@ -1811,7 +2074,7 @@ export default function ListProperty() {
                 value={form.rent_brokerage_fixed_amount}
                 onChange={(v: string) => updateField("rent_brokerage_fixed_amount", v)}
                 formValues={{ listing_type: form.listing_type }}
-              />
+              >{ownerChip("rent_brokerage_fixed_amount")}</SpecField>
             </div>
             )}
           </SectionShell>
@@ -1824,6 +2087,7 @@ export default function ListProperty() {
                   <SelectTrigger className="min-h-[44px] max-w-xs"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>{FURNISHING_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
+                {ownerChip("furnishing")}
               </FormField>
               {/* D-170: shared JSONB editor. Same component used on admin form. */}
               <FurnishingEditor
@@ -1832,15 +2096,13 @@ export default function ListProperty() {
                 onInvalidDraftChange={setFurnishingDraftInvalid}
                 onChange={(updated) => {
                   setForm((f) => ({ ...f, furnishing_detail: updated }));
-                  patch({
-                    furnishing_detail: updated,
-                    amenities: buildAmenitiesJson(form.building_amenities, updated),
-                  });
+                  applyJsonbChange(updated, formRef.current.building_amenities);
                 }}
               />
+              {ownerChip("furnishing_detail")}
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Bathrooms"><Input type="number" min={1} max={10} value={form.bathrooms} onChange={(e) => updateField("bathrooms", e.target.value)} className="min-h-[44px]" /></FormField>
-                <FormField label="Balconies"><Input type="number" min={0} max={10} value={form.balconies} onChange={(e) => updateField("balconies", e.target.value)} className="min-h-[44px]" /></FormField>
+                <FormField label="Bathrooms"><Input type="number" min={1} max={10} value={form.bathrooms} onChange={(e) => updateField("bathrooms", e.target.value)} className="min-h-[44px]" />{ownerChip("bathrooms")}</FormField>
+                <FormField label="Balconies"><Input type="number" min={0} max={10} value={form.balconies} onChange={(e) => updateField("balconies", e.target.value)} className="min-h-[44px]" />{ownerChip("balconies")}</FormField>
               </div>
             </div>
           </SectionShell>
@@ -1855,9 +2117,10 @@ export default function ListProperty() {
                 onInvalidDraftChange={setAmenitiesDraftInvalid}
                 onChange={(updated) => {
                   setForm((f) => ({ ...f, building_amenities: updated }));
-                  patch({ amenities: buildAmenitiesJson(updated, form.furnishing_detail) });
+                  applyJsonbChange(formRef.current.furnishing_detail, updated);
                 }}
               />
+              {ownerChip("amenities")}
               {/* Prompt 8 (D-159): parking enum + count inline. Enum stays bespoke;
                   count uses <SpecField> for label/helper. Public detail renders these
                   compound ("Covered · 2 slots") via a bespoke formatter. */}
@@ -1867,15 +2130,17 @@ export default function ListProperty() {
                     <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
                     <SelectContent>{PARKING_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                   </Select>
+                  {ownerChip("parking_2w")}
                 </FormField>
-                <SpecField fieldKey="parking_2w_count" surface="owner_form" value={form.parking_2w_count} onChange={(v: string) => updateField("parking_2w_count", v)} />
+                <SpecField fieldKey="parking_2w_count" surface="owner_form" value={form.parking_2w_count} onChange={(v: string) => updateField("parking_2w_count", v)}>{ownerChip("parking_2w_count")}</SpecField>
                 <FormField label="4-wheeler parking">
                   <Select value={form.parking_4w} onValueChange={(v) => updateField("parking_4w", v)}>
                     <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
                     <SelectContent>{PARKING_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                   </Select>
+                  {ownerChip("parking_4w")}
                 </FormField>
-                <SpecField fieldKey="parking_4w_count" surface="owner_form" value={form.parking_4w_count} onChange={(v: string) => updateField("parking_4w_count", v)} />
+                <SpecField fieldKey="parking_4w_count" surface="owner_form" value={form.parking_4w_count} onChange={(v: string) => updateField("parking_4w_count", v)}>{ownerChip("parking_4w_count")}</SpecField>
               </div>
               <SpecField
                 fieldKey="parking_notes"
@@ -1886,8 +2151,8 @@ export default function ListProperty() {
                 showCounter
                 error={textErrors.parking_notes ?? undefined}
                 onBlur={() => runFieldValidation("parking_notes")}
-              />
-              <SpecField fieldKey="water_storage" surface="owner_form" value={form.water_storage} onChange={(v: string) => updateField("water_storage", v)} className="max-w-xs" />
+              >{ownerChip("parking_notes")}</SpecField>
+              <SpecField fieldKey="water_storage" surface="owner_form" value={form.water_storage} onChange={(v: string) => updateField("water_storage", v)} className="max-w-xs">{ownerChip("water_storage")}</SpecField>
               {/* P3: water source multi-select (text[] column). */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Water source</Label>
@@ -1910,13 +2175,14 @@ export default function ListProperty() {
                     );
                   })}
                 </div>
+                {ownerChip("water_source")}
               </div>
               {/* P3: main_door_lock_type as enum select. */}
-              <SpecField fieldKey="main_door_lock_type" surface="owner_form" value={form.main_door_lock_type} onChange={(v: string) => updateField("main_door_lock_type", v)} className="max-w-xs" />
+              <SpecField fieldKey="main_door_lock_type" surface="owner_form" value={form.main_door_lock_type} onChange={(v: string) => updateField("main_door_lock_type", v)} className="max-w-xs">{ownerChip("main_door_lock_type")}</SpecField>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <UtilityToggle label="Water included" checked={form.water_included} onChange={(v) => updateField("water_included", v, { utility_water_included: v })} />
-                <UtilityToggle label="Gas included" checked={form.gas_included} onChange={(v) => updateField("gas_included", v, { utility_gas_included: v })} />
-                <UtilityToggle label="Electricity included" checked={form.electricity_included} onChange={(v) => updateField("electricity_included", v, { utility_electricity_included: v })} />
+                <div><UtilityToggle label="Water included" checked={form.water_included} onChange={(v) => updateField("water_included", v, { utility_water_included: v })} />{ownerChip("utility_water_included")}</div>
+                <div><UtilityToggle label="Gas included" checked={form.gas_included} onChange={(v) => updateField("gas_included", v, { utility_gas_included: v })} />{ownerChip("utility_gas_included")}</div>
+                <div><UtilityToggle label="Electricity included" checked={form.electricity_included} onChange={(v) => updateField("electricity_included", v, { utility_electricity_included: v })} />{ownerChip("utility_electricity_included")}</div>
               </div>
               {/* F1-B3c: gas_type decoupled from the "included in maintenance" toggle. */}
               <SpecField
@@ -1926,7 +2192,7 @@ export default function ListProperty() {
                 onChange={(v: string) => updateField("gas_type", v === "none" ? "" : v, { gas_type: v === "none" ? null : v })}
                 formValues={{ listing_type: form.listing_type }}
                 className="max-w-xs"
-              />
+              >{ownerChip("gas_type")}</SpecField>
             </div>
           </SectionShell>
 
@@ -1934,7 +2200,7 @@ export default function ListProperty() {
           <SectionShell num={6} title="Rules & preferences" status={sectionStatuses[6]} summary={sectionSummary(6, form, images)}>
             <div className="space-y-4">
               {form.listing_type !== 'sale' && (
-                <SpecField fieldKey="pet_policy" surface="owner_form" value={form.pet_policy} onChange={(v: string) => updateField("pet_policy", v)} />
+                <SpecField fieldKey="pet_policy" surface="owner_form" value={form.pet_policy} onChange={(v: string) => updateField("pet_policy", v)}>{ownerChip("pet_policy")}</SpecField>
               )}
               {/* TODO(spec): fold helper into PROPERTY_FIELDS.building_rules.helper in Prompt 6 bundle */}
               {form.listing_type !== 'sale' && (
@@ -1948,7 +2214,7 @@ export default function ListProperty() {
                   showCounter
                   error={textErrors.building_rules ?? undefined}
                   onBlur={() => runFieldValidation("building_rules")}
-                />
+                >{ownerChip("building_rules")}</SpecField>
               )}
               {/* TODO(spec): fold helper into PROPERTY_FIELDS.building_notes.helper in Prompt 6 bundle */}
               <SpecField
@@ -1961,7 +2227,7 @@ export default function ListProperty() {
                 showCounter
                 error={textErrors.building_notes ?? undefined}
                 onBlur={() => runFieldValidation("building_notes")}
-              />
+              >{ownerChip("building_notes")}</SpecField>
             </div>
           </SectionShell>
 
@@ -2001,15 +2267,29 @@ export default function ListProperty() {
                             <img src={img.url} alt="" className="w-full h-full object-cover" />
                             {img.is_primary && <span className="absolute top-1 left-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded">Cover</span>}
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
-                              <button type="button" onClick={() => setPrimaryPhoto(img.id)} className="text-xs bg-white text-gray-800 px-2 py-1 rounded">★ Cover</button>
-                              <button type="button" onClick={() => deletePhoto(img.id)} className="text-xs bg-white text-red-600 px-2 py-1 rounded">Delete</button>
+                              <button type="button" onClick={() => setPrimaryPhoto(img.id)} className="text-xs bg-white text-gray-800 px-2 py-1 rounded min-h-[36px]">★ Cover</button>
+                              <button type="button" onClick={() => deletePhoto(img.id)} className="text-xs bg-white text-red-600 px-2 py-1 rounded min-h-[36px]">Delete</button>
+                              <div className="flex gap-1">
+                                <button type="button" aria-label="Move earlier" onClick={() => reorderPhoto(img.id, -1)} className="text-xs bg-white text-gray-800 px-2 py-1 rounded min-h-[36px]">◀</button>
+                                <button type="button" aria-label="Move later" onClick={() => reorderPhoto(img.id, 1)} className="text-xs bg-white text-gray-800 px-2 py-1 rounded min-h-[36px]">▶</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {/* Staged photos (live listing) — amber, pending review; no cover/reorder. */}
+                        {stagedPhotos.filter((s) => (s.section ?? "") === section).map((s) => (
+                          <div key={s.temp_id} className="relative group aspect-square rounded overflow-hidden bg-muted ring-2 ring-amber-400">
+                            <img src={s.url} alt="" className="w-full h-full object-cover" />
+                            <span className="absolute top-1 left-1 bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded">Pending review</span>
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-1">
+                              <button type="button" onClick={() => removeStagedPhoto(s.temp_id)} className="text-xs bg-white text-red-600 px-2 py-1 rounded min-h-[36px]">Remove</button>
                             </div>
                           </div>
                         ))}
                         {Object.keys(uploadingFiles).filter((k) => k.startsWith(section)).map((k) => (
                           <div key={k} className="aspect-square rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">Uploading…</div>
                         ))}
-                        {sectionImgs.length === 0 && Object.keys(uploadingFiles).filter((k) => k.startsWith(section)).length === 0 && (
+                        {sectionImgs.length === 0 && stagedPhotos.filter((s) => (s.section ?? "") === section).length === 0 && Object.keys(uploadingFiles).filter((k) => k.startsWith(section)).length === 0 && (
                           <div className="col-span-full py-4 text-center text-xs text-muted-foreground">No photos yet.</div>
                         )}
                       </div>
@@ -2032,6 +2312,7 @@ export default function ListProperty() {
                   {textErrors.youtube_walkthrough_url && (
                     <p className="text-sm text-destructive mt-1">{textErrors.youtube_walkthrough_url}</p>
                   )}
+                  {ownerChip("youtube_walkthrough_url")}
                 </FormField>
               </div>
             )}
@@ -2085,10 +2366,10 @@ export default function ListProperty() {
               {!readOnly && (
                 <Button
                   onClick={submit}
-                  disabled={submitting || !propertyId || (path === "B" && Object.keys(editRequestPayload.field_changes).length === 0 && editRequestPayload.photo_changes.add.length === 0 && editRequestPayload.photo_changes.delete.length === 0 && editRequestPayload.photo_changes.update.length === 0)}
-                  className={cn(path === "A" && (requiredComplete < 5 || !form.consent || !form.terms_privacy_consent || images.length < 3) ? "opacity-70" : "")}
+                  disabled={submitting || !propertyId || (isLiveListing && !reviewDirty)}
+                  className={cn(!isLiveListing && (requiredComplete < 5 || !form.consent || !form.terms_privacy_consent || images.length < 3) ? "opacity-70" : "")}
                 >
-                  {submitting ? "Submitting..." : path === "B" ? "Submit for review" : "Submit for review"}
+                  {submitting ? "Submitting..." : isLiveListing ? "Submit changes for review" : "Submit for review"}
                 </Button>
               )}
             </div>

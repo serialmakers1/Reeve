@@ -281,10 +281,15 @@ function ActionCard({
     );
   }
 
-  if (status === "listed") {
+  if (status === "listed" || status === "edit_pending_review") {
     return (
       <div className="rounded-xl border border-border bg-card p-5 space-y-3">
         <p className="font-semibold text-foreground">Your property is live on Reeve 🎉</p>
+        {status === "edit_pending_review" && (
+          <p className="text-sm text-amber-700">
+            Some edits are under review. Your listing stays live in the meantime.
+          </p>
+        )}
         <p className="text-sm text-muted-foreground">
           {applications.length} application(s) received
         </p>
@@ -428,9 +433,14 @@ export default function MyPropertyDetail() {
         return;
       }
 
-      setProperty(prop as unknown as PropertyRow);
+      const typedProp = prop as unknown as PropertyRow;
+      setProperty(typedProp);
 
-      if (prop.status === "listed" || prop.status === "occupied") {
+      if (
+        typedProp.status === "listed" ||
+        typedProp.status === "edit_pending_review" ||
+        typedProp.status === "occupied"
+      ) {
         const { data: apps } = await supabase
           .from("applications")
           .select(
@@ -473,7 +483,9 @@ export default function MyPropertyDetail() {
 
   const propertyRef = `RV-${property.id.slice(0, 8).toUpperCase()}`;
   const showApplicationsTab =
-    property.status === "listed" || property.status === "occupied";
+    property.status === "listed" ||
+    property.status === "edit_pending_review" ||
+    property.status === "occupied";
 
   const tabs = [
     { key: "overview", label: "Overview" },
@@ -906,8 +918,9 @@ export default function MyPropertyDetail() {
               </div>
             </div>
 
-            {/* View Live Listing — only when listed */}
-            {property.status === "listed" && (
+            {/* View Live Listing — when publicly live (listed or edit under review) */}
+            {(property.status === "listed" ||
+              property.status === "edit_pending_review") && (
               <a
                 href={`/property/${property.id}`}
                 target="_blank"

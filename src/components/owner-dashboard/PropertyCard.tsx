@@ -242,6 +242,11 @@ export default function PropertyCard({
           {subtitle && (
             <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
           )}
+          {property.status === "edit_pending_review" && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+              Some edits under review
+            </span>
+          )}
           <div className="flex items-baseline justify-between gap-2">
             {isSale ? (
               salePrice ? (

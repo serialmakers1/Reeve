@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { SpecField } from "@/components/property/SpecField";
 import { ensurePrimaryPhoto } from "@/lib/property-images";
@@ -36,6 +36,8 @@ import { WATER_SOURCE_OPTIONS } from "@/config/property-form";
 import { computeDepositMonths } from "@/utils/property/financialConversions";
 import { FurnishingEditor } from "@/components/property/FurnishingEditor";
 import { AmenitiesEditor } from "@/components/property/AmenitiesEditor";
+import { extractPendingConflictKeys } from "@/lib/pendingEditConflicts";
+import { deriveConflictFieldResets } from "@/lib/adminConflictReset";
 
 const BHK_OPTIONS = [
   { value: "studio", label: "Studio" },
@@ -80,6 +82,20 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secon
 };
 
 type PropertyData = Record<string, unknown>;
+
+/** Amber note shown on a field/editor that has a pending owner-reviewed change (Prompt 3). */
+function ConflictNote({ editId }: { editId: string | null }) {
+  return (
+    <p className="mt-1 text-xs text-amber-700 flex flex-wrap items-center gap-1">
+      Owner change pending for this field — resolve the edit first.
+      {editId && (
+        <Link to={`/admin/listing-reviews/edit/${editId}`} className="underline text-amber-800">
+          Review edit →
+        </Link>
+      )}
+    </p>
+  );
+}
 
 interface PropertyImage {
   id: string;
@@ -254,6 +270,12 @@ export default function PropertyEdit() {
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
 
+  // Prompt 3 — pending owner-edit conflict safeguard. Admin stays UNRESTRICTED except
+  // for the specific field(s)/editor(s) with a pending owner-reviewed change.
+  const [pendingEditId, setPendingEditId] = useState<string | null>(null);
+  const [conflictKeys, setConflictKeys] = useState<Set<string>>(new Set());
+  const [conflictUnknown, setConflictUnknown] = useState(false); // true = conflict state couldn't be read → block Save
+
   useEffect(() => {
     if (!id || authLoading) return;
     const fetchProperty = async () => {
@@ -402,6 +424,25 @@ export default function PropertyEdit() {
       setLocationVerifiedAt((row.location_verified_at as string) ?? null);
       setListerFlatNumber((row.lister_flat_number as string) ?? null);
 
+      // Prompt 3 — read the property's pending owner edit request (if any) and derive the
+      // conflicting DB columns. On a query FAILURE, mark conflict state unknown (which blocks
+      // Save) rather than silently claiming there is no conflict.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: pe, error: peErr } = await (supabase as any)
+        .from("property_edit_requests")
+        .select("id, payload")
+        .eq("property_id", id)
+        .eq("status", "pending")
+        .maybeSingle();
+      if (peErr) {
+        setConflictUnknown(true);
+        toast({ title: "Couldn't check pending owner edits", description: peErr.message, variant: "destructive" });
+      } else {
+        setConflictUnknown(false);
+        setPendingEditId(pe?.id ?? null);
+        setConflictKeys(extractPendingConflictKeys(pe?.payload));
+      }
+
       setLoading(false);
     };
     fetchProperty();
@@ -532,15 +573,70 @@ export default function PropertyEdit() {
 
   const handleSave = async () => {
     if (!id) return;
+    // Prompt 3 — never save while the pending-conflict state is unknown (initial check failed).
+    if (conflictUnknown) {
+      toast({ title: "Can't save — pending-edit check failed", description: "Reload the page to re-check owner edits before saving.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
+
+    // Prompt 3 — re-check the pending owner edit immediately before writing (closes the
+    // load→submit race). A failed pre-save check blocks Save; newly-appeared conflicts are
+    // omitted from the write and surfaced. Unrelated fields still save.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: freshPe, error: freshErr } = await (supabase as any)
+      .from("property_edit_requests")
+      .select("id, payload")
+      .eq("property_id", id)
+      .eq("status", "pending")
+      .maybeSingle();
+    if (freshErr) {
+      setSaving(false);
+      toast({ title: "Can't save — couldn't re-check owner edits", description: freshErr.message, variant: "destructive" });
+      return;
+    }
+    const freshConflicts = extractPendingConflictKeys(freshPe?.payload);
+    setPendingEditId(freshPe?.id ?? null);
+    // If a new conflict appeared since load, reflect it in the UI + tell the admin.
+    const newlyAppearedKeys = [...freshConflicts].filter((k) => !conflictKeys.has(k));
+    const newlyAppeared = newlyAppearedKeys.length > 0;
+    if (newlyAppeared) {
+      // Reset ONLY the newly-conflicting fields to their authoritative live DB values before
+      // locking them read-only, so the lock never displays the admin's un-persisted typed value.
+      // Unrelated unsaved admin edits are untouched. If this authoritative refetch fails, block
+      // Save entirely — never continue while a conflicting field still shows an unsaved value.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: liveRow, error: liveErr } = await (supabase as any)
+        .from("properties")
+        .select(
+          "bhk, property_type, rera_registration_number, youtube_walkthrough_url, parking_notes, building_rules, building_notes, amenities, furnishing_detail"
+        )
+        .eq("id", id)
+        .maybeSingle();
+      if (liveErr || !liveRow) {
+        setSaving(false);
+        toast({ title: "Can't save — couldn't refresh live field values", description: liveErr?.message ?? "Property not found.", variant: "destructive" });
+        return;
+      }
+      const resets = deriveConflictFieldResets(newlyAppearedKeys, liveRow as unknown as Record<string, unknown>);
+      if (resets.bhk !== undefined) setBhk(resets.bhk);
+      if (resets.propertyType !== undefined) setPropertyType(resets.propertyType);
+      if (resets.reraRegistrationNumber !== undefined) setReraRegistrationNumber(resets.reraRegistrationNumber);
+      if (resets.youtubeWalkthroughUrl !== undefined) setYoutubeWalkthroughUrl(resets.youtubeWalkthroughUrl);
+      if (resets.parkingNotes !== undefined) setParkingNotes(resets.parkingNotes);
+      if (resets.buildingRules !== undefined) setBuildingRules(resets.buildingRules);
+      if (resets.buildingNotes !== undefined) setBuildingNotes(resets.buildingNotes);
+      if (resets.buildingAmenities !== undefined) setBuildingAmenities(resets.buildingAmenities);
+      if (resets.furnishingDetail !== undefined) setFurnishingDetail(resets.furnishingDetail as FurnishingDetailItem[]);
+      setConflictKeys(freshConflicts);
+      toast({ title: "Owner change pending for this field — resolve the edit first.", description: "New pending owner changes were detected; those fields were reset to the live values and not saved.", variant: "destructive" });
+    }
 
     // D-170: amenities JSONB derived via shared helper; furnishing_items key
     // is denormalized from furnishingDetail (kept for downstream readers).
     const amenities = buildAmenitiesJson(buildingAmenities, furnishingDetail);
 
-    const { error } = await supabase
-      .from("properties")
-      .update({
+    const updatePayload: Record<string, unknown> = {
         building_name: buildingName,
         legal_owner_name: legalOwnerName || null,
         street_address: streetAddress,
@@ -649,13 +745,24 @@ export default function PropertyEdit() {
         location_verified_at: locationVerifiedAt || null,
         lister_flat_number: listerFlatNumber?.trim() || null,
         updated_at: new Date().toISOString(),
-      })
+    };
+
+    // Omit any column with a pending owner-reviewed change so the admin can never
+    // overwrite a field currently awaiting review (belt-and-suspenders behind the UI lock).
+    for (const k of freshConflicts) delete updatePayload[k];
+
+    const { error } = await supabase
+      .from("properties")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(updatePayload as any)
       .eq("id", id);
 
     setSaving(false);
 
     if (error) {
       toast({ title: "Failed to save changes", description: error.message, variant: "destructive" });
+    } else if (newlyAppeared) {
+      toast({ title: "Saved — except fields with pending owner edits", description: "Resolve the pending edit to change those fields.", variant: "destructive" });
     } else {
       toast({ title: "Property saved successfully" });
     }
@@ -1160,8 +1267,8 @@ export default function PropertyEdit() {
         <Section title="Basic Details">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SpecField fieldKey="legal_owner_name" surface="admin_form" value={legalOwnerName} onChange={(v: string) => setLegalOwnerName(v)} />
-            <SpecField fieldKey="bhk" surface="admin_form" value={bhk} onChange={(v: string) => setBhk(v)} />
-            <SpecField fieldKey="property_type" surface="admin_form" value={propertyType} onChange={(v: string) => setPropertyType(v)} />
+            <SpecField fieldKey="bhk" surface="admin_form" value={bhk} onChange={(v: string) => setBhk(v)} readOnly={conflictKeys.has("bhk")}>{conflictKeys.has("bhk") && <ConflictNote editId={pendingEditId} />}</SpecField>
+            <SpecField fieldKey="property_type" surface="admin_form" value={propertyType} onChange={(v: string) => setPropertyType(v)} readOnly={conflictKeys.has("property_type")}>{conflictKeys.has("property_type") && <ConflictNote editId={pendingEditId} />}</SpecField>
             <SpecField fieldKey="floor_number" surface="admin_form" value={floorNumber} onChange={(v: string) => setFloorNumber(v)} />
             <SpecField fieldKey="total_floors" surface="admin_form" value={totalFloors} onChange={(v: string) => setTotalFloors(v)} />
             {/* TODO(spec): fold "Carpet Area (in sq ft)" admin label into PROPERTY_FIELDS.square_footage.adminLabel in Prompt 6 bundle */}
@@ -1259,7 +1366,7 @@ export default function PropertyEdit() {
                 onChange={((iso: string | null) => setPossessionDate(iso ? new Date(iso + "T00:00:00") : undefined)) as (v: unknown) => void}
                 formValues={{ possession_status: possessionStatus }}
               />
-              <SpecField fieldKey="rera_registration_number" surface="admin_form" value={reraRegistrationNumber} onChange={(v: string) => setReraRegistrationNumber(v)} />
+              <SpecField fieldKey="rera_registration_number" surface="admin_form" value={reraRegistrationNumber} onChange={(v: string) => setReraRegistrationNumber(v)} readOnly={conflictKeys.has("rera_registration_number")}>{conflictKeys.has("rera_registration_number") && <ConflictNote editId={pendingEditId} />}</SpecField>
               <SpecField fieldKey="khata_type" surface="admin_form" value={khataType} onChange={(v: string) => setKhataType(v)} />
               {/* D-168: spec-driven date field. */}
               <SpecField
@@ -1272,7 +1379,7 @@ export default function PropertyEdit() {
               <SpecField fieldKey="sale_brokerage_pct" surface="admin_form" value={saleBrokeragePct} onChange={(v: string) => setSaleBrokeragePct(v)} formValues={{ listing_type: listingType }} />
             </>}
             {/* TODO(spec): fold "YouTube Walkthrough URL" admin label into PROPERTY_FIELDS.youtube_walkthrough_url.adminLabel in Prompt 6 bundle */}
-            <SpecField fieldKey="youtube_walkthrough_url" surface="admin_form" value={youtubeWalkthroughUrl} onChange={(v: string) => setYoutubeWalkthroughUrl(v)} />
+            <SpecField fieldKey="youtube_walkthrough_url" surface="admin_form" value={youtubeWalkthroughUrl} onChange={(v: string) => setYoutubeWalkthroughUrl(v)} readOnly={conflictKeys.has("youtube_walkthrough_url")}>{conflictKeys.has("youtube_walkthrough_url") && <ConflictNote editId={pendingEditId} />}</SpecField>
           </div>
         </Section>
 
@@ -1282,13 +1389,29 @@ export default function PropertyEdit() {
             {/* TODO(spec): fold "Furnishing Type" admin label into PROPERTY_FIELDS.furnishing.adminLabel in Prompt 6 bundle */}
             <SpecField fieldKey="furnishing" surface="admin_form" value={furnishing} onChange={(v: string) => setFurnishing(v)} placeholderOverride="Select furnishing" className="max-w-xs" />
             {/* D-170: shared JSONB editor (same component as owner form). */}
-            <FurnishingEditor value={furnishingDetail} onChange={setFurnishingDetail} />
+            {conflictKeys.has("furnishing_detail") ? (
+              <div className="rounded-md border border-amber-300 bg-amber-50/40 p-3 opacity-70 pointer-events-none">
+                <FurnishingEditor value={furnishingDetail} onChange={() => {}} />
+              </div>
+            ) : (
+              <FurnishingEditor value={furnishingDetail} onChange={setFurnishingDetail} />
+            )}
+            {conflictKeys.has("furnishing_detail") && <ConflictNote editId={pendingEditId} />}
           </div>
         </Section>
 
         {/* Section 4 — Building Amenities. D-170: shared editor (same component as owner). */}
         <Section title="Building Amenities">
-          <AmenitiesEditor value={buildingAmenities} onChange={setBuildingAmenities} />
+          {conflictKeys.has("amenities") ? (
+            <>
+              <div className="rounded-md border border-amber-300 bg-amber-50/40 p-3 opacity-70 pointer-events-none">
+                <AmenitiesEditor value={buildingAmenities} onChange={() => {}} />
+              </div>
+              <ConflictNote editId={pendingEditId} />
+            </>
+          ) : (
+            <AmenitiesEditor value={buildingAmenities} onChange={setBuildingAmenities} />
+          )}
         </Section>
 
         {/* Section 5 — Utilities & Policies */}
@@ -1322,7 +1445,7 @@ export default function PropertyEdit() {
               <SpecField fieldKey="parking_4w" surface="admin_form" value={parking4w} onChange={(v: string) => setParking4w(v)} />
               <SpecField fieldKey="parking_4w_count" surface="admin_form" value={parking4wCount} onChange={(v: string) => setParking4wCount(v)} />
             </div>
-            <SpecField fieldKey="parking_notes" surface="admin_form" value={parkingNotes} onChange={(v: string) => setParkingNotes(v)} />
+            <SpecField fieldKey="parking_notes" surface="admin_form" value={parkingNotes} onChange={(v: string) => setParkingNotes(v)} readOnly={conflictKeys.has("parking_notes")}>{conflictKeys.has("parking_notes") && <ConflictNote editId={pendingEditId} />}</SpecField>
             <SpecField fieldKey="water_storage" surface="admin_form" value={waterStorage} onChange={(v: string) => setWaterStorage(v)} className="max-w-xs" />
             {/* F3-C15: lister_role — always editable for admin (owner is locked in edit mode). */}
             <SpecField fieldKey="lister_role" surface="admin_form" value={listerRole} onChange={(v: string) => setListerRole(v)} className="max-w-xs" />
@@ -1352,9 +1475,9 @@ export default function PropertyEdit() {
             <SpecField fieldKey="main_door_lock_type" surface="admin_form" value={mainDoorLockType} onChange={(v: string) => setMainDoorLockType(v)} className="max-w-xs" />
             {/* D-169: pet_policy migrated to spec-driven select. Legacy free-text values were normalized to canonical enum via MCP in Sync P1. */}
             <SpecField fieldKey="pet_policy" surface="admin_form" value={petPolicy} onChange={(v: string) => setPetPolicy(v)} />
-            <SpecField fieldKey="building_rules" surface="admin_form" value={buildingRules} onChange={(v: string) => setBuildingRules(v)} />
+            <SpecField fieldKey="building_rules" surface="admin_form" value={buildingRules} onChange={(v: string) => setBuildingRules(v)} readOnly={conflictKeys.has("building_rules")}>{conflictKeys.has("building_rules") && <ConflictNote editId={pendingEditId} />}</SpecField>
             {/* Added in Prompt 4 — building_notes surfaced on admin. */}
-            <SpecField fieldKey="building_notes" surface="admin_form" value={buildingNotes} onChange={(v: string) => setBuildingNotes(v)} />
+            <SpecField fieldKey="building_notes" surface="admin_form" value={buildingNotes} onChange={(v: string) => setBuildingNotes(v)} readOnly={conflictKeys.has("building_notes")}>{conflictKeys.has("building_notes") && <ConflictNote editId={pendingEditId} />}</SpecField>
           </div>
         </Section>
 
