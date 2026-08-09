@@ -310,7 +310,8 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     publicLabel: "Neighbourhood",
     input: "text",
     audiences: ["public_detail"],
-    editableBy: [],
+    // System-populated location component (Google Path A); admin may correct.
+    editableBy: ["admin"],
   },
   {
     key: "location_verified_by_owner",
@@ -336,7 +337,8 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     input: "text",
     helper: "Rendered by PropertyAddressInput as a status badge — not via SpecField.",
     audiences: ["owner_form", "admin_form"],
-    editableBy: [],
+    // System-detected (Street View check); admin-controlled, never hand-edited.
+    editableBy: ["admin"],
     ownerSection: "location",
   },
 
@@ -537,7 +539,8 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     label: "Notice period (months, legacy)",
     input: "number",
     min: 0,
-    audiences: [],
+    // Legacy column retained for correctness; admin-only, not enumerated by any form loop.
+    audiences: ["admin_form"],
     editableBy: ["admin"],
     display: (v) => (typeof v === "number" ? `${v} month${v === 1 ? "" : "s"}` : "—"),
     visibleWhen: (v) => v.listing_type !== "sale",
@@ -593,7 +596,8 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     audiences: ["owner_form", "admin_form", "public_detail"],
     editableBy: ["owner", "admin"],
     ownerSection: "inside",
-    requiredOwner: false,
+    // Required for rent submission by enforce_property_owner_transitions (→ pending_review).
+    requiredOwner: true,
     displayIcon: "armchair",
   },
   {
@@ -1209,4 +1213,84 @@ export function validateSpec(spec: PropertyFieldSpec[]): string[] {
     }
   }
   return errors;
+}
+
+// ─── Owner post-publication edit policy (Prompt 2) ──────────────────────────
+// Risk-based routing for owner edits on `listed`/`edit_pending_review` listings.
+// Keyed by CANONICAL DB COLUMN (never a FormState alias) — ListProperty routes by
+// the DB payload key(s) from mapFieldToDb/dbPatch. This MIRRORS the deployed Prompt-1
+// DB guard (`enforce_owner_edit_partition`); keep the two in sync. See CLAUDE.md
+// "Risk-Based Listing Edits". Draft/changes_requested edits bypass this (initial listing).
+//
+// Fail-closed: any owner-writable DB column NOT listed here resolves to `admin_only`.
+
+export type OwnerEditPolicy = "live" | "review" | "admin_only";
+
+/** LIVE — owner may direct-save immediately on a live listing. */
+const OWNER_LIVE_COLUMNS: readonly string[] = [
+  // prices / commercial terms
+  "listed_rent", "sale_price", "price_negotiable", "expected_price_per_sqft",
+  "security_deposit_amount", "security_deposit_months", "society_maintenance_approx",
+  "maintenance_included_in_rent", "move_in_charges_amount", "annual_rent_increase_pct",
+  "lock_in_months", "notice_period_days", "notice_period_months", "sale_brokerage_pct",
+  "rent_brokerage_fixed_amount", "rent_brokerage_months", "rent_brokerage_type",
+  // availability / possession
+  "available_from", "possession_status", "possession_date",
+  // structured facts
+  "floor_number", "total_floors", "square_footage", "super_built_up_area", "bathrooms",
+  "balconies", "facing", "building_age_years", "khata_type", "property_tax_paid_upto",
+  // parking / utilities / water / gas
+  "parking_2w", "parking_4w", "parking_2w_count", "parking_4w_count",
+  "utility_water_included", "utility_gas_included", "utility_electricity_included",
+  "gas_type", "water_source", "water_storage", "main_door_lock_type",
+  // furnishing enum / pet policy / street-view visibility toggle
+  "furnishing", "pet_policy", "streetview_show_in_listing",
+];
+
+/** REVIEW — owner must route through submit_property_edit_request (never direct PATCH). */
+const OWNER_REVIEW_COLUMNS: readonly string[] = [
+  "building_notes", "building_rules", "parking_notes", "rera_registration_number",
+  "youtube_walkthrough_url", "bhk", "property_type", "amenities", "furnishing_detail",
+];
+
+/**
+ * REVIEW columns where CLEARING (empty/whitespace/removal) is instant/LIVE while
+ * adding/replacing content requires review (removal-asymmetric, matches DB guard).
+ */
+export const OWNER_REVIEW_CLEAR_IS_LIVE: ReadonlySet<string> = new Set([
+  "building_notes", "building_rules", "parking_notes",
+  "rera_registration_number", "youtube_walkthrough_url",
+]);
+
+const OWNER_LIVE_SET = new Set(OWNER_LIVE_COLUMNS);
+const OWNER_REVIEW_SET = new Set(OWNER_REVIEW_COLUMNS);
+
+/**
+ * Resolve the owner edit policy for a CANONICAL DB column. Fail-closed: anything
+ * not explicitly LIVE or REVIEW is `admin_only` (with a DEV warning), so a new/
+ * unclassified owner-writable column can never accidentally go live post-publication.
+ */
+export function getOwnerEditPolicy(dbKey: string): OwnerEditPolicy {
+  if (OWNER_LIVE_SET.has(dbKey)) return "live";
+  if (OWNER_REVIEW_SET.has(dbKey)) return "review";
+  if (import.meta.env?.DEV) {
+    // eslint-disable-next-line no-console
+    console.warn(`[owner-edit-policy] "${dbKey}" is unclassified → defaulting to admin_only (locked).`);
+  }
+  return "admin_only";
+}
+
+/**
+ * Resolve the effective policy for a multi-key DB payload (strictest wins), so a
+ * mixed patch never lets a stricter key ride along under a looser one.
+ * Precedence: admin_only > review > live.
+ */
+export function getOwnerEditPolicyForPayload(dbKeys: readonly string[]): OwnerEditPolicy {
+  let result: OwnerEditPolicy = "live";
+  for (const k of dbKeys) {
+    const p = getOwnerEditPolicy(k);
+    if (p === "admin_only") return "admin_only";
+    if (p === "review") result = "review";
+  }
+  return result;
 }

@@ -190,17 +190,17 @@ describe.each([
     await screen.findByText("Where is your property?");
     await openSection("What's inside the home?");
 
-    // Make one valid committed change (Bathrooms) so Path B's edit-request button is
-    // enabled — Path B accumulates field_changes only via updateField, and the custom
-    // editors route through patch(). Path A's button is always enabled. This isolates
-    // the invalid-draft gate as the reason submission is blocked below.
-    fireEvent.change(screen.getAllByRole("spinbutton")[0], { target: { value: "3" } });
+    // Prompt 2a: on a live listing the "Submit changes for review" button enables only on
+    // a REVIEW change (a live field like Bathrooms no longer enables it). Commit a valid
+    // custom rename first (a review addition) so the button is enabled; the draft button is
+    // always enabled. This isolates the invalid-draft gate as the reason submission is blocked.
+    const renameInput = await screen.findByDisplayValue("Legacy Sofa Custom");
+    fireEvent.change(renameInput, { target: { value: "Study Table" } });
+    fireEvent.blur(renameInput); // EditableCustomName commits a valid rename on blur → review addition
+    // Now make that custom row invalid (4 words → TOO_LONG) and leave it visible.
+    fireEvent.change(await screen.findByDisplayValue("Study Table"), { target: { value: "one two three four" } });
 
-    const customInput = await screen.findByDisplayValue("Legacy Sofa Custom");
-    // Make the existing custom row invalid (4 words → TOO_LONG) and leave it visible.
-    fireEvent.change(customInput, { target: { value: "one two three four" } });
-
-    const submitBtn = screen.getByRole("button", { name: /Submit for review/i });
+    const submitBtn = screen.getByRole("button", { name: /Submit( changes)? for review/i });
     expect(submitBtn).not.toBeDisabled();
     fireEvent.click(submitBtn);
 
@@ -217,7 +217,7 @@ describe.each([
     );
 
     // Correct the draft → the invalid-draft gate passes → saveNow is reached.
-    fireEvent.change(customInput, { target: { value: "Corner Desk" } });
+    fireEvent.change(screen.getByDisplayValue("one two three four"), { target: { value: "Corner Desk" } });
     fireEvent.click(submitBtn);
     await waitFor(() => expect(saveNowMock).toHaveBeenCalled());
   });

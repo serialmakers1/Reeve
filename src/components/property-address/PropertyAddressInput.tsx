@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useMapsLibrary } from '@vis.gl/react-google-maps';
+import { useMapsLibrary, useApiLoadingStatus, APILoadingStatus } from '@vis.gl/react-google-maps';
+import { isBuildingResult } from './buildingEligibility';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,11 @@ export function PropertyAddressInput({
   const isAdmin = mode === 'admin';
   const placesLib = useMapsLibrary('places');
   const streetViewLib = useMapsLibrary('streetView');
+  const apiStatus = useApiLoadingStatus();
+  const mapsFailed = apiStatus === APILoadingStatus.FAILED || apiStatus === APILoadingStatus.AUTH_FAILURE;
+  const mapsLoading = apiStatus === APILoadingStatus.LOADING || apiStatus === APILoadingStatus.NOT_LOADED;
+  const [notABuilding, setNotABuilding] = useState(false);
+  const lastQueryRef = useRef<string>('');
   const { toast } = useToast();
 
   const [activePath, setActivePath] = useState<ActivePath>('A');
@@ -54,9 +60,16 @@ export function PropertyAddressInput({
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Pre-populate from initialData on mount
+  // Pre-populate from initialData on mount. Hydrate whenever MEANINGFUL saved location
+  // exists — not only when place_id is set — so manual-only listings (place_id=null)
+  // reopen with their saved building/address/confirmation state.
   useEffect(() => {
-    if (initialData?.place_id) {
+    const hasSavedLocation = !!initialData && !!(
+      initialData.place_id || initialData.address_mode === 'manual' ||
+      initialData.building_name || initialData.formatted_address ||
+      initialData.city || initialData.latitude != null
+    );
+    if (hasSavedLocation && initialData) {
       setBuildingInput(initialData.building_name ?? '');
       setResolvedData(initialData);
       setPincode(initialData.pincode ?? '');
@@ -81,11 +94,20 @@ export function PropertyAddressInput({
     sessionTokenRef.current = null;
   }
 
+  const LOCATION_RESET_KEYS = new Set<keyof AddressData>([
+    'city', 'state', 'street_address', 'sublocality_1', 'district', 'formatted_address',
+    'locality', 'building_name', 'latitude', 'longitude', 'place_id',
+  ]);
   function updateResolvedField(key: keyof AddressData, value: unknown) {
     setResolvedData(prev => ({ ...prev, [key]: value }));
+    // Any location-affecting change resets confirmation (persisted false/null via the
+    // onAddressResolved effect that reads `verified`).
+    if (LOCATION_RESET_KEYS.has(key)) setVerified(false);
   }
 
   async function fetchPredictions(input: string) {
+    lastQueryRef.current = input;          // retain the typed query (auto-run when Places is ready)
+    setNotABuilding(false);
     if (!placesLib || !input.trim()) { setPredictions([]); return; }
     ensureSessionToken();
     try {
@@ -106,10 +128,20 @@ export function PropertyAddressInput({
 
   function handleBuildingChange(value: string) {
     setBuildingInput(value);
+    lastQueryRef.current = value;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!value.trim()) { setPredictions([]); setPathState('idle'); return; }
     debounceRef.current = setTimeout(() => fetchPredictions(value), 300);
   }
+
+  // Re-run the last typed query once Places becomes ready (kills the silent
+  // early-return that otherwise leaves autocomplete permanently dead).
+  useEffect(() => {
+    if (placesLib && lastQueryRef.current.trim() && predictions.length === 0) {
+      void fetchPredictions(lastQueryRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placesLib]);
 
   function handleAreaChange(value: string) {
     setAreaInput(value);
@@ -119,6 +151,14 @@ export function PropertyAddressInput({
   }
 
   async function handlePredictionSelect(suggestion: google.maps.places.AutocompleteSuggestion) {
+    // Building search (Path A) must accept genuine buildings/premises only — reject
+    // area/street/locality/postal results (Path B is the manual/area lookup).
+    if (activePath === 'A') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const types = (((suggestion.placePrediction as any).types ?? []) as string[]);
+      if (!isBuildingResult(types)) { setNotABuilding(true); setPredictions([]); return; }
+      setNotABuilding(false);
+    }
     setPredictions([]);
     setBuildingNameTouched(false);
     setMapImgError(false);
@@ -253,6 +293,22 @@ export function PropertyAddressInput({
 
   return (
     <div className="space-y-4">
+      {/* Maps loader status (reliability). Failure never deadlocks the form —
+          manual entry stays available. */}
+      {mapsLoading && (
+        <p className="text-xs text-muted-foreground animate-pulse">Loading location search…</p>
+      )}
+      {mapsFailed && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+          <p className="text-amber-800 font-medium">Location search couldn’t load.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" onClick={() => window.location.reload()}
+              className="rounded bg-white border px-3 py-1.5 text-xs min-h-[36px]">Retry</button>
+            <button type="button" onClick={() => { setActivePath('B'); setPredictions([]); }}
+              className="rounded bg-white border px-3 py-1.5 text-xs min-h-[36px]">Enter manually</button>
+          </div>
+        </div>
+      )}
       {/* Path A: Building name autocomplete */}
       {activePath === 'A' && (
         <div className="space-y-1 relative">
@@ -282,6 +338,9 @@ export function PropertyAddressInput({
                 </li>
               ))}
             </ul>
+          )}
+          {notABuilding && (
+            <p className="text-sm text-amber-600 mt-1">This looks like an area or street, not a building.</p>
           )}
         </div>
       )}
@@ -453,7 +512,7 @@ export function PropertyAddressInput({
               <Input
                 id="pincode_input"
                 value={pincode}
-                onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(e) => { setPincode(e.target.value.replace(/\D/g, '').slice(0, 6)); setVerified(false); }}
                 placeholder="6-digit pincode"
                 maxLength={6}
                 className="max-w-[180px] min-h-[44px]"
@@ -527,23 +586,31 @@ export function PropertyAddressInput({
             </div>
           )}
 
-          {/* Location verification checkbox (owner only — admin has dedicated SV section) */}
+          {/* Prominent location-confirmation card (owner only). Amber until confirmed,
+              green once confirmed + persisted. Required before submission. */}
           {!isAdmin && (
-            <div className="bg-muted rounded-md p-3 space-y-1">
-              <div className="flex items-center gap-3">
+            <div className={
+              'rounded-md border p-3 space-y-1 ' +
+              (verified ? 'border-green-300 bg-green-50' : 'border-amber-300 bg-amber-50')
+            }>
+              <p className={'text-sm font-medium ' + (verified ? 'text-green-800' : 'text-amber-900')}>
+                Confirm this property location
+              </p>
+              <p className={'text-xs ' + (verified ? 'text-green-700' : 'text-amber-800')}>
+                Check the map and address above. Make sure they point to the property you are listing.
+              </p>
+              <div className="flex items-start gap-3 pt-1">
                 <Checkbox
                   id="location_verified"
                   checked={verified}
                   onCheckedChange={(v) => setVerified(!!v)}
+                  className="mt-0.5 min-h-[20px] min-w-[20px]"
                 />
                 <Label htmlFor="location_verified" className="cursor-pointer text-sm">
-                  I have verified the location pin is correctly placed on the map
+                  I have checked and confirm this is the correct property location
                   <span className="text-destructive ml-1">*</span>
                 </Label>
               </div>
-              <p className="text-xs text-muted-foreground pl-7">
-                Tip: If the pin looks wrong, try searching with a more specific name (include block/tower name).
-              </p>
             </div>
           )}
 

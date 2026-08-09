@@ -1210,3 +1210,17 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-08-07] verification | Comment moderation end-to-end verification and integration fixes [11:34 IST]
 
 ## [2026-08-07] fix | Report-triggered auto-hide decrements PropertyDetail comment count [14:25 IST]
+
+## [2026-08-08] diagnosis | Risk-based listing edit moderation — traced edit/review architecture; found DB permits owner direct-patch bypass (status-agnostic properties_update RLS + transition trigger only blocks unlisted); price-change trigger already covers instant edits; recommend DB column-guard partition [IST]
+
+## [2026-08-08] diagnosis | Final system diagnosis (live Supabase verified) — status machine, risk-based edit moderation, photo public-leak via unguarded property_images, enforce-trigger drift (branched sale/rent deployed, not in repo), and List Property map-load bug (PropertyAddressInput lacks useApiLoadingStatus/retry; key/referrer/API-enablement must-verify) [IST]
+
+## [2026-08-08] implementation | Added Supabase safety foundation for risk-based listing edits [16:20 IST]
+
+## [2026-08-08] feat | Completed owner risk-based listing editing and location integration [21:45 IST]
+
+## [2026-08-08] fix | Completed per-field live-save status UX and Prompt 2 verification [22:35 IST]
+
+## [2026-08-09] feat | Completed admin review and connected surfaces for risk-based listing edits [01:05 IST]
+
+## [2026-08-09] test | Prompt 4 E2E verification: fixed MyPropertyDetail edit_pending_review gates + PropertyEdit conflict live-value reset; fixed+deployed approve_edit_request dedupe + NULL-safe stale-check migrations; fixed property-fields spec (furnishing requiredOwner + editableBy/audiences gaps); real RLS + rent/sale price history verified; zero new TS errors [11:10 IST]

@@ -33,3 +33,18 @@ export async function ensurePrimaryPhoto(propertyId: string, uploadedImageId: st
     .update({ is_primary: true })
     .eq("id", uploadedImageId);
 }
+
+/**
+ * Set the cover photo on a LIVE listing (Prompt 2 / Prompt-1 contract). The DB blocks
+ * direct is_primary flips on listed/edit_pending_review; the transactional RPC
+ * `set_primary_property_photo` self-authorizes, keeps exactly one primary, and is the
+ * only valid path. Use this on live listings; `ensurePrimaryPhoto` remains for draft.
+ * Throws on failure so the caller can surface an error + not update local state.
+ */
+export async function setPrimaryPhotoViaRpc(imageId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).rpc("set_primary_property_photo", {
+    p_image_id: imageId,
+  });
+  if (error) throw new Error(error.message ?? "Could not set cover photo");
+}

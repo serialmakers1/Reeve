@@ -200,8 +200,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // F.5) Ownership check — caller must be admin OR the property's owner.
-    // Mirrors the pattern in delete-property-image (Phase 1 Commons hardening).
+    // F.5) Ownership + status resolution. Service role is used ONLY for these trusted
+    // lookups; the DB mutation (direct insert) runs with the CALLER's JWT so RLS +
+    // the property_images guard see the real auth.uid()/is_admin() (M5).
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const srHeaders = {
       "apikey": serviceRoleKey,
@@ -217,49 +218,45 @@ Deno.serve(async (req: Request) => {
     const userRole: string = roleRows?.[0]?.role ?? "";
     const isAdmin = userRole === "admin" || userRole === "super_admin";
 
-    if (!isAdmin) {
-      const propRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/properties?id=eq.${propertyIdStr}&select=owner_id`,
-        { headers: srHeaders },
-      );
-      const propRows = await propRes.json();
-      const ownerId: string = propRows?.[0]?.owner_id ?? "";
-      if (ownerId !== userId) {
-        return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
-          status: 403,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        });
-      }
+    const propRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/properties?id=eq.${propertyIdStr}&select=owner_id,status`,
+      { headers: srHeaders },
+    );
+    const propRows = await propRes.json();
+    const propRow = propRows?.[0];
+    if (!propRow) {
+      return new Response(JSON.stringify({ success: false, error: "Property not found" }), {
+        status: 404,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+    const ownerId: string = propRow.owner_id ?? "";
+    const propStatus: string = propRow.status ?? "";
+    if (!isAdmin && ownerId !== userId) {
+      return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
+        status: 403,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
     }
 
-    // F.6) If routing into a pending edit request, verify it exists and is pending.
-    // Ownership is transitive via the property (checked above).
-    if (pendingEditRequestId) {
-      const editRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/property_edit_requests?id=eq.${pendingEditRequestId}&select=status,property_id`,
-        { headers: srHeaders },
+    // Resolve upload mode by status (M5, decision 2):
+    //   admin OR draft/changes_requested → direct insert (initial-listing flow)
+    //   owner + listed/edit_pending_review → STAGED (storage-only; no row, no status change)
+    //   owner + pending_review/unlisted/archived → frozen (reject)
+    // pending_edit_request_id is intentionally ignored — uploads never mutate an edit request;
+    // staged photos are attached to photo_changes.add only at explicit Submit.
+    let mode: "direct" | "staged";
+    if (isAdmin || propStatus === "draft" || propStatus === "changes_requested") {
+      mode = "direct";
+    } else if (propStatus === "listed" || propStatus === "edit_pending_review") {
+      mode = "staged";
+    } else {
+      return new Response(
+        JSON.stringify({ success: false, error: `Photo uploads are not allowed while the listing is ${propStatus}` }),
+        { status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
       );
-      const editRows = await editRes.json();
-      const editRow = editRows?.[0];
-      if (!editRow) {
-        return new Response(JSON.stringify({ success: false, error: "Pending edit not found" }), {
-          status: 404,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        });
-      }
-      if (editRow.status !== "pending") {
-        return new Response(JSON.stringify({ success: false, error: "Edit request is no longer pending" }), {
-          status: 409,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        });
-      }
-      if (editRow.property_id !== propertyIdStr) {
-        return new Response(JSON.stringify({ success: false, error: "Edit request does not match property" }), {
-          status: 400,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        });
-      }
     }
+    void pendingEditRequestId;
 
     // G) Validate file type
     const file = fileField as File;
@@ -316,64 +313,31 @@ Deno.serve(async (req: Request) => {
     // K) Build public URL
     const publicUrl = `${R2_PUBLIC_URL}/${filePath}`;
 
-    // L) Branch: pending-edit path vs direct-insert path.
-    if (pendingEditRequestId) {
-      // Merge the URL into property_edit_requests.payload.photo_changes.add[].
-      // Fetch current payload, append, PATCH back.
-      const cur = await fetch(
-        `${SUPABASE_URL}/rest/v1/property_edit_requests?id=eq.${pendingEditRequestId}&select=payload`,
-        { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
-      );
-      const curRows = await cur.json();
-      const payload = curRows?.[0]?.payload ?? {};
-      const photoChanges = payload.photo_changes ?? {};
-      const add = Array.isArray(photoChanges.add) ? photoChanges.add : [];
-      const tempId = crypto.randomUUID();
-      add.push({
-        temp_id: tempId,
-        url: publicUrl,
-        section: section || null,
-        caption: null,
-        is_primary: false,
-        is_floor_plan: isFloorPlan,
-        sort_order: 0,
-      });
-      const newPayload = {
-        ...payload,
-        photo_changes: { ...photoChanges, add },
-      };
-
-      const patchRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/property_edit_requests?id=eq.${pendingEditRequestId}`,
-        {
-          method: "PATCH",
-          headers: {
-            apikey: serviceRoleKey,
-            Authorization: `Bearer ${serviceRoleKey}`,
-            "Content-Type": "application/json",
-            Prefer: "return=minimal",
-          },
-          body: JSON.stringify({ payload: newPayload }),
-        },
-      );
-      if (!patchRes.ok) {
-        return new Response(JSON.stringify({ success: false, error: "Failed to update pending edit" }), {
-          status: 500,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        });
-      }
+    // L) Staged mode: return the R2 reference only. No DB row, no status change.
+    // The frontend holds this in pending-edit state; submit_property_edit_request
+    // attaches it to photo_changes.add on explicit Submit. The property_images guard
+    // is defense-in-depth so a raw insert still cannot expose an unreviewed photo.
+    if (mode === "staged") {
       return new Response(
-        JSON.stringify({ success: true, url: publicUrl, id: tempId, pending: true }),
+        JSON.stringify({
+          success: true,
+          staged: true,
+          url: publicUrl,
+          section: section || null,
+          is_floor_plan: isFloorPlan,
+        }),
         { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
       );
     }
 
-    // Direct-insert path (unchanged from Prompt 1).
+    // Direct-insert path (draft/changes_requested owner, or admin) — CALLER JWT so
+    // RLS + is_admin() apply correctly (M5/F1). Never service_role for the mutation.
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/property_images`, {
       method: "POST",
       headers: {
-        "apikey": serviceRoleKey,
-        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": anonKey,
+        "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json",
         "Prefer": "return=representation",
       },
@@ -391,7 +355,8 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!insertRes.ok) {
-      return new Response(JSON.stringify({ success: false, error: "DB insert failed" }), {
+      const detail = await insertRes.text();
+      return new Response(JSON.stringify({ success: false, error: "DB insert failed", detail }), {
         status: 500,
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });

@@ -158,114 +158,160 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // E) Parse JSON body
+    // E) Parse JSON body. Two modes:
+    //    normal delete  → { image_id, property_id }
+    //    staged delete  → { staged_url, property_id }  (removes an abandoned R2 object)
     const body = await req.json();
     const imageId: string = body?.image_id ?? "";
     const propertyId: string = body?.property_id ?? "";
+    const stagedUrl: string = body?.staged_url ? String(body.staged_url) : "";
 
-    if (!UUID_REGEX.test(imageId) || !UUID_REGEX.test(propertyId)) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid image_id or property_id" }),
-        { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
-      );
+    if (!UUID_REGEX.test(propertyId)) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid property_id" }), {
+        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
     }
 
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const srHeaders = {
       "apikey": serviceRoleKey,
       "Authorization": `Bearer ${serviceRoleKey}`,
       "Content-Type": "application/json",
     };
+    // Caller-JWT headers — DB mutations run as the real user (M5/F1).
+    const callerHeaders = {
+      "apikey": anonKey,
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
 
-    // F) Fetch image row
-    const imageRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/property_images?id=eq.${imageId}&select=*`,
-      { headers: srHeaders },
-    );
-    const imageRows = await imageRes.json();
-    if (!Array.isArray(imageRows) || imageRows.length === 0) {
-      return new Response(JSON.stringify({ success: false, error: "Image not found" }), {
-        status: 404,
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
-    }
-    const imageRow = imageRows[0];
-
-    // G) Check authorization — fetch user role
-    const roleRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=role`,
-      { headers: srHeaders },
-    );
+    // Role + property (owner_id, status) via trusted lookup only.
+    const roleRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=role`, { headers: srHeaders });
     const roleRows = await roleRes.json();
     const userRole: string = roleRows?.[0]?.role ?? "";
     const isAdmin = userRole === "admin" || userRole === "super_admin";
 
-    if (!isAdmin) {
-      const propRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/properties?id=eq.${propertyId}&select=owner_id`,
-        { headers: srHeaders },
-      );
-      const propRows = await propRes.json();
-      const ownerId: string = propRows?.[0]?.owner_id ?? "";
-      const isOwner = ownerId === userId;
+    const propRes = await fetch(`${SUPABASE_URL}/rest/v1/properties?id=eq.${propertyId}&select=owner_id,status`, { headers: srHeaders });
+    const propRows = await propRes.json();
+    const propRow = propRows?.[0];
+    if (!propRow) {
+      return new Response(JSON.stringify({ success: false, error: "Property not found" }), {
+        status: 404, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+    const ownerId: string = propRow.owner_id ?? "";
+    const propStatus: string = propRow.status ?? "";
+    if (!isAdmin && ownerId !== userId) {
+      return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
+        status: 403, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
 
-      if (!isOwner) {
-        return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
-          status: 403,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    // ── Staged-delete mode: remove an abandoned R2 object (never a live row). ──
+    if (stagedUrl) {
+      const propPrefix = `${R2_PUBLIC_URL}/properties/${propertyId}/`;
+      if (!stagedUrl.startsWith(propPrefix)) {
+        return new Response(JSON.stringify({ success: false, error: "URL is not under this property's storage path" }), {
+          status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         });
       }
-    }
-
-    // H) Get R2 object key from stored URL
-    const storedUrl: string = imageRow.url ?? "";
-    const objectKey = storedUrl.replace(`${R2_PUBLIC_URL}/`, "");
-
-    // I) DELETE from R2 using SigV4 (empty body, hash of empty string)
-    const emptyBuffer = new ArrayBuffer(0);
-    const { url: r2Url, headers: r2Headers } = await signR2Request(
-      "DELETE",
-      objectKey,
-      emptyBuffer,
-    );
-
-    await fetch(r2Url, {
-      method: "DELETE",
-      headers: r2Headers,
-    });
-
-    // J) DELETE from property_images
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/property_images?id=eq.${imageId}`,
-      { method: "DELETE", headers: srHeaders },
-    );
-
-    // J.5) Cover-photo invariant: if the deleted image was the primary and other
-    // images remain, promote one (lowest sort_order, then oldest) to primary.
-    // If none remain, the property is left with no primary. Enforced here (server
-    // side) so the invariant does not depend on any single React page.
-    let newPrimaryId: string | null = null;
-    if (imageRow.is_primary) {
-      const remainRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/property_images?property_id=eq.${propertyId}&select=id&order=sort_order.asc,created_at.asc&limit=1`,
+      // Must not correspond to a live property_images row.
+      const liveRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/property_images?url=eq.${encodeURIComponent(stagedUrl)}&select=id`,
         { headers: srHeaders },
       );
-      const remainRows = await remainRes.json();
-      const candidateId: string | null =
-        Array.isArray(remainRows) && remainRows[0]?.id ? remainRows[0].id : null;
-      if (candidateId) {
-        await fetch(
-          `${SUPABASE_URL}/rest/v1/property_images?id=eq.${candidateId}`,
-          { method: "PATCH", headers: srHeaders, body: JSON.stringify({ is_primary: true }) },
+      const liveRows = await liveRes.json();
+      if (Array.isArray(liveRows) && liveRows.length > 0) {
+        return new Response(JSON.stringify({ success: false, error: "That photo is a live image, not a staged object" }), {
+          status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      // Must not be referenced by a still-pending edit request for this property.
+      const perRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/property_edit_requests?property_id=eq.${propertyId}&status=eq.pending&select=payload`,
+        { headers: srHeaders },
+      );
+      const perRows = await perRes.json();
+      const referenced = Array.isArray(perRows) && perRows.some((r: { payload?: { photo_changes?: { add?: Array<{ url?: string }> } } }) =>
+        (r?.payload?.photo_changes?.add ?? []).some((a) => a?.url === stagedUrl));
+      if (referenced) {
+        return new Response(JSON.stringify({ success: false, error: "Photo is referenced by a pending review; resolve it first" }), {
+          status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      const objectKey = stagedUrl.replace(`${R2_PUBLIC_URL}/`, "");
+      const { url: sr2Url, headers: sr2Headers } = await signR2Request("DELETE", objectKey, new ArrayBuffer(0));
+      await fetch(sr2Url, { method: "DELETE", headers: sr2Headers });
+      return new Response(JSON.stringify({ success: true, staged: true }), {
+        status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Normal image delete ──
+    if (!UUID_REGEX.test(imageId)) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid image_id" }), {
+        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+    const imageRes = await fetch(`${SUPABASE_URL}/rest/v1/property_images?id=eq.${imageId}&select=*`, { headers: srHeaders });
+    const imageRows = await imageRes.json();
+    if (!Array.isArray(imageRows) || imageRows.length === 0) {
+      return new Response(JSON.stringify({ success: false, error: "Image not found" }), {
+        status: 404, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+    const imageRow = imageRows[0];
+
+    if (!isAdmin && ["pending_review", "unlisted", "archived"].includes(propStatus)) {
+      return new Response(JSON.stringify({ success: false, error: `Photos are frozen while the listing is ${propStatus}` }), {
+        status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+
+    let newPrimaryId: string | null = null;
+
+    if (isAdmin || ["listed", "edit_pending_review"].includes(propStatus)) {
+      // Live listing (or admin): transactional RPC — enforces min-3 (owner) + atomic
+      // cover promotion. DB deletion happens inside the RPC (before R2 cleanup below).
+      const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/delete_property_photo`, {
+        method: "POST", headers: callerHeaders, body: JSON.stringify({ p_image_id: imageId }),
+      });
+      if (!rpcRes.ok) {
+        const detail = await rpcRes.text();
+        return new Response(JSON.stringify({ success: false, error: "Delete blocked", detail }), {
+          status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      // draft / changes_requested: direct delete via caller JWT (trigger permits), then
+      // reassign the cover if the deleted image was primary.
+      await fetch(`${SUPABASE_URL}/rest/v1/property_images?id=eq.${imageId}`, { method: "DELETE", headers: callerHeaders });
+      if (imageRow.is_primary) {
+        const remainRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/property_images?property_id=eq.${propertyId}&select=id&order=sort_order.asc,created_at.asc&limit=1`,
+          { headers: srHeaders },
         );
-        newPrimaryId = candidateId;
+        const remainRows = await remainRes.json();
+        const candidateId: string | null = Array.isArray(remainRows) && remainRows[0]?.id ? remainRows[0].id : null;
+        if (candidateId) {
+          await fetch(`${SUPABASE_URL}/rest/v1/property_images?id=eq.${candidateId}`, {
+            method: "PATCH", headers: callerHeaders, body: JSON.stringify({ is_primary: true }),
+          });
+          newPrimaryId = candidateId;
+        }
       }
     }
 
-    // K) Return success (new_primary_id lets the UI reconcile the promotion)
+    // R2 cleanup AFTER the DB deletion (orphan file is safer than a dangling row).
+    const objectKey = (imageRow.url ?? "").replace(`${R2_PUBLIC_URL}/`, "");
+    if (objectKey) {
+      const { url: r2Url, headers: r2Headers } = await signR2Request("DELETE", objectKey, new ArrayBuffer(0));
+      await fetch(r2Url, { method: "DELETE", headers: r2Headers });
+    }
+
     return new Response(JSON.stringify({ success: true, new_primary_id: newPrimaryId }), {
-      status: 200,
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   } catch (err) {
     // L) Catch-all
