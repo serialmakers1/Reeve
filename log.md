@@ -1,3 +1,5 @@
+## [2026-08-12] fix | Final Property Services page visual polish [19:34 IST]
+
 ## [2026-08-11] feat | Added Section 6 Enquiry to Property Services Bangalore — 3-step wizard, Cloudflare Turnstile, Vercel Edge Function, Supabase migration, sticky mobile CTA [build clean, 0 new TS errors]
 
 ## [2026-08-11] feat | Added Section 5 FAQs to Property Services Bangalore — native details/summary, group-open: chevron rotate, flat #F4F4FF bg, no JS state [23:15 IST]
