@@ -17,6 +17,8 @@ function titleCaseCity(city: string): string {
 interface HeadingArgs {
   mode: SearchMode | null;
   city: string | null;
+  /** Preferred multi-city label ("Bengaluru" / "Bengaluru +1"); wins over `city`. */
+  citiesLabel?: string | null;
   propertyTypes: readonly string[];
 }
 
@@ -30,10 +32,12 @@ interface HeadingArgs {
  *  - 3+ types           → falls back to the generic 0-types heading (avoids awkward lists)
  * Never emits "sale" into any public URL — this only affects display text.
  */
-export function formatSearchHeading({ mode, city, propertyTypes }: HeadingArgs): string {
+export function formatSearchHeading({ mode, city, citiesLabel, propertyTypes }: HeadingArgs): string {
   if (!mode) return "Search Properties";
 
-  const inCity = city ? ` in ${titleCaseCity(city)}` : "";
+  // Multi-city label wins (already display-cased); else the legacy single city.
+  const locationLabel = citiesLabel ?? (city ? titleCaseCity(city) : null);
+  const inCity = locationLabel ? ` in ${locationLabel}` : "";
   const action = mode === "buy" ? "for Sale" : "for Rent";
   const generic = mode === "buy" ? "Properties for Sale" : "Rental Properties";
 

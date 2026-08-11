@@ -21,11 +21,19 @@ export const MAP_MARKERS_LIMIT = 200;
  * - amenities: AND (must have all)
  * - All arrays are deduplicated and valid-value-filtered before being sent
  */
+/** Canonical geo anchor sent to the v2 search RPCs (Prompt 3).
+ *  placeId → canonical association match; lat/lng → distance/safety-net anchor. */
+export interface GeoAnchor {
+  placeId: string;
+  lat: number;
+  lng: number;
+}
+
 export interface SearchPropertiesInput {
   mode: SearchMode;
-  city: string | null;               // normalized lowercase city identifier; null = no city filter (nationwide)
-  locationIds: string[];             // legacy placeId list (kept for RPC compat; sent as [])
-  areaBoxes: { swLat: number; swLng: number; neLat: number; neLng: number }[]; // geographic Area filter (OR)
+  cityAnchors: GeoAnchor[];          // selected cities; [] = no city filter (nationwide)
+  areaAnchors: GeoAnchor[];          // selected areas/roads; [] = no area filter
+  distanceKm: number | null;         // explicit radius; null = Auto (association + safety-net)
   propertyTypes: string[]; // multi-select; sent to the RPC as a deterministic CSV string ('' filter cleared)
 
   // Price

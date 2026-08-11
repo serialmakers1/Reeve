@@ -13,7 +13,7 @@ import {
 import { confirmSelection, emptyHistory } from "../state/searchLocationHistory";
 
 function area(id: string): LocationToken {
-  return { id, label: id, type: "area", cityId: null, placeId: id, viewport: null };
+  return { id, label: id, type: "area", cityId: null, placeId: id, lat: null, lng: null, viewport: null };
 }
 
 beforeEach(() => {

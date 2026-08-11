@@ -1,4 +1,4 @@
-import type { LocationToken } from "../domain/searchTypes";
+import type { LocationToken, CityToken } from "../domain/searchTypes";
 import type { SearchMode } from "../domain/searchMode";
 import {
   type SearchLocationHistory,
@@ -25,6 +25,7 @@ export type LocationSource = "url" | "memory" | "ip_unconfirmed" | "user";
 
 export interface ConfirmedSearchSetup {
   city: string;
+  cityToken?: CityToken;
   areas: LocationToken[];
   mode: SearchMode;
   propertyTypes: string[];
@@ -80,10 +81,10 @@ export async function confirmSearchSetup(args: {
   setup: ConfirmedSearchSetup;
 }): Promise<SearchLocationHistory> {
   const { userId, setup } = args;
-  const { city, areas, mode, propertyTypes } = setup;
+  const { city, cityToken, areas, mode, propertyTypes } = setup;
 
   if (!userId) {
-    const next = confirmSelection(readAnonHistory(), city, areas, mode, propertyTypes);
+    const next = confirmSelection(readAnonHistory(), city, areas, mode, propertyTypes, Date.now(), cityToken);
     writeAnonHistory(next);
     writePendingConfirm(city, areas, mode, propertyTypes);
     return next;
@@ -94,7 +95,7 @@ export async function confirmSearchSetup(args: {
     history: emptyHistory(),
     serverUpdatedAt: null,
   };
-  const next = confirmSelection(cache.history, city, areas, mode, propertyTypes);
+  const next = confirmSelection(cache.history, city, areas, mode, propertyTypes, Date.now(), cityToken);
   // Optimistic + synchronously ordered cache update.
   writeAccountCache(userId, { version: 1, history: next, serverUpdatedAt: cache.serverUpdatedAt });
   void queueServerSave(userId, next);

@@ -1,5 +1,5 @@
 import { parseSearchMode } from "../domain/searchMode";
-import type { SearchState, SearchCursor, RentFilters, BuyFilters, LocationToken, MapBounds, BhkValue, FurnishingValue, ParkingValue, PossessionValue, PetPolicyValue, KhataValue } from "../domain/searchTypes";
+import type { SearchState, SearchCursor, RentFilters, BuyFilters, LocationToken, CityToken, MapBounds, BhkValue, FurnishingValue, ParkingValue, PossessionValue, PetPolicyValue, KhataValue } from "../domain/searchTypes";
 import {
   BHK_VALUES,
   FURNISHING_VALUES,
@@ -14,12 +14,15 @@ import {
   DEFAULT_VIEW,
 
   MAX_SELECTED_LOCATIONS,
+  MAX_SELECTED_CITIES,
+  DISTANCE_OPTIONS_KM,
   URL_PARAMS,
 } from "../domain/searchConstants";
 import { getDefaultSearchState } from "../domain/searchDefaults";
 import { SEARCH_MAP_ENABLED } from "../domain/searchFeatureFlags";
 import { normalizePropertyTypes } from "../domain/propertyTypes";
-import { validateLocationToken } from "./locationTokenValidation";
+import { validateLocationToken, validateCityToken } from "./locationTokenValidation";
+import { pruneOrphanAreas } from "./searchStateUtils";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +82,35 @@ function decodeLocationsData(raw: string | null): LocationToken[] {
       if (!token) continue;
       if (seen.has(token.id)) continue;
       seen.add(token.id);
+      result.push(token);
+    }
+    return result;
+  } catch {
+    return [];
+  }
+}
+
+/** Decode the base64 `cities_data` envelope into validated CityTokens. */
+function decodeCitiesData(raw: string | null): CityToken[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(atob(raw));
+    if (
+      typeof parsed !== "object" || parsed === null ||
+      (parsed as Record<string, unknown>).v !== 1 ||
+      !Array.isArray((parsed as Record<string, unknown>).items)
+    ) {
+      return [];
+    }
+    const items = (parsed as SerializedLocationsPayloadV1).items;
+    const seen = new Set<string>();
+    const result: CityToken[] = [];
+    for (const item of items.slice(0, MAX_SELECTED_CITIES)) {
+      if (result.length >= MAX_SELECTED_CITIES) break;
+      const token = validateCityToken(item);
+      if (!token) continue;
+      if (seen.has(token.placeId)) continue;
+      seen.add(token.placeId);
       result.push(token);
     }
     return result;
@@ -155,16 +187,33 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
   const defaults = getDefaultSearchState(mode);
 
   // ── Context ──
+  // Cities (canonical Place anchors) are the source of truth. The legacy `city`
+  // string is derived from the first city for display; a bare ?city= (no
+  // cities_data) still yields a display label but no anchor (nationwide).
+  const cities = decodeCitiesData(params.get(P.citiesData));
   const rawCity = params.get(P.city);
-  const city = rawCity ? rawCity.trim().toLowerCase() || null : null;
+  const city = cities.length > 0
+    ? cities[0].label.trim().toLowerCase() || null
+    : rawCity ? rawCity.trim().toLowerCase() || null : null;
 
   const locationIds = splitComma(params.get(P.locations));
   const allTokens = decodeLocationsData(params.get(P.locationsData));
   const tokenMap = new Map(allTokens.map((t) => [t.id, t]));
-  const locations: LocationToken[] = locationIds
+  const rawLocations: LocationToken[] = locationIds
     .map((id) => tokenMap.get(id))
     .filter((t): t is LocationToken => t !== undefined)
     .slice(0, MAX_SELECTED_LOCATIONS);
+  // Ownership invariant: every area/road token must belong to a selected city.
+  // Orphans (parent city removed / stale URL) are dropped at the single hydration
+  // point so no hidden area can influence Search or count as a distance anchor.
+  const locations = pruneOrphanAreas(cities, rawLocations);
+
+  // ── Distance ── (validated against the option set; then normalized to Auto when
+  // there is no usable geographic anchor — an explicit distance is inert without one)
+  const distOpts = DISTANCE_OPTIONS_KM as readonly number[];
+  const rawDist = parseFloat_(params.get(P.distanceKm));
+  const hasAnchor = cities.length > 0 || locations.length > 0;
+  const distanceKm = hasAnchor && rawDist !== null && distOpts.includes(rawDist) ? rawDist : null;
 
   // Multi-select property types. Accepts legacy single value (?pt=villa) and
   // comma-joined (?pt=apartment,duplex_apartment); normalized to valid/dedup/ordered.
@@ -339,12 +388,13 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
   void defaults; // defaults used for mode-gated fallback above
 
   return {
-    context: { mode, city, locations, propertyTypes },
+    context: { mode, city, cities, locations, propertyTypes },
     filters,
     sort,
     view,
     cursor,
     mapBounds,
     selectedPropertyId,
+    distanceKm,
   };
 }

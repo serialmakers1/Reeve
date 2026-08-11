@@ -16,7 +16,7 @@ export function getDefaultBuyFilters(): BuyFilters {
 }
 
 export function getDefaultSearchContext(): SearchContext {
-  return { mode: null, city: null, locations: [], propertyTypes: [] };
+  return { mode: null, city: null, cities: [], locations: [], propertyTypes: [] };
 }
 
 export function getDefaultSearchState(mode: SearchMode | null): SearchState {
@@ -28,5 +28,6 @@ export function getDefaultSearchState(mode: SearchMode | null): SearchState {
     cursor: null,
     mapBounds: null,
     selectedPropertyId: null,
+    distanceKm: null,
   };
 }

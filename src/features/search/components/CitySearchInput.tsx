@@ -13,11 +13,13 @@ type Viewport = { low: { lat: number; lng: number }; high: { lat: number; lng: n
 
 interface CitySearchInputProps {
   displayValue: string;
+  /** Fired ONLY for a fully-resolved Google city (placeId + real center + viewport). */
   onCitySelected: (
     city: string,
     displayValue: string,
-    placeId: string | null,
-    viewport: Viewport | null,
+    placeId: string,
+    center: { lat: number; lng: number },
+    viewport: Viewport,
   ) => void;
   showManualFallback: boolean;
   onToggleManualFallback: () => void;
@@ -40,6 +42,8 @@ export function CitySearchInput({
   const [open, setOpen] = useState(false);
   const [manualInput, setManualInput] = useState("");
   const [resolving, setResolving] = useState(false);
+  // Neutral guidance shown when a typed/unresolved entry can't become a city filter.
+  const [guidance, setGuidance] = useState<string | null>(null);
 
   // Reset active index when suggestion list changes
   useEffect(() => { setActiveIndex(-1); }, [suggestions]);
@@ -57,8 +61,11 @@ export function CitySearchInput({
     setInputText(displayValue);
   }
 
+  const SELECT_GUIDANCE = "Select a city from the suggestions.";
+
   function handleInputChange(val: string) {
     setInputText(val);
+    setGuidance(null);
     if (val.trim()) {
       setOpen(true);
       fetchSuggestions(val, { includedPrimaryTypes: ["locality", "administrative_area_level_3"] });
@@ -80,6 +87,7 @@ export function CitySearchInput({
       const displayNameStr =
         typeof rawDisplayName === "string" ? rawDisplayName : rawDisplayName?.text;
       const city = (displayNameStr ?? inputText).toLowerCase();
+      const placeId = (place as any).id ?? null;
       const vp = (place as any).viewport;
       const viewport: Viewport | null = vp
         ? {
@@ -87,25 +95,39 @@ export function CitySearchInput({
             high: { lat: vp.getNorthEast().lat(), lng: vp.getNorthEast().lng() },
           }
         : null;
+      const loc = (place as any).location;
+      const clat = typeof loc?.lat === "function" ? loc.lat() : undefined;
+      const clng = typeof loc?.lng === "function" ? loc.lng() : undefined;
+      const center =
+        Number.isFinite(clat) && Number.isFinite(clng) ? { lat: clat as number, lng: clng as number } : null;
+      // A canonical city REQUIRES placeId + real center + viewport — never manufacture
+      // a center from the viewport midpoint. Missing any → not addable.
+      if (!placeId || !center || !viewport) {
+        setGuidance(SELECT_GUIDANCE);
+        return;
+      }
       // Full prediction text (e.g. "Bangalore, Karnataka, India") for the input display.
       const displayLabel = suggestion.placePrediction.text?.text ?? displayNameStr ?? inputText;
-      setInputText(displayLabel);
+      // Clear the field after a successful add so the next city can be typed.
+      setInputText("");
       setOpen(false);
       clearSuggestions();
-      onCitySelected(city, displayLabel, (place as any).id ?? null, viewport);
+      setGuidance(null);
+      onCitySelected(city, displayLabel, placeId, center, viewport);
     } catch {
-      // resolvePlace failed — fall through to manual
+      setGuidance(SELECT_GUIDANCE);
     } finally {
       setResolving(false);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }
 
+  // A typed value that was never resolved to a Google Place cannot become a city
+  // filter (no anchor). Guide the user to pick a suggestion instead of silently
+  // searching nationwide.
   function handleManualCommit() {
-    const city = manualInput.trim().toLowerCase();
-    if (!city) return;
-    onCitySelected(city, manualInput.trim(), null, null);
-    setManualInput("");
+    if (!manualInput.trim()) return;
+    setGuidance(SELECT_GUIDANCE);
   }
 
   return (
@@ -183,6 +205,9 @@ export function CitySearchInput({
       )}
       {error && (
         <p className="text-xs text-destructive">Places search unavailable — enter city manually.</p>
+      )}
+      {guidance && !error && (
+        <p className="text-xs text-muted-foreground">{guidance}</p>
       )}
 
       {/* Always-visible controls */}

@@ -42,8 +42,9 @@ export function shouldRecoverAreas(
 function computeSearchKey(state: ReturnType<typeof useSearchState>["state"]): string {
   return JSON.stringify({
     mode: state.context.mode,
-    city: state.context.city,
+    cities: state.context.cities.map((c) => c.placeId),
     locationIds: state.context.locations.map((l) => l.id),
+    distanceKm: state.distanceKm,
     propertyTypes: state.context.propertyTypes,
     sort: state.sort,
     filters: state.filters,
@@ -75,6 +76,8 @@ export interface AreaFallback {
 
 export interface UseSearchResultsReturn {
   results: SearchPropertyResult[];
+  /** Exact total over the filtered pre-cursor relation (Prompt 3 v2). */
+  totalCount: number;
   hasNextPage: boolean;
   nextCursor: SearchCursor | null;
   isInitialLoading: boolean;
@@ -94,12 +97,12 @@ export function useSearchResults(): UseSearchResultsReturn {
 
   const searchKey = useMemo(() => computeSearchKey(state), [state]);
   const input = useMemo(() => buildSearchInput(state), [state]);
-  // Area boxes are not part of computeSearchKey; include them so hydration → refetch.
-  const areaBoxesKey = useMemo(() => JSON.stringify(input?.areaBoxes ?? []), [input]);
-  // Gating: areas selected but viewports not yet hydrated → hold the query (loading),
-  // never fire it without the area (which would masquerade as a broader search).
-  const gatingAreas =
-    hasValidContext && state.context.locations.length > 0 && !areaViewportsReady && !areaViewportsError;
+  // Area anchors carry their own Place coordinates (captured at selection), so the
+  // results query no longer waits on viewport hydration. Viewport hydration remains
+  // only for area-autocomplete scoping. Key on anchors so a late-hydrated anchor refetches.
+  const areaAnchorsKey = useMemo(() => JSON.stringify(input?.areaAnchors ?? []), [input]);
+  void areaViewportsReady;
+  const gatingAreas = false;
 
   // Accumulated pages across load-more calls for the same searchKey
   const [accumulated, setAccumulated] = useState<PageAccumulation>({
@@ -109,8 +112,8 @@ export function useSearchResults(): UseSearchResultsReturn {
 
   const query = useQuery<SearchPropertiesResult, Error>({
     // Include cursorKey so each "load more" fires a new query
-    queryKey: ["searchResults", searchKey, areaBoxesKey, cursorKey(state.cursor)],
-    enabled: hasValidContext && input !== null && areaViewportsReady,
+    queryKey: ["searchResults", searchKey, areaAnchorsKey, cursorKey(state.cursor)],
+    enabled: hasValidContext && input !== null,
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
     queryFn: async (): Promise<SearchPropertiesResult> => {
@@ -168,6 +171,23 @@ export function useSearchResults(): UseSearchResultsReturn {
     if (nextCursor) setCursor(nextCursor);
   }, [query.data?.nextCursor, setCursor]);
 
+  // Stale-cursor recovery: a cursor page that comes back empty while the true
+  // total is > 0 means the bookmarked/deep cursor no longer resolves — clear it
+  // and fall back to page 1 (once; total_count guards against a genuine empty set).
+  useEffect(() => {
+    if (
+      query.isSuccess &&
+      state.cursor !== null &&
+      (query.data?.results.length ?? 0) === 0 &&
+      (query.data?.totalCount ?? 0) > 0
+    ) {
+      setCursor(null);
+    }
+  }, [query.isSuccess, query.data, state.cursor, setCursor]);
+
+  // True total over the filtered pre-cursor relation (exact; independent of page).
+  const totalCount = query.data?.totalCount ?? results.length;
+
   // ── Area → city fallback recovery ──────────────────────────────────────────
   // Trigger ONLY when the primary query genuinely succeeded with zero rows AND
   // areas are selected. Never on loading/error (those surface as-is).
@@ -178,8 +198,8 @@ export function useSearchResults(): UseSearchResultsReturn {
   );
 
   const recoveryInput = useMemo(
-    // City-wide recovery clears BOTH area filters (boxes + legacy ids); all else preserved.
-    () => (input ? { ...input, areaBoxes: [], locationIds: [], cursor: null } : null),
+    // City-wide recovery clears the area anchors; city anchors + all else preserved.
+    () => (input ? { ...input, areaAnchors: [], cursor: null } : null),
     [input],
   );
 
@@ -218,6 +238,7 @@ export function useSearchResults(): UseSearchResultsReturn {
 
   return {
     results,
+    totalCount,
     hasNextPage: query.data?.hasNextPage ?? false,
     nextCursor: query.data?.nextCursor ?? null,
     isInitialLoading,

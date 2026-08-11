@@ -4,6 +4,7 @@ import {
   DEFAULT_SORT,
   DEFAULT_VIEW,
   MAX_SELECTED_LOCATIONS,
+  MAX_SELECTED_CITIES,
   URL_PARAMS,
 } from "../domain/searchConstants";
 import type { SerializedLocationsPayloadV1 } from "./parseSearchUrl";
@@ -20,7 +21,22 @@ function encodeLocationsData(tokens: SearchState["context"]["locations"]): strin
       type: t.type,
       cityId: t.cityId,
       placeId: t.placeId,
+      ...(t.lat !== null && t.lng !== null ? { lat: t.lat, lng: t.lng } : {}),
       ...(t.viewport ? { viewport: t.viewport } : {}),
+    })),
+  };
+  return btoa(JSON.stringify(payload));
+}
+
+function encodeCitiesData(cities: SearchState["context"]["cities"]): string {
+  const payload: SerializedLocationsPayloadV1 = {
+    v: 1,
+    items: cities.slice(0, MAX_SELECTED_CITIES).map((c) => ({
+      placeId: c.placeId,
+      label: c.label,
+      lat: c.lat,
+      lng: c.lng,
+      ...(c.viewport ? { viewport: c.viewport } : {}),
     })),
   };
   return btoa(JSON.stringify(payload));
@@ -74,6 +90,17 @@ export function serializeSearchState(state: SearchState): URLSearchParams {
 
   // ── Context ──
   if (context.city) params.set(P.city, context.city);
+
+  if (context.cities.length > 0) {
+    params.set(P.cities, context.cities.map((c) => c.placeId).join(","));
+    params.set(P.citiesData, encodeCitiesData(context.cities));
+  }
+
+  // Distance is only meaningful with a geographic anchor — never serialize an inert
+  // explicit distance (keeps the URL honest; parse also normalizes this).
+  if (state.distanceKm !== null && (context.cities.length > 0 || context.locations.length > 0)) {
+    params.set(P.distanceKm, String(state.distanceKm));
+  }
 
   if (context.locations.length > 0) {
     params.set(P.locations, context.locations.map((l) => l.id).join(","));

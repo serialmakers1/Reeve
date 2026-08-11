@@ -44,8 +44,22 @@ export const SEARCH_VIEW_MODES = ["list", "split", "map"] as const;
 // ─── Scalar defaults ──────────────────────────────────────────────────────────
 
 export const MAX_SELECTED_LOCATIONS = 5;
+export const MAX_SELECTED_CITIES = 3;
 export const DEFAULT_SORT = "newest" as const;
 export const DEFAULT_VIEW = "list" as const;
+
+// ─── Distance control (Prompt 3) ─────────────────────────────────────────────
+// Explicit radius options in km. `null` (Auto) is the default and is NOT listed
+// here. Auto = canonical association membership + the safety-net below.
+export const DISTANCE_OPTIONS_KM = [2, 5, 10, 20, 30, 50] as const;
+export type DistanceKm = (typeof DISTANCE_OPTIONS_KM)[number];
+
+// Auto area safety-net (metres). MUST equal DB reeve_search_safety_net_m().
+// Empirically measured from real Google centers via earthdistance:
+// Whitefield↔Brookefield 3520 m, ↔Kadugodi 3129 m (captured); ↔Marathahalli
+// 5829 m, ↔Indiranagar 11.8 km, ↔HSR 13.1 km (excluded). 4000 m is the smallest
+// round value capturing adjacent naming-neighbours while excluding distinct areas.
+export const SEARCH_AREA_SAFETY_NET_M = 4000;
 
 // ─── Aggregate display thresholds (locked from Prompt 1 diagnosis) ────────────
 
@@ -64,6 +78,9 @@ export const URL_PARAMS = {
   // Context
   type: "type",
   city: "city",
+  cities: "cities",
+  citiesData: "cities_data",
+  distanceKm: "dist",
   locations: "locations",
   locationsData: "locations_data",
   propertyType: "pt",

@@ -9,7 +9,7 @@ export function useMapMarkers(enabled: boolean) {
   const { state } = useSearchState();
   const bounds = state.mapBounds;
   const mode = state.context.mode;
-  const city = state.context.city;
+  const cities = state.context.cities;
 
   const rf = state.filters as RentFilters;
   const bf = state.filters as BuyFilters;
@@ -20,19 +20,14 @@ export function useMapMarkers(enabled: boolean) {
   // Constructed unconditionally so it can serve as a stable TanStack query key.
   const input: MapMarkersInput = {
     listingType: isRent ? "rent" : "sale",
-    city: city ?? "",
     bounds: bounds ?? { ne: { lat: 0, lng: 0 }, sw: { lat: 0, lng: 0 } },
 
-    // Shared — geographic Area filter (OR); legacy placeId list no longer sent
-    locationIds: [],
-    areaBoxes: state.context.locations
-      .filter((l) => l.viewport)
-      .map((l) => ({
-        swLat: l.viewport!.sw.lat,
-        swLng: l.viewport!.sw.lng,
-        neLat: l.viewport!.ne.lat,
-        neLng: l.viewport!.ne.lng,
-      })),
+    // Canonical geo membership — identical to the list RPC (single predicate).
+    cityAnchors: (cities ?? []).map((c) => ({ placeId: c.placeId, lat: c.lat, lng: c.lng })),
+    areaAnchors: state.context.locations
+      .filter((l) => l.placeId && l.lat !== null && l.lng !== null)
+      .map((l) => ({ placeId: l.placeId!, lat: l.lat!, lng: l.lng! })),
+    distanceKm: state.distanceKm ?? null,
     propertyTypes: state.context.propertyTypes ?? [],
     bhk: f.bhk ?? [],
     furnishing: f.furnishing ?? [],
@@ -78,10 +73,10 @@ export function useMapMarkers(enabled: boolean) {
     // Full input object as key — any filter change auto-invalidates the cache
     queryKey: ["map-markers", input],
     queryFn: async () => {
-      if (!bounds || !mode || !city) return [];
-      return fetchMapMarkers({ ...input, bounds, city }, supabase as any);
+      if (!bounds || !mode) return [];
+      return fetchMapMarkers({ ...input, bounds }, supabase as any);
     },
-    enabled: enabled && !!bounds && !!mode && !!city,
+    enabled: enabled && !!bounds && !!mode,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });

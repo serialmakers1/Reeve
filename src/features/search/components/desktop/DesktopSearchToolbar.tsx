@@ -1,6 +1,7 @@
 import { LayoutList, Columns2, Map, ChevronDown, SlidersHorizontal, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchState } from "@/features/search/state/useSearchState";
+import { formatCitiesLabel } from "@/features/search/state/searchStateUtils";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { SortControl } from "../SortControl";
 import { RentBuySelector } from "../RentBuySelector";
@@ -37,15 +38,14 @@ export function DesktopSearchToolbar({
 }: DesktopSearchToolbarProps) {
   const { state, setMode } = useSearchState();
   const handleMode = onModeChange ?? setMode;
-  const { mode, city, locations } = state.context;
+  const { mode, city, cities, locations } = state.context;
   const resolvedMode = mode ?? "rent";
+  const citiesLabel = formatCitiesLabel(cities) ?? (city ? titleCase(city) : null);
 
   const contextLabel =
     locations.length > 0
       ? `${locations[0].label}${locations.length > 1 ? ` +${locations.length - 1}` : ""}`
-      : city
-        ? titleCase(city)
-        : "All of India";
+      : citiesLabel ?? "All of India";
 
   const totalActive = countActiveFilters(state.filters, resolvedMode);
   const f = state.filters as RentFilters & BuyFilters;

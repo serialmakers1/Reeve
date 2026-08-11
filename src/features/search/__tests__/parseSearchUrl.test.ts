@@ -5,6 +5,14 @@ function p(qs: string): URLSearchParams {
   return new URLSearchParams(qs);
 }
 
+// A selected Bengaluru city so legacy `cityId:"bengaluru"` area tokens satisfy the
+// Area→City invariant (no city ⇒ no areas). Appended to area-survival URLs.
+const CITIES_BLR = btoa(JSON.stringify({
+  v: 1,
+  items: [{ placeId: "city_blr", label: "Bengaluru", lat: 12.9716, lng: 77.5946 }],
+}));
+const withBlr = (qs: string): string => `${qs}&cities=city_blr&cities_data=${CITIES_BLR}`;
+
 describe("parseSearchUrl", () => {
   // Map/Split are gated off (SEARCH_MAP_ENABLED=false) → any view normalizes to list.
   it("normalizes view=map to list (Map/Split gated off)", () => {
@@ -69,7 +77,7 @@ describe("parseSearchUrl", () => {
     }));
     const ids = tokens.map((t) => t.id).join(",");
     const data = btoa(JSON.stringify({ v: 1, items: tokens }));
-    const state = parseSearchUrl(p(`type=rent&locations=${ids}&locations_data=${data}`));
+    const state = parseSearchUrl(p(withBlr(`type=rent&locations=${ids}&locations_data=${data}`)));
     expect(state.context.locations).toHaveLength(5);
   });
 
@@ -81,7 +89,7 @@ describe("parseSearchUrl", () => {
       },
     ];
     const data = btoa(JSON.stringify({ v: 1, items: tokens }));
-    const state = parseSearchUrl(p(`type=rent&locations=loc1&locations_data=${data}`));
+    const state = parseSearchUrl(p(withBlr(`type=rent&locations=loc1&locations_data=${data}`)));
     expect(state.context.locations[0].viewport).toEqual({
       sw: { lat: 12.9, lng: 77.7 },
       ne: { lat: 13.0, lng: 77.8 },
@@ -91,7 +99,7 @@ describe("parseSearchUrl", () => {
   it("sets viewport null when locations_data omits/has malformed viewport", () => {
     const tokens = [{ id: "loc1", label: "A", type: "area", cityId: "bengaluru", placeId: "p1" }];
     const data = btoa(JSON.stringify({ v: 1, items: tokens }));
-    const state = parseSearchUrl(p(`type=rent&locations=loc1&locations_data=${data}`));
+    const state = parseSearchUrl(p(withBlr(`type=rent&locations=loc1&locations_data=${data}`)));
     expect(state.context.locations[0].viewport).toBeNull();
   });
 
@@ -105,7 +113,7 @@ describe("parseSearchUrl", () => {
     }));
     const ids = tokens.map((t) => t.id).join(",");
     const data = btoa(JSON.stringify({ v: 1, items: tokens }));
-    const state = parseSearchUrl(p(`type=rent&locations=${ids}&locations_data=${data}`));
+    const state = parseSearchUrl(p(withBlr(`type=rent&locations=${ids}&locations_data=${data}`)));
     expect(state.context.locations).toHaveLength(5);
     expect(state.context.locations[0].id).toBe("loc0");
     expect(state.context.locations[4].id).toBe("loc4");
@@ -219,7 +227,7 @@ describe("parseSearchUrl", () => {
   it("accepts valid v1 envelope locations_data", () => {
     const tokens = [{ id: "loc1", label: "Koramangala", type: "area", cityId: "bengaluru", placeId: null }];
     const data = btoa(JSON.stringify({ v: 1, items: tokens }));
-    const state = parseSearchUrl(p(`type=rent&locations=loc1&locations_data=${data}`));
+    const state = parseSearchUrl(p(withBlr(`type=rent&locations=loc1&locations_data=${data}`)));
     expect(state.context.locations).toHaveLength(1);
     expect(state.context.locations[0].label).toBe("Koramangala");
   });

@@ -51,7 +51,7 @@ export function MapPropertyPreview({
             className="w-full text-left p-3 pr-16 flex items-center justify-between gap-2"
           >
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">{rep.buildingName ?? "Property"}</p>
+              <p className="text-sm font-semibold truncate">{rep.buildingName?.trim() || "Property"}</p>
               <p className="text-xs text-muted-foreground">
                 {priceLabel} · {modeLabel}
                 {rep.precision === "approximate" && " · Approx. location"}
@@ -74,7 +74,7 @@ export function MapPropertyPreview({
       ) : (
         <div className="p-3">
           <p className="text-sm font-semibold mb-1">
-            {group.members.length} properties · {rep.buildingName ?? "This building"}
+            {group.members.length} properties · {rep.buildingName?.trim() || "This building"}
           </p>
           {rep.precision === "approximate" && (
             <p className="text-[10px] text-muted-foreground mb-2">Approximate location</p>

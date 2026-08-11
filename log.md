@@ -1224,3 +1224,25 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-08-09] feat | Completed admin review and connected surfaces for risk-based listing edits [01:05 IST]
 
 ## [2026-08-09] test | Prompt 4 E2E verification: fixed MyPropertyDetail edit_pending_review gates + PropertyEdit conflict live-value reset; fixed+deployed approve_edit_request dedupe + NULL-safe stale-check migrations; fixed property-fields spec (furnishing requiredOwner + editableBy/audiences gaps); real RLS + rent/sale price history verified; zero new TS errors [11:10 IST]
+
+## [2026-08-09] debug | Diagnosed new-listing autosave and validation regression [11:40 IST]
+
+## [2026-08-09] debug | Diagnosed listing validation and building-location flow defects [12:15 IST]
+
+## [2026-08-09] debug | Diagnosed unified building identity and property-location model [12:45 IST]
+
+## [2026-08-09] design | Diagnosed final geographic listing and search architecture [13:20 IST]
+
+## [2026-08-10] build | Added canonical geographic data foundation and location resolver [15:40 IST]
+
+## [2026-08-10] build | Rebuilt trusted owner location flow and canonical submission guard [16:30 IST]
+
+## [2026-08-10] build | Rebuilt canonical Search location and distance filtering [11:42 IST]
+
+## [2026-08-10] fix | Completed multi-city Search UX and Prompt 1–3 readiness [12:27 IST]
+
+## [2026-08-10] fix | Closed remaining Prompt 3 Search state and UX gaps [13:21 IST]
+
+## [2026-08-10] build | Completed admin and connected-surface location integration [16:41 IST]
+
+## [2026-08-11] fix | Completed final location-system closure audit [05:13 IST]

@@ -208,9 +208,9 @@ export function SearchPropertyCard({
             )}
             <div className="min-w-0 space-y-0.5">
               <p className="text-[15px] font-semibold leading-tight text-foreground break-words">{titleLine}</p>
-              {(result.buildingName || result.locality || result.city) && (
+              {locationParts.length > 0 && (
                 <p className="truncate text-xs leading-tight text-muted-foreground">
-                  {[result.buildingName, result.locality ?? result.city].filter(Boolean).join(" · ")}
+                  {locationParts.join(" · ")}
                 </p>
               )}
             </div>

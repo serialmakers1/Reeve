@@ -25,9 +25,9 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ArrowLeft, ExternalLink, RefreshCw } from "lucide-react";
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
-import { PropertyAddressInput } from '@/components/property-address';
-import type { AddressData } from '@/components/property-address';
-import { parseAddressComponents } from '@/components/property-address/AddressParser';
+import { PropertyLocationFlow } from '@/components/property-address/PropertyLocationFlow';
+import { updateBuildingName, LOCATION_ERROR_COPY } from '@/lib/location/confirmLocationClient';
+import { useAuth } from '@/hooks/useAuth';
 import { Separator } from '@/components/ui/separator';
 
 // D-170: FurnishingDetailItem type + FURNISHING_ITEM_OPTIONS moved to shared modules.
@@ -112,9 +112,9 @@ export default function PropertyEdit() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading } = useRequireAuth({ requireAdmin: true });
+  const { session } = useAuth();
 
   // Google Maps libraries — must be at top level (Rules of Hooks)
-  const placesLib = useMapsLibrary('places');
   const streetViewLib = useMapsLibrary('streetView');
 
   const [property, setProperty] = useState<PropertyData | null>(null);
@@ -123,6 +123,7 @@ export default function PropertyEdit() {
 
   // Form state — Section 1: Basic Details
   const [buildingName, setBuildingName] = useState("");
+  const [bnSaving, setBnSaving] = useState(false);
   const [legalOwnerName, setLegalOwnerName] = useState("");
   const [streetAddress, setStreetAddress] = useState("");
   const [locality, setLocality] = useState("");
@@ -259,7 +260,8 @@ export default function PropertyEdit() {
   const [locationVerifiedAt, setLocationVerifiedAt] = useState<string | null>(null);
   const [listerFlatNumber, setListerFlatNumber] = useState<string | null>(null);
   const [streetviewChecking, setStreetviewChecking] = useState(false);
-  const [refetching, setRefetching] = useState(false);
+  // Durable secondary-city mode (auto|admin) — deterministic init for the admin correction UI.
+  const [secondaryCityMode, setSecondaryCityMode] = useState<"auto" | "admin">("auto");
 
   // Photos
   const [images, setImages] = useState<PropertyImage[]>([]);
@@ -399,6 +401,7 @@ export default function PropertyEdit() {
       }
 
       // Google Maps Phase 1 — hydrate address fields
+      setSecondaryCityMode((row.secondary_city_mode as 'auto' | 'admin') === 'admin' ? 'admin' : 'auto');
       setPlaceId((row.place_id as string) ?? null);
       setFormattedAddress((row.formatted_address as string) ?? null);
       setAddressMode((row.address_mode as 'google_place' | 'manual' | null) ?? null);
@@ -482,37 +485,23 @@ export default function PropertyEdit() {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   };
 
-  const handleAddressResolved = (data: AddressData) => {
-    setBuildingName(data.building_name ?? '');
-    setStreetAddress(data.street_address ?? '');
-    setLocality(data.locality ?? '');
-    setCity(data.city ?? '');
-    setStateVal(data.state ?? '');
-    setPincode(data.pincode ?? '');
-    setPlaceId(data.place_id);
-    setFormattedAddress(data.formatted_address);
-    setAddressMode(data.address_mode);
-    setStreetNumber(data.street_number);
-    setRouteVal(data.route);
-    setSublocality1(data.sublocality_1);
-    setSublocality2(data.sublocality_2);
-    setNeighborhood(data.neighborhood);
-    setDistrict(data.district);
-    setCountry(data.country);
-    setPlusCode(data.plus_code);
-    setViewportNeLat(data.viewport_ne_lat);
-    setViewportNeLng(data.viewport_ne_lng);
-    setViewportSwLat(data.viewport_sw_lat);
-    setViewportSwLng(data.viewport_sw_lng);
-    setLatitude(data.latitude);
-    setLongitude(data.longitude);
-    setStreetviewAvailable(data.streetview_available);
-    setStreetviewPanoId(data.streetview_pano_id);
-    setStreetviewCheckedAt(data.streetview_checked_at);
-    setStreetviewShowInListing(data.streetview_show_in_listing);
-    setLocationVerifiedByOwner(data.location_verified_by_owner);
-    setLocationVerifiedAt(data.location_verified_at);
-    // lister_flat_number managed by its own dedicated input
+  // Admin building-name-only correction — trusted update_building_name path. Changes
+  // ONLY building_name/source; never touches coords, place_id, associations, owner
+  // verification, or Street View geography.
+  const saveBuildingName = async () => {
+    if (!id || !session?.access_token || bnSaving) return;
+    setBnSaving(true);
+    const res = await updateBuildingName(session.access_token, id, buildingName.trim() || null);
+    setBnSaving(false);
+    if (res.ok) {
+      toast({ title: "Building name updated" });
+    } else {
+      toast({
+        title: "Could not update building name",
+        description: LOCATION_ERROR_COPY[res.error ?? "update_failed"],
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRecheckStreetView = () => {
@@ -541,34 +530,6 @@ export default function PropertyEdit() {
         }).eq('id', id!);
       }
     );
-  };
-
-  const handleRefetchFromGoogle = async () => {
-    if (!placeId || !placesLib) return;
-    setRefetching(true);
-    try {
-      const place = new (placesLib as any).Place({ id: placeId });
-      await place.fetchFields({
-        fields: ['addressComponents', 'location', 'viewport', 'formattedAddress', 'plusCode', 'id', 'displayName'],
-      });
-      const parsed = parseAddressComponents(place, 'google_place');
-      handleAddressResolved({
-        ...parsed,
-        building_name: place.displayName ?? buildingName,
-        streetview_available: streetviewAvailable ?? false,
-        streetview_pano_id: streetviewPanoId,
-        streetview_checked_at: streetviewCheckedAt,
-        streetview_show_in_listing: streetviewShowInListing,
-        location_verified_by_owner: locationVerifiedByOwner,
-        location_verified_at: locationVerifiedAt,
-        lister_flat_number: listerFlatNumber,
-      } as AddressData);
-    } catch (err) {
-      console.error('Re-fetch from Google failed:', err);
-      toast({ title: "Couldn't refresh from Google. Try again.", variant: 'destructive' });
-    } finally {
-      setRefetching(false);
-    }
   };
 
   const handleSave = async () => {
@@ -750,6 +711,18 @@ export default function PropertyEdit() {
     // Omit any column with a pending owner-reviewed change so the admin can never
     // overwrite a field currently awaiting review (belt-and-suspenders behind the UI lock).
     for (const k of freshConflicts) delete updatePayload[k];
+
+    // Prompt 2: canonical location columns are write-locked at the DB — they may be changed
+    // ONLY through the trusted confirm-property-location flow (below). Strip them from the
+    // direct admin save so unrelated field edits never trip the location-lock guard.
+    const LOCKED_LOCATION_KEYS = [
+      "building_name", "building_name_source", "street_address", "locality", "city", "state", "pincode",
+      "place_id", "formatted_address", "address_mode", "street_number", "route", "sublocality_1",
+      "sublocality_2", "neighborhood", "district", "plus_code", "viewport_ne_lat", "viewport_ne_lng",
+      "viewport_sw_lat", "viewport_sw_lng", "latitude", "longitude", "location_verified_by_owner",
+      "location_verified_at",
+    ];
+    for (const k of LOCKED_LOCATION_KEYS) delete updatePayload[k];
 
     const { error } = await supabase
       .from("properties")
@@ -1145,43 +1118,63 @@ export default function PropertyEdit() {
 
         {/* Location card — Google Maps Phase 1 */}
         <Section title="Location">
-          <PropertyAddressInput
-            mode="admin"
-            initialData={placeId ? {
-              building_name: buildingName || null,
+          {/* Prompt 2: admin geographic changes go through the SAME trusted server flow
+              (server derives actor=admin). Canonical location is write-locked at the DB. */}
+          <PropertyLocationFlow
+            propertyId={id ?? null}
+            ensureDraft={async () => id ?? null}
+            token={session?.access_token ?? null}
+            propertyType={propertyType || null}
+            canOverrideCity
+            initialSecondaryMode={secondaryCityMode}
+            confirmed={placeId ? {
               place_id: placeId,
               formatted_address: formattedAddress,
-              address_mode: addressMode ?? 'google_place',
-              street_address: streetAddress || null,
-              locality: sublocality1,
               city: city || null,
-              state: stateVal || null,
-              pincode: pincode || null,
+              locality: sublocality1 || null,
+              building_name: buildingName || null,
               latitude,
               longitude,
-              sublocality_1: sublocality1,
-              sublocality_2: sublocality2,
-              neighborhood,
-              district,
-              country,
-              route: routeVal,
-              street_number: streetNumber,
-              plus_code: plusCode,
-              viewport_ne_lat: viewportNeLat,
-              viewport_ne_lng: viewportNeLng,
-              viewport_sw_lat: viewportSwLat,
-              viewport_sw_lng: viewportSwLng,
-              streetview_available: streetviewAvailable ?? false,
-              streetview_pano_id: streetviewPanoId,
-              streetview_checked_at: streetviewCheckedAt,
-              streetview_show_in_listing: streetviewShowInListing,
-              location_verified_by_owner: locationVerifiedByOwner,
-              location_verified_at: locationVerifiedAt,
-              lister_flat_number: null,
-            } : undefined}
-            canRecheck={true}
-            onAddressResolved={handleAddressResolved}
+              verified: locationVerifiedByOwner,
+            } : null}
+            onConfirmed={(s) => {
+              setBuildingName(s.building_name ?? '');
+              setCity(s.city ?? '');
+              setFormattedAddress(s.formatted_address);
+              setPlaceId(s.place_id);
+              setLatitude(s.latitude);
+              setLongitude(s.longitude);
+              setLocationVerifiedByOwner(s.verified);
+            }}
           />
+
+          {/* Admin building-name-only correction — trusted update_building_name path.
+              Corrects only the building name (marked admin-edited); never changes the
+              map pin, city/area associations, owner verification, or Street View. */}
+          <div className="space-y-1">
+            <Label htmlFor="admin-bn">Building / Society name</Label>
+            <div className="flex flex-wrap items-end gap-2">
+              <Input
+                id="admin-bn"
+                value={buildingName}
+                onChange={(e) => setBuildingName(e.target.value)}
+                placeholder="e.g. Prestige Lakeside"
+                className="max-w-[280px] min-h-[44px]"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={bnSaving || !session?.access_token || !id}
+                onClick={saveBuildingName}
+                className="min-h-[44px]"
+              >
+                {bnSaving ? 'Saving…' : 'Save building name'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Corrects only the building name. Does not change the map pin, city, areas, or Street View.
+            </p>
+          </div>
 
           {/* Flat / unit number from owner (lister_flat_number) */}
           <div className="space-y-1">
@@ -1249,18 +1242,6 @@ export default function PropertyEdit() {
               {streetviewChecking ? 'Checking…' : 'Re-check Street View'}
             </Button>
           </div>
-
-          {/* Re-fetch address from Google */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!placeId || refetching}
-            onClick={handleRefetchFromGoogle}
-          >
-            <RefreshCw className={cn("h-3 w-3 mr-1.5", refetching && "animate-spin")} />
-            {refetching ? 'Fetching…' : 'Re-fetch address from Google'}
-          </Button>
         </Section>
 
         {/* Section 1 — Basic Details — scalar rendering driven by PROPERTY_FIELDS (D-128, D-155, D-156). */}

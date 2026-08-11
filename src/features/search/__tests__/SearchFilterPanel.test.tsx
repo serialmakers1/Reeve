@@ -16,13 +16,14 @@ const setSortSpy = vi.fn();
 const resetFiltersSpy = vi.fn();
 
 const defaultMockState = {
-  context: { mode: "rent" as const, city: "bengaluru", locations: [], propertyTypes: [] },
+  context: { mode: "rent" as "rent" | "buy", city: "bengaluru", cities: [], locations: [], propertyTypes: [] },
   filters: {} as RentFilters,
   sort: "newest" as const,
   view: "list" as const,
   cursor: null,
   mapBounds: null,
   selectedPropertyId: null,
+  distanceKm: null,
 };
 
 let mockState = { ...defaultMockState };
@@ -54,7 +55,7 @@ function renderPanel(open = true, mode: "rent" | "buy" = "rent") {
     setSort: setSortSpy,
     resetFilters: resetFiltersSpy,
     hasValidContext: true,
-  });
+  } as unknown as ReturnType<typeof useSearchState>);
   return render(
     <MemoryRouter>
       <SearchFilterPanel open={open} onOpenChange={vi.fn()} />
