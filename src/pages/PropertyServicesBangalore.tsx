@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { UserCircle } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import PropertyEnquiryForm from "@/components/property-services/PropertyEnquiryForm";
@@ -237,7 +236,7 @@ function ProofSection() {
   return (
     <section
       id="proof"
-      className="scroll-mt-16 pt-16 pb-[68px] lg:pt-[88px] lg:pb-[92px]"
+      className="scroll-mt-16 pt-16 pb-[56px] lg:pt-[88px] lg:pb-[72px]"
       aria-labelledby="proof-heading"
       style={{
         background: [
@@ -260,7 +259,7 @@ function ProofSection() {
         {/* H2 */}
         <h2
           id="proof-heading"
-          className="mt-3 max-w-[620px] text-[30px] font-semibold leading-[1.06] tracking-[-0.015em] text-[#F7FAFF] lg:text-[clamp(38px,3vw,42px)]"
+          className="mt-3 max-w-[620px] text-[30px] font-normal leading-[1.06] tracking-[-0.015em] text-[#F7FAFF] lg:text-[clamp(38px,3vw,42px)]"
           style={{ fontFamily: SERIF }}
         >
           Built so you can verify it.
@@ -337,7 +336,7 @@ function ProofSection() {
           {/* Right: image panel */}
           <div className="flex items-center justify-center min-w-0 p-5 min-[1180px]:p-7">
             <div
-              className="relative w-full max-h-[420px] min-[1180px]:max-h-[450px]"
+              className="relative w-full max-h-[420px] min-[1180px]:max-h-[450px] overflow-hidden rounded-[18px]"
               style={{ aspectRatio: "1448/1086" }}
             >
               {PROOF_MODES.map((mode) => {
@@ -374,7 +373,7 @@ function ProofSection() {
             {active.support}
           </p>
           <div
-            className="relative mt-4 w-full sm:max-w-[520px] sm:mx-auto"
+            className="relative mt-4 w-full sm:max-w-[520px] sm:mx-auto overflow-hidden rounded-[18px]"
             style={{ aspectRatio: "1448/1086" }}
           >
             {PROOF_MODES.map((mode) => {
@@ -395,22 +394,6 @@ function ProofSection() {
               );
             })}
           </div>
-        </div>
-
-        {/* ── Accountability closing line ──────────────────────────── */}
-        <div
-          className="mt-7 min-[1180px]:mt-8 pt-5 min-[1180px]:pt-[22px] flex items-center justify-center gap-2"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.08)", fontFamily: SANS }}
-        >
-          <UserCircle
-            size={24}
-            className="flex-shrink-0"
-            style={{ color: "#5B9BD5" }}
-            aria-hidden="true"
-          />
-          <span className="text-[15px] lg:text-[16px] font-[650] text-[#DDE7F2]">
-            One property. One accountable Reeve contact.
-          </span>
         </div>
 
       </div>
@@ -549,7 +532,7 @@ function CompareSection() {
         {/* H2 */}
         <h2
           id="compare-heading"
-          className="max-w-[700px] text-[30px] font-semibold leading-[1.06] tracking-[-0.015em] text-[#0B1526] lg:text-[clamp(38px,3vw,42px)]"
+          className="max-w-[700px] text-[30px] font-normal leading-[1.06] tracking-[-0.015em] text-[#0B1526] lg:text-[clamp(38px,3vw,42px)]"
           style={{ fontFamily: SERIF }}
         >
           Compare the three services
@@ -1085,7 +1068,7 @@ function QuestionsSection() {
 
           <h2
             id="questions-heading"
-            className="text-center text-[30px] font-semibold leading-[1.06] tracking-[-0.015em] text-[#0B1526] lg:text-[clamp(38px,3vw,42px)]"
+            className="text-center text-[30px] font-normal leading-[1.06] tracking-[-0.015em] text-[#0B1526] lg:text-[clamp(38px,3vw,42px)]"
             style={{ fontFamily: SERIF }}
           >
             A few things worth knowing
@@ -1256,7 +1239,7 @@ function EnquirySection() {
           <div className="lg:pt-8">
             <h2
               id="enquiry-heading"
-              className="text-[30px] lg:text-[clamp(38px,3vw,42px)] font-semibold leading-[1.06] tracking-[-0.015em] text-white max-w-[390px]"
+              className="text-[30px] lg:text-[clamp(38px,3vw,42px)] font-normal leading-[1.06] tracking-[-0.015em] text-white max-w-[390px]"
               style={{ fontFamily: SERIF }}
             >
               Tell us about your property.
@@ -1410,7 +1393,7 @@ export default function PropertyServicesBangalore() {
                 PROPERTY SERVICES · BANGALORE
               </p>
               <h1
-                className="mt-3 max-w-[590px] text-[38px] font-semibold leading-[1.05] tracking-[-0.02em] text-[#0B1526] sm:text-[44px] lg:text-[clamp(48px,4.5vw,64px)]"
+                className="mt-3 max-w-[590px] text-[38px] font-normal leading-[1.05] tracking-[-0.02em] text-[#0B1526] sm:text-[44px] lg:text-[clamp(48px,4.5vw,64px)]"
                 style={{ fontFamily: SERIF }}
               >
                 Property Services in Bangalore, wherever you are.
@@ -1460,7 +1443,7 @@ export default function PropertyServicesBangalore() {
                   role="presentation"
                   width={1448}
                   height={1086}
-                  className="h-auto w-full max-w-[340px] object-contain sm:max-w-[400px] lg:max-w-none lg:w-[90%]"
+                  className="h-auto w-full max-w-[340px] object-contain sm:max-w-[400px] lg:max-w-none lg:w-[100%] xl:w-[104%]"
                   loading="eager"
                   fetchPriority="high"
                   decoding="async"
@@ -1486,7 +1469,7 @@ export default function PropertyServicesBangalore() {
           {/* Heading */}
           <h2
             id="psv-s2-heading"
-            className="text-[30px] font-semibold leading-[1.06] tracking-[-0.015em] text-[#0B1526] lg:text-[clamp(36px,3vw,42px)]"
+            className="text-[30px] font-normal leading-[1.06] tracking-[-0.015em] text-[#0B1526] lg:text-[clamp(36px,3vw,42px)]"
             style={{ fontFamily: SERIF }}
           >
             What's happening with your property?
