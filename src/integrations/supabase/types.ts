@@ -3717,6 +3717,90 @@ export type Database = {
           },
         ]
       }
+      property_service_enquiries: {
+        Row: {
+          based_in: string
+          bedrooms: number | null
+          building_street: string | null
+          created_at: string
+          email: string
+          id: string
+          ip_city: string | null
+          ip_country: string | null
+          ip_latitude: number | null
+          ip_longitude: number | null
+          ip_postal_code: string | null
+          ip_region: string | null
+          ip_timezone: string | null
+          locality_area: string
+          monthly_rent: number | null
+          name: string
+          notes: string | null
+          phone: string
+          preferred_contact: string
+          property_status: string
+          property_type: string
+          request_ip: string | null
+          service_choice: string
+          source_page: string
+          status: string
+        }
+        Insert: {
+          based_in: string
+          bedrooms?: number | null
+          building_street?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          ip_city?: string | null
+          ip_country?: string | null
+          ip_latitude?: number | null
+          ip_longitude?: number | null
+          ip_postal_code?: string | null
+          ip_region?: string | null
+          ip_timezone?: string | null
+          locality_area: string
+          monthly_rent?: number | null
+          name: string
+          notes?: string | null
+          phone: string
+          preferred_contact: string
+          property_status: string
+          property_type: string
+          request_ip?: string | null
+          service_choice: string
+          source_page?: string
+          status?: string
+        }
+        Update: {
+          based_in?: string
+          bedrooms?: number | null
+          building_street?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          ip_city?: string | null
+          ip_country?: string | null
+          ip_latitude?: number | null
+          ip_longitude?: number | null
+          ip_postal_code?: string | null
+          ip_region?: string | null
+          ip_timezone?: string | null
+          locality_area?: string
+          monthly_rent?: number | null
+          name?: string
+          notes?: string | null
+          phone?: string
+          preferred_contact?: string
+          property_status?: string
+          property_type?: string
+          request_ip?: string | null
+          service_choice?: string
+          source_page?: string
+          status?: string
+        }
+        Relationships: []
+      }
       property_views: {
         Row: {
           created_at: string
@@ -4469,6 +4553,63 @@ export type Database = {
           property_id: string
         }[]
       }
+      get_map_markers_v2: {
+        Args: {
+          p_amenities?: string[]
+          p_area_anchors?: Json
+          p_availability_confirmed_within_days?: number
+          p_available_by?: string
+          p_bhk?: string[]
+          p_city_anchors?: Json
+          p_distance_km?: number
+          p_furnishing?: string[]
+          p_has_experience_feedback?: boolean
+          p_has_video_walkthrough?: boolean
+          p_khata_type?: string[]
+          p_limit?: number
+          p_listed_within_days?: number
+          p_listing_type: Database["public"]["Enums"]["property_listing_type"]
+          p_max_annual_increase?: number
+          p_max_carpet_area?: number
+          p_max_deposit?: number
+          p_max_lock_in_months?: number
+          p_max_move_in_charges?: number
+          p_max_notice_days?: number
+          p_max_price?: number
+          p_max_rent_brokerage_fixed?: number
+          p_max_sale_brokerage_pct?: number
+          p_max_super_built_up?: number
+          p_min_carpet_area?: number
+          p_min_price?: number
+          p_min_response_rate?: number
+          p_min_super_built_up?: number
+          p_ne_lat: number
+          p_ne_lng: number
+          p_negotiable?: boolean
+          p_parking_2w?: string[]
+          p_parking_4w?: string[]
+          p_pet_policy?: string[]
+          p_possession_before?: string
+          p_possession_status?: string[]
+          p_property_tax_paid?: boolean
+          p_property_type?: string
+          p_rera_disclosed?: boolean
+          p_sw_lat: number
+          p_sw_lng: number
+          p_zero_rent_brokerage?: boolean
+        }
+        Returns: {
+          building_name: string
+          latitude: number
+          listing_type: string
+          location_mode: string
+          longitude: number
+          match_count: number
+          price_amount: number
+          price_kind: string
+          property_id: string
+        }[]
+      }
       get_my_daily_request_remaining: { Args: never; Returns: number }
       get_my_rateable_interactions_v2: {
         Args: never
@@ -4628,6 +4769,15 @@ export type Database = {
         Args: { p_new_am: Json; p_new_fd: Json; p_old_am: Json; p_old_fd: Json }
         Returns: boolean
       }
+      reeve_search_property_ids: {
+        Args: {
+          p_area_anchors: Json
+          p_city_anchors: Json
+          p_distance_km: number
+        }
+        Returns: string[]
+      }
+      reeve_search_safety_net_m: { Args: never; Returns: number }
       reject_edit_request: {
         Args: {
           p_edit_request_id: string
@@ -4746,6 +4896,100 @@ export type Database = {
           sale_brokerage_pct: number
           security_deposit_amount: number
           super_built_up_sqft: number
+          total_floors: number
+          youtube_walkthrough_url: string
+        }[]
+      }
+      search_compact_properties_v2: {
+        Args: {
+          p_amenities?: string[]
+          p_area_anchors?: Json
+          p_availability_confirmed_within_days?: number
+          p_available_by?: string
+          p_bhk?: string[]
+          p_city_anchors?: Json
+          p_cursor_availability_confirmed_at?: string
+          p_cursor_id?: string
+          p_cursor_listed_at?: string
+          p_cursor_price_amount?: number
+          p_distance_km?: number
+          p_furnishing?: string[]
+          p_has_experience_feedback?: boolean
+          p_has_video_walkthrough?: boolean
+          p_khata_type?: string[]
+          p_limit?: number
+          p_listed_within_days?: number
+          p_listing_type: Database["public"]["Enums"]["property_listing_type"]
+          p_max_annual_increase?: number
+          p_max_carpet_area?: number
+          p_max_deposit?: number
+          p_max_lock_in_months?: number
+          p_max_move_in_charges?: number
+          p_max_notice_days?: number
+          p_max_price?: number
+          p_max_rent_brokerage_fixed?: number
+          p_max_sale_brokerage_pct?: number
+          p_max_super_built_up?: number
+          p_min_carpet_area?: number
+          p_min_price?: number
+          p_min_response_rate?: number
+          p_min_super_built_up?: number
+          p_negotiable?: boolean
+          p_parking_2w?: string[]
+          p_parking_4w?: string[]
+          p_pet_policy?: string[]
+          p_possession_before?: string
+          p_possession_status?: string[]
+          p_property_tax_paid?: boolean
+          p_property_type?: string
+          p_rera_disclosed?: boolean
+          p_sort?: string
+          p_zero_rent_brokerage?: boolean
+        }
+        Returns: {
+          availability_confirmed_at: string
+          bathrooms: number
+          bhk: string
+          building_age_years: number
+          building_name: string
+          carpet_area_sqft: number
+          city: string
+          experience_feedback: Json
+          floor_number: number
+          furnishing: string
+          latitude: number
+          listed_at: string
+          lister_role: string
+          listing_type: string
+          locality: string
+          location_mode: string
+          lock_in_months: number
+          longitude: number
+          notice_period_days: number
+          owner_id: string
+          parking_2w: string
+          parking_2w_count: number
+          parking_4w: string
+          parking_4w_count: number
+          pet_policy: string
+          photo_count: number
+          possession_date: string
+          possession_status: string
+          price_amount: number
+          price_kind: string
+          price_negotiable: boolean
+          primary_image_url: string
+          property_id: string
+          property_type: string
+          rent_brokerage_fixed_amount: number
+          rent_brokerage_months: number
+          rent_brokerage_type: string
+          response_handled_count: number
+          response_rate_pct: number
+          sale_brokerage_pct: number
+          security_deposit_amount: number
+          super_built_up_sqft: number
+          total_count: number
           total_floors: number
           youtube_walkthrough_url: string
         }[]

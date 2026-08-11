@@ -1,3 +1,11 @@
+## [2026-08-11] feat | Added Section 6 Enquiry to Property Services Bangalore — 3-step wizard, Cloudflare Turnstile, Vercel Edge Function, Supabase migration, sticky mobile CTA [build clean, 0 new TS errors]
+
+## [2026-08-11] feat | Added Section 5 FAQs to Property Services Bangalore — native details/summary, group-open: chevron rotate, flat #F4F4FF bg, no JS state [23:15 IST]
+
+## [2026-08-11] feat | Added Section 4 Compare to Property Services Bangalore — semantic table (sr-only/lg:not-sr-only), mobile segmented selector + panel, managed lifecycle diagram desktop + mobile inset [22:55 IST]
+
+## [2026-08-11] feat | Added Section 3 accountability proof experience to Property Services Bangalore [22:30 IST]
+
 ## [2026-08-06] fix | Fixed false self-duplicate errors for custom furniture and amenities [02:37 IST]
 
 **Root cause (confirmed).** `FurnishingEditor`/`AmenitiesEditor` render custom rows from a *compacted* custom-only list (`customNames`) but passed the *mixed* canonical+custom array index as `selfIndex` to `validateCustomName`. The self-exclusion `existingCustoms.find((c, i) => i !== selfIndex ...)` indexes `existingCustoms` by compacted position while `selfIndex` was the mixed index, so whenever any canonical item preceded a custom row the row failed to exclude itself → false `DUP_CUSTOM` ("You have already added X"). Common flow (tick canonical checkboxes, then add a custom) always triggered it. Existing edit-mode tests only used pure-custom arrays where the two indexes coincided, so it was never caught.
@@ -1246,3 +1254,7 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-08-10] build | Completed admin and connected-surface location integration [16:41 IST]
 
 ## [2026-08-11] fix | Completed final location-system closure audit [05:13 IST]
+
+## [2026-08-10] feat | Added Property Services Bangalore page shell and Section 1 hero [20:30 IST]
+
+## [2026-08-11] feat | Added Section 2 service chooser to Property Services Bangalore [20:45 IST]
