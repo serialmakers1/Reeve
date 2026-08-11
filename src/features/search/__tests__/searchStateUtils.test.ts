@@ -10,7 +10,7 @@ import { getDefaultSearchState } from "../domain/searchDefaults";
 import type { SearchState, RentFilters, BuyFilters, LocationToken } from "../domain/searchTypes";
 
 function makeToken(id: string, cityId: string | null): LocationToken {
-  return { id, label: `Area ${id}`, type: "area", cityId, placeId: null };
+  return { id, label: `Area ${id}`, type: "area", cityId, placeId: null, lat: null, lng: null, viewport: null };
 }
 
 describe("normalizeSearchState", () => {
@@ -32,6 +32,7 @@ describe("normalizeSearchState", () => {
       context: {
         mode: "rent",
         city: "bengaluru",
+        cities: [],
         locations: [t, t, makeToken("loc2", "bengaluru")],
         propertyTypes: [],
       },
@@ -46,7 +47,7 @@ describe("normalizeSearchState", () => {
     );
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations, propertyTypes: [] },
+      context: { mode: "rent", city: "bengaluru", cities: [], locations, propertyTypes: [] },
     };
     const result = normalizeSearchState(state);
     expect(result.context.locations).toHaveLength(5);
@@ -58,6 +59,7 @@ describe("normalizeSearchState", () => {
       context: {
         mode: "rent",
         city: "bengaluru",
+        cities: [],
         locations: [
           makeToken("loc1", "bengaluru"),
           makeToken("loc2", "mumbai"), // wrong city
@@ -104,7 +106,7 @@ describe("changeSearchMode", () => {
   it("rent → buy: preserves city and BHK", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: [], propertyTypes: [] },
+      context: { mode: "rent", city: "bengaluru", cities: [], locations: [], propertyTypes: [] },
       filters: { bhk: ["2BHK", "3BHK"], maxDeposit: 100000 } as RentFilters,
     };
     const result = changeSearchMode(state, "buy");
@@ -234,7 +236,7 @@ describe("changeSearchMode", () => {
   it("buy → rent: preserves city and BHK", () => {
     const state: SearchState = {
       ...getDefaultSearchState("buy"),
-      context: { mode: "buy", city: "mumbai", locations: [], propertyTypes: [] },
+      context: { mode: "buy", city: "mumbai", cities: [], locations: [], propertyTypes: [] },
       filters: { bhk: ["3BHK"], negotiable: true, possessionStatus: ["ready_to_move"] } as BuyFilters,
     };
     const result = changeSearchMode(state, "rent");
@@ -284,7 +286,7 @@ describe("hasValidSearchContext", () => {
   it("returns true when mode and city are both set", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: [], propertyTypes: [] },
+      context: { mode: "rent", city: "bengaluru", cities: [], locations: [], propertyTypes: [] },
     };
     expect(hasValidSearchContext(state)).toBe(true);
   });
@@ -297,7 +299,7 @@ describe("hasValidSearchContext", () => {
   it("returns true when city is null (city is optional — mode alone is valid)", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: null, locations: [], propertyTypes: [] },
+      context: { mode: "rent", city: null, cities: [], locations: [], propertyTypes: [] },
     };
     expect(hasValidSearchContext(state)).toBe(true);
   });
@@ -305,7 +307,7 @@ describe("hasValidSearchContext", () => {
   it("returns true when city is empty string (city is optional)", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "", locations: [], propertyTypes: [] },
+      context: { mode: "rent", city: "", cities: [], locations: [], propertyTypes: [] },
     };
     expect(hasValidSearchContext(state)).toBe(true);
   });

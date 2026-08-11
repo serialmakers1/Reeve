@@ -29,6 +29,8 @@ function inferTokenType(types: string[]): LocationTokenType {
 
 interface LocationSearchInputProps {
   city: string | null;
+  /** Active city's Place ID — stamped onto new area tokens as the stable ownership key. */
+  cityId: string | null;
   cityViewport: Viewport | null;
   /** True once a canonical city (with viewport) is resolved. Areas stay disabled until then. */
   cityResolved: boolean;
@@ -40,6 +42,7 @@ interface LocationSearchInputProps {
 
 export function LocationSearchInput({
   city,
+  cityId,
   cityViewport,
   cityResolved,
   selected,
@@ -99,7 +102,7 @@ export function LocationSearchInput({
     setResolving(true);
     const types: string[] = (suggestion.placePrediction as any).types ?? [];
     try {
-      const place = await resolvePlace(suggestion, ["id", "displayName", "addressComponents", "viewport"]);
+      const place = await resolvePlace(suggestion, ["id", "displayName", "addressComponents", "viewport", "location"]);
 
       // One-city invariant check when cityViewport is null (India-wide search)
       if (!cityViewport && city) {
@@ -117,18 +120,29 @@ export function LocationSearchInput({
       }
 
       const vp = (place as any).viewport;
+      const viewport = vp
+        ? {
+            sw: { lat: vp.getSouthWest().lat(), lng: vp.getSouthWest().lng() },
+            ne: { lat: vp.getNorthEast().lat(), lng: vp.getNorthEast().lng() },
+          }
+        : null;
+      // Area anchor center (Prompt 3): prefer the Place location, else viewport midpoint.
+      const loc = (place as any).location;
+      const lat =
+        typeof loc?.lat === "function" ? loc.lat() : viewport ? (viewport.sw.lat + viewport.ne.lat) / 2 : null;
+      const lng =
+        typeof loc?.lng === "function" ? loc.lng() : viewport ? (viewport.sw.lng + viewport.ne.lng) / 2 : null;
       const token: LocationToken = {
         id: (place as any).id,
         label: suggestion.placePrediction.mainText.text,
         type: inferTokenType(types),
-        cityId: city,
+        // Ownership key = active city's Place ID (stable); fall back to the city
+        // label only when no placeId is available (keeps legacy comparison working).
+        cityId: cityId ?? city,
         placeId: (place as any).id,
-        viewport: vp
-          ? {
-              sw: { lat: vp.getSouthWest().lat(), lng: vp.getSouthWest().lng() },
-              ne: { lat: vp.getNorthEast().lat(), lng: vp.getNorthEast().lng() },
-            }
-          : null,
+        lat: Number.isFinite(lat) ? lat : null,
+        lng: Number.isFinite(lng) ? lng : null,
+        viewport,
       };
 
       const alreadyAdded = selected.some((t) => t.id === token.id);

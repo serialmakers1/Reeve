@@ -29,30 +29,73 @@ const mockSetContext = vi.fn();
 
 const noContextState = {
   state: {
-    context: { mode: null, city: null, locations: [], propertyTypes: [] },
+    context: { mode: null, city: null, cities: [], locations: [], propertyTypes: [] },
     filters: {},
     sort: "newest" as const,
     cursor: null,
     view: "list" as const,
     mapBounds: null,
     selectedPropertyId: null,
+    distanceKm: null,
   },
   hasValidContext: false,
   setCursor: vi.fn(),
+  setDistanceKm: vi.fn(),
   setMode: vi.fn(),
   setFilters: vi.fn(),
+  applyFilters: vi.fn(),
   setSort: vi.fn(),
   setView: vi.fn(),
   setContext: mockSetContext,
   setMapBounds: vi.fn(),
+  setSelectedPropertyId: vi.fn(),
+  replaceSearchSetup: vi.fn(),
   resetFilters: vi.fn(),
+};
+
+const BENGALURU_CITY = {
+  placeId: "city_blr",
+  label: "Bengaluru",
+  lat: 12.9716,
+  lng: 77.5946,
+  viewport: { sw: { lat: 12.8, lng: 77.4 }, ne: { lat: 13.1, lng: 77.8 } },
 };
 
 const rentBengaluruState = {
   ...noContextState,
   state: {
     ...noContextState.state,
-    context: { mode: "rent" as const, city: "bengaluru", locations: [], propertyTypes: [] },
+    context: { mode: "rent" as const, city: "bengaluru", cities: [BENGALURU_CITY], locations: [], propertyTypes: [] },
+  },
+  hasValidContext: true,
+  setContext: mockSetContext,
+};
+
+const MUMBAI_CITY = {
+  placeId: "city_mum",
+  label: "Mumbai",
+  lat: 19.076,
+  lng: 72.8777,
+  viewport: { sw: { lat: 18.9, lng: 72.7 }, ne: { lat: 19.3, lng: 73.0 } },
+};
+
+const areaTok = (id: string, label: string, cityId: string) => ({
+  id, label, type: "area" as const, cityId, placeId: id, lat: 12.9, lng: 77.6,
+  viewport: { sw: { lat: 12.85, lng: 77.55 }, ne: { lat: 12.95, lng: 77.65 } },
+});
+
+// Bengaluru + Mumbai, each owning one area (Whitefield in BLR, Andheri in MUM).
+const rentTwoCityState = {
+  ...noContextState,
+  state: {
+    ...noContextState.state,
+    context: {
+      mode: "rent" as const,
+      city: "bengaluru",
+      cities: [BENGALURU_CITY, MUMBAI_CITY],
+      locations: [areaTok("blr_wf", "Whitefield", "city_blr"), areaTok("mum_an", "Andheri", "city_mum")],
+      propertyTypes: [],
+    },
   },
   hasValidContext: true,
   setContext: mockSetContext,
@@ -268,5 +311,53 @@ describe("SearchSetupPanel — dialog accessibility (Issue 1)", () => {
     const describedBy = dialog.getAttribute("aria-describedby");
     expect(describedBy).toBeTruthy();
     expect(document.getElementById(describedBy as string)).toBeTruthy();
+  });
+});
+
+// ─── Multi-city interaction (Prompt 3B — rendered UI, browser tooling unavailable) ─
+describe("SearchSetupPanel — multi-city interaction", () => {
+  beforeEach(() => {
+    vi.mocked(useSearchState).mockReturnValue(rentTwoCityState as ReturnType<typeof useSearchState>);
+  });
+
+  it("renders both city chips; last city is active; clicking a chip switches active + Areas header", () => {
+    renderPanel({ open: true });
+    // Both chips render.
+    expect(screen.getByTestId("city-chip-city_blr")).toBeInTheDocument();
+    expect(screen.getByTestId("city-chip-city_mum")).toBeInTheDocument();
+    // Active city (most-recently-added = Mumbai) is identifiable + drives the Areas header.
+    expect(screen.getByTestId("city-chip-city_mum")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("city-chip-city_blr")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("areas-header").textContent).toMatch(/areas in mumbai/i);
+    expect(screen.getByText("Andheri")).toBeInTheDocument(); // Mumbai's area shown
+    // Switch active city → header + shown area follow.
+    fireEvent.click(screen.getByTestId("city-chip-city_blr"));
+    expect(screen.getByTestId("city-chip-city_blr")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("areas-header").textContent).toMatch(/areas in bengaluru/i);
+    expect(screen.getByText("Whitefield")).toBeInTheDocument(); // Bengaluru's area shown
+  });
+
+  it("remove × removes the city WITHOUT selecting it; other city + its area remain", () => {
+    renderPanel({ open: true });
+    // Mumbai is active. Remove the non-active Bengaluru via its × button.
+    fireEvent.click(screen.getByTestId("city-remove-city_blr"));
+    // Bengaluru chip gone; Mumbai remains and stays active (× did not switch active).
+    expect(screen.queryByTestId("city-chip-city_blr")).toBeNull();
+    expect(screen.getByTestId("city-chip-city_mum")).toBeInTheDocument();
+    expect(screen.getByTestId("areas-header").textContent).toMatch(/areas in mumbai/i);
+    expect(screen.getByText("Andheri")).toBeInTheDocument();
+  });
+
+  it("removing the active city prunes only its area; the other city + area survive", () => {
+    renderPanel({ open: true });
+    // Make Bengaluru active so its area is on screen.
+    fireEvent.click(screen.getByTestId("city-chip-city_blr"));
+    expect(screen.getByText("Whitefield")).toBeInTheDocument();
+    // Remove Bengaluru while active → falls back to Mumbai; Bengaluru's area is pruned.
+    fireEvent.click(screen.getByTestId("city-remove-city_blr"));
+    expect(screen.queryByTestId("city-chip-city_blr")).toBeNull();
+    expect(screen.getByTestId("areas-header").textContent).toMatch(/areas in mumbai/i);
+    expect(screen.queryByText("Whitefield")).toBeNull(); // Bengaluru's area gone
+    expect(screen.getByText("Andheri")).toBeInTheDocument(); // Mumbai's area remains
   });
 });

@@ -1,8 +1,8 @@
-import type { LocationToken } from "../domain/searchTypes";
+import type { LocationToken, CityToken } from "../domain/searchTypes";
 import type { SearchMode } from "../domain/searchMode";
 import { MAX_SELECTED_LOCATIONS } from "../domain/searchConstants";
 import { normalizePropertyTypes } from "../domain/propertyTypes";
-import { validateLocationToken } from "./locationTokenValidation";
+import { validateLocationToken, validateCityToken } from "./locationTokenValidation";
 
 // ─── Model (v2 — the canonical in-memory shape) ───────────────────────────────
 // v2 adds per-city `mode` + `propertyTypes` so a returning user restores their full
@@ -11,6 +11,8 @@ import { validateLocationToken } from "./locationTokenValidation";
 
 export interface SearchLocationCityEntry {
   city: string; // normalized lowercase
+  /** Canonical city Place anchor (Prompt 3); undefined for older/manual entries. */
+  cityToken?: CityToken;
   /** Exact last confirmed selection for this city ([] = whole-city search). */
   lastSelectedAreas: LocationToken[];
   /** Quick-pick pool of recently used areas for this city. */
@@ -114,8 +116,9 @@ export function validateHistory(
     // v1 entries have no mode/propertyTypes → derive them.
     const mode = isV2 ? normalizeMode(co.mode, fallbackMode) : fallbackMode;
     const propertyTypes = isV2 ? normalizePropertyTypes(asStringArray(co.propertyTypes)) : [];
+    const cityToken = validateCityToken(co.cityToken) ?? undefined;
     seenCities.add(city);
-    cities.push({ city, lastSelectedAreas, recentAreas, mode, propertyTypes, confirmedAt });
+    cities.push({ city, cityToken, lastSelectedAreas, recentAreas, mode, propertyTypes, confirmedAt });
   }
 
   return normalizeHistory({ version: 2, cities });
@@ -146,6 +149,7 @@ export function confirmSelection(
   mode: SearchMode,
   propertyTypes: string[],
   now: number = Date.now(),
+  cityToken?: CityToken,
 ): SearchLocationHistory {
   const norm = normalizeCityName(city);
   if (!norm) return history;
@@ -162,8 +166,12 @@ export function confirmSelection(
     MAX_RECENT_AREAS_PER_CITY,
   );
 
+  // Prefer a freshly-resolved anchor; else keep the city's prior anchor.
+  const anchor = (cityToken && validateCityToken(cityToken)) || existing?.cityToken;
+
   const entry: SearchLocationCityEntry = {
     city: norm,
+    ...(anchor ? { cityToken: anchor } : {}),
     lastSelectedAreas: cleanAreas,
     recentAreas: mergedRecent,
     mode: normalizeMode(mode, DEFAULT_MODE),
@@ -195,6 +203,7 @@ export function clearHistory(): SearchLocationHistory {
 
 export interface RememberedSetup {
   city: string;
+  cityToken?: CityToken;
   areas: LocationToken[];
   mode: SearchMode;
   propertyTypes: string[];
@@ -206,6 +215,7 @@ export function latestSelection(history: SearchLocationHistory): RememberedSetup
   if (!first) return null;
   return {
     city: first.city,
+    cityToken: first.cityToken,
     areas: first.lastSelectedAreas,
     mode: first.mode,
     propertyTypes: first.propertyTypes,
@@ -254,8 +264,10 @@ export function mergeHistories(...histories: SearchLocationHistory[]): SearchLoc
       const prev = byCity.get(c.city);
       if (!prev || c.confirmedAt >= prev.confirmedAt) {
         // This entry is newer (or ties, later-arg-wins): its setup wins; fold recents.
+        const anchor = c.cityToken ?? prev?.cityToken;
         byCity.set(c.city, {
           city: c.city,
+          ...(anchor ? { cityToken: anchor } : {}),
           lastSelectedAreas: c.lastSelectedAreas,
           mode: c.mode,
           propertyTypes: c.propertyTypes,
@@ -269,6 +281,7 @@ export function mergeHistories(...histories: SearchLocationHistory[]): SearchLoc
         // prev is newer — keep its setup but fold in this history's recents.
         byCity.set(c.city, {
           ...prev,
+          cityToken: prev.cityToken ?? c.cityToken,
           recentAreas: dedupTokens(
             [...prev.recentAreas, ...c.recentAreas],
             MAX_RECENT_AREAS_PER_CITY,

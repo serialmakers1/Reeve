@@ -100,6 +100,17 @@ export function useSearchState() {
     [state, push],
   );
 
+  // Distance radius (null = Auto). A change is a filter change → reset the cursor.
+  // Invariant: an explicit distance is inert without a city/area anchor, so coerce
+  // to Auto when none is present (defence-in-depth beyond the disabled control).
+  const setDistanceKm = useCallback(
+    (distanceKm: number | null) => {
+      const hasAnchor = state.context.cities.length > 0 || state.context.locations.length > 0;
+      push({ ...state, distanceKm: hasAnchor ? distanceKm : null, cursor: null });
+    },
+    [state, push],
+  );
+
   const setMapBounds = useCallback(
     (mapBounds: MapBounds | null) => {
       push({ ...state, mapBounds });
@@ -123,7 +134,7 @@ export function useSearchState() {
   // mode via changeSearchMode (so incompatible filters/sort are handled), then sets
   // city/locations/propertyTypes and resets the cursor — no intermediate URL states.
   const replaceSearchSetup = useCallback(
-    (setup: { mode: SearchMode; city: string | null; locations: SearchContext["locations"]; propertyTypes: string[] }) => {
+    (setup: { mode: SearchMode; city: string | null; cities?: SearchContext["cities"]; locations: SearchContext["locations"]; propertyTypes: string[] }) => {
       const base = changeSearchMode(state, setup.mode);
       push({
         ...base,
@@ -131,6 +142,7 @@ export function useSearchState() {
           ...base.context,
           mode: setup.mode,
           city: setup.city,
+          cities: setup.cities ?? [],
           locations: setup.locations,
           propertyTypes: setup.propertyTypes,
         },
@@ -149,6 +161,7 @@ export function useSearchState() {
     setSort,
     setView,
     setCursor,
+    setDistanceKm,
     setMapBounds,
     setSelectedPropertyId,
     resetFilters,

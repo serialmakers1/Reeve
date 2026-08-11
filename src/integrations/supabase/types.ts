@@ -1266,6 +1266,48 @@ export type Database = {
           },
         ]
       }
+      geo_places: {
+        Row: {
+          bbox_ne_lat: number | null
+          bbox_ne_lng: number | null
+          bbox_sw_lat: number | null
+          bbox_sw_lng: number | null
+          center_lat: number
+          center_lng: number
+          created_at: string
+          display_name: string
+          id: string
+          kind: string
+          place_id: string
+        }
+        Insert: {
+          bbox_ne_lat?: number | null
+          bbox_ne_lng?: number | null
+          bbox_sw_lat?: number | null
+          bbox_sw_lng?: number | null
+          center_lat: number
+          center_lng: number
+          created_at?: string
+          display_name: string
+          id?: string
+          kind: string
+          place_id: string
+        }
+        Update: {
+          bbox_ne_lat?: number | null
+          bbox_ne_lng?: number | null
+          bbox_sw_lat?: number | null
+          bbox_sw_lng?: number | null
+          center_lat?: number
+          center_lng?: number
+          created_at?: string
+          display_name?: string
+          id?: string
+          kind?: string
+          place_id?: string
+        }
+        Relationships: []
+      }
       inspection_appliances: {
         Row: {
           appliance_type: Database["public"]["Enums"]["appliance_type"]
@@ -2714,7 +2756,8 @@ export type Database = {
           board_removed_at: string | null
           board_status: Database["public"]["Enums"]["board_status"]
           building_age_years: number | null
-          building_name: string
+          building_name: string | null
+          building_name_source: string | null
           building_notes: string | null
           building_rules: string | null
           city: string | null
@@ -2805,6 +2848,7 @@ export type Database = {
           sale_brokerage_pct: number | null
           sale_listing_confirmed_at: string | null
           sale_price: number | null
+          secondary_city_mode: string
           security_deposit_amount: number | null
           security_deposit_months: number
           service_agreement_id: string | null
@@ -2853,7 +2897,8 @@ export type Database = {
           board_removed_at?: string | null
           board_status?: Database["public"]["Enums"]["board_status"]
           building_age_years?: number | null
-          building_name: string
+          building_name?: string | null
+          building_name_source?: string | null
           building_notes?: string | null
           building_rules?: string | null
           city?: string | null
@@ -2944,6 +2989,7 @@ export type Database = {
           sale_brokerage_pct?: number | null
           sale_listing_confirmed_at?: string | null
           sale_price?: number | null
+          secondary_city_mode?: string
           security_deposit_amount?: number | null
           security_deposit_months?: number
           service_agreement_id?: string | null
@@ -2992,7 +3038,8 @@ export type Database = {
           board_removed_at?: string | null
           board_status?: Database["public"]["Enums"]["board_status"]
           building_age_years?: number | null
-          building_name?: string
+          building_name?: string | null
+          building_name_source?: string | null
           building_notes?: string | null
           building_rules?: string | null
           city?: string | null
@@ -3083,6 +3130,7 @@ export type Database = {
           sale_brokerage_pct?: number | null
           sale_listing_confirmed_at?: string | null
           sale_price?: number | null
+          secondary_city_mode?: string
           security_deposit_amount?: number | null
           security_deposit_months?: number
           service_agreement_id?: string | null
@@ -3447,6 +3495,58 @@ export type Database = {
             columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_geo_associations: {
+        Row: {
+          confidence: string | null
+          created_at: string
+          geo_place_id: string
+          id: string
+          property_id: string
+          relationship: string
+          source: string
+        }
+        Insert: {
+          confidence?: string | null
+          created_at?: string
+          geo_place_id: string
+          id?: string
+          property_id: string
+          relationship: string
+          source: string
+        }
+        Update: {
+          confidence?: string | null
+          created_at?: string
+          geo_place_id?: string
+          id?: string
+          property_id?: string
+          relationship?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_geo_associations_geo_place_id_fkey"
+            columns: ["geo_place_id"]
+            isOneToOne: false
+            referencedRelation: "geo_places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_geo_associations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_geo_associations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
         ]
@@ -4103,6 +4203,16 @@ export type Database = {
         Returns: undefined
       }
       admin_unhide_comment: { Args: { p_comment_id: string }; Returns: Json }
+      apply_property_location: {
+        Args: {
+          p_actor_type: string
+          p_actor_user_id: string
+          p_associations: Json
+          p_location: Json
+          p_property_id: string
+        }
+        Returns: string
+      }
       approve_edit_request: {
         Args: { p_edit_request_id: string }
         Returns: undefined
@@ -4136,6 +4246,10 @@ export type Database = {
         }[]
       }
       delete_own_comment: { Args: { p_comment_id: string }; Returns: Json }
+      delete_property_photo: {
+        Args: { p_image_id: string }
+        Returns: undefined
+      }
       earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
       generate_pseudonym: { Args: never; Returns: string }
@@ -4491,6 +4605,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      reeve_custom_building_amenities: {
+        Args: { p_am: Json }
+        Returns: string[]
+      }
+      reeve_custom_furnishing_names: { Args: { p_fd: Json }; Returns: string[] }
+      reeve_geo_is_plausible: {
+        Args: {
+          p_bbox_ne_lat: number
+          p_bbox_ne_lng: number
+          p_bbox_sw_lat: number
+          p_bbox_sw_lng: number
+          p_center_lat: number
+          p_center_lng: number
+          p_kind: string
+          p_lat: number
+          p_lng: number
+        }
+        Returns: boolean
+      }
+      reeve_introduces_new_custom: {
+        Args: { p_new_am: Json; p_new_fd: Json; p_old_am: Json; p_old_fd: Json }
+        Returns: boolean
+      }
       reject_edit_request: {
         Args: {
           p_edit_request_id: string
@@ -4613,6 +4750,19 @@ export type Database = {
           youtube_walkthrough_url: string
         }[]
       }
+      set_primary_property_photo: {
+        Args: { p_image_id: string }
+        Returns: undefined
+      }
+      set_property_geo_associations: {
+        Args: {
+          p_actor_type: string
+          p_actor_user_id: string
+          p_associations: Json
+          p_property_id: string
+        }
+        Returns: undefined
+      }
       submit_property_edit_request: {
         Args: {
           p_field_changes: Json
@@ -4657,6 +4807,29 @@ export type Database = {
         Returns: undefined
       }
       update_profile_bio: { Args: { p_bio: string }; Returns: string }
+      update_property_building_name: {
+        Args: {
+          p_actor_type: string
+          p_actor_user_id: string
+          p_building_name: string
+          p_property_id: string
+        }
+        Returns: undefined
+      }
+      upsert_geo_place: {
+        Args: {
+          p_bbox_ne_lat?: number
+          p_bbox_ne_lng?: number
+          p_bbox_sw_lat?: number
+          p_bbox_sw_lng?: number
+          p_center_lat: number
+          p_center_lng: number
+          p_display_name: string
+          p_kind: string
+          p_place_id: string
+        }
+        Returns: string
+      }
       validate_property_field_text: {
         Args: { p_field: string; p_text: string }
         Returns: string

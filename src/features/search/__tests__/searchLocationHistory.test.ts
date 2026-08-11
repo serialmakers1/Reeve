@@ -16,7 +16,7 @@ import {
 } from "../state/searchLocationHistory";
 
 function area(id: string, label = id): LocationToken {
-  return { id, label, type: "area", cityId: null, placeId: id, viewport: null };
+  return { id, label, type: "area", cityId: null, placeId: id, lat: null, lng: null, viewport: null };
 }
 
 describe("confirmSelection (v2 — full setup)", () => {

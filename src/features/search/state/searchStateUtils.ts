@@ -1,7 +1,48 @@
 import type { SearchMode } from "../domain/searchMode";
-import type { SearchState, SearchContext, RentFilters, BuyFilters, MapBounds } from "../domain/searchTypes";
+import type { SearchState, SearchContext, RentFilters, BuyFilters, MapBounds, LocationToken, CityToken } from "../domain/searchTypes";
 import { RENT_SORT_KEYS, MAX_SELECTED_LOCATIONS, DEFAULT_SORT } from "../domain/searchConstants";
 import { getDefaultRentFilters, getDefaultBuyFilters } from "../domain/searchDefaults";
+
+// ─── Area↔City ownership (single source of truth — Prompt 3A) ─────────────────
+// Used by BOTH URL hydration (parseSearchUrl) and the setup panel's city-removal
+// pruning, so case handling can never diverge.
+
+const normCity = (s: string | null | undefined): string => (s ?? "").trim().toLowerCase();
+
+/** True when an area/road token belongs to the given selected city. Canonical
+ *  tokens match by placeId; legacy tokens (cityId is a label) match by normalized
+ *  label. */
+export function areaBelongsToCity(location: LocationToken, city: CityToken): boolean {
+  if (location.cityId == null) return false;
+  return location.cityId === city.placeId || normCity(location.cityId) === normCity(city.label);
+}
+
+/**
+ * Enforces the locked frontend invariant: every Area/Road must belong to a
+ * currently selected canonical City. With NO city selected there are NO area
+ * filters (area-only Search state is not permitted on the frontend, even though
+ * the backend could technically anchor on it). With ≥1 city, keep only areas
+ * owned by one of those cities (orphans whose parent city is gone are dropped).
+ */
+export function pruneOrphanAreas(cities: CityToken[], locations: LocationToken[]): LocationToken[] {
+  if (cities.length === 0) return [];
+  return locations.filter((l) => cities.some((c) => areaBelongsToCity(l, c)));
+}
+
+/** Remove only the areas owned by `removedCity`; keep every other city's areas. */
+export function pruneAreasForRemovedCity(
+  removedCity: CityToken,
+  locations: LocationToken[],
+): LocationToken[] {
+  return locations.filter((l) => !areaBelongsToCity(l, removedCity));
+}
+
+/** User-visible multi-city label: "Bengaluru" / "Bengaluru +1" / "Bengaluru +2". */
+export function formatCitiesLabel(cities: CityToken[]): string | null {
+  if (cities.length === 0) return null;
+  const first = cities[0].label;
+  return cities.length > 1 ? `${first} +${cities.length - 1}` : first;
+}
 
 // ─── normalizeSearchState ────────────────────────────────────────────────────
 

@@ -7,25 +7,28 @@ import { SEARCH_PAGE_SIZE } from "../data/searchContracts";
  * Returns null when the search context is not yet valid (no mode or no city).
  */
 export function buildSearchInput(state: SearchState): SearchPropertiesInput | null {
-  const { mode, city, locations, propertyTypes } = state.context;
+  const { mode, cities, locations, propertyTypes } = state.context;
   if (!mode) return null;
 
   const f = state.filters as RentFilters & BuyFilters;
 
+  // City anchors: canonical Place identity + coords (from the Setup selection).
+  const cityAnchors = (cities ?? []).map((c) => ({
+    placeId: c.placeId,
+    lat: c.lat,
+    lng: c.lng,
+  }));
+  // Area anchors: only areas that carry a Place id + finite center (older URL
+  // tokens without coords cannot anchor and are dropped).
+  const areaAnchors = locations
+    .filter((l) => l.placeId && l.lat !== null && l.lng !== null)
+    .map((l) => ({ placeId: l.placeId!, lat: l.lat!, lng: l.lng! }));
+
   return {
     mode,
-    city: city ?? null,
-    // Legacy placeId list no longer used for Area matching — send empty.
-    locationIds: [],
-    // Geographic Area filter: one box per selected area viewport (OR semantics server-side).
-    areaBoxes: locations
-      .filter((l) => l.viewport)
-      .map((l) => ({
-        swLat: l.viewport!.sw.lat,
-        swLng: l.viewport!.sw.lng,
-        neLat: l.viewport!.ne.lat,
-        neLng: l.viewport!.ne.lng,
-      })),
+    cityAnchors,
+    areaAnchors,
+    distanceKm: state.distanceKm ?? null,
     propertyTypes: propertyTypes ?? [],
 
     minPrice: f.minPrice ?? null,

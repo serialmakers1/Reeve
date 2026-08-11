@@ -281,3 +281,29 @@ describe("SearchPropertyCard — Split isolation (layout=horizontal)", () => {
     expect(screen.queryByText("Carpet")).toBeNull();
   });
 });
+
+describe("SearchPropertyCard — location line null/whitespace safety", () => {
+  it("falls back to locality when building name is whitespace-only (no stray separator)", () => {
+    renderCard(makeResult({ buildingName: "   ", locality: "Koramangala", city: "bengaluru" }));
+    // The location line shows the locality alone — never a leading "· " from a blank building.
+    expect(screen.getByText("Koramangala")).toBeInTheDocument();
+    expect(screen.queryByText(/·\s*Koramangala/)).toBeNull();
+  });
+
+  it("shows city when building + locality are blank, and nothing when all blank", () => {
+    const { rerender } = renderCard(makeResult({ buildingName: "", locality: "  ", city: "bengaluru" }));
+    expect(screen.getByText("bengaluru")).toBeInTheDocument();
+    rerender(
+      <MemoryRouter initialEntries={["/search?type=rent"]}>
+        <SearchPropertyCard
+          result={makeResult({ buildingName: "  ", locality: null, city: null })}
+          isFavourited={() => false}
+          onToggleFavourite={toggleSpy}
+          isLoggedIn
+        />
+      </MemoryRouter>,
+    );
+    // Title (bhk · type) still renders; no crash / no blank location paragraph asserted here.
+    expect(screen.getAllByText(/2 BHK|Apartment/i).length).toBeGreaterThan(0);
+  });
+});

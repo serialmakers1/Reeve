@@ -19,8 +19,9 @@ describe("search contracts", () => {
   it("SearchPropertiesInput accepts a valid rent input", () => {
     const input: SearchPropertiesInput = {
       mode: "rent",
-      city: "bengaluru",
-      locationIds: [],
+      cityAnchors: [{ placeId: "city_blr", lat: 12.9716, lng: 77.5946 }],
+      areaAnchors: [],
+      distanceKm: null,
       propertyTypes: [],
       minPrice: null,
       maxPrice: null,
@@ -39,6 +40,7 @@ describe("search contracts", () => {
       maxBrokerage: null,
       rentBrokerageMaxFixed: null,
       rentBrokerageMaxMonths: null,
+      zeroRentBrokerage: null,
       minCarpetArea: null,
       maxCarpetArea: null,
       minSuperBuiltUp: null,

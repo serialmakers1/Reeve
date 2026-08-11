@@ -68,8 +68,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 import PropertyPreview, { type PropertyPreviewData, type PreviewImage } from "@/components/listing/PropertyPreview";
-import { PropertyAddressInput } from '@/components/property-address';
-import type { AddressData } from '@/components/property-address';
+import { PropertyLocationFlow, type ConfirmedLocationSummary } from '@/components/property-address/PropertyLocationFlow';
 
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const DRAFT_LIMIT = 20;
@@ -401,7 +400,12 @@ function isSectionComplete(
   openedSections: Set<SectionNum>,
 ): boolean {
   switch (section) {
-    case 1: return !!(f.building_name.trim().length >= 2 && f.city.trim() && f.state && f.pincode.trim() && f.location_verified_by_owner);
+    case 1: {
+      // Prompt 2: canonical Google location. Missing street/locality/pincode/state is non-blocking.
+      // Building name required only for apartment/duplex_apartment (matches Submit invariant).
+      const needBuilding = f.property_type === "apartment" || f.property_type === "duplex_apartment";
+      return !!(f.location_verified_by_owner && f.city.trim() && f.place_id && (!needBuilding || f.building_name.trim().length >= 2));
+    }
     case 2: return !!(f.bhk && f.property_type);
     case 3: {
       // Prompt 10a (D-161): Section-3 slot flips between Rent & Deposit and
@@ -558,6 +562,9 @@ export default function ListProperty() {
   const [amenitiesDraftInvalid, setAmenitiesDraftInvalid] = useState(false);
   // Owner-only public-text validation errors, keyed by field. Never blocks autosave.
   const [textErrors, setTextErrors] = useState<Record<string, string | null>>({});
+  // Prompt 2: true while a location replacement is being searched/reviewed but not yet
+  // re-confirmed. Blocks Submit so an unconfirmed candidate can never be submitted.
+  const [locationDirty, setLocationDirty] = useState(false);
   const draftCheckedRef = useRef(false);
   // Live mirror of `form` so async blur-validation can compare against the current
   // value (a closed-over `form` would be stale and defeat the stale-response guard).
@@ -1025,64 +1032,58 @@ export default function ListProperty() {
     return res.ok;
   }, []);
 
-  // ─── Address resolved callback (PropertyAddressInput → form + DB) ────────
-  const handleAddressResolved = useCallback((data: AddressData) => {
-    const addressPatch = {
-      // Manual-building mode: never let a Google address lookup wipe the typed building name.
-      building_name: data.address_mode === 'manual'
-        ? (data.building_name ?? formRef.current.building_name ?? '')
-        : (data.building_name ?? ''),
-      street_address: data.street_address ?? '',
-      locality: data.locality ?? '',
-      city: data.city ?? '',
-      state: data.state ?? form.state,
-      pincode: data.pincode ?? '',
-      place_id: data.place_id,
-      formatted_address: data.formatted_address,
-      address_mode: data.address_mode,
-      street_number: data.street_number,
-      route: data.route,
-      sublocality_1: data.sublocality_1,
-      sublocality_2: data.sublocality_2,
-      neighborhood: data.neighborhood,
-      district: data.district,
-      country: data.country,
-      plus_code: data.plus_code,
-      viewport_ne_lat: data.viewport_ne_lat,
-      viewport_ne_lng: data.viewport_ne_lng,
-      viewport_sw_lat: data.viewport_sw_lat,
-      viewport_sw_lng: data.viewport_sw_lng,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      streetview_available: data.streetview_available,
-      streetview_pano_id: data.streetview_pano_id,
-      streetview_checked_at: data.streetview_checked_at,
-      streetview_show_in_listing: data.streetview_show_in_listing,
-      location_verified_by_owner: data.location_verified_by_owner,
-      location_verified_at: data.location_verified_at,
-    };
-    setForm((prev) => ({ ...prev, ...addressPatch }));
-    // Address is admin-only post-publication; only persist while the listing is
-    // in an initial-editable state (draft/changes_requested/create).
-    if (isInitialEditable) {
-      patch(addressPatch);
+  // ─── Trusted location (PropertyLocationFlow → Edge Function) ─────────────
+  // Prompt 2: canonical geography is written ONLY by the confirm-property-location Edge
+  // Function. The client no longer autosaves location. This callback fires AFTER a
+  // successful atomic server confirm — it updates local form state for display + section /
+  // submit gating (the DB is already the source of truth).
+  const handleLocationConfirmed = useCallback((s: ConfirmedLocationSummary) => {
+    setForm((prev) => ({
+      ...prev,
+      place_id: s.place_id,
+      formatted_address: s.formatted_address ?? '',
+      city: s.city ?? '',
+      locality: s.locality ?? '',
+      building_name: s.building_name ?? '',
+      latitude: s.latitude,
+      longitude: s.longitude,
+      address_mode: 'google_place',
+      location_verified_by_owner: s.verified,
+    }));
+  }, [setForm]);
+
+  // Ensure a minimal locationless draft exists (single draft creator) so the trusted
+  // location flow + photo uploads have a property_id. building_name is nullable (Prompt 2).
+  const ensureDraft = useCallback(async (): Promise<string | null> => {
+    if (propertyId) return propertyId;
+    if (!user?.id) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('properties')
+      .insert({ owner_id: user.id, status: 'draft', is_active: false, lister_role: form.lister_role || 'owner', property_type: form.property_type || null })
+      .select('id')
+      .maybeSingle();
+    if (error || !data) {
+      if (/Draft limit/.test(error?.message ?? '')) { setShowDraftLimit(true); return null; }
+      toast({ title: 'Save failed', description: error?.message ?? 'Could not start your draft.', variant: 'destructive' });
+      return null;
     }
-  }, [setForm, patch, isInitialEditable]);
+    setPropertyId(data.id);
+    setSearchParams({ draft: data.id }, { replace: true });
+    posthog?.capture('commons_listing_draft_created', { property_id: data.id });
+    return data.id;
+  }, [propertyId, user?.id, form.lister_role, form.property_type, setSearchParams, toast]);
 
   // ─── First-save (create draft) ───────────────────────────────────────────
   const createDraft = useCallback(async () => {
     if (!canInsertDraft || !user?.id || insertingDraft) return;
     setInsertingDraft(true);
+    // Prompt 2: canonical location columns are written ONLY via the trusted flow
+    // (the location-lock guard blocks them here). Draft creation carries no location.
     const insertPayload = {
       owner_id: user.id,
       status: "draft" as const,
       is_active: false,
-      building_name: form.building_name.trim(),
-      street_address: form.street_address.trim(),
-      city: form.city.trim(),
-      state: form.state || null,
-      locality: form.locality.trim() || null,
-      pincode: form.pincode.trim() || null,
       bhk: form.bhk || null,
       furnishing: form.furnishing || null,
       lister_role: form.lister_role || 'owner',
@@ -1113,9 +1114,11 @@ export default function ListProperty() {
     toast({ title: "Draft saved" });
   }, [canInsertDraft, form, insertingDraft, setSearchParams, toast, user?.id]);
 
-  // Trigger createDraft when the 6 required INSERT fields fill in (auto-save on threshold).
-  // Skip entirely in edit mode — we never auto-insert a new property when editing an existing one.
+  // Prompt 2: draft creation is owned by `ensureDraft` (invoked from the trusted location
+  // flow). The old auto-create-on-threshold effect is disabled — `createDraft` is retained
+  // only as a fallback (guard-safe, no location columns).
   useEffect(() => {
+    if (true) return; // eslint-disable-line no-constant-condition
     if (isEditMode || propertyId || !canInsertDraft || insertingDraft || showDraftLimit) return;
     const t = setTimeout(() => { void createDraft(); }, 800);
     return () => clearTimeout(t);
@@ -1295,6 +1298,15 @@ export default function ListProperty() {
   // ─── Submit for review ───────────────────────────────────────────────────
   const submit = useCallback(async () => {
     if (!propertyId || submitting) return;
+
+    // Prompt 2: never submit while a location replacement is unconfirmed.
+    if (locationDirty) {
+      setErroredSections((s) => new Set(s).add(1));
+      setOpenAccordion("section-1");
+      toast({ title: "Confirm your property location before submitting", variant: "destructive" });
+      setTimeout(() => document.getElementById("section-1-header")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      return;
+    }
 
     // Block BEFORE any save / status write / edit-request RPC while a custom
     // furniture or amenity row holds a genuine invalid edit. The invalid draft is
@@ -1483,7 +1495,7 @@ export default function ListProperty() {
     });
     toast({ title: "Submitted for review!", description: "We'll review your listing within 48 hours." });
     navigate("/my-properties", { replace: true });
-  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, isLiveListing, isInitialEditable, editRequestPayload, stagedPhotos, pendingBaseline, saveState, hasPendingChanges, lastError, poisonedKeys, furnishingDraftInvalid, amenitiesDraftInvalid]);
+  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, isLiveListing, isInitialEditable, editRequestPayload, stagedPhotos, pendingBaseline, saveState, hasPendingChanges, lastError, poisonedKeys, furnishingDraftInvalid, amenitiesDraftInvalid, locationDirty]);
 
   // ─── Preview data ────────────────────────────────────────────────────────
   const previewData = useMemo<PropertyPreviewData>(() => ({
@@ -1829,42 +1841,23 @@ export default function ListProperty() {
           <SectionShell num={1} title="Where is your property?" status={sectionStatuses[1]} summary={sectionSummary(1, form, images)} required>
             <div className="space-y-4">
               {addressEditable ? (
-                <PropertyAddressInput
-                  mode="owner"
-                  initialData={(form.place_id || form.address_mode === 'manual' || form.building_name || form.formatted_address || form.latitude != null) ? {
-                    building_name: form.building_name || null,
+                <PropertyLocationFlow
+                  propertyId={propertyId}
+                  ensureDraft={ensureDraft}
+                  token={session?.access_token ?? null}
+                  propertyType={form.property_type || null}
+                  confirmed={(form.location_verified_by_owner && form.place_id) ? {
                     place_id: form.place_id,
-                    formatted_address: form.formatted_address,
-                    address_mode: form.address_mode ?? 'google_place',
-                    street_address: form.street_address || null,
-                    locality: form.locality || null,
+                    formatted_address: form.formatted_address || null,
                     city: form.city || null,
-                    state: form.state || null,
-                    pincode: form.pincode || null,
+                    locality: form.locality || null,
+                    building_name: form.building_name || null,
                     latitude: form.latitude,
                     longitude: form.longitude,
-                    sublocality_1: form.sublocality_1,
-                    sublocality_2: form.sublocality_2,
-                    neighborhood: form.neighborhood,
-                    district: form.district,
-                    country: form.country,
-                    route: form.route,
-                    street_number: form.street_number,
-                    plus_code: form.plus_code,
-                    viewport_ne_lat: form.viewport_ne_lat,
-                    viewport_ne_lng: form.viewport_ne_lng,
-                    viewport_sw_lat: form.viewport_sw_lat,
-                    viewport_sw_lng: form.viewport_sw_lng,
-                    streetview_available: form.streetview_available,
-                    streetview_pano_id: form.streetview_pano_id,
-                    streetview_checked_at: form.streetview_checked_at,
-                    streetview_show_in_listing: form.streetview_show_in_listing,
-                    location_verified_by_owner: form.location_verified_by_owner,
-                    location_verified_at: form.location_verified_at,
-                    lister_flat_number: null,
-                  } : undefined}
-                  canRecheck={addressEditable}
-                  onAddressResolved={handleAddressResolved}
+                    verified: form.location_verified_by_owner,
+                  } : null}
+                  onConfirmed={handleLocationConfirmed}
+                  onDirtyChange={setLocationDirty}
                 />
               ) : (
                 <div className="space-y-1">

@@ -31,43 +31,53 @@ vi.mock("@/hooks/useFavourites", () => ({
 
 const invalidContext = {
   state: {
-    context: { mode: null as null, city: null as null, locations: [] as [], propertyTypes: [] as string[] },
+    context: { mode: null as null, city: null as null, cities: [] as [], locations: [] as [], propertyTypes: [] as string[] },
     filters: {} as Record<string, never>,
     sort: "newest" as const,
     cursor: null,
     view: "list" as const,
     mapBounds: null,
     selectedPropertyId: null,
+    distanceKm: null,
   },
   hasValidContext: false,
   setCursor: vi.fn(),
+  setDistanceKm: vi.fn(),
   setMode: vi.fn(),
   setFilters: vi.fn(),
+  applyFilters: vi.fn(),
   setSort: vi.fn(),
   setView: vi.fn(),
   setContext: vi.fn(),
   setMapBounds: vi.fn(),
+  setSelectedPropertyId: vi.fn(),
+  replaceSearchSetup: vi.fn(),
   resetFilters: vi.fn(),
 };
 
 const validRentContext = {
   state: {
-    context: { mode: "rent" as const, city: "bengaluru", locations: [] as [], propertyTypes: [] as string[] },
+    context: { mode: "rent" as const, city: "bengaluru", cities: [] as [], locations: [] as [], propertyTypes: [] as string[] },
     filters: {} as Record<string, never>,
     sort: "newest" as const,
     cursor: null,
     view: "list" as const,
     mapBounds: null,
     selectedPropertyId: null,
+    distanceKm: null,
   },
   hasValidContext: true,
   setCursor: vi.fn(),
+  setDistanceKm: vi.fn(),
   setMode: vi.fn(),
   setFilters: vi.fn(),
+  applyFilters: vi.fn(),
   setSort: vi.fn(),
   setView: vi.fn(),
   setContext: vi.fn(),
   setMapBounds: vi.fn(),
+  setSelectedPropertyId: vi.fn(),
+  replaceSearchSetup: vi.fn(),
   resetFilters: vi.fn(),
 };
 
@@ -226,6 +236,7 @@ describe("useSearchResults — with valid context", () => {
       results: [makeResult("p1"), makeResult("p2")],
       nextCursor: null,
       hasNextPage: false,
+      totalCount: 0,
     });
 
     const { result } = renderHook(() => useSearchResults(), { wrapper: wrapper() });
@@ -242,6 +253,7 @@ describe("useSearchResults — with valid context", () => {
       results: [],
       nextCursor: null,
       hasNextPage: false,
+      totalCount: 0,
     });
 
     const { result } = renderHook(() => useSearchResults(), { wrapper: wrapper() });
@@ -272,6 +284,7 @@ describe("useSearchResults — anonymous favourites", () => {
       results: [makeResult("p1"), makeResult("p2"), makeResult("p3")],
       nextCursor: null,
       hasNextPage: false,
+      totalCount: 0,
     });
   });
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import type { LocationToken } from "../domain/searchTypes";
+import type { LocationToken, CityToken } from "../domain/searchTypes";
 import type { SearchMode } from "../domain/searchMode";
 import { URL_PARAMS } from "../domain/searchConstants";
 import { useAuth } from "@/hooks/useAuth";
@@ -112,13 +112,14 @@ export function useSearchBootstrap(): SearchBootstrap {
 
   // Atomic memory restore with field-aware precedence (explicit URL mode/pt win).
   const restoreFromMemory = useCallback(
-    (setup: { city: string; areas: LocationToken[]; mode: SearchMode; propertyTypes: string[] }) => {
+    (setup: { city: string; cityToken?: CityToken; areas: LocationToken[]; mode: SearchMode; propertyTypes: string[] }) => {
       const snap = snapshotUrl();
       provenanceRef.current = "memory";
       committedRef.current = true;
       applyRef.current({
         mode: snap.urlHadExplicitMode ? snap.urlMode : setup.mode,
         city: setup.city,
+        cities: setup.cityToken ? [setup.cityToken] : [],
         locations: setup.areas,
         propertyTypes: snap.urlHadExplicitPropertyTypes ? snap.urlPropertyTypes : setup.propertyTypes,
       });
@@ -238,10 +239,25 @@ export function useSearchBootstrap(): SearchBootstrap {
       const snap = snapshotUrl();
       provenanceRef.current = "ip_unconfirmed";
       committedRef.current = true;
-      // City-only seed; preserve any explicit URL mode/property types.
+      // City-only seed; preserve any explicit URL mode/property types. Anchor from the
+      // resolved geo city — REAL Google center (never a viewport midpoint, Prompt 3A);
+      // seed a city filter only when placeId + center + viewport are all present.
+      const vp = approxCity.viewport;
+      const center = approxCity.center;
+      const anchor: CityToken | null =
+        approxCity.placeId && center && vp
+          ? {
+              placeId: approxCity.placeId,
+              label: approxCity.displayLabel ?? approxCity.city,
+              lat: center.lat,
+              lng: center.lng,
+              viewport: { sw: { lat: vp.low.lat, lng: vp.low.lng }, ne: { lat: vp.high.lat, lng: vp.high.lng } },
+            }
+          : null;
       applyRef.current({
         mode: snap.urlMode,
         city: approxCity.city,
+        cities: anchor ? [anchor] : [],
         locations: [],
         propertyTypes: snap.urlPropertyTypes,
       });

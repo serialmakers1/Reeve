@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { formatSearchHeading } from "@/features/search/state/formatSearchHeading";
+import { formatCitiesLabel } from "@/features/search/state/searchStateUtils";
 
 export function useSearchMeta() {
   const { search } = useLocation();
@@ -13,6 +14,7 @@ export function useSearchMeta() {
     ? `${formatSearchHeading({
         mode: state.context.mode,
         city: state.context.city,
+        citiesLabel: formatCitiesLabel(state.context.cities),
         propertyTypes: state.context.propertyTypes,
       })} | Reeve`
     : "Search Properties | Reeve";

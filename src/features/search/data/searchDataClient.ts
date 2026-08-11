@@ -13,6 +13,8 @@ export interface SearchPropertiesResult {
   results: SearchPropertyResult[];
   nextCursor: SearchCursor | null;
   hasNextPage: boolean;
+  /** True total over the fully-filtered, pre-cursor relation (Prompt 3 v2). */
+  totalCount: number;
 }
 
 /**
@@ -34,16 +36,12 @@ export async function searchProperties(
   const cursorAvail =
     input.cursor?.sort === "availability_confirmed" ? input.cursor : null;
 
-  const { data, error } = await supabaseClient.rpc("search_compact_properties", {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabaseClient as any).rpc("search_compact_properties_v2", {
     p_listing_type: input.mode === "buy" ? "sale" : "rent",
-    p_city: input.city,
-    p_location_ids: [],
-    p_area_boxes: input.areaBoxes.map((b) => ({
-      sw_lat: b.swLat,
-      sw_lng: b.swLng,
-      ne_lat: b.neLat,
-      ne_lng: b.neLng,
-    })),
+    p_city_anchors: input.cityAnchors.map((a) => ({ place_id: a.placeId, lat: a.lat, lng: a.lng })),
+    p_area_anchors: input.areaAnchors.map((a) => ({ place_id: a.placeId, lat: a.lat, lng: a.lng })),
+    p_distance_km: input.distanceKm,
     p_property_type: propertyTypesToCsv(input.propertyTypes),
     p_min_price: input.minPrice,
     p_max_price: input.maxPrice,
@@ -87,9 +85,12 @@ export async function searchProperties(
 
   if (error) throw error;
 
-  const rows: SearchPropertyRpcRow[] = (data ?? []) as SearchPropertyRpcRow[];
-  const hasNextPage = rows.length > input.limit;
-  const pageRows = hasNextPage ? rows.slice(0, input.limit) : rows;
+  const rawRows = (data ?? []) as (SearchPropertyRpcRow & { total_count?: number | string })[];
+  const hasNextPage = rawRows.length > input.limit;
+  const pageRows = hasNextPage ? rawRows.slice(0, input.limit) : rawRows;
+
+  // total_count is a constant column on every row; 0 when the page is empty.
+  const totalCount = rawRows.length > 0 ? Number(rawRows[0].total_count ?? 0) : 0;
 
   const results = pageRows.map((row) => mapRpcRowToResult(row, 0, 0, false));
 
@@ -97,7 +98,7 @@ export async function searchProperties(
   const nextCursor: SearchCursor | null =
     hasNextPage && lastRow ? buildSearchCursor(lastRow, input.sort) : null;
 
-  return { results, nextCursor, hasNextPage };
+  return { results, nextCursor, hasNextPage, totalCount };
 }
 
 /**
@@ -168,23 +169,18 @@ export async function fetchMapMarkers(
   supabaseClient: SupabaseClient,
 ): Promise<SearchMapMarker[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabaseClient as any).rpc("get_map_markers", {
+  const { data, error } = await (supabaseClient as any).rpc("get_map_markers_v2", {
     // ── Core ──────────────────────────────────────────────────────────────────
     p_listing_type: input.listingType,
-    p_city: input.city,
     p_sw_lat: input.bounds.sw.lat,
     p_sw_lng: input.bounds.sw.lng,
     p_ne_lat: input.bounds.ne.lat,
     p_ne_lng: input.bounds.ne.lng,
     p_limit: Math.min(input.limit ?? 200, 500),
-    // ── Shared membership filters ──────────────────────────────────────────────
-    p_location_ids: [],
-    p_area_boxes: (input.areaBoxes ?? []).map((b) => ({
-      sw_lat: b.swLat,
-      sw_lng: b.swLng,
-      ne_lat: b.neLat,
-      ne_lng: b.neLng,
-    })),
+    // ── Canonical geo membership (same predicate as the list RPC) ──────────────
+    p_city_anchors: (input.cityAnchors ?? []).map((a) => ({ place_id: a.placeId, lat: a.lat, lng: a.lng })),
+    p_area_anchors: (input.areaAnchors ?? []).map((a) => ({ place_id: a.placeId, lat: a.lat, lng: a.lng })),
+    p_distance_km: input.distanceKm ?? null,
     p_property_type: propertyTypesToCsv(input.propertyTypes ?? []),
     p_bhk: input.bhk ?? [],
     p_furnishing: input.furnishing ?? [],

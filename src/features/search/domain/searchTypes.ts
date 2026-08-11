@@ -53,7 +53,26 @@ export interface LocationToken {
   type: LocationTokenType;
   cityId: string | null;
   placeId: string | null;
-  /** Area viewport bounds; null until hydrated (older URLs). */
+  /** Google Place center captured at selection; null for older URLs. Used as the
+   *  area anchor for Auto safety-net + explicit-distance circles (Prompt 3). */
+  lat: number | null;
+  lng: number | null;
+  /** Area viewport bounds; null until hydrated (older URLs). Retained for
+   *  area-autocomplete scoping (locationRestriction), NOT for match filtering. */
+  viewport: AreaViewport | null;
+}
+
+/**
+ * A selected City with its canonical Google Place identity + coordinates.
+ * placeId drives canonical city-association membership (Auto); lat/lng anchor
+ * explicit-distance circles when no area is selected. viewport scopes the
+ * area autocomplete to this city. (Prompt 3 — canonical Search location.)
+ */
+export interface CityToken {
+  placeId: string;
+  label: string;
+  lat: number;
+  lng: number;
   viewport: AreaViewport | null;
 }
 
@@ -67,6 +86,12 @@ export interface SearchContext {
    * is deferred to Phase 4 (Search Setup).
    */
   city: string | null;
+  /**
+   * Selected cities as canonical Place anchors (Prompt 3). Source of truth for
+   * city location filtering. `city` above is a derived lowercase label of the
+   * first city, retained for display + legacy URL back-compat.
+   */
+  cities: CityToken[];
   locations: LocationToken[]; // max 5
   /**
    * Selected property types (multi-select). Empty array = all property types.
@@ -164,6 +189,8 @@ export interface SearchState {
   cursor: SearchCursor | null;  // null = first page
   mapBounds: MapBounds | null;
   selectedPropertyId: string | null;
+  /** Distance radius in km; null = Auto (association + safety-net). Prompt 3. */
+  distanceKm: number | null;
 }
 
 // ─── Pending intent ───────────────────────────────────────────────────────────

@@ -1,10 +1,12 @@
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchState } from "@/features/search/state/useSearchState";
+import { formatCitiesLabel } from "@/features/search/state/searchStateUtils";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { quickFilterLabel } from "@/features/search/state/filterSummary";
 import type { RentFilters, BuyFilters } from "../domain/searchTypes";
 import { PROPERTY_TYPE_OPTIONS } from "@/config/property-form";
+import { DistanceControl } from "./DistanceControl";
 
 interface SearchControlRowProps {
   onOpenSetup: () => void;
@@ -25,8 +27,9 @@ function titleCase(s: string): string {
 // Mobile-only control row. Sort + count now live in the result header.
 export function SearchControlRow({ onOpenSetup, onOpenFilters }: SearchControlRowProps) {
   const { state } = useSearchState();
-  const { mode, city, locations, propertyTypes } = state.context;
+  const { mode, city, cities, locations, propertyTypes } = state.context;
   const resolvedMode = mode ?? "rent";
+  const citiesLabel = formatCitiesLabel(cities) ?? (city ? titleCase(city) : null);
 
   // Compact property-type label: first type's label, "+N" for the rest.
   const propertyTypeLabel = (() => {
@@ -36,18 +39,16 @@ export function SearchControlRow({ onOpenSetup, onOpenFilters }: SearchControlRo
     return propertyTypes.length > 1 ? `${first} +${propertyTypes.length - 1}` : first;
   })();
 
-  // Line 1: mode · primary location (area or city)
+  // Line 1: mode · primary location (area or city/cities)
   const areaLabel =
     locations.length > 0
       ? `${locations[0].label}${locations.length > 1 ? ` +${locations.length - 1} areas` : ""}`
-      : city
-        ? titleCase(city)
-        : "Anywhere in India";
+      : citiesLabel ?? "Anywhere in India";
   const primaryLine = `${resolvedMode === "rent" ? "Rent" : "Buy"} · ${areaLabel}`;
 
-  // Line 2: property type · city (graceful omissions)
+  // Line 2: property type · cities (graceful omissions)
   const secondaryLine =
-    [propertyTypeLabel, locations.length > 0 && city ? titleCase(city) : null]
+    [propertyTypeLabel, locations.length > 0 && citiesLabel ? citiesLabel : null]
       .filter(Boolean)
       .join(" · ") || (resolvedMode === "rent" ? "Rentals" : "For sale");
 
@@ -107,6 +108,9 @@ export function SearchControlRow({ onOpenSetup, onOpenFilters }: SearchControlRo
           Filters{totalActive > 0 ? ` · ${totalActive}` : ""}
         </button>
       </div>
+
+      {/* Distance (canonical geo radius) — disabled until a city/area is selected */}
+      <DistanceControl />
     </div>
   );
 }

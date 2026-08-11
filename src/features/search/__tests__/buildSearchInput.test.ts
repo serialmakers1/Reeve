@@ -6,10 +6,13 @@ import type { SearchState, RentFilters, BuyFilters } from "../domain/searchTypes
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const BLR = { placeId: "city_blr", label: "Bengaluru", lat: 12.9716, lng: 77.5946, viewport: null };
+const MUM = { placeId: "city_mum", label: "Mumbai", lat: 19.076, lng: 72.8777, viewport: null };
+
 function rentState(overrides: Partial<SearchState> = {}): SearchState {
   return {
     ...getDefaultSearchState("rent"),
-    context: { mode: "rent", city: "bengaluru", locations: [], propertyTypes: [] },
+    context: { mode: "rent", city: "bengaluru", cities: [BLR], locations: [], propertyTypes: [] },
     ...overrides,
   };
 }
@@ -17,7 +20,7 @@ function rentState(overrides: Partial<SearchState> = {}): SearchState {
 function buyState(overrides: Partial<SearchState> = {}): SearchState {
   return {
     ...getDefaultSearchState("buy"),
-    context: { mode: "buy", city: "mumbai", locations: [], propertyTypes: [] },
+    context: { mode: "buy", city: "mumbai", cities: [MUM], locations: [], propertyTypes: [] },
     ...overrides,
   };
 }
@@ -29,24 +32,14 @@ describe("buildSearchInput — disabled cases", () => {
     expect(buildSearchInput(getDefaultSearchState(null))).toBeNull();
   });
 
-  it("returns non-null with city=null when only mode is set (city is optional)", () => {
+  it("returns non-null with empty cityAnchors when no city is selected (city optional)", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: null, locations: [], propertyTypes: [] },
+      context: { mode: "rent", city: null, cities: [], locations: [], propertyTypes: [] },
     };
     const input = buildSearchInput(state);
     expect(input).not.toBeNull();
-    expect(input!.city).toBeNull();
-  });
-
-  it("returns non-null with city='' passed through when city is empty string", () => {
-    const state: SearchState = {
-      ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "", locations: [], propertyTypes: [] },
-    };
-    const input = buildSearchInput(state);
-    expect(input).not.toBeNull();
-    expect(input!.city).toBe("");
+    expect(input!.cityAnchors).toEqual([]);
   });
 
   it("returns non-null for valid rent state", () => {
@@ -73,37 +66,44 @@ describe("buildSearchInput — mode/listing_type mapping", () => {
 // ─── Context fields ───────────────────────────────────────────────────────────
 
 describe("buildSearchInput — context fields", () => {
-  it("maps city", () => {
-    expect(buildSearchInput(rentState())!.city).toBe("bengaluru");
+  it("maps selected cities to cityAnchors {placeId,lat,lng}", () => {
+    expect(buildSearchInput(rentState())!.cityAnchors).toEqual([
+      { placeId: "city_blr", lat: 12.9716, lng: 77.5946 },
+    ]);
   });
 
-  it("derives areaBoxes from area viewports; locationIds always empty (geographic filter)", () => {
+  it("derives areaAnchors from area Place centres; drops coord-less tokens", () => {
     const state = rentState({
       context: {
-        mode: "rent", city: "bengaluru",
+        mode: "rent", city: "bengaluru", cities: [BLR],
         locations: [
           {
             id: "loc1", label: "Koramangala", type: "area", cityId: "bengaluru", placeId: "p1",
+            lat: 12.93, lng: 77.62,
             viewport: { sw: { lat: 12.9, lng: 77.6 }, ne: { lat: 12.95, lng: 77.65 } },
           },
-          // viewport-less token contributes no box (hydration gate handles readiness elsewhere)
-          { id: "loc2", label: "Indiranagar", type: "area", cityId: "bengaluru", placeId: "p2", viewport: null },
+          // coord-less token cannot anchor and is dropped
+          { id: "loc2", label: "Indiranagar", type: "area", cityId: "bengaluru", placeId: "p2", lat: null, lng: null, viewport: null },
         ],
         propertyTypes: [],
       },
     });
     const input = buildSearchInput(state)!;
-    expect(input.locationIds).toEqual([]);
-    expect(input.areaBoxes).toEqual([{ swLat: 12.9, swLng: 77.6, neLat: 12.95, neLng: 77.65 }]);
+    expect(input.areaAnchors).toEqual([{ placeId: "p1", lat: 12.93, lng: 77.62 }]);
   });
 
-  it("empty locations → empty locationIds array", () => {
-    expect(buildSearchInput(rentState())!.locationIds).toEqual([]);
+  it("empty locations → empty areaAnchors array", () => {
+    expect(buildSearchInput(rentState())!.areaAnchors).toEqual([]);
+  });
+
+  it("passes distanceKm through", () => {
+    expect(buildSearchInput(rentState({ distanceKm: 5 }))!.distanceKm).toBe(5);
+    expect(buildSearchInput(rentState())!.distanceKm).toBeNull();
   });
 
   it("maps propertyTypes (single)", () => {
     const state = rentState({
-      context: { mode: "rent", city: "bengaluru", locations: [], propertyTypes: ["apartment"] },
+      context: { mode: "rent", city: "bengaluru", cities: [BLR], locations: [], propertyTypes: ["apartment"] },
     });
     expect(buildSearchInput(state)!.propertyTypes).toEqual(["apartment"]);
   });
@@ -113,6 +113,7 @@ describe("buildSearchInput — context fields", () => {
       context: {
         mode: "rent",
         city: "bengaluru",
+        cities: [BLR],
         locations: [],
         propertyTypes: ["apartment", "duplex_apartment"],
       },

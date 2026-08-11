@@ -65,10 +65,10 @@ describe("serializeSearchState", () => {
   });
 
   it("locations_data is written as v1 envelope", () => {
-    const token = { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null };
+    const token = { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null, lat: null, lng: null, viewport: null };
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: [token], propertyTypes: [] },
+      context: { mode: "rent", city: "bengaluru", cities: [], locations: [token], propertyTypes: [] },
     };
     const out = serializeSearchState(state);
     expect(out.has("locations_data")).toBe(true);
@@ -128,10 +128,10 @@ describe("serializeSearchState", () => {
   // ── Location serialization ────────────────────────────────────────────────
 
   it("serializes location tokens: ids in locations, full json in locations_data", () => {
-    const token = { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null };
+    const token = { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null, lat: null, lng: null, viewport: null };
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: [token], propertyTypes: [] },
+      context: { mode: "rent", city: "bengaluru", cities: [], locations: [token], propertyTypes: [] },
     };
     const out = serializeSearchState(state);
     expect(out.get("locations")).toBe("loc1");
@@ -140,12 +140,14 @@ describe("serializeSearchState", () => {
 
   it("round-trip: state with two location tokens", () => {
     const tokens = [
-      { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null },
-      { id: "loc2", label: "Indiranagar", type: "area" as const, cityId: "bengaluru", placeId: null },
+      { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null, lat: null, lng: null, viewport: null },
+      { id: "loc2", label: "Indiranagar", type: "area" as const, cityId: "bengaluru", placeId: null, lat: null, lng: null, viewport: null },
     ];
+    // Areas require an owning canonical city (no city ⇒ no areas). Bengaluru owns both.
+    const blr = { placeId: "city_blr", label: "Bengaluru", lat: 12.9716, lng: 77.5946, viewport: null };
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: tokens, propertyTypes: [] },
+      context: { mode: "rent", city: "bengaluru", cities: [blr], locations: tokens, propertyTypes: [] },
     };
     const rt = parseSearchUrl(serializeSearchState(state));
     expect(rt.context.locations).toHaveLength(2);
@@ -172,7 +174,7 @@ describe("serializeSearchState", () => {
   it("round-trip: rent state with filters", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: [], propertyTypes: [] },
+      context: { mode: "rent", city: "bengaluru", cities: [], locations: [], propertyTypes: [] },
       filters: { bhk: ["2BHK", "3BHK"], minPrice: 20000, maxPrice: 50000 } as RentFilters,
       sort: "price_asc",
     };
@@ -187,7 +189,7 @@ describe("serializeSearchState", () => {
   it("round-trip: buy state with filters", () => {
     const state: SearchState = {
       ...getDefaultSearchState("buy"),
-      context: { mode: "buy", city: "mumbai", locations: [], propertyTypes: [] },
+      context: { mode: "buy", city: "mumbai", cities: [], locations: [], propertyTypes: [] },
       filters: {
         possessionStatus: ["ready_to_move"],
         negotiable: true,
@@ -205,7 +207,7 @@ describe("serializeSearchState", () => {
   it("round-trip equality: parseSearchUrl(serializeSearchState(state)) equals normalizeSearchState(state)", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", locations: [], propertyTypes: [] },
+      context: { mode: "rent", city: "bengaluru", cities: [], locations: [], propertyTypes: [] },
       filters: { bhk: ["1BHK"], maxPrice: 35000 } as RentFilters,
       sort: "price_desc",
     };
@@ -227,7 +229,7 @@ describe("serializeSearchState", () => {
     const state: SearchState = {
       ...getDefaultSearchState("buy"),
       sort: "price_asc",
-      context: { mode: "buy", city: "mumbai", locations: [], propertyTypes: [] },
+      context: { mode: "buy", city: "mumbai", cities: [], locations: [], propertyTypes: [] },
       cursor: cur,
     };
     const rt = parseSearchUrl(serializeSearchState(state));

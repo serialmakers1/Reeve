@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } fr
 const CommentSection = React.lazy(() => import("@/components/comments/CommentSection"));
 import { WhyReeveFeeLink } from "@/components/WhyReeveFeeModal";
 import PublicTimeline, { type PublicTimelineRow } from "@/components/property-detail/PublicTimeline";
+import { formatBuildingLine } from "@/lib/location/formatBuildingLine";
 import RequestContactPanel from "@/components/property-detail/RequestContactPanel";
 import ManageListingCard from "@/components/property-detail/ManageListingCard";
 import PropertyCTABar from "@/components/property-detail/PropertyCTABar";
@@ -1198,7 +1199,7 @@ const PropertyDetail: React.FC = () => {
                 )}
               </div>
               <h1 className="mt-2 text-2xl font-bold leading-tight text-foreground">
-                {bhkLabel(property.bhk)} in {property.building_name}
+                {bhkLabel(property.bhk)} in {formatBuildingLine(property, "this area")}
               </h1>
               <p className="text-sm text-muted-foreground">
                 {property.formatted_address
@@ -1354,7 +1355,7 @@ const PropertyDetail: React.FC = () => {
                     propertyId={property.id}
                     ownerId={property.owner_id}
                     ownerDisplayName={ownerDisplayName}
-                    buildingName={property.building_name ?? "this property"}
+                    buildingName={property.building_name?.trim() || "this property"}
                     propertyStatus={property.status}
                     listingType={property.listing_type}
                     searchContext={searchOriginContext}

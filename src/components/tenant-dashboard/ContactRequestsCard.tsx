@@ -79,7 +79,7 @@ function formatCountdown(ms: number): string {
 
 function propertyTitle(p: PropertyBrief | null): string {
   if (!p) return "Property";
-  const parts = [p.building_name, p.locality].filter(Boolean);
+  const parts = [p.building_name?.trim(), p.locality?.trim()].filter(Boolean);
   return parts.length ? parts.join(" · ") : "Property";
 }
 

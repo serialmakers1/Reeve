@@ -4,6 +4,7 @@ import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import RequestCallbackButton from "@/components/RequestCallbackButton";
+import { formatBuildingLine } from "@/lib/location/formatBuildingLine";
 
 /* ─────────────────────────────────────────
    Types
@@ -572,7 +573,7 @@ export default function MyPropertyDetail() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-foreground leading-tight">
-                {property.building_name}
+                {formatBuildingLine(property, "Your property")}
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {property.bhk} · {property.furnishing} ·{" "}

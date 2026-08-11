@@ -332,7 +332,7 @@ export default function OwnerPropertyManagement() {
           </div>
           <div className="p-4 space-y-1">
             <h1 className="text-lg font-bold text-foreground">
-              {[labelForValue(BHK_OPTIONS as unknown as { value:string; label:string }[], property.bhk), property.building_name].filter(Boolean).join(" · ") || "Property"}
+              {[labelForValue(BHK_OPTIONS as unknown as { value:string; label:string }[], property.bhk), property.building_name?.trim()].filter(Boolean).join(" · ") || "Property"}
             </h1>
             <p className="text-sm text-muted-foreground">
               {[property.locality, property.city].filter(Boolean).join(", ") || "—"}

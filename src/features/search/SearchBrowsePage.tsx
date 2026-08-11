@@ -10,6 +10,7 @@ import { useSearchMeta } from "@/features/search/hooks/useSearchMeta";
 import { useSearchBootstrap } from "@/features/search/state/useSearchBootstrap";
 import { SEARCH_MAP_ENABLED } from "@/features/search/domain/searchFeatureFlags";
 import { formatSearchHeading } from "@/features/search/state/formatSearchHeading";
+import { formatCitiesLabel } from "@/features/search/state/searchStateUtils";
 import {
   SEARCH_EVENTS,
   newSearchSessionId,
@@ -139,7 +140,7 @@ export default function SearchBrowsePage() {
       setMode(mode);
       const c = state.context;
       if (c.city) {
-        bootstrap.confirmSetup({ city: c.city, areas: c.locations, mode, propertyTypes: c.propertyTypes });
+        bootstrap.confirmSetup({ city: c.city, cityToken: c.cities[0], areas: c.locations, mode, propertyTypes: c.propertyTypes });
       }
     },
     [setMode, state.context, bootstrap],
@@ -274,6 +275,7 @@ export default function SearchBrowsePage() {
     ? formatSearchHeading({
         mode: state.context.mode,
         city: state.context.city,
+        citiesLabel: formatCitiesLabel(state.context.cities),
         propertyTypes: state.context.propertyTypes,
       })
     : "Search Properties";
@@ -345,6 +347,7 @@ export default function SearchBrowsePage() {
               onClick={() =>
                 bootstrap.confirmSetup({
                   city: bootstrap.ipNoticeCity!,
+                  cityToken: state.context.cities[0],
                   areas: state.context.locations,
                   mode: state.context.mode ?? "rent",
                   propertyTypes: state.context.propertyTypes,

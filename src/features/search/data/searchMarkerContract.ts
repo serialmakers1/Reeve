@@ -64,13 +64,13 @@ export interface SearchMapMarkerRpcRow {
 export interface MapMarkersInput {
   // ── Core (required) ────────────────────────────────────────────────────────
   listingType: "rent" | "sale";
-  city: string;
   bounds: MapBounds;
   limit?: number;
 
-  // ── Shared membership filters ───────────────────────────────────────────────
-  locationIds?: string[]; // legacy placeId list (kept for RPC compat; sent as [])
-  areaBoxes?: { swLat: number; swLng: number; neLat: number; neLng: number }[]; // geographic Area filter (OR)
+  // ── Canonical geo membership (Prompt 3) — shared with the list RPC ──────────
+  cityAnchors?: { placeId: string; lat: number; lng: number }[];
+  areaAnchors?: { placeId: string; lat: number; lng: number }[];
+  distanceKm?: number | null;
   propertyTypes?: string[]; // multi-select; sent to the RPC as a deterministic CSV string
   bhk?: string[];
   furnishing?: string[];

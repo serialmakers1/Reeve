@@ -3,17 +3,16 @@ import { resultHeaderLabel } from "@/features/search/state/resultHeaderResolver"
 import { SortControl } from "../SortControl";
 
 interface SearchResultsHeaderProps {
-  loadedCount: number;
-  hasNextPage: boolean;
+  totalCount: number;
 }
 
 /**
  * Contextual result header: "247 homes in Whitefield" / "Homes across India".
  * Sort sits right-aligned on mobile (desk:hidden — desktop sort lives in the toolbar).
  */
-export function SearchResultsHeader({ loadedCount, hasNextPage }: SearchResultsHeaderProps) {
+export function SearchResultsHeader({ totalCount }: SearchResultsHeaderProps) {
   const { state } = useSearchState();
-  const label = resultHeaderLabel(state, loadedCount, hasNextPage);
+  const label = resultHeaderLabel(state, totalCount);
 
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3">

@@ -6,6 +6,9 @@ export interface CanonicalCity {
   city: string; // normalized lowercase, used as p_city / context.city
   displayLabel: string; // human label for the input
   placeId: string | null;
+  /** Real Google Place center (place.location). Required to become a canonical
+   *  city anchor — never derived from the viewport midpoint (Prompt 3A). */
+  center: { lat: number; lng: number } | null;
   viewport: CityViewport | null;
 }
 
@@ -50,10 +53,17 @@ export function useResolveCity() {
             }
           : null;
 
+        const loc = (place as any).location;
+        const clat = typeof loc?.lat === "function" ? loc.lat() : undefined;
+        const clng = typeof loc?.lng === "function" ? loc.lng() : undefined;
+        const center =
+          Number.isFinite(clat) && Number.isFinite(clng) ? { lat: clat as number, lng: clng as number } : null;
+
         return {
           city: (displayNameStr ?? trimmed).toLowerCase(),
           displayLabel: label,
           placeId,
+          center,
           viewport,
         };
       } catch {
