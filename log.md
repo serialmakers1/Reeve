@@ -1,3 +1,7 @@
+## [2026-08-12] feat | Added Section 3 Monthly Visit Console to /vacant-property-care-bangalore [5-mode interactive dossier console, 2.5D backing sheets, CSS-grid crossfade panels, Inspect/Prevent/Admin/Repairs/Record content, proof inset with vacant_32.webp, closing evidence loop with animation, zero new TS errors]
+
+## [2026-08-12] feat | Added interactive Quiet Risks section to /vacant-property-care-bangalore [dark section, 5 coral hotspots on vacant_2.webp, crossfading connectors, stacked explanation card, mobile scroll-rail, gradient overlay transitions, reduced-motion clean, zero new TS errors]
+
 ## [2026-08-12] fix | Rebalanced Managed pricing desktop composition [header moved into 43% left column above dark rate card; right pricing card top-aligned; mobile stack order unchanged; no new TS errors]
 
 ## [2026-08-12] verify | Verified Managed FAQ, enquiry and full-page integration [all 12 checks PASS, no code changes needed]
@@ -1274,3 +1278,11 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-08-10] feat | Added Property Services Bangalore page shell and Section 1 hero [20:30 IST]
 
 ## [2026-08-11] feat | Added Section 2 service chooser to Property Services Bangalore [20:45 IST]
+
+## [2026-08-12] feature | Added Vacant Property Care page shell with Watch FAQ and enquiry [21:15 IST]
+
+## [2026-08-12] feature | Added responsive Vacant Property Care hero using vacant_1.webp [21:45 IST]
+
+## [2026-08-12] ui | Added Reeve Watch interactive pricing section to /vacant-property-care-bangalore [deep-navy section, Up-to-3BHK/large property-type selector, 6- and 12-month term cards with live savings badges, connector rail, zero-markup note, entrance animations, zero new TS errors]
+
+## [2026-08-12] ui | Added Reeve Watch continuity and starting section [20:03 IST]
