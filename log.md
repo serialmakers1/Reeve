@@ -1,3 +1,5 @@
+## [2026-08-12] fix | Rebalanced Managed pricing desktop composition [header moved into 43% left column above dark rate card; right pricing card top-aligned; mobile stack order unchanged; no new TS errors]
+
 ## [2026-08-12] verify | Verified Managed FAQ, enquiry and full-page integration [all 12 checks PASS, no code changes needed]
 
 ## [2026-08-12] feat | Added Section 4 free-assessment onboarding path to /property-management-bangalore [5-step vertical spine mobile / 5-col horizontal desktop, CSS connectors, 2.5D StepToken, 4-item included strip, CheckCircle2, zero new TS errors]
