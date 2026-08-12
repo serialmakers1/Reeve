@@ -1157,28 +1157,36 @@ function ManagedPricingSection() {
       }}
     >
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8 lg:px-10">
-        <p
-          className="text-[11px] min-[1240px]:text-[12px] font-[700] uppercase tracking-[0.14em]"
-          style={{ fontFamily: SANS, color: "#75A8FF" }}
-        >
-          PRICING THAT FOLLOWS THE PROPERTY
-        </p>
-        <h2
-          id="pricing-heading"
-          className="mt-3 max-w-[680px] text-[31px] min-[1240px]:text-[clamp(42px,3.5vw,44px)] font-normal leading-[1.05] tracking-[-0.018em] text-white"
-          style={{ fontFamily: SERIF }}
-        >
-          When there&#8217;s less to manage, you pay less.
-        </h2>
-        <p
-          className="mt-[14px] max-w-[660px] text-[15.5px] min-[1240px]:text-[17px] font-[500] leading-[1.5]"
-          style={{ fontFamily: SANS, color: "#C5D1E2" }}
-        >
-          When the keys are returned, the rate drops automatically. When a tenant takes possession, the rented rate returns.
-        </p>
+        <div className="flex flex-col gap-4 min-[1240px]:grid min-[1240px]:grid-cols-[43fr_57fr] min-[1240px]:gap-6 min-[1240px]:items-start">
 
-        <div className="mt-6 min-[1240px]:mt-8 flex flex-col gap-4 min-[1240px]:grid min-[1240px]:grid-cols-[43fr_57fr] min-[1240px]:gap-6 min-[1240px]:items-start">
-          <PropertyRateCard />
+          {/* LEFT: header + dark rate card */}
+          <div className="min-w-0">
+            <p
+              className="text-[11px] min-[1240px]:text-[12px] font-[700] uppercase tracking-[0.14em]"
+              style={{ fontFamily: SANS, color: "#75A8FF" }}
+            >
+              PRICING THAT FOLLOWS THE PROPERTY
+            </p>
+            <h2
+              id="pricing-heading"
+              className="mt-3 max-w-[680px] text-[31px] min-[1240px]:text-[clamp(42px,3.5vw,44px)] font-normal leading-[1.05] tracking-[-0.018em] text-white"
+              style={{ fontFamily: SERIF }}
+            >
+              When there&#8217;s less to manage, you pay less.
+            </h2>
+            <p
+              className="mt-[14px] max-w-[660px] text-[15.5px] min-[1240px]:text-[17px] font-[500] leading-[1.5]"
+              style={{ fontFamily: SANS, color: "#C5D1E2" }}
+            >
+              When the keys are returned, the rate drops automatically. When a tenant takes possession, the rented rate returns.
+            </p>
+
+            <div className="mt-6 min-[1240px]:mt-8">
+              <PropertyRateCard />
+            </div>
+          </div>
+
+          {/* RIGHT: pricing card */}
           <PricingCard propType={propType} setPropType={setPropType} />
         </div>
       </div>
