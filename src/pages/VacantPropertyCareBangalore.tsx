@@ -19,9 +19,9 @@ const SERIF = "'Instrument Serif', Georgia, serif";
 const SANS = "'DM Sans', system-ui, sans-serif";
 
 const proofItems = [
-  { icon: CalendarCheck, text: "12 visits/year" },
-  { icon: Folder, text: "Dated property record" },
-  { icon: CheckCircle, text: "Free assessment before you commit" },
+  { icon: CalendarCheck, text: "Monthly physical visit" },
+  { icon: Folder,        text: "Dated evidence" },
+  { icon: ReceiptText,   text: "Vendor bills at actuals" },
 ] as const;
 
 type RiskId = "damp" | "water" | "pests" | "utilities" | "door";
@@ -161,15 +161,24 @@ function HeroSection() {
           {/* Left: copy column */}
           <div className="flex min-w-0 flex-col">
 
+            {/* REEVE WATCH eyebrow */}
+            <div className="inline-flex items-center gap-[6px] mb-[16px]">
+              <span className="w-[6px] h-[6px] rounded-full flex-shrink-0 bg-[#0F9F8F]" aria-hidden="true" />
+              <span
+                className="text-[11px] lg:text-[12px] font-[700] tracking-[0.11em] uppercase text-[#0B756B]"
+                style={{ fontFamily: SANS }}
+              >REEVE WATCH</span>
+            </div>
+
             {/* Display statement — editorial, not the semantic h1 */}
             <p
-              className="text-[38px] sm:text-[42px] lg:text-[clamp(54px,4.5vw,64px)] font-normal leading-[1.00] tracking-[-0.025em] text-[#0B1526]"
+              className="text-[38px] sm:text-[42px] lg:text-[clamp(48px,4vw,58px)] font-normal leading-[1.00] tracking-[-0.025em] text-[#0B1526]"
               style={{ fontFamily: SERIF }}
             >
               Your property may be empty.
             </p>
             <p
-              className="text-[38px] sm:text-[42px] lg:text-[clamp(54px,4.5vw,64px)] font-normal leading-[1.00] tracking-[-0.025em] text-[#0B756B]"
+              className="text-[38px] sm:text-[42px] lg:text-[clamp(48px,4vw,58px)] font-normal leading-[1.00] tracking-[-0.025em] text-[#0B756B]"
               style={{ fontFamily: SERIF }}
             >
               It shouldn&#8217;t be unattended.
@@ -216,10 +225,11 @@ function HeroSection() {
                 <a
                   href="#enquiry"
                   onClick={handleEnquiryClick}
-                  className="inline-flex w-full sm:w-auto items-center justify-center rounded-[13px] bg-[#0057F2] px-6 text-[16px] font-[700] text-white shadow-[0_8px_22px_rgba(0,87,242,.18)] transition-all duration-[160ms] hover:-translate-y-px hover:bg-[#0047D0] active:bg-[#003FB8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0057F2]"
+                  className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-[13px] bg-[#0057F2] px-6 text-[16px] font-[700] text-white shadow-[0_8px_22px_rgba(0,87,242,.18)] transition-all duration-[160ms] hover:-translate-y-px hover:bg-[#0047D0] active:bg-[#003FB8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0057F2]"
                   style={{ fontFamily: SANS, height: 52 }}
                 >
-                  Tell us about your property →
+                  <span className="whitespace-nowrap">Tell us about your property</span>
+                  <span className="flex-shrink-0" aria-hidden="true">→</span>
                 </a>
                 <a
                   href="#monthly-visit"
@@ -253,7 +263,7 @@ function HeroSection() {
 
           {/* Right: artwork + mobile proof */}
           <div className="mt-8 lg:mt-0">
-            <div className="vpc-hero-art flex items-center justify-center lg:justify-end">
+            <div className="vpc-hero-art relative flex items-center justify-center lg:justify-end">
               <img
                 src="/images/vacant_1.webp"
                 alt="Empty apartment with a dated monthly visit record, room check and meter reading."
@@ -263,6 +273,11 @@ function HeroSection() {
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
+              />
+              <div
+                className="absolute top-0 bottom-0 right-0 pointer-events-none hidden lg:block"
+                style={{ width: "3.5%", maxWidth: "32px", background: "linear-gradient(90deg, transparent 0%, #FCF9F3 100%)" }}
+                aria-hidden="true"
               />
             </div>
 
@@ -543,8 +558,7 @@ function QuietRisksSection() {
 
           {/* Horizontal risk rail */}
           <div
-            className="mt-4 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            style={{ scrollSnapType: "x proximity" }}
+            className="mt-4 flex flex-wrap gap-2"
           >
             {RISKS.map((risk) => {
               const isActive = selectedRisk === risk.id;
@@ -556,7 +570,6 @@ function QuietRisksSection() {
                   style={{
                     fontFamily: SANS,
                     height: 44,
-                    scrollSnapAlign: "start",
                     background: "rgba(255,255,255,.07)",
                     border: `1px solid ${isActive ? "#F46F52" : "rgba(255,255,255,.13)"}`,
                     boxShadow: isActive ? "0 4px 14px rgba(244,111,82,.22)" : "none",
@@ -925,8 +938,8 @@ function MonthlyVisitSection() {
 
             {/* Content body */}
             <div className="px-5 py-[24px] sm:px-7 lg:px-[32px] lg:py-[30px]">
-              {/* CSS-grid stack — all 5 panels mounted simultaneously, crossfade via opacity */}
-              <div className="grid min-h-[260px] lg:min-h-[330px]">
+              {/* Relative container — all 5 panels mounted simultaneously, inactive are absolute, active is in flow */}
+              <div className="relative min-h-[260px] lg:min-h-[320px]">
 
                 {/* ── INSPECT panel ── */}
                 {(() => {
@@ -934,61 +947,67 @@ function MonthlyVisitSection() {
                   return (
                     <div
                       id="watch-panel-inspect"
-                      className="[grid-area:1/1] transition-[opacity,transform] duration-[190ms] motion-reduce:transition-none"
+                      className="transition-[opacity,transform] duration-[190ms] motion-reduce:transition-none"
                       style={{
                         opacity: isActive ? 1 : 0,
                         transform: isActive ? "translateY(0)" : "translateY(4px)",
                         pointerEvents: isActive ? "auto" : "none",
+                        ...(isActive ? {} : { position: "absolute" as const, inset: 0 }),
                       }}
                       aria-hidden={isActive ? undefined : true}
                     >
-                      <div className="lg:flex lg:items-start lg:gap-[28px]">
-                        <div className="min-w-0 lg:w-[52%]">
-                          <h3
-                            className="font-normal leading-[1.08] text-[#172235] text-[24px] sm:text-[26px] lg:text-[32px]"
-                            style={{ fontFamily: SERIF }}
-                          >
-                            What gets checked
-                          </h3>
-                          <div className="mt-[18px] grid grid-cols-1 min-[360px]:grid-cols-2 gap-x-4 gap-y-0">
-                            {INSPECT_ITEMS.map((item) => (
-                              <div
-                                key={item}
-                                className="flex items-center gap-[8px] py-[9px]"
-                                style={{ borderBottom: "1px solid #EBF3F0" }}
-                              >
-                                <span
-                                  className="flex-shrink-0 w-4 h-4 rounded-full border border-[#0F9F8F] flex items-center justify-center"
-                                  aria-hidden="true"
+                      <div className="lg:min-h-[320px] lg:flex lg:items-center">
+                        <div className="w-full lg:flex lg:items-start lg:gap-[28px]">
+                          <div className="min-w-0 lg:w-[48%]">
+                            <h3
+                              className="font-normal leading-[1.08] text-[#172235] text-[24px] sm:text-[26px] lg:text-[32px]"
+                              style={{ fontFamily: SERIF }}
+                            >
+                              What gets checked
+                            </h3>
+                            <div className="mt-[18px] grid grid-cols-1 min-[360px]:grid-cols-2 gap-x-4 gap-y-0">
+                              {INSPECT_ITEMS.map((item, idx) => (
+                                <div
+                                  key={item}
+                                  className="flex items-center gap-[8px] py-[9px]"
+                                  style={{ borderBottom: "1px solid #EBF3F0" }}
                                 >
-                                  <Check size={9} color="#0F9F8F" strokeWidth={2.5} aria-hidden="true" />
-                                </span>
-                                <span
-                                  className="text-[13.5px] lg:text-[14px] font-[500] text-[#263B3F] leading-[1.3]"
-                                  style={{ fontFamily: SANS }}
-                                >
-                                  {item}
-                                </span>
-                              </div>
-                            ))}
+                                  <span
+                                    className="flex-shrink-0 w-4 h-4 rounded-full border border-[#0F9F8F] flex items-center justify-center"
+                                    aria-hidden="true"
+                                  >
+                                    <Check size={9} color="#0F9F8F" strokeWidth={2.5} aria-hidden="true" />
+                                  </span>
+                                  <span className="text-[12.5px] font-[700] text-[#0B756B] flex-shrink-0" style={{ fontFamily: SANS }}>
+                                    {idx + 1}.
+                                  </span>
+                                  <span
+                                    className="text-[13.5px] lg:text-[14px] font-[500] text-[#263B3F] leading-[1.3]"
+                                    style={{ fontFamily: SANS }}
+                                  >
+                                    {item}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                        <div className="lg:w-[48%] mt-6 lg:mt-0">
-                          <figure>
-                            <img
-                              src="/images/vacant_31.webp"
-                              alt=""
-                              aria-hidden="true"
-                              width={1666}
-                              height={944}
-                              className="w-full h-auto object-contain rounded-[12px]"
-                              loading="lazy"
-                              decoding="async"
-                            />
-                            <figcaption className="sr-only">
-                              Sample inspection evidence: Bathroom — Clear; Kitchen — Checked; Front door — Checked.
-                            </figcaption>
-                          </figure>
+                          <div className="lg:w-[52%] mt-6 lg:mt-0">
+                            <figure>
+                              <img
+                                src="/images/vacant_31.webp"
+                                alt=""
+                                aria-hidden="true"
+                                width={1666}
+                                height={944}
+                                className="w-full h-auto object-contain rounded-[12px]"
+                                loading="lazy"
+                                decoding="async"
+                              />
+                              <figcaption className="sr-only">
+                                Sample inspection evidence: Bathroom — Clear; Kitchen — Checked; Front door — Checked.
+                              </figcaption>
+                            </figure>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1001,77 +1020,86 @@ function MonthlyVisitSection() {
                   return (
                     <div
                       id="watch-panel-prevent"
-                      className="[grid-area:1/1] transition-[opacity,transform] duration-[190ms] motion-reduce:transition-none"
+                      className="transition-[opacity,transform] duration-[190ms] motion-reduce:transition-none"
                       style={{
                         opacity: isActive ? 1 : 0,
                         transform: isActive ? "translateY(0)" : "translateY(4px)",
                         pointerEvents: isActive ? "auto" : "none",
+                        ...(isActive ? {} : { position: "absolute" as const, inset: 0 }),
                       }}
                       aria-hidden={isActive ? undefined : true}
                     >
-                      <div className="lg:flex lg:items-start lg:gap-[28px]">
-                        <div className="min-w-0 lg:w-[52%]">
-                          <h3
-                            className="font-normal leading-[1.08] text-[#172235] text-[24px] sm:text-[26px] lg:text-[32px]"
-                            style={{ fontFamily: SERIF }}
-                          >
-                            Small actions that prevent avoidable problems
-                          </h3>
-                          <div className="mt-[18px]">
-                            {PREVENT_ACTIONS.map(({ label, Icon }) => (
-                              <div
-                                key={label}
-                                className="flex items-center gap-[12px] py-[12px]"
-                                style={{ borderBottom: "1px solid #EBF3F0" }}
-                              >
-                                <span
-                                  className="flex-shrink-0 w-7 h-7 rounded-full bg-[#E6F7F4] flex items-center justify-center"
-                                  aria-hidden="true"
-                                >
-                                  <Icon size={14} color="#0B756B" strokeWidth={1.8} aria-hidden="true" />
-                                </span>
-                                <span
-                                  className="flex-1 text-[14px] font-[500] text-[#263B3F] leading-[1.3]"
-                                  style={{ fontFamily: SANS }}
-                                >
-                                  {label}
-                                </span>
-                                <span
-                                  className="flex-shrink-0 w-5 h-5 rounded-full bg-[#EFF9D5] flex items-center justify-center"
-                                  aria-hidden="true"
-                                  style={{ border: "1px solid rgba(126,168,29,.22)" }}
-                                >
-                                  <Check size={10} color="#526D12" strokeWidth={2.5} aria-hidden="true" />
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="lg:w-[48%] mt-6 lg:mt-0">
-                          <div
-                            className="rounded-[16px] p-[20px] lg:p-[22px]"
-                            style={{ background: "#F7FBFA", border: "1px solid #DCECE8" }}
-                          >
-                            <div className="flex items-center gap-[10px]">
-                              <span
-                                className="flex-shrink-0 w-8 h-8 rounded-full bg-[#E6F7F4] flex items-center justify-center"
-                                aria-hidden="true"
-                              >
-                                <Droplets size={15} color="#0B756B" strokeWidth={1.8} aria-hidden="true" />
-                              </span>
-                              <p
-                                className="text-[20px] lg:text-[22px] font-normal leading-[1.1] text-[#172235]"
-                                style={{ fontFamily: SERIF }}
-                              >
-                                Want it cleaned too?
-                              </p>
-                            </div>
-                            <p
-                              className="mt-[10px] text-[13.5px] font-[500] leading-[1.5] text-[#536676]"
-                              style={{ fontFamily: SANS }}
+                      <div className="lg:min-h-[320px] lg:flex lg:items-center">
+                        <div className="w-full lg:flex lg:items-start lg:gap-[28px]">
+                          <div className="min-w-0 lg:w-[52%]">
+                            <h3
+                              className="font-normal leading-[1.08] text-[#172235] text-[24px] sm:text-[26px] lg:text-[32px]"
+                              style={{ fontFamily: SERIF }}
                             >
-                              Cleaning can be arranged during the visit at actual cost.
-                            </p>
+                              Small actions that prevent avoidable problems
+                            </h3>
+                            <div className="mt-[18px]">
+                              {PREVENT_ACTIONS.map(({ label, Icon }, idx) => (
+                                <div
+                                  key={label}
+                                  className="flex items-center gap-[10px] py-[12px]"
+                                  style={{ borderBottom: "1px solid #EBF3F0" }}
+                                >
+                                  <span
+                                    className="flex-shrink-0 w-10 h-10 rounded-full bg-[#E6F7F4] flex items-center justify-center"
+                                    aria-hidden="true"
+                                  >
+                                    <Icon size={22} color="#0B756B" strokeWidth={1.6} aria-hidden="true" />
+                                  </span>
+                                  <span className="text-[13px] font-[700] text-[#0B756B] flex-shrink-0" style={{ fontFamily: SANS }}>
+                                    {idx + 1}.
+                                  </span>
+                                  <span
+                                    className="flex-1 text-[14px] font-[500] text-[#263B3F] leading-[1.3]"
+                                    style={{ fontFamily: SANS }}
+                                  >
+                                    {label}
+                                  </span>
+                                  <span
+                                    className="flex-shrink-0 w-5 h-5 rounded-full bg-[#EFF9D5] flex items-center justify-center"
+                                    aria-hidden="true"
+                                    style={{ border: "1px solid rgba(126,168,29,.22)" }}
+                                  >
+                                    <Check size={10} color="#526D12" strokeWidth={2.5} aria-hidden="true" />
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="lg:w-[48%] mt-6 lg:mt-0">
+                            <div
+                              className="rounded-[16px] p-[20px] lg:p-[22px]"
+                              style={{ background: "#F7FBFA", border: "1px solid #DCECE8" }}
+                            >
+                              <div className="flex flex-col items-start gap-[12px] min-[360px]:flex-row min-[360px]:items-center min-[360px]:gap-[16px]">
+                                <span
+                                  className="flex-shrink-0 w-14 h-14 rounded-full bg-[#E6F7F4] flex items-center justify-center"
+                                  aria-hidden="true"
+                                  style={{ border: "1px solid rgba(15,159,143,.18)" }}
+                                >
+                                  <Droplets size={26} color="#0B756B" strokeWidth={1.8} aria-hidden="true" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p
+                                    className="text-[20px] lg:text-[clamp(21px,1.7vw,23px)] font-[400] text-[#172235]"
+                                    style={{ fontFamily: SERIF }}
+                                  >
+                                    Want it cleaned too?
+                                  </p>
+                                  <p
+                                    className="mt-[8px] text-[13.5px] lg:text-[14px] font-[500] text-[#536676] leading-[1.5]"
+                                    style={{ fontFamily: SANS }}
+                                  >
+                                    Cleaning can be arranged during the visit at actual cost.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1085,56 +1113,68 @@ function MonthlyVisitSection() {
                   return (
                     <div
                       id="watch-panel-admin"
-                      className="[grid-area:1/1] transition-[opacity,transform] duration-[190ms] motion-reduce:transition-none"
+                      className="transition-[opacity,transform] duration-[190ms] motion-reduce:transition-none"
                       style={{
                         opacity: isActive ? 1 : 0,
                         transform: isActive ? "translateY(0)" : "translateY(4px)",
                         pointerEvents: isActive ? "auto" : "none",
+                        ...(isActive ? {} : { position: "absolute" as const, inset: 0 }),
                       }}
                       aria-hidden={isActive ? undefined : true}
                     >
-                      <div className="lg:flex lg:items-start lg:gap-[28px]">
-                        <div className="min-w-0 lg:w-[52%]">
-                          <h3
-                            className="font-normal leading-[1.08] text-[#172235] text-[24px] sm:text-[26px] lg:text-[32px]"
-                            style={{ fontFamily: SERIF }}
-                          >
-                            The things that are easy to miss from another city
-                          </h3>
-                        </div>
-                        <div className="lg:w-[48%] mt-6 lg:mt-0">
-                          <div
-                            className="rounded-[14px] p-[18px]"
-                            style={{ background: "rgba(15,159,143,.04)" }}
-                          >
-                            {ADMIN_ITEMS.map(({ label, Icon }, idx) => (
-                              <div key={label} className="flex gap-[12px] items-start">
-                                <div className="relative flex-shrink-0 flex flex-col items-center">
-                                  <span
-                                    className="w-7 h-7 rounded-full bg-[#E6F7F4] flex items-center justify-center relative z-10"
-                                    style={{ border: "1px solid rgba(15,159,143,.25)" }}
-                                    aria-hidden="true"
-                                  >
-                                    <Icon size={13} color="#0B756B" strokeWidth={1.8} aria-hidden="true" />
-                                  </span>
-                                  {idx < ADMIN_ITEMS.length - 1 && (
+                      <div className="lg:min-h-[320px] lg:flex lg:items-center">
+                        <div className="w-full lg:flex lg:items-start lg:gap-[28px]">
+                          <div className="min-w-0 lg:w-[52%]">
+                            <h3
+                              className="font-normal leading-[1.08] text-[#172235] text-[24px] sm:text-[26px] lg:text-[32px]"
+                              style={{ fontFamily: SERIF }}
+                            >
+                              The things that are easy to miss from another city
+                            </h3>
+                          </div>
+                          <div className="lg:w-[48%] mt-6 lg:mt-0">
+                            <div
+                              className="rounded-[14px] p-[22px] lg:p-[24px]"
+                              style={{ background: "rgba(15,159,143,.04)" }}
+                            >
+                              {ADMIN_ITEMS.map(({ label, Icon }, idx) => (
+                                <div key={label} className="flex gap-[12px] items-start">
+                                  <div className="relative flex-shrink-0 flex flex-col items-center">
                                     <span
-                                      className="w-[2px] bg-[#D5E8E3] mt-[4px]"
-                                      style={{ height: 28 }}
+                                      className="w-7 h-7 rounded-full bg-[#E6F7F4] flex items-center justify-center relative z-10"
+                                      style={{ border: "1px solid rgba(15,159,143,.25)" }}
                                       aria-hidden="true"
-                                    />
-                                  )}
+                                    >
+                                      <Icon size={13} color="#0B756B" strokeWidth={1.8} aria-hidden="true" />
+                                    </span>
+                                    {idx < ADMIN_ITEMS.length - 1 && (
+                                      <span
+                                        className="w-[2px] bg-[#D5E8E3] mt-[4px]"
+                                        style={{ height: 28 }}
+                                        aria-hidden="true"
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="flex-1" style={{ paddingBottom: idx < ADMIN_ITEMS.length - 1 ? 18 : 0 }}>
+                                    <div className="flex items-center justify-between pt-[6px]">
+                                      <p
+                                        className="text-[14px] font-[600] text-[#263B3F] leading-[1.3]"
+                                        style={{ fontFamily: SANS }}
+                                      >
+                                        {label}
+                                      </p>
+                                      <span
+                                        className="w-4 h-4 rounded-full bg-[#F6FBFA] flex items-center justify-center flex-shrink-0 ml-2"
+                                        style={{ border: "1px solid #CFE3DE" }}
+                                        aria-hidden="true"
+                                      >
+                                        <Check size={9} color="#8FA5A8" strokeWidth={2} aria-hidden="true" />
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div style={{ paddingBottom: idx < ADMIN_ITEMS.length - 1 ? 18 : 0 }}>
-                                  <p
-                                    className="text-[13.5px] font-[600] text-[#263B3F] leading-[1.3] pt-[6px]"
-                                    style={{ fontFamily: SANS }}
-                                  >
-                                    {label}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1148,11 +1188,12 @@ function MonthlyVisitSection() {
                   return (
                     <div
                       id="watch-panel-repairs"
-                      className="[grid-area:1/1] transition-[opacity,transform] duration-[190ms] motion-reduce:transition-none"
+                      className="transition-[opacity,transform] duration-[190ms] motion-reduce:transition-none"
                       style={{
                         opacity: isActive ? 1 : 0,
                         transform: isActive ? "translateY(0)" : "translateY(4px)",
                         pointerEvents: isActive ? "auto" : "none",
+                        ...(isActive ? {} : { position: "absolute" as const, inset: 0 }),
                       }}
                       aria-hidden={isActive ? undefined : true}
                     >
@@ -1177,19 +1218,16 @@ function MonthlyVisitSection() {
                               <div key={step.label} className="flex gap-[12px] items-start">
                                 <div className="relative flex-shrink-0 flex flex-col items-center">
                                   <span
-                                    className="w-7 h-7 rounded-full flex items-center justify-center"
+                                    className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-[700]"
                                     style={{
-                                      background: step.isFinal ? "#EFF9D5" : "#0F9F8F",
-                                      border: step.isFinal ? "1px solid rgba(126,168,29,.30)" : "none",
+                                      background: "#F6FBFA",
+                                      border: "1px solid #0F9F8F",
+                                      color: "#0B756B",
+                                      fontFamily: SANS,
                                     }}
                                     aria-hidden="true"
                                   >
-                                    <Check
-                                      size={11}
-                                      strokeWidth={2.5}
-                                      aria-hidden="true"
-                                      style={{ color: step.isFinal ? "#526D12" : "white" }}
-                                    />
+                                    {idx + 1}
                                   </span>
                                   {idx < REPAIR_STEPS.length - 1 && (
                                     <span
@@ -1199,19 +1237,28 @@ function MonthlyVisitSection() {
                                     />
                                   )}
                                 </div>
-                                <div className="pb-[6px]">
-                                  <p
-                                    className="text-[11px] font-[600] text-[#6D7E82] uppercase tracking-[0.06em] leading-none"
-                                    style={{ fontFamily: SANS }}
+                                <div className="flex-1 flex items-start justify-between pb-[6px]">
+                                  <div>
+                                    <p
+                                      className="text-[11px] font-[600] text-[#0B756B] tracking-[0.06em] leading-none"
+                                      style={{ fontFamily: SANS }}
+                                    >
+                                      {step.label}
+                                    </p>
+                                    <p
+                                      className="mt-[3px] text-[14px] font-[600] text-[#263B3F]"
+                                      style={{ fontFamily: SANS }}
+                                    >
+                                      {step.detail}
+                                    </p>
+                                  </div>
+                                  <span
+                                    className="flex-shrink-0 w-[18px] h-[18px] rounded-full bg-[#EFF9D5] flex items-center justify-center ml-auto"
+                                    style={{ border: "1px solid rgba(126,168,29,.22)" }}
+                                    aria-hidden="true"
                                   >
-                                    {step.label}
-                                  </p>
-                                  <p
-                                    className="mt-[3px] text-[14px] font-[600] text-[#263B3F]"
-                                    style={{ fontFamily: SANS }}
-                                  >
-                                    {step.detail}
-                                  </p>
+                                    <Check size={9} color="#526D12" strokeWidth={2.5} aria-hidden="true" />
+                                  </span>
                                 </div>
                               </div>
                             ))}
@@ -1224,7 +1271,7 @@ function MonthlyVisitSection() {
                             style={{ background: "#F4FAF8", border: "1px solid #D7EAE5" }}
                           >
                             {/* 3-col cost row */}
-                            <div className="grid grid-cols-3 gap-[8px]">
+                            <div className="grid grid-cols-3">
                               <div>
                                 <p
                                   className="text-[10px] font-[600] text-[#6D7E82] uppercase tracking-[0.05em] leading-none"
@@ -1239,7 +1286,7 @@ function MonthlyVisitSection() {
                                   &#8377;4,600
                                 </p>
                               </div>
-                              <div>
+                              <div className="border-l border-[#D7EAE5] pl-[10px] ml-[-1px]">
                                 <p
                                   className="text-[10px] font-[600] text-[#6D7E82] uppercase tracking-[0.05em] leading-none"
                                   style={{ fontFamily: SANS }}
@@ -1253,7 +1300,7 @@ function MonthlyVisitSection() {
                                   &#8377;4,600
                                 </p>
                               </div>
-                              <div>
+                              <div className="border-l border-[#D7EAE5] pl-[10px] ml-[-1px]">
                                 <p
                                   className="text-[10px] font-[600] text-[#6D7E82] uppercase tracking-[0.05em] leading-none"
                                   style={{ fontFamily: SANS }}
@@ -1282,28 +1329,55 @@ function MonthlyVisitSection() {
                               </span>
                             </div>
                             {/* Approval rows */}
-                            <div className="mt-[12px] space-y-[8px]">
-                              {["Written approval received", "Before / after attached"].map((text) => (
-                                <div key={text} className="flex items-center gap-[8px]">
-                                  <Check size={13} color="#0B756B" strokeWidth={2.2} aria-hidden="true" />
-                                  <span
-                                    className="text-[13px] font-[500] text-[#263B3F]"
-                                    style={{ fontFamily: SANS }}
-                                  >
-                                    {text}
-                                  </span>
-                                </div>
-                              ))}
+                            <div className="mt-[12px] flex flex-col">
+                              <div className="flex items-center gap-[8px]">
+                                <span
+                                  className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EFF3F2] flex items-center justify-center"
+                                  style={{ border: "1px solid rgba(15,159,143,.18)" }}
+                                  aria-hidden="true"
+                                >
+                                  <PenLine size={12} color="#0B756B" strokeWidth={2} aria-hidden="true" />
+                                </span>
+                                <span className="flex-1 text-[13px] font-[500] text-[#263B3F]" style={{ fontFamily: SANS }}>
+                                  Written approval received
+                                </span>
+                                <span
+                                  className="flex-shrink-0 w-[16px] h-[16px] rounded-full bg-[#EFF9D5] flex items-center justify-center"
+                                  style={{ border: "1px solid rgba(126,168,29,.22)" }}
+                                  aria-hidden="true"
+                                >
+                                  <Check size={8} color="#526D12" strokeWidth={2.5} aria-hidden="true" />
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-[8px] mt-[8px]" style={{ borderTop: "1px solid #E5EFEC", paddingTop: 8 }}>
+                                <span
+                                  className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EFF3F2] flex items-center justify-center"
+                                  style={{ border: "1px solid rgba(15,159,143,.18)" }}
+                                  aria-hidden="true"
+                                >
+                                  <FileText size={12} color="#0B756B" strokeWidth={2} aria-hidden="true" />
+                                </span>
+                                <span className="flex-1 text-[13px] font-[500] text-[#263B3F]" style={{ fontFamily: SANS }}>
+                                  Before / after attached
+                                </span>
+                                <span
+                                  className="flex-shrink-0 w-[16px] h-[16px] rounded-full bg-[#EFF9D5] flex items-center justify-center"
+                                  style={{ border: "1px solid rgba(126,168,29,.22)" }}
+                                  aria-hidden="true"
+                                >
+                                  <Check size={8} color="#526D12" strokeWidth={2.5} aria-hidden="true" />
+                                </span>
+                              </div>
                             </div>
                             {/* Before/after image — inside the proof inset */}
-                            <figure className="mt-[14px]">
+                            <figure className="mt-[14px] lg:h-[155px] overflow-hidden rounded-[8px]">
                               <img
                                 src="/images/vacant_32.webp"
                                 alt=""
                                 aria-hidden="true"
                                 width={1840}
                                 height={854}
-                                className="w-full h-auto object-contain rounded-[8px]"
+                                className="w-full h-auto lg:h-full object-contain rounded-[8px]"
                                 loading="lazy"
                                 decoding="async"
                               />
@@ -1324,73 +1398,105 @@ function MonthlyVisitSection() {
                   return (
                     <div
                       id="watch-panel-record"
-                      className="[grid-area:1/1] transition-[opacity,transform] duration-[190ms] motion-reduce:transition-none"
+                      className="transition-[opacity,transform] duration-[190ms] motion-reduce:transition-none"
                       style={{
                         opacity: isActive ? 1 : 0,
                         transform: isActive ? "translateY(0)" : "translateY(4px)",
                         pointerEvents: isActive ? "auto" : "none",
+                        ...(isActive ? {} : { position: "absolute" as const, inset: 0 }),
                       }}
                       aria-hidden={isActive ? undefined : true}
                     >
-                      <div className="lg:flex lg:items-start lg:gap-[28px]">
-                        <div className="min-w-0 lg:w-[52%]">
-                          <h3
-                            className="font-normal leading-[1.06] text-[#172235] text-[27px] sm:text-[32px] lg:text-[36px]"
-                            style={{ fontFamily: SERIF }}
-                          >
-                            12 visits/year
-                          </h3>
-                          <div className="mt-[18px]">
-                            {RECORD_OUTPUTS.map((text) => (
-                              <div
-                                key={text}
-                                className="flex items-center gap-[10px] py-[9px]"
-                                style={{ borderBottom: "1px solid #EBF3F0" }}
-                              >
-                                <span
-                                  className="flex-shrink-0 w-5 h-5 rounded-full bg-[#EFF9D5] flex items-center justify-center"
-                                  aria-hidden="true"
-                                  style={{ border: "1px solid rgba(126,168,29,.22)" }}
+                      <div className="lg:min-h-[320px] lg:flex lg:items-center">
+                        <div className="w-full lg:flex lg:items-start lg:gap-[28px]">
+                          <div className="min-w-0 lg:w-[52%]">
+                            <h3
+                              className="font-normal leading-[1.06] text-[#172235] text-[27px] sm:text-[32px] lg:text-[36px]"
+                              style={{ fontFamily: SERIF }}
+                            >
+                              12 visits/year
+                            </h3>
+                            <div className="mt-[18px]">
+                              {RECORD_OUTPUTS.map((text) => (
+                                <div
+                                  key={text}
+                                  className="flex items-center gap-[10px] py-[9px]"
+                                  style={{ borderBottom: "1px solid #EBF3F0" }}
                                 >
-                                  <Check size={10} color="#526D12" strokeWidth={2.5} aria-hidden="true" />
-                                </span>
-                                <span
-                                  className="text-[14px] font-[500] text-[#263B3F]"
-                                  style={{ fontFamily: SANS }}
-                                >
-                                  {text}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="lg:w-[48%] mt-6 lg:mt-0">
-                          {/* 12 visit nodes — grid-cols-6 always (2 rows × 6); no chronological meaning */}
-                          <div className="grid grid-cols-6 gap-[4px] sm:gap-[6px]">
-                            {Array.from({ length: 12 }, (_, i) => {
-                              const isSample = i === 7;
-                              return (
-                                <div key={i} className="flex flex-col items-center gap-[4px]">
                                   <span
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-[700]"
-                                    style={{
-                                      fontFamily: SANS,
-                                      background: isSample ? "#0F9F8F" : "#F6FBFA",
-                                      border: isSample ? "none" : "1px solid #CFE3DE",
-                                      color: isSample ? "white" : "#8FA5A8",
-                                    }}
+                                    className="flex-shrink-0 w-5 h-5 rounded-full bg-[#EFF9D5] flex items-center justify-center"
+                                    aria-hidden="true"
+                                    style={{ border: "1px solid rgba(126,168,29,.22)" }}
                                   >
-                                    {String(i + 1).padStart(2, "0")}
+                                    <Check size={10} color="#526D12" strokeWidth={2.5} aria-hidden="true" />
                                   </span>
-                                  {isSample && (
-                                    <span
-                                      className="w-[6px] h-[6px] rounded-full bg-[#B9F227]"
-                                      aria-hidden="true"
-                                    />
-                                  )}
+                                  <span
+                                    className="text-[14px] font-[500] text-[#263B3F]"
+                                    style={{ fontFamily: SANS }}
+                                  >
+                                    {text}
+                                  </span>
                                 </div>
-                              );
-                            })}
+                              ))}
+                            </div>
+                          </div>
+                          <div className="lg:w-[48%] mt-6 lg:mt-0">
+                            {/* Phone: 2-row × 6 grid */}
+                            <div className="lg:hidden grid grid-cols-6 gap-[4px] sm:gap-[6px]">
+                              {Array.from({ length: 12 }, (_, i) => {
+                                const isSample = i === 7;
+                                return (
+                                  <div key={i} className="flex flex-col items-center gap-[4px]">
+                                    <span
+                                      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-[700]"
+                                      style={{
+                                        fontFamily: SANS,
+                                        background: isSample ? "#0F9F8F" : "#F6FBFA",
+                                        border: isSample ? "none" : "1px solid #CFE3DE",
+                                        color: isSample ? "white" : "#8FA5A8",
+                                      }}
+                                    >
+                                      {String(i + 1).padStart(2, "0")}
+                                    </span>
+                                    {isSample && (
+                                      <span
+                                        className="w-[6px] h-[6px] rounded-full bg-[#B9F227]"
+                                        aria-hidden="true"
+                                      />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {/* Desktop: horizontal connected rail */}
+                            <div className="hidden lg:block relative">
+                              <div
+                                className="absolute h-[2px] top-[12px] left-[12px] right-[12px]"
+                                style={{ background: "linear-gradient(90deg, rgba(15,159,143,.35) 0%, rgba(15,159,143,.25) 100%)" }}
+                                aria-hidden="true"
+                              />
+                              <div className="relative z-10 flex items-center justify-between">
+                                {Array.from({ length: 12 }, (_, i) => {
+                                  const isSample = i === 7;
+                                  return (
+                                    <div key={i} className="flex flex-col items-center gap-[4px]">
+                                      <span
+                                        className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-[700]"
+                                        style={{
+                                          fontFamily: SANS,
+                                          background: isSample ? "#0F9F8F" : "#F6FBFA",
+                                          border: isSample ? "none" : "1px solid #CFE3DE",
+                                          color: isSample ? "white" : "#8FA5A8",
+                                        }}
+                                      >
+                                        {String(i + 1).padStart(2, "0")}
+                                      </span>
+                                      {isSample && <span className="w-[5px] h-[5px] rounded-full bg-[#B9F227]" aria-hidden="true" />}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2547,25 +2653,6 @@ function QuestionsSection() {
                 <div className="pb-[18px] lg:pb-5 pr-[34px] lg:pr-11 max-w-[720px]">
                   <p className="text-[14px] lg:text-[15px] font-[500] leading-[1.55] lg:leading-[1.6] text-[#536074]" style={{ fontFamily: SANS }}>
                     Nothing above &#8377;3,000 is spent without your written approval. Vendor bills are passed through at actual cost, with no Reeve markup.
-                  </p>
-                </div>
-              </details>
-            </div>
-
-            <div className="border-t border-[#DADCF0]">
-              <details className="group">
-                <summary
-                  className="list-none [&::-webkit-details-marker]:hidden flex items-center justify-between gap-4 min-h-[60px] lg:min-h-[68px] py-[17px] lg:py-5 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 rounded-sm"
-                  style={{ outlineColor: "#8FB7FF" }}
-                >
-                  <span className="min-w-0 text-[15px] lg:text-[16.5px] font-[650] leading-[1.35] text-[#172235] group-open:text-[#1D4ED8]" style={{ fontFamily: SANS }}>
-                    Why is the minimum six months?
-                  </span>
-                  {chevron}
-                </summary>
-                <div className="pb-[18px] lg:pb-5 pr-[34px] lg:pr-11 max-w-[720px]">
-                  <p className="text-[14px] lg:text-[15px] font-[500] leading-[1.55] lg:leading-[1.6] text-[#536074]" style={{ fontFamily: SANS }}>
-                    One visit shows what the property looks like today. A continuous dated record shows what is changing over time.
                   </p>
                 </div>
               </details>
