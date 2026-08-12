@@ -1,3 +1,15 @@
+## [2026-08-12] verify | Verified Managed FAQ, enquiry and full-page integration [all 12 checks PASS, no code changes needed]
+
+## [2026-08-12] feat | Added Section 4 free-assessment onboarding path to /property-management-bangalore [5-step vertical spine mobile / 5-col horizontal desktop, CSS connectors, 2.5D StepToken, 4-item included strip, CheckCircle2, zero new TS errors]
+
+## [2026-08-12] feat | Added Section 3 Managed Pricing to /property-management-bangalore [dark navy section, static rate rail, monthly table, prepaid 3/6/12-month selector, tenant placement inset, Hero "See pricing ↓" link, no new TS errors]
+
+## [2026-08-12] feat | Added Section 2 Managed Property Control Layer to /property-management-bangalore [ModeButton/PropertyCore/DesktopControlMap/VisitsArtifact/TenantArtifact/RepairsArtifact/RecordsArtifact, 4-mode interactive surface, 3 responsive layouts, SVG connectors, aria-live panel, no new TS errors]
+
+## [2026-08-12] feat | Added Reeve Managed hero section to /property-management-bangalore [managed_1.webp, price block, ShieldCheck trust line, sticky mobile CTA, no new TS errors]
+
+## [2026-08-12] feat | Added Property Management Bangalore page foundation [FAQ + Enquiry, property_management preselected, no new TS errors]
+
 ## [2026-08-12] fix | Final Property Services page visual polish [19:34 IST]
 
 ## [2026-08-11] feat | Added Section 6 Enquiry to Property Services Bangalore — 3-step wizard, Cloudflare Turnstile, Vercel Edge Function, Supabase migration, sticky mobile CTA [build clean, 0 new TS errors]

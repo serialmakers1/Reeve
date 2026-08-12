@@ -26,6 +26,7 @@ import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 import MoveInAudit from "./pages/MoveInAudit";
 import PropertyServicesBangalore from "./pages/PropertyServicesBangalore";
+import PropertyManagementBangalore from "./pages/PropertyManagementBangalore";
 
 // ── Lazy imports ───────────────────────────────────────────────────────────────
 const PropertyDetail         = React.lazy(() => import("./pages/PropertyDetail"));
@@ -146,6 +147,7 @@ function AppInner() {
         <Route path="/owners" element={<OwnerLandingPage />} />
         <Route path="/move-in-audit" element={<MoveInAudit />} />
         <Route path="/property-services-bangalore" element={<PropertyServicesBangalore />} />
+        <Route path="/property-management-bangalore" element={<PropertyManagementBangalore />} />
         <Route path="/eligibility" element={<Eligibility />} />
         <Route path="/my-properties" element={<Navigate to="/owner-dashboard" replace />} />
         <Route path="/owner-dashboard" element={<OwnerDashboard />} />
