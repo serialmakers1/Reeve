@@ -621,7 +621,7 @@ function LetPricing() {
 
               {/* RIGHT: WHEN THE TENANT GETS PLACED / ₹15,000 */}
               <div
-                className="flex flex-col items-start pl-8 text-left let-pricing-anchor z-20 pt-[94px]"
+                className="flex flex-col items-end text-right pl-8 pr-[80px] let-pricing-anchor z-20 pt-[94px]"
                 style={{
                   opacity: pricingRevealed ? 1 : 0.92,
                   transform: pricingRevealed ? "translateY(0)" : "translateY(4px)",
