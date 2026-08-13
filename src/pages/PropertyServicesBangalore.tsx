@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import PropertyEnquiryForm from "@/components/property-services/PropertyEnquiryForm";
@@ -231,10 +231,121 @@ function MobileRow({ svc }: { svc: Service }) {
 
 function ProofSection() {
   const [activeMode, setActiveMode] = useState<ProofMode>("money");
-  const active = PROOF_MODES.find((m) => m.id === activeMode)!;
+  const [cuePhase, setCuePhase] = useState<string>("idle");
+
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cueTimersRef  = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const sectionRef    = useRef<HTMLElement>(null);
+  const hasCueRunRef  = useRef(false);
+
+  const active      = PROOF_MODES.find((m) => m.id === activeMode)!;
+  const activeTabId = "proof-tab-" + activeMode;
+
+  const stopCue = () => {
+    cueTimersRef.current.forEach(clearTimeout);
+    cueTimersRef.current = [];
+    setCuePhase("done");
+  };
+
+  const handleTabClick = (modeId: ProofMode) => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    stopCue();
+    setActiveMode(modeId);
+  };
+
+  const handleTabPointerEnter = (modeId: ProofMode) => (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse") return;
+    stopCue();
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    hoverTimerRef.current = setTimeout(() => {
+      setActiveMode(modeId);
+    }, 150);
+  };
+
+  const handleTabPointerLeave = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse") return;
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+  };
+
+  const handleTabKeyDown = (e: React.KeyboardEvent, index: number) => {
+    const count = PROOF_MODES.length;
+    let next = index;
+    if      (e.key === "ArrowRight") next = (index + 1) % count;
+    else if (e.key === "ArrowLeft")  next = (index - 1 + count) % count;
+    else if (e.key === "Home")       next = 0;
+    else if (e.key === "End")        next = count - 1;
+    else return;
+    e.preventDefault();
+    const nextMode = PROOF_MODES[next].id;
+    stopCue();
+    setActiveMode(nextMode);
+    document.getElementById("proof-tab-" + nextMode)?.focus();
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartRef.current.x;
+    const dy = t.clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return;
+    const idx = PROOF_MODES.findIndex((m) => m.id === activeMode);
+    if (dx < 0 && idx < PROOF_MODES.length - 1) {
+      stopCue();
+      setActiveMode(PROOF_MODES[idx + 1].id);
+    } else if (dx > 0 && idx > 0) {
+      stopCue();
+      setActiveMode(PROOF_MODES[idx - 1].id);
+    }
+  };
+
+  // Discoverability cue: coarse-pointer devices only, fires once on section visible
+  useEffect(() => {
+    if (!sectionRef.current) return;
+    if (!window.matchMedia("(pointer: coarse)").matches) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !hasCueRunRef.current) {
+          hasCueRunRef.current = true;
+          observer.disconnect();
+          const t1 = setTimeout(() => setCuePhase("visits"),  200);
+          const t2 = setTimeout(() => setCuePhase("repairs"), 700);
+          const t3 = setTimeout(() => setCuePhase("done"),   1200);
+          cueTimersRef.current = [t1, t2, t3];
+        }
+      },
+      { threshold: 0.32 }
+    );
+    observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+      cueTimersRef.current.forEach(clearTimeout);
+    };
+  }, []);
 
   return (
     <section
+      ref={sectionRef}
       id="proof"
       className="scroll-mt-16 pt-16 pb-[56px] lg:pt-[88px] lg:pb-[72px]"
       aria-labelledby="proof-heading"
@@ -270,29 +381,36 @@ function ProofSection() {
           className="mt-[10px] max-w-[650px] text-[14.5px] font-[500] leading-[1.48] text-[#A7B7CC] lg:text-[16.5px] lg:leading-[1.5]"
           style={{ fontFamily: SANS }}
         >
-          The important promises aren’t hidden behind “trust us.” You can see the record.
+          The important promises aren&#x2019;t hidden behind &#x201C;trust us.&#x201D; You can see the record.
         </p>
 
-        {/* Segmented selector */}
+        {/* Segmented selector -- upgraded to tablist */}
         <div
-          role="group"
+          role="tablist"
           aria-label="Proof type"
           className="mt-[30px] flex items-center gap-[4px] rounded-[14px] border p-[4px] h-[44px] w-full max-w-[346px]"
           style={{ background: "#0C2038", borderColor: "#203A58" }}
         >
-          {PROOF_MODES.map((mode) => {
+          {PROOF_MODES.map((mode, index) => {
             const isActive = activeMode === mode.id;
+            const isCued =
+              (cuePhase === "visits"  && mode.id === "visits") ||
+              (cuePhase === "repairs" && mode.id === "repairs");
+            const cueClass = !isActive && isCued ? "psv-tab-cue" : "";
             return (
               <button
                 key={mode.id}
+                id={"proof-tab-" + mode.id}
                 type="button"
-                onClick={() => setActiveMode(mode.id)}
-                aria-pressed={isActive}
-                className={`flex-1 h-full rounded-[10px] text-[12.5px] font-bold transition-[background,color] duration-[150ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                  isActive
-                    ? "text-[#0B1526]"
-                    : "text-[#91A4BC] hover:text-[#D9E5F3]"
-                }`}
+                role="tab"
+                aria-selected={isActive}
+                tabIndex={isActive ? 0 : -1}
+                aria-controls="proof-panel-desktop proof-panel-mobile"
+                onClick={() => handleTabClick(mode.id)}
+                onPointerEnter={handleTabPointerEnter(mode.id)}
+                onPointerLeave={handleTabPointerLeave}
+                onKeyDown={(e) => handleTabKeyDown(e, index)}
+                className={"flex-1 h-full rounded-[10px] text-[12.5px] font-bold transition-[background,color] duration-[150ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " + (isActive ? "text-[#0B1526]" : "text-[#91A4BC] hover:text-[#D9E5F3]") + " " + cueClass}
                 style={{
                   background: isActive ? "#EAF2FF" : "transparent",
                   outlineColor: "#8FB7FF",
@@ -305,8 +423,12 @@ function ProofSection() {
           })}
         </div>
 
-        {/* ── Desktop proof stage — ≥ 1024px ──────────────────────── */}
+        {/* Desktop proof stage >= 1024px */}
         <div
+          id="proof-panel-desktop"
+          role="tabpanel"
+          aria-labelledby={activeTabId}
+          tabIndex={-1}
           className="mt-4 hidden lg:grid lg:grid-cols-[32fr_68fr] min-[1180px]:grid-cols-[34fr_66fr] min-h-[470px] min-[1180px]:min-h-[500px] rounded-[24px] overflow-hidden"
           style={{
             background: "#0B1C33",
@@ -314,23 +436,25 @@ function ProofSection() {
             boxShadow: "0 24px 60px rgba(0,0,0,0.20)",
           }}
         >
-          {/* Left: copy — right border is the vertical divider */}
+          {/* Left: copy -- right border is the vertical divider */}
           <div
             className="flex flex-col justify-center min-w-0 p-7 min-[1180px]:p-9"
             style={{ borderRight: "1px solid rgba(255,255,255,0.07)" }}
           >
-            <h3
-              className="text-[22px] min-[1180px]:text-[24px] font-bold leading-[1.15] text-[#F7FAFF] max-w-[310px]"
-              style={{ fontFamily: SANS }}
-            >
-              {active.title}
-            </h3>
-            <p
-              className="mt-2 text-[15.5px] min-[1180px]:text-[16px] font-[500] leading-[1.5] text-[#A7B7CC] max-w-[300px]"
-              style={{ fontFamily: SANS }}
-            >
-              {active.support}
-            </p>
+            <div key={activeMode} className="psv-proof-text">
+              <h3
+                className="text-[22px] min-[1180px]:text-[24px] font-bold leading-[1.15] text-[#F7FAFF] max-w-[310px]"
+                style={{ fontFamily: SANS }}
+              >
+                {active.title}
+              </h3>
+              <p
+                className="mt-2 text-[15.5px] min-[1180px]:text-[16px] font-[500] leading-[1.5] text-[#A7B7CC] max-w-[300px]"
+                style={{ fontFamily: SANS }}
+              >
+                {active.support}
+              </p>
+            </div>
           </div>
 
           {/* Right: image panel */}
@@ -360,18 +484,29 @@ function ProofSection() {
           </div>
         </div>
 
-        {/* ── Mobile / tablet stacked — < 1024px ──────────────────── */}
-        <div className="mt-6 lg:hidden" style={{ fontFamily: SANS }}>
-          <h3
-            className="text-[20px] font-bold leading-[1.18] text-[#F7FAFF]"
-          >
-            {active.title}
-          </h3>
-          <p
-            className="mt-[8px] text-[14px] sm:text-[14.5px] font-[500] leading-[1.48] text-[#A7B7CC]"
-          >
-            {active.support}
-          </p>
+        {/* Mobile / tablet stacked < 1024px */}
+        <div
+          id="proof-panel-mobile"
+          role="tabpanel"
+          aria-labelledby={activeTabId}
+          tabIndex={-1}
+          className="mt-6 lg:hidden"
+          style={{ fontFamily: SANS, touchAction: "pan-y" }}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div key={activeMode} className="psv-proof-text">
+            <h3
+              className="text-[20px] font-bold leading-[1.18] text-[#F7FAFF]"
+            >
+              {active.title}
+            </h3>
+            <p
+              className="mt-[8px] text-[14px] sm:text-[14.5px] font-[500] leading-[1.48] text-[#A7B7CC]"
+            >
+              {active.support}
+            </p>
+          </div>
           <div
             className="relative mt-4 w-full sm:max-w-[520px] sm:mx-auto overflow-hidden rounded-[18px]"
             style={{ aspectRatio: "1448/1086" }}
@@ -1373,6 +1508,23 @@ export default function PropertyServicesBangalore() {
         }
         @media (prefers-reduced-motion: reduce) {
           .psv-proof-img { transition: none !important; }
+        }
+        @keyframes psvTextEntry {
+          from { opacity: 0; transform: translateY(3px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .psv-proof-text { animation: psvTextEntry 170ms ease-out both; }
+        }
+        @keyframes psvCueGlow {
+          0%, 100% { box-shadow: none; }
+          30%, 70%  { box-shadow: 0 0 0 2px rgba(143, 183, 255, 0.20); }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .psv-tab-cue {
+            animation: psvCueGlow 400ms ease-in-out both;
+            color: #D9E5F3 !important;
+          }
         }
       `}</style>
 
