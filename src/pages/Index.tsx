@@ -503,7 +503,7 @@ export default function Index() {
                           className="mt-4 text-[15px] leading-[1.55] text-[#475569] max-w-[300px]"
                           style={{ fontFamily: FONT_INTER }}
                         >
-                          Using Property Management or Inspection is never required to use the core marketplace.
+                          Using Reeve Managed, Reeve Watch or Reeve Let is never required to use the core marketplace.
                         </p>
                       </div>
                     </div>
@@ -531,15 +531,16 @@ export default function Index() {
                 </p>
               </div>
               {/* Right: service links */}
-              <div className="flex flex-col [@media(min-width:1000px)]:flex-row [@media(min-width:1000px)]:justify-end gap-3 [@media(min-width:1000px)]:gap-12 mt-5 [@media(min-width:1000px)]:mt-0">
+              <div className="flex flex-col [@media(min-width:1000px)]:flex-row [@media(min-width:1000px)]:justify-end gap-1 [@media(min-width:1000px)]:gap-8 mt-5 [@media(min-width:1000px)]:mt-0">
                 {[
-                  { label: "Property Management", to: "/pms" },
-                  { label: "Property Inspection", to: "/move-in-audit" },
+                  { label: "Reeve Managed", to: "/property-management-bangalore" },
+                  { label: "Reeve Watch", to: "/vacant-property-care-bangalore" },
+                  { label: "Reeve Let", to: "/find-tenant-bangalore" },          
                 ].map(({ label, to }) => (
                   <Link
                     key={to}
                     to={to}
-                    className="group inline-flex items-center text-[15px] font-semibold text-[#0F766E] hover:text-[#115E59] transition-colors duration-200"
+                    className="group inline-flex items-center min-h-[44px] text-[15px] font-semibold text-[#0F766E] hover:text-[#115E59] transition-colors duration-200"
                     style={{ fontFamily: FONT_INTER }}
                   >
                     {label}
