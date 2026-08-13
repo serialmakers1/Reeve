@@ -656,6 +656,32 @@ function CompareSection() {
   const [activeService, setActiveService] = useState<CompareServiceId>("vacant");
   const activeSvc = COMPARE_SERVICES.find((s) => s.id === activeService)!;
 
+  const compareTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleCompareTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    compareTouchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleCompareTouchEnd = (e: React.TouchEvent) => {
+    if (!compareTouchStartRef.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - compareTouchStartRef.current.x;
+    const dy = t.clientY - compareTouchStartRef.current.y;
+    compareTouchStartRef.current = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return;
+    const idx = COMPARE_SERVICES.findIndex((s) => s.id === activeService);
+    if (dx < 0 && idx < COMPARE_SERVICES.length - 1) {
+      setActiveService(COMPARE_SERVICES[idx + 1].id);
+    } else if (dx > 0 && idx > 0) {
+      setActiveService(COMPARE_SERVICES[idx - 1].id);
+    }
+  };
+
+  const handleCompareTouchCancel = () => {
+    compareTouchStartRef.current = null;
+  };
+
   return (
     <section
       id="compare"
@@ -699,9 +725,7 @@ function CompareSection() {
                   type="button"
                   onClick={() => setActiveService(svc.id)}
                   aria-pressed={isActive}
-                  className={`flex-1 h-full rounded-[10px] text-[12.5px] font-bold transition-[background,color] duration-[150ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                    isActive ? "" : "text-[#687386]"
-                  }`}
+                  className={"flex-1 h-full rounded-[10px] text-[12.5px] font-bold psv-cmp-sel-btn focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " + (isActive ? "" : "text-[#687386]")}
                   style={{
                     background: isActive ? svc.selectorSelectedBg : "transparent",
                     color: isActive ? svc.selectorSelectedText : undefined,
@@ -717,21 +741,24 @@ function CompareSection() {
 
           {/* Active service panel */}
           <div
-            className="mt-[13px] rounded-[18px] border overflow-hidden bg-white"
-            style={{ borderColor: activeSvc.panelBorder }}
+            className="mt-[13px] rounded-[18px] border overflow-hidden bg-white psv-cmp-card"
+            style={{ borderColor: activeSvc.panelBorder, touchAction: "pan-y" }}
+            onTouchStart={handleCompareTouchStart}
+            onTouchEnd={handleCompareTouchEnd}
+            onTouchCancel={handleCompareTouchCancel}
           >
             {/* Service header strip */}
             <div
-              className="flex items-center justify-center px-4"
+              className="flex items-center justify-center px-4 psv-cmp-header"
               style={{ background: activeSvc.headerBg, height: 52 }}
             >
-              <span className="text-[16px] font-bold text-[#0B1526]" style={{ fontFamily: SANS }}>
+              <span key={activeService} className="text-[16px] font-bold text-[#0B1526] psv-compare-content" style={{ fontFamily: SANS }}>
                 {activeSvc.name}
               </span>
             </div>
 
             {/* Panel body */}
-            <div className="px-4 pb-4">
+            <div key={activeService} className="px-4 pb-4 psv-compare-content">
 
               {/* BEST FOR */}
               <div className="pt-[15px]">
@@ -1525,6 +1552,18 @@ export default function PropertyServicesBangalore() {
             animation: psvCueGlow 400ms ease-in-out both;
             color: #D9E5F3 !important;
           }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .psv-cmp-card    { transition: border-color 180ms ease-out; }
+          .psv-cmp-header  { transition: background-color 180ms ease-out; }
+          .psv-cmp-sel-btn { transition: background-color 180ms ease-out, color 180ms ease-out; }
+        }
+        @keyframes psvCompareEntry {
+          from { opacity: 0; transform: translateY(3px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .psv-compare-content { animation: psvCompareEntry 170ms ease-out both; }
         }
       `}</style>
 
