@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   ShieldCheck,
@@ -131,12 +131,61 @@ interface ModeButtonProps {
 
 function ModeButton({ config, active, onClick, className = "", iconSize = 18 }: ModeButtonProps) {
   const { Icon, label } = config;
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePointerEnter = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse") return;
+    if (active) return;
+    if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+    hoverTimerRef.current = setTimeout(() => {
+      hoverTimerRef.current = null;
+      onClick();
+    }, 150);
+  };
+
+  const handlePointerLeave = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse") return;
+    if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+  };
+
+  const handleClick = () => {
+    if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+    onClick();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!["ArrowRight","ArrowDown","ArrowLeft","ArrowUp","Home","End"].includes(e.key)) return;
+    e.preventDefault();
+    if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+    const group = e.currentTarget.closest("[data-managed-mode-group]");
+    if (!group) return;
+    const btns = Array.from(group.querySelectorAll<HTMLButtonElement>("[data-managed-mode-button]"));
+    const cur = btns.indexOf(e.currentTarget);
+    const n = btns.length;
+    let next = cur;
+    if      (e.key === "ArrowRight" || e.key === "ArrowDown") next = (cur + 1) % n;
+    else if (e.key === "ArrowLeft"  || e.key === "ArrowUp")   next = (cur - 1 + n) % n;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End")  next = n - 1;
+    const target = btns[next];
+    if (target) { target.focus(); target.click(); }
+  };
+
+  useEffect(() => {
+    return () => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); };
+  }, []);
+
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={handleClick}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+      onKeyDown={handleKeyDown}
       aria-pressed={active}
       aria-controls="managed-mode-panel"
+      tabIndex={active ? 0 : -1}
+      data-managed-mode-button={config.id}
       className={[
         "flex flex-col items-center justify-center gap-[6px] rounded-[16px] border",
         "transition-all duration-[170ms]",
@@ -291,6 +340,9 @@ function DesktopControlMap({
 
       {/* 3×3 control grid */}
       <div
+        role="group"
+        aria-label="Managed service areas"
+        data-managed-mode-group="true"
         className="relative z-10 grid items-center justify-items-center"
         style={{
           gridTemplateColumns: "112px 1fr 112px",
@@ -667,6 +719,34 @@ function ActiveDetailContent({ activeMode }: { activeMode: ManagedMode }) {
 function ManagedControlSection() {
   const [activeMode, setActiveMode] = useState<ManagedMode>("visits");
 
+  const modeTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleModeTouchStart = (e: React.TouchEvent) => {
+    if (window.innerWidth >= 1240 || e.touches.length !== 1) {
+      modeTouchStartRef.current = null;
+      return;
+    }
+    const t = e.touches[0];
+    modeTouchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleModeTouchEnd = (e: React.TouchEvent) => {
+    if (!modeTouchStartRef.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - modeTouchStartRef.current.x;
+    const dy = t.clientY - modeTouchStartRef.current.y;
+    modeTouchStartRef.current = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return;
+    setActiveMode((prev) => {
+      const idx = MODES.findIndex((m) => m.id === prev);
+      if (dx < 0 && idx < MODES.length - 1) return MODES[idx + 1].id as ManagedMode;
+      if (dx > 0 && idx > 0)                return MODES[idx - 1].id as ManagedMode;
+      return prev;
+    });
+  };
+
+  const handleModeTouchCancel = () => { modeTouchStartRef.current = null; };
+
   return (
     <section
       id="managed-control"
@@ -722,7 +802,7 @@ function ManagedControlSection() {
               </div>
 
               {/* B. Horizontal row — 640px–1239px */}
-              <div className="hidden sm:flex min-[1240px]:hidden gap-3 w-full p-6">
+              <div role="group" aria-label="Managed service areas" data-managed-mode-group="true" className="hidden sm:flex min-[1240px]:hidden gap-3 w-full p-6">
                 {MODES.map((m) => (
                   <ModeButton
                     key={m.id}
@@ -735,7 +815,7 @@ function ManagedControlSection() {
               </div>
 
               {/* C. 2×2 grid — <640px */}
-              <div className="sm:hidden grid grid-cols-2 gap-2 p-4">
+              <div role="group" aria-label="Managed service areas" data-managed-mode-group="true" className="sm:hidden grid grid-cols-2 gap-2 p-4">
                 {MODES.map((m) => (
                   <ModeButton
                     key={m.id}
@@ -755,6 +835,10 @@ function ManagedControlSection() {
             <div
               id="managed-mode-panel"
               aria-live="polite"
+              onTouchStart={handleModeTouchStart}
+              onTouchEnd={handleModeTouchEnd}
+              onTouchCancel={handleModeTouchCancel}
+              style={{ touchAction: "pan-y pinch-zoom" }}
               className="flex-1 min-w-0
                 mx-4 mb-4 rounded-[18px] border border-[#DCE7F8]
                 bg-white p-[18px] shadow-[0_8px_24px_rgba(36,72,126,.08)]
