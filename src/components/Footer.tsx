@@ -8,10 +8,10 @@ const Footer = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Zone 1: Navigation */}
-        <div className="grid md:grid-cols-5 gap-8 text-center md:text-left">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-x-6 gap-y-8 items-start text-left">
 
           {/* Column 1 — Brand */}
-          <div>
+          <div className="col-span-2 lg:col-span-1">
             <span className="font-bold text-xl text-white tracking-wide">REEVE</span>
           </div>
 
@@ -37,9 +37,36 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Column 3 — Dashboards & Account */}
+          {/* Column 3 — Property Services */}
           <div>
-            <h3 className="text-white font-semibold text-sm mb-3">Dashboards &amp; Account</h3>
+            <h3 className="text-white font-semibold text-sm mb-3">Property Services</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link to="/property-services-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  All Property Services
+                </Link>
+              </li>
+              <li>
+                <Link to="/property-management-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Reeve Managed
+                </Link>
+              </li>
+              <li>
+                <Link to="/vacant-property-care-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Reeve Watch
+                </Link>
+              </li>
+              <li>
+                <Link to="/find-tenant-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Reeve Let
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Column 4 — Account */}
+          <div>
+            <h3 className="text-white font-semibold text-sm mb-3">Account</h3>
             <ul className="space-y-2">
               <li>
                 <Link to="/tenant-dashboard" className="text-gray-400 text-sm hover:text-white transition-colors">
@@ -59,32 +86,15 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Column 4 — Services & Support */}
+          {/* Column 5 — Company & Legal */}
           <div>
-            <h3 className="text-white font-semibold text-sm mb-3">Services &amp; Support</h3>
+            <h3 className="text-white font-semibold text-sm mb-3">Company &amp; Legal</h3>
             <ul className="space-y-2">
-              <li>
-                <Link to="/pms" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Property Management
-                </Link>
-              </li>
-              <li>
-                <Link to="/move-in-audit" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Property Inspection
-                </Link>
-              </li>
               <li>
                 <Link to="/contact" className="text-gray-400 text-sm hover:text-white transition-colors">
                   Contact Us
                 </Link>
               </li>
-            </ul>
-          </div>
-
-          {/* Column 5 — Legal */}
-          <div>
-            <h3 className="text-white font-semibold text-sm mb-3">Legal</h3>
-            <ul className="space-y-2">
               <li>
                 <Link to="/privacy" className="text-gray-400 text-sm hover:text-white transition-colors">
                   Privacy Policy
