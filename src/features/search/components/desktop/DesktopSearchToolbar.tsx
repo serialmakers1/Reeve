@@ -1,13 +1,12 @@
-import { LayoutList, Columns2, Map, ChevronDown, SlidersHorizontal, MapPin } from "lucide-react";
+import { ChevronDown, SlidersHorizontal, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { formatCitiesLabel } from "@/features/search/state/searchStateUtils";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { SortControl } from "../SortControl";
 import { RentBuySelector } from "../RentBuySelector";
-import { SEARCH_MAP_ENABLED } from "@/features/search/domain/searchFeatureFlags";
 import { quickFilterLabel } from "@/features/search/state/filterSummary";
-import type { SearchViewMode, RentFilters, BuyFilters } from "@/features/search/domain/searchTypes";
+import type { RentFilters, BuyFilters } from "@/features/search/domain/searchTypes";
 
 const CHIP =
   "flex h-9 items-center rounded-lg border px-3 text-xs font-medium shrink-0 transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
@@ -17,8 +16,6 @@ const INACTIVE_CHIP = "border-border bg-background text-foreground hover:border-
 interface DesktopSearchToolbarProps {
   onOpenSetup: () => void;
   onOpenFilters: () => void;
-  view: SearchViewMode;
-  onSetView: (v: SearchViewMode) => void;
   /** Explicit Rent/Buy change — when provided, persists memory in addition to setMode. */
   onModeChange?: (mode: "rent" | "buy") => void;
   loadedCount: number;
@@ -32,8 +29,6 @@ function titleCase(s: string): string {
 export function DesktopSearchToolbar({
   onOpenSetup,
   onOpenFilters,
-  view,
-  onSetView,
   onModeChange,
 }: DesktopSearchToolbarProps) {
   const { state, setMode } = useSearchState();
@@ -110,33 +105,8 @@ export function DesktopSearchToolbar({
 
       <div className="flex-1" />
 
-      {/* Sort */}
+      {/* Sort (Search is LIST-only — no view toggle) */}
       <SortControl className="h-9" />
-
-      {/* View mode toggle — hidden while Map/Split are gated off (List-only) */}
-      {SEARCH_MAP_ENABLED && (
-      <div className="flex shrink-0 items-center overflow-hidden rounded-lg border border-border">
-        {(
-          [
-            { v: "list" as SearchViewMode, Icon: LayoutList, label: "List" },
-            { v: "split" as SearchViewMode, Icon: Columns2, label: "Split" },
-            { v: "map" as SearchViewMode, Icon: Map, label: "Map" },
-          ] as const
-        ).map(({ v, Icon, label }) => (
-          <button
-            key={v}
-            onClick={() => onSetView(v)}
-            aria-label={`${label} view`}
-            className={cn(
-              "flex h-9 w-9 items-center justify-center text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40",
-              view === v ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            <Icon className="h-4 w-4" />
-          </button>
-        ))}
-      </div>
-      )}
     </div>
   );
 }

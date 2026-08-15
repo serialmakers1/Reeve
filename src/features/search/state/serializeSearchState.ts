@@ -2,7 +2,6 @@ import { serializeSearchMode } from "../domain/searchMode";
 import type { SearchState, RentFilters, BuyFilters } from "../domain/searchTypes";
 import {
   DEFAULT_SORT,
-  DEFAULT_VIEW,
   MAX_SELECTED_LOCATIONS,
   MAX_SELECTED_CITIES,
   URL_PARAMS,
@@ -12,17 +11,16 @@ import { propertyTypesToCsv } from "../domain/propertyTypes";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Canonical URL snapshot: Reeve geo_place UUID identity only — no Google Place IDs,
+// no coordinates, no viewports (Phase 4 · Prompt 3). `by_ids` hydration is authoritative.
 function encodeLocationsData(tokens: SearchState["context"]["locations"]): string {
   const payload: SerializedLocationsPayloadV1 = {
     v: 1,
     items: tokens.slice(0, MAX_SELECTED_LOCATIONS).map((t) => ({
-      id: t.id,
+      id: t.geoPlaceId,
+      kind: t.kind,
       label: t.label,
-      type: t.type,
-      cityId: t.cityId,
-      placeId: t.placeId,
-      ...(t.lat !== null && t.lng !== null ? { lat: t.lat, lng: t.lng } : {}),
-      ...(t.viewport ? { viewport: t.viewport } : {}),
+      scopeRootId: t.scopeRootId,
     })),
   };
   return btoa(JSON.stringify(payload));
@@ -32,11 +30,9 @@ function encodeCitiesData(cities: SearchState["context"]["cities"]): string {
   const payload: SerializedLocationsPayloadV1 = {
     v: 1,
     items: cities.slice(0, MAX_SELECTED_CITIES).map((c) => ({
-      placeId: c.placeId,
+      id: c.geoPlaceId,
+      kind: c.kind,
       label: c.label,
-      lat: c.lat,
-      lng: c.lng,
-      ...(c.viewport ? { viewport: c.viewport } : {}),
     })),
   };
   return btoa(JSON.stringify(payload));
@@ -81,7 +77,7 @@ function setBoolIfTrue(
 export function serializeSearchState(state: SearchState): URLSearchParams {
   const P = URL_PARAMS;
   const params = new URLSearchParams();
-  const { context, filters, sort, view, cursor, mapBounds, selectedPropertyId } = state;
+  const { context, filters, sort, cursor, selectedPropertyId } = state;
 
   // ── Mode ──
   if (context.mode !== null) {
@@ -92,38 +88,28 @@ export function serializeSearchState(state: SearchState): URLSearchParams {
   if (context.city) params.set(P.city, context.city);
 
   if (context.cities.length > 0) {
-    params.set(P.cities, context.cities.map((c) => c.placeId).join(","));
+    params.set(P.cities, context.cities.map((c) => c.geoPlaceId).join(","));
     params.set(P.citiesData, encodeCitiesData(context.cities));
   }
 
-  // Distance is only meaningful with a geographic anchor — never serialize an inert
-  // explicit distance (keeps the URL honest; parse also normalizes this).
-  if (state.distanceKm !== null && (context.cities.length > 0 || context.locations.length > 0)) {
+  // Distance is only meaningful with a locality anchor (PostGIS locality-only) —
+  // never serialize an inert explicit distance (parse also normalizes this).
+  if (state.distanceKm !== null && context.locations.some((l) => l.kind === "locality")) {
     params.set(P.distanceKm, String(state.distanceKm));
   }
 
   if (context.locations.length > 0) {
-    params.set(P.locations, context.locations.map((l) => l.id).join(","));
-    // Phase 4 (Search Setup) may revisit this base64 encoding if URL length becomes a concern.
+    params.set(P.locations, context.locations.map((l) => l.geoPlaceId).join(","));
     params.set(P.locationsData, encodeLocationsData(context.locations));
   }
 
   const ptCsv = propertyTypesToCsv(context.propertyTypes);
   if (ptCsv) params.set(P.propertyType, ptCsv);
 
-  // ── Sort / view / page ──
+  // ── Sort / page ──
   setIfNonDefault(params, P.sort, sort, DEFAULT_SORT);
-  setIfNonDefault(params, P.view, view, DEFAULT_VIEW);
   if (cursor !== null && cursor.sort === sort) {
     params.set(P.cursor, btoa(JSON.stringify(cursor)));
-  }
-
-  // ── Map bounds — persist whenever non-null (survives List↔Map toggles) ──
-  if (mapBounds !== null) {
-    params.set(P.boundsNeLat, String(mapBounds.ne.lat));
-    params.set(P.boundsNeLng, String(mapBounds.ne.lng));
-    params.set(P.boundsSwLat, String(mapBounds.sw.lat));
-    params.set(P.boundsSwLng, String(mapBounds.sw.lng));
   }
 
   // ── Selected property ──

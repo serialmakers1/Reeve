@@ -1,23 +1,29 @@
 /**
- * Location readiness for listing submission (Prompt 1 — created, NOT activated).
+ * Location readiness for listing submission (Prompt 1 — created; wired in Prompt 3 P2).
  *
- * The canonical location contract a property must satisfy to move draft → pending_review
- * under the new geographic model: coordinates present, a verified primary city, and a
- * building name (or an explicit "no society" allowance for house/villa/plot types).
+ * The canonical location contract a property must satisfy to move draft → pending_review under
+ * the new geographic model: coordinates present, a verified location, and a building name when the
+ * property type requires one. The DB trigger `enforce_property_owner_transitions` is authoritative;
+ * this pure helper mirrors it for UX gating only.
  *
- * IMPORTANT: This is NOT wired into the submit guard in Prompt 1 — doing so would break
- * the current listing flow before the new UI writes associations. It is activated within
- * Prompt 2 as part of the complete owner-location unit. Pure + framework-free.
+ * Building-name requirement is the SINGLE authoritative rule for Phase 3: required ONLY for
+ * apartment / duplex_apartment. This MUST stay in sync with the M1 migration FINAL_OK/LEGACY_OK
+ * building check (supabase/migrations/*_phase3_owner_submit_final_location_invariant.sql).
+ * Pure + framework-free.
  */
 
 import type { ResolvedLocation } from "@/lib/location/resolvePropertyLocation";
 
-/** Property types where a society/building name may legitimately not exist. */
-export const NO_SOCIETY_PROPERTY_TYPES: ReadonlySet<string> = new Set([
-  "independent_house",
-  "villa",
-  "plot",
+/** Property types that require a building / society name. Everything else may omit it. */
+export const BUILDING_REQUIRED_TYPES: ReadonlySet<string> = new Set([
+  "apartment",
+  "duplex_apartment",
 ]);
+
+/** Single source of truth for "does this property type require a building/society name?". */
+export function isBuildingNameRequired(propertyType: string | null | undefined): boolean {
+  return !!propertyType && BUILDING_REQUIRED_TYPES.has(propertyType);
+}
 
 export interface LocationReadiness {
   ready: boolean;
@@ -30,8 +36,7 @@ export function isLocationReadyForSubmit(
 ): LocationReadiness {
   const reasons: string[] = [...(resolved.blockingIssues ?? [])];
 
-  const societyOptional = !!propertyType && NO_SOCIETY_PROPERTY_TYPES.has(propertyType);
-  if (!societyOptional && !resolved.building_name?.trim()) {
+  if (isBuildingNameRequired(propertyType) && !resolved.building_name?.trim()) {
     reasons.push("building_name_required");
   }
 

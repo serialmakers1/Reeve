@@ -6,7 +6,6 @@ import { URL_PARAMS } from "../domain/searchConstants";
 import { useAuth } from "@/hooks/useAuth";
 import { useSearchState } from "./useSearchState";
 import { useVercelGeoCity } from "../hooks/useVercelGeoCity";
-import type { CanonicalCity } from "../hooks/useResolveCity";
 import {
   type SearchLocationHistory,
   cityMemory,
@@ -39,7 +38,7 @@ export interface CityMemoryView {
 export interface SearchBootstrap {
   status: BootstrapStatus;
   ipNoticeCity: string | null;
-  approxCity: CanonicalCity | null;
+  approxCity: CityToken | null;
   recentCities: string[];
   getCityMemory: (city: string) => CityMemoryView;
   /** The ONLY confirmed-save path — full setup (city+areas+mode+propertyTypes). */
@@ -239,29 +238,17 @@ export function useSearchBootstrap(): SearchBootstrap {
       const snap = snapshotUrl();
       provenanceRef.current = "ip_unconfirmed";
       committedRef.current = true;
-      // City-only seed; preserve any explicit URL mode/property types. Anchor from the
-      // resolved geo city — REAL Google center (never a viewport midpoint, Prompt 3A);
-      // seed a city filter only when placeId + center + viewport are all present.
-      const vp = approxCity.viewport;
-      const center = approxCity.center;
-      const anchor: CityToken | null =
-        approxCity.placeId && center && vp
-          ? {
-              placeId: approxCity.placeId,
-              label: approxCity.displayLabel ?? approxCity.city,
-              lat: center.lat,
-              lng: center.lng,
-              viewport: { sw: { lat: vp.low.lat, lng: vp.low.lng }, ne: { lat: vp.high.lat, lng: vp.high.lng } },
-            }
-          : null;
+      // City-only seed from the canonical root resolved by the geo suggest RPC
+      // (Reeve geo_place UUID — no Google identity). Preserve explicit URL mode/types.
+      const cityName = approxCity.label.toLowerCase();
       applyRef.current({
         mode: snap.urlMode,
-        city: approxCity.city,
-        cities: anchor ? [anchor] : [],
+        city: cityName,
+        cities: [approxCity],
         locations: [],
         propertyTypes: snap.urlPropertyTypes,
       });
-      setIpCity(approxCity.city);
+      setIpCity(cityName);
       setStatus("resolved");
     } else if (geoStatus === "done") {
       committedRef.current = true;

@@ -54,11 +54,12 @@ const noContextState = {
 };
 
 const BENGALURU_CITY = {
-  placeId: "city_blr",
+  geoPlaceId: "city_blr",
+  kind: "settlement" as const,
   label: "Bengaluru",
-  lat: 12.9716,
-  lng: 77.5946,
-  viewport: { sw: { lat: 12.8, lng: 77.4 }, ne: { lat: 13.1, lng: 77.8 } },
+  settlementSubtype: "city" as const,
+  searchRegionId: null,
+  searchRegionLabel: null,
 };
 
 const rentBengaluruState = {
@@ -72,16 +73,17 @@ const rentBengaluruState = {
 };
 
 const MUMBAI_CITY = {
-  placeId: "city_mum",
+  geoPlaceId: "city_mum",
+  kind: "settlement" as const,
   label: "Mumbai",
-  lat: 19.076,
-  lng: 72.8777,
-  viewport: { sw: { lat: 18.9, lng: 72.7 }, ne: { lat: 19.3, lng: 73.0 } },
+  settlementSubtype: "city" as const,
+  searchRegionId: null,
+  searchRegionLabel: null,
 };
 
-const areaTok = (id: string, label: string, cityId: string) => ({
-  id, label, type: "area" as const, cityId, placeId: id, lat: 12.9, lng: 77.6,
-  viewport: { sw: { lat: 12.85, lng: 77.55 }, ne: { lat: 12.95, lng: 77.65 } },
+const areaTok = (id: string, label: string, scopeRootId: string) => ({
+  id, geoPlaceId: id, kind: "locality" as const, scopeRootId, label,
+  parentLabel: null, searchRegionLabel: null,
 });
 
 // Bengaluru + Mumbai, each owning one area (Whitefield in BLR, Andheri in MUM).
@@ -269,13 +271,13 @@ describe("SearchSetupPanel — Places failure", () => {
     vi.mocked(useSearchState).mockReturnValue(rentBengaluruState as ReturnType<typeof useSearchState>);
   });
 
-  it("shows 'Search all of [city]' in location section (city already set)", () => {
+  it("shows 'localities section renders' in location section (city already set)", () => {
     // When city is set from URL, LocationSearchInput renders. With no error yet,
     // the button appears only on error. We just verify the locations area renders.
     renderPanel({ open: true });
     // The "Areas" section renders since city is set (matcher is loose — helper copy
     // also contains "areas", so assert at least one match).
-    expect(screen.getAllByText(/areas/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/localit/i).length).toBeGreaterThan(0);
   });
 });
 
@@ -284,7 +286,7 @@ describe("SearchSetupPanel — location limits", () => {
     vi.mocked(useSearchState).mockReturnValue(noContextState as ReturnType<typeof useSearchState>);
     renderPanel({ open: true });
     // When city is null, the "Areas" section is not rendered
-    expect(screen.queryByText(/areas/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/localit/i)).not.toBeInTheDocument();
   });
 });
 
@@ -294,7 +296,7 @@ describe("SearchSetupPanel — Area enablement on committed City (Issue 6)", () 
   it("enables the Area search input immediately when a committed city exists", () => {
     vi.mocked(useSearchState).mockReturnValue(rentBengaluruState as ReturnType<typeof useSearchState>);
     renderPanel({ open: true });
-    const areaInput = screen.getByPlaceholderText(/search areas in bengaluru/i);
+    const areaInput = screen.getByPlaceholderText(/search localities in bengaluru/i);
     expect(areaInput).toBeInTheDocument();
     expect(areaInput).not.toBeDisabled();
     // The disabled placeholder must NOT appear.
@@ -328,12 +330,12 @@ describe("SearchSetupPanel — multi-city interaction", () => {
     // Active city (most-recently-added = Mumbai) is identifiable + drives the Areas header.
     expect(screen.getByTestId("city-chip-city_mum")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("city-chip-city_blr")).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByTestId("areas-header").textContent).toMatch(/areas in mumbai/i);
+    expect(screen.getByTestId("areas-header").textContent).toMatch(/localities in mumbai/i);
     expect(screen.getByText("Andheri")).toBeInTheDocument(); // Mumbai's area shown
     // Switch active city → header + shown area follow.
     fireEvent.click(screen.getByTestId("city-chip-city_blr"));
     expect(screen.getByTestId("city-chip-city_blr")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("areas-header").textContent).toMatch(/areas in bengaluru/i);
+    expect(screen.getByTestId("areas-header").textContent).toMatch(/localities in bengaluru/i);
     expect(screen.getByText("Whitefield")).toBeInTheDocument(); // Bengaluru's area shown
   });
 
@@ -344,7 +346,7 @@ describe("SearchSetupPanel — multi-city interaction", () => {
     // Bengaluru chip gone; Mumbai remains and stays active (× did not switch active).
     expect(screen.queryByTestId("city-chip-city_blr")).toBeNull();
     expect(screen.getByTestId("city-chip-city_mum")).toBeInTheDocument();
-    expect(screen.getByTestId("areas-header").textContent).toMatch(/areas in mumbai/i);
+    expect(screen.getByTestId("areas-header").textContent).toMatch(/localities in mumbai/i);
     expect(screen.getByText("Andheri")).toBeInTheDocument();
   });
 
@@ -356,7 +358,7 @@ describe("SearchSetupPanel — multi-city interaction", () => {
     // Remove Bengaluru while active → falls back to Mumbai; Bengaluru's area is pruned.
     fireEvent.click(screen.getByTestId("city-remove-city_blr"));
     expect(screen.queryByTestId("city-chip-city_blr")).toBeNull();
-    expect(screen.getByTestId("areas-header").textContent).toMatch(/areas in mumbai/i);
+    expect(screen.getByTestId("areas-header").textContent).toMatch(/localities in mumbai/i);
     expect(screen.queryByText("Whitefield")).toBeNull(); // Bengaluru's area gone
     expect(screen.getByText("Andheri")).toBeInTheDocument(); // Mumbai's area remains
   });

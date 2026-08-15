@@ -8,8 +8,6 @@ import type {
   RentFilters,
   BuyFilters,
   SearchSortKey,
-  SearchViewMode,
-  MapBounds,
 } from "../domain/searchTypes";
 import { getDefaultSearchState } from "../domain/searchDefaults";
 import { parseSearchUrl } from "./parseSearchUrl";
@@ -17,6 +15,8 @@ import { serializeSearchState } from "./serializeSearchState";
 import {
   changeSearchMode,
   hasValidSearchContext,
+  resetDistanceIfNoLocality,
+  pruneOrphanAreas,
 } from "./searchStateUtils";
 
 /**
@@ -52,7 +52,17 @@ export function useSearchState() {
 
   const setContext = useCallback(
     (partial: Partial<SearchContext>) => {
-      push({ ...state, context: { ...state.context, ...partial }, cursor: null });
+      // Re-prune orphan details + coerce distance to Auto without a locality anchor
+      // so the committed state can never diverge from what the RPC will accept.
+      const nextContext = { ...state.context, ...partial };
+      const locations = pruneOrphanAreas(nextContext.cities, nextContext.locations);
+      push(
+        resetDistanceIfNoLocality({
+          ...state,
+          context: { ...nextContext, locations },
+          cursor: null,
+        }),
+      );
     },
     [state, push],
   );
@@ -86,13 +96,6 @@ export function useSearchState() {
     [state, push],
   );
 
-  const setView = useCallback(
-    (view: SearchViewMode) => {
-      push({ ...state, view });
-    },
-    [state, push],
-  );
-
   const setCursor = useCallback(
     (cursor: SearchCursor | null) => {
       push({ ...state, cursor });
@@ -105,15 +108,9 @@ export function useSearchState() {
   // to Auto when none is present (defence-in-depth beyond the disabled control).
   const setDistanceKm = useCallback(
     (distanceKm: number | null) => {
-      const hasAnchor = state.context.cities.length > 0 || state.context.locations.length > 0;
-      push({ ...state, distanceKm: hasAnchor ? distanceKm : null, cursor: null });
-    },
-    [state, push],
-  );
-
-  const setMapBounds = useCallback(
-    (mapBounds: MapBounds | null) => {
-      push({ ...state, mapBounds });
+      // An explicit distance is inert without a locality anchor (PostGIS locality-only).
+      const hasLocality = state.context.locations.some((l) => l.kind === "locality");
+      push({ ...state, distanceKm: hasLocality ? distanceKm : null, cursor: null });
     },
     [state, push],
   );
@@ -136,18 +133,20 @@ export function useSearchState() {
   const replaceSearchSetup = useCallback(
     (setup: { mode: SearchMode; city: string | null; cities?: SearchContext["cities"]; locations: SearchContext["locations"]; propertyTypes: string[] }) => {
       const base = changeSearchMode(state, setup.mode);
-      push({
-        ...base,
-        context: {
-          ...base.context,
-          mode: setup.mode,
-          city: setup.city,
-          cities: setup.cities ?? [],
-          locations: setup.locations,
-          propertyTypes: setup.propertyTypes,
-        },
-        cursor: null,
-      });
+      push(
+        resetDistanceIfNoLocality({
+          ...base,
+          context: {
+            ...base.context,
+            mode: setup.mode,
+            city: setup.city,
+            cities: setup.cities ?? [],
+            locations: setup.locations,
+            propertyTypes: setup.propertyTypes,
+          },
+          cursor: null,
+        }),
+      );
     },
     [state, push],
   );
@@ -159,10 +158,8 @@ export function useSearchState() {
     setFilters,
     applyFilters,
     setSort,
-    setView,
     setCursor,
     setDistanceKm,
-    setMapBounds,
     setSelectedPropertyId,
     resetFilters,
     replaceSearchSetup,

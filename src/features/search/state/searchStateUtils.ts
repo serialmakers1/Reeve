@@ -1,5 +1,5 @@
 import type { SearchMode } from "../domain/searchMode";
-import type { SearchState, SearchContext, RentFilters, BuyFilters, MapBounds, LocationToken, CityToken } from "../domain/searchTypes";
+import type { SearchState, SearchContext, RentFilters, BuyFilters, LocationToken, CityToken } from "../domain/searchTypes";
 import { RENT_SORT_KEYS, MAX_SELECTED_LOCATIONS, DEFAULT_SORT } from "../domain/searchConstants";
 import { getDefaultRentFilters, getDefaultBuyFilters } from "../domain/searchDefaults";
 
@@ -7,14 +7,25 @@ import { getDefaultRentFilters, getDefaultBuyFilters } from "../domain/searchDef
 // Used by BOTH URL hydration (parseSearchUrl) and the setup panel's city-removal
 // pruning, so case handling can never diverge.
 
-const normCity = (s: string | null | undefined): string => (s ?? "").trim().toLowerCase();
-
-/** True when an area/road token belongs to the given selected city. Canonical
- *  tokens match by placeId; legacy tokens (cityId is a label) match by normalized
- *  label. */
+/** True when a detail (locality/road) token belongs to the given selected root
+ *  City — canonical ownership by the root's geo_place UUID (Phase 4 · Prompt 3). */
 export function areaBelongsToCity(location: LocationToken, city: CityToken): boolean {
-  if (location.cityId == null) return false;
-  return location.cityId === city.placeId || normCity(location.cityId) === normCity(city.label);
+  return !!location.scopeRootId && location.scopeRootId === city.geoPlaceId;
+}
+
+/** True when the selection carries at least one locality detail — the sole
+ *  eligibility for an explicit distance radius. */
+export function hasLocalityAnchor(cities: CityToken[], locations: LocationToken[]): boolean {
+  void cities; // only details can be localities
+  return locations.some((l) => l.kind === "locality");
+}
+
+/** Coerce distance to Auto (null) unless a selected locality anchors it. */
+export function resetDistanceIfNoLocality(state: SearchState): SearchState {
+  if (state.distanceKm === null) return state;
+  return hasLocalityAnchor(state.context.cities, state.context.locations)
+    ? state
+    : { ...state, distanceKm: null };
 }
 
 /**
@@ -63,7 +74,7 @@ export function normalizeSearchState(state: SearchState): SearchState {
     [minPrice, maxPrice] = [maxPrice, minPrice];
   }
 
-  // Deduplicate + trim locations
+  // Deduplicate (by canonical UUID id) + trim locations
   const seen = new Set<string>();
   let locations = state.context.locations
     .filter((l) => {
@@ -73,10 +84,8 @@ export function normalizeSearchState(state: SearchState): SearchState {
     })
     .slice(0, MAX_SELECTED_LOCATIONS);
 
-  // Remove city-mismatched locations
-  if (state.context.city) {
-    locations = locations.filter((l) => l.cityId === state.context.city);
-  }
+  // Canonical ownership: every detail must belong to a selected root City.
+  locations = pruneOrphanAreas(state.context.cities, locations);
 
   const normalizedFilters = { ...filters, minPrice, maxPrice };
   // Remove undefined price keys to keep output clean

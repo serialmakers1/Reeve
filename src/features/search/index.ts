@@ -3,10 +3,9 @@ export type { SearchMode, DbListingType, UnresolvedMode } from "./domain/searchM
 export { listingTypeBySearchMode, VALID_MODES, parseSearchMode, serializeSearchMode, isValidMode } from "./domain/searchMode";
 
 export type {
-  LocationTokenType,
-  LatLng,
-  MapBounds,
+  SearchGeoKind,
   LocationToken,
+  CityToken,
   SearchContext,
   SearchCursor,
   RentFilters,
@@ -20,7 +19,6 @@ export type {
   RentSortKey,
   BuySortKey,
   SearchSortKey,
-  SearchViewMode,
   SearchState,
   PendingSearchIntent,
 } from "./domain/searchTypes";
@@ -37,10 +35,8 @@ export {
   KHATA_VALUES,
   RENT_SORT_KEYS,
   BUY_SORT_KEYS,
-  SEARCH_VIEW_MODES,
   MAX_SELECTED_LOCATIONS,
   DEFAULT_SORT,
-  DEFAULT_VIEW,
   RESPONSE_RATE_MIN_HANDLED,
   VIEW_COUNT_MIN_DISPLAY,
   COMMENT_COUNT_MIN_DISPLAY,
@@ -93,18 +89,9 @@ export type {
 export { mapRpcRowToResult } from "./data/searchResultContract";
 
 export type {
-  LocationPrecision,
-  ResolvedMarkerPrice,
-  SearchMapMarker,
-  SearchMapMarkerRpcRow,
-  MarkerTapResult,
-} from "./data/searchMarkerContract";
-
-export type {
   SearchPropertiesInput,
-  SearchMapMarkersInput,
 } from "./data/searchContracts";
-export { SEARCH_PAGE_SIZE, MAP_MARKERS_LIMIT } from "./data/searchContracts";
+export { SEARCH_PAGE_SIZE } from "./data/searchContracts";
 
 // ─── Data client ─────────────────────────────────────────────────────────────
 export type { SearchPropertiesResult } from "./data/searchDataClient";

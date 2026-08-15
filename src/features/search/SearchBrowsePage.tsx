@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, Suspense, lazy } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import posthog from "posthog-js";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,6 @@ import { useSearchResults } from "@/features/search/state/useSearchResults";
 import { useFavourites } from "@/hooks/useFavourites";
 import { useSearchMeta } from "@/features/search/hooks/useSearchMeta";
 import { useSearchBootstrap } from "@/features/search/state/useSearchBootstrap";
-import { SEARCH_MAP_ENABLED } from "@/features/search/domain/searchFeatureFlags";
 import { formatSearchHeading } from "@/features/search/state/formatSearchHeading";
 import { formatCitiesLabel } from "@/features/search/state/searchStateUtils";
 import {
@@ -20,19 +19,17 @@ import {
 import { SearchSetupPanel } from "@/features/search/components/SearchSetupPanel";
 import { SearchControlRow } from "@/features/search/components/SearchControlRow";
 import { SearchFilterPanel } from "@/features/search/components/SearchFilterPanel";
-import { SearchMapPlaceholder } from "@/features/search/components/SearchMapPlaceholder";
 import { SearchResultsList } from "@/features/search/components/list/SearchResultsList";
 import { DesktopSearchToolbar } from "@/features/search/components/desktop/DesktopSearchToolbar";
 import { Button } from "@/components/ui/button";
 import { URL_PARAMS } from "@/features/search/domain/searchConstants";
-import type { SearchViewMode } from "@/features/search/domain/searchTypes";
 
-const SearchMapView = lazy(() =>
-  import("@/features/search/components/SearchMapView").then((m) => ({ default: m.SearchMapView })),
-);
-
+/**
+ * LIST-only Search experience (Phase 4 · Prompt 4 — Map/Split permanently removed).
+ * Stale ?view=map|split and map-bounds params are ignored by the parser and open plain LIST.
+ */
 export default function SearchBrowsePage() {
-  const { state, setView, setMode, hasValidContext } = useSearchState();
+  const { state, setMode, hasValidContext } = useSearchState();
   const search = useSearchResults();
   const { isFavourited, toggleFavourite, isLoggedIn } = useFavourites();
   const routeLocation = useLocation();
@@ -57,14 +54,6 @@ export default function SearchBrowsePage() {
     }
   }, [bootstrap.status]);
 
-  // Normalize a stale ?view=map|split in the URL to List once (replace, no new entry).
-  useEffect(() => {
-    if (SEARCH_MAP_ENABLED) return;
-    const v = new URLSearchParams(routeLocation.search).get(URL_PARAMS.view);
-    if (v === "map" || v === "split") setView("list");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // ── search_context_submitted ───────────────────────────────────────────────
   const handleContextSubmitted = useCallback(
     (submittedCtx: { mode: string; city: string | null; locations: { id: string }[]; propertyTypes: string[] }) => {
@@ -78,58 +67,13 @@ export default function SearchBrowsePage() {
         property_type: submittedCtx.propertyTypes.length === 1 ? submittedCtx.propertyTypes[0] : null,
         filter_groups: [],
         result_count_bucket: "unknown",
-        view_mode: state.view,
+        view_mode: "list",
         device_class: getDeviceClass(),
       });
     },
-    [state.view],
+    [],
   );
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-
-  // ── View mode helpers ──────────────────────────────────────────────────────
-  const isMapView = state.view === "map";
-  const isSplitView = state.view === "split";
-
-  // Track actual desktop viewport width for behavioral effects
-  const [isDesktop, setIsDesktop] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1200px)").matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1200px)");
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-  // Desktop Split: URL says split AND viewport is ≥1200px
-  const isDesktopSplit = isSplitView && isDesktop;
-
-  // ── Lazy map mount — only when map will actually render ────────────────────
-  const [hasOpenedMap, setHasOpenedMap] = useState(
-    SEARCH_MAP_ENABLED && (isMapView || isDesktopSplit),
-  );
-  const prevViewRef = useRef(state.view);
-
-  useEffect(() => {
-    // Map/Split gated off — no mount, no marker query, no map analytics.
-    if (!SEARCH_MAP_ENABLED) return;
-    const prev = prevViewRef.current;
-    const next = state.view;
-    prevViewRef.current = next;
-
-    if (isMapView || isDesktopSplit) {
-      if (!hasOpenedMap) setHasOpenedMap(true);
-    }
-
-    // map_opened: fire when map becomes visible (fullscreen map OR desktop Split), not on mobile split
-    const mapWasVisible = prev === "map" || (prev === "split" && isDesktop);
-    const mapIsVisible = next === "map" || (next === "split" && isDesktop);
-    if (mapIsVisible && !mapWasVisible) {
-      posthog?.capture(
-        SEARCH_EVENTS.MAP_OPENED,
-        buildSearchContext(state, { resultsCount: search.results.length, isDesktop }),
-      );
-    }
-  }, [state.view, isDesktopSplit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openSetup = () => setIsPanelOpen(true);
 
@@ -159,108 +103,60 @@ export default function SearchBrowsePage() {
     });
     if (fp === lastFiredCriteriaRef.current) return;
     lastFiredCriteriaRef.current = fp;
-    const ctx = buildSearchContext(state, { resultsCount: search.results.length, isDesktop });
+    const ctx = buildSearchContext(state, { resultsCount: search.results.length });
     posthog?.capture(SEARCH_EVENTS.RESULTS_LOADED, ctx);
     if (search.isEmpty) {
       posthog?.capture(SEARCH_EVENTS.NO_RESULTS_VIEWED, ctx);
     }
-  }, [search.isInitialLoading, search.error, search.isEmpty, search.results.length, hasValidContext, state, isDesktop]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [search.isInitialLoading, search.error, search.isEmpty, search.results.length, hasValidContext, state]);
 
-  // ── listing_opened callback — surface supplied by caller ──────────────────
+  // ── listing_opened callback ───────────────────────────────────────────────
   const handleListingOpen = useCallback(
-    (propertyId: string, surface: "list" | "split" | "map") => {
+    (propertyId: string) => {
       posthog?.capture(SEARCH_EVENTS.LISTING_OPENED, {
         property_id: propertyId,
-        source_surface: surface,
-        ...buildSearchContext(state, { resultsCount: search.results.length, isDesktop }),
+        source_surface: "list",
+        ...buildSearchContext(state, { resultsCount: search.results.length }),
       });
     },
-    [state, search.results.length, isDesktop],
+    [state, search.results.length],
   );
 
-  // ── favourite_completed — wrapped toggle, surface from caller ─────────────
+  // ── favourite_completed — wrapped toggle ──────────────────────────────────
   const wrappedToggleFavourite = useCallback(
-    async (propertyId: string, surface: "list" | "split" | "map") => {
+    async (propertyId: string) => {
       const wasAdding = !isFavourited(propertyId);
       const success = await toggleFavourite(propertyId);
       if (success && wasAdding) {
         posthog?.capture(SEARCH_EVENTS.FAVOURITE_COMPLETED, {
           property_id: propertyId,
-          source_surface: surface,
-          ...buildSearchContext(state, { resultsCount: search.results.length, isDesktop }),
+          source_surface: "list",
+          ...buildSearchContext(state, { resultsCount: search.results.length }),
         });
       }
       return success;
     },
-    [toggleFavourite, isFavourited, state, search.results.length, isDesktop],
+    [toggleFavourite, isFavourited, state, search.results.length],
   );
 
-  // ── Hover state for card→marker sync ──────────────────────────────────────
-  const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
-
-  // ── Card refs for marker→card scroll ──────────────────────────────────────
+  // ── Card refs for one-time return scroll (login-return / detail-return) ────
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  // One-time return scroll: initialized from mount-time selectedPropertyId (login-return / detail-return)
   const returnScrollPendingRef = useRef<string | null>(state.selectedPropertyId ?? null);
 
   const scrollBehavior = (): ScrollBehavior =>
     window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth";
 
-  const onRegisterRef = useCallback(
-    (id: string, el: HTMLDivElement | null) => {
-      if (el) {
-        cardRefs.current.set(id, el);
-        // Desktop Split: scroll selected card into view when markers are clicked
-        if (isDesktopSplit && state.selectedPropertyId === id) {
-          el.scrollIntoView({ behavior: scrollBehavior(), block: "nearest" });
-        }
-        // One-time return scroll for ALL modes (List, mobile, Split)
-        if (returnScrollPendingRef.current === id) {
-          returnScrollPendingRef.current = null;
-          el.scrollIntoView({ behavior: scrollBehavior(), block: "nearest" });
-        }
-      } else {
-        cardRefs.current.delete(id);
+  const onRegisterRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) {
+      cardRefs.current.set(id, el);
+      if (returnScrollPendingRef.current === id) {
+        returnScrollPendingRef.current = null;
+        el.scrollIntoView({ behavior: scrollBehavior(), block: "nearest" });
       }
-    },
-    [isDesktopSplit, state.selectedPropertyId],
-  );
-
-  // ── Marker→card scroll when selectedPropertyId changes (desktop Split only) ─
-  useEffect(() => {
-    if (!isDesktopSplit || !state.selectedPropertyId) return;
-    const el = cardRefs.current.get(state.selectedPropertyId);
-    el?.scrollIntoView({ behavior: scrollBehavior(), block: "nearest" });
-  }, [state.selectedPropertyId, isDesktopSplit]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Scroll position restoration ────────────────────────────────────────────
-  const resultsScrollRef = useRef<HTMLDivElement>(null);
-  const savedWindowScroll = useRef<number>(0);
-  const savedPaneScroll = useRef<number>(0);
-  const prevScrollView = useRef<SearchViewMode>(state.view);
-
-  const usesWindowScroll = (v: SearchViewMode) =>
-    v === "list" || (v === "split" && !isDesktop);
-  const usesPaneScroll = (v: SearchViewMode) => v === "split" && isDesktop;
-
-  useEffect(() => {
-    const prev = prevScrollView.current;
-    const next = state.view;
-    prevScrollView.current = next;
-
-    if (usesWindowScroll(prev)) savedWindowScroll.current = window.scrollY;
-    if (usesPaneScroll(prev))
-      savedPaneScroll.current = resultsScrollRef.current?.scrollTop ?? 0;
-
-    requestAnimationFrame(() => {
-      if (usesWindowScroll(next)) {
-        window.scrollTo({ top: savedWindowScroll.current, behavior: "instant" });
-      }
-      if (usesPaneScroll(next) && resultsScrollRef.current) {
-        resultsScrollRef.current.scrollTop = savedPaneScroll.current;
-      }
-    });
-  }, [state.view, isDesktop]); // eslint-disable-line react-hooks/exhaustive-deps
+    } else {
+      cardRefs.current.delete(id);
+    }
+  }, []);
 
   // ── Crawlable next-page URL (cursor already serialized to URL params) ────────
   const nextPageHref = useMemo(() => {
@@ -280,12 +176,7 @@ export default function SearchBrowsePage() {
       })
     : "Search Properties";
 
-  // ── Map wrapper positioning — caller owns all positioning ──────────────────
-  const mapWrapperClass = isMapView
-    ? "fixed inset-x-0 top-16 desk:top-[120px] bottom-0 z-30"
-    : isSplitView
-      ? "hidden desk:block desk:fixed desk:right-0 desk:top-[120px] desk:bottom-0 desk:w-[42%] desk:z-20"
-      : "hidden";
+  const titleCaseCity = (c: string) => c.charAt(0).toUpperCase() + c.slice(1);
 
   return (
     <Layout>
@@ -321,8 +212,6 @@ export default function SearchBrowsePage() {
         <DesktopSearchToolbar
           onOpenSetup={openSetup}
           onOpenFilters={() => setIsFilterPanelOpen(true)}
-          view={state.view}
-          onSetView={setView}
           onModeChange={handleModeChange}
           loadedCount={search.results.length}
           hasNextPage={search.hasNextPage}
@@ -330,13 +219,11 @@ export default function SearchBrowsePage() {
       )}
 
       {/* IP-approximate location notice — non-blocking, hidden for URL/remembered locations */}
-      {bootstrap.ipNoticeCity && !isMapView && (
+      {bootstrap.ipNoticeCity && (
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 text-sm lg:px-6">
           <span className="text-muted-foreground">
             Showing{" "}
-            <span className="font-medium text-foreground">
-              {bootstrap.ipNoticeCity.charAt(0).toUpperCase() + bootstrap.ipNoticeCity.slice(1)}
-            </span>{" "}
+            <span className="font-medium text-foreground">{titleCaseCity(bootstrap.ipNoticeCity)}</span>{" "}
             based on your approximate location.
           </span>
           <div className="flex items-center gap-2">
@@ -354,7 +241,7 @@ export default function SearchBrowsePage() {
                 })
               }
             >
-              Keep {bootstrap.ipNoticeCity.charAt(0).toUpperCase() + bootstrap.ipNoticeCity.slice(1)}
+              Keep {titleCaseCity(bootstrap.ipNoticeCity)}
             </Button>
             <Button size="sm" variant="ghost" className="h-8" onClick={openSetup}>
               Change
@@ -363,33 +250,28 @@ export default function SearchBrowsePage() {
         </div>
       )}
 
-      {/* Results pane — hidden only on fullscreen map */}
+      {/* Distance auto-reset notice — a selected locality isn't radius-eligible yet */}
+      {search.distanceNotice && (
+        <div className="mx-auto max-w-6xl px-4 py-2 text-sm text-muted-foreground lg:px-6">
+          {search.distanceNotice}
+        </div>
+      )}
+
+      {/* Results pane */}
       {hasValidContext && (
-        <div
-          ref={resultsScrollRef}
-          className={cn(
-            isMapView ? "hidden" : "",
-            isDesktopSplit
-              ? "desk:w-[58%] desk:overflow-y-auto desk:h-[calc(100vh-120px)] desk:sticky desk:top-[120px]"
-              : "",
-          )}
-        >
+        <div>
           <h1 className="sr-only">{h1Text}</h1>
           <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
             {search.isInitialLoading && "Loading properties…"}
             {!search.isInitialLoading && !search.isEmpty && `${search.results.length}${search.hasNextPage ? "+" : ""} properties`}
             {search.isEmpty && "No properties found for this search"}
           </div>
-          <div className={cn(!isDesktopSplit && "pb-24")}>
+          <div className="pb-24">
             <SearchResultsList
               {...search}
               onOpenSetup={openSetup}
               onOpenFilters={() => setIsFilterPanelOpen(true)}
-              layout={isDesktopSplit ? "horizontal" : "list"}
-              columns={isDesktopSplit ? 1 : "responsive"}
               selectedPropertyId={state.selectedPropertyId}
-              hoveredPropertyId={hoveredPropertyId}
-              onHover={setHoveredPropertyId}
               onRegisterRef={onRegisterRef}
               isFavourited={isFavourited}
               onToggleFavourite={wrappedToggleFavourite}
@@ -401,37 +283,13 @@ export default function SearchBrowsePage() {
         </div>
       )}
 
-      {/* No-context CTA (mobile: list view only) */}
-      {!hasValidContext && !isPanelOpen && !isMapView && (
+      {/* No-context CTA */}
+      {!hasValidContext && !isPanelOpen && (
         <div className="fixed bottom-6 inset-x-0 flex justify-center z-40 pointer-events-none">
           <Button className="pointer-events-auto shadow-lg" onClick={openSetup}>
             Set up search
           </Button>
         </div>
-      )}
-
-      {/* Single SearchMapView — outside results pane; wrapper className owns all positioning */}
-      {SEARCH_MAP_ENABLED && hasOpenedMap && (
-        <div className={mapWrapperClass}>
-          <Suspense fallback={null}>
-          <SearchMapView
-            onOpenSetup={openSetup}
-            onOpenFilters={() => setIsFilterPanelOpen(true)}
-            onBackToList={() => setView("list")}
-            showPreview={isMapView}
-            hoveredPropertyId={hoveredPropertyId}
-            isFavourited={isFavourited}
-            onToggleFavourite={wrappedToggleFavourite}
-            isLoggedIn={isLoggedIn}
-            onListingOpen={handleListingOpen}
-          />
-          </Suspense>
-        </div>
-      )}
-
-      {/* Map FAB — hidden while Map/Split are gated off */}
-      {SEARCH_MAP_ENABLED && hasValidContext && !isMapView && (
-        <SearchMapPlaceholder onClick={() => setView("map")} />
       )}
     </div>
     </Layout>

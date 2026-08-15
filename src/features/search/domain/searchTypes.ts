@@ -8,7 +8,6 @@ import type {
   KHATA_VALUES,
   RENT_SORT_KEYS,
   BUY_SORT_KEYS,
-  SEARCH_VIEW_MODES,
 } from "./searchConstants";
 
 // ─── Enum value types (derived from const arrays) ─────────────────────────────
@@ -22,58 +21,42 @@ export type KhataValue = (typeof KHATA_VALUES)[number];
 
 // ─── Location ─────────────────────────────────────────────────────────────────
 
-export type LocationTokenType =
-  | "area"
-  | "sublocality"
-  | "neighbourhood"
-  | "building"
-  | "project"
-  | "pincode"
-  | "landmark";
+/** The four FINAL Reeve canonical geography kinds surfaced to Search (Phase 4). */
+export type SearchGeoKind = "search_region" | "settlement" | "locality" | "road";
 
-export interface LatLng {
-  lat: number;
-  lng: number;
-}
-
-export interface MapBounds {
-  ne: LatLng;
-  sw: LatLng;
-}
-
-/** Google viewport for an area, used for geographic Area filtering (p_area_boxes). */
-export interface AreaViewport {
-  sw: { lat: number; lng: number };
-  ne: { lat: number; lng: number };
-}
-
+/**
+ * A selected DETAIL location (locality or road) identified by its Reeve canonical
+ * `geo_place` UUID — never a Google Place ID.
+ *
+ * `id` is a deterministic alias of `geoPlaceId` (kept so the many id-keyed dedupe /
+ * React-key / removal call-sites keep working); both always equal the canonical UUID.
+ * `scopeRootId` is the owning root City's `geoPlaceId`.
+ */
 export interface LocationToken {
+  /** Deterministic alias of `geoPlaceId` — the canonical UUID. */
   id: string;
+  /** Reeve canonical geo_place UUID (detail). */
+  geoPlaceId: string;
+  kind: "locality" | "road";
+  /** Owning root City's geoPlaceId. */
+  scopeRootId: string;
   label: string;
-  type: LocationTokenType;
-  cityId: string | null;
-  placeId: string | null;
-  /** Google Place center captured at selection; null for older URLs. Used as the
-   *  area anchor for Auto safety-net + explicit-distance circles (Prompt 3). */
-  lat: number | null;
-  lng: number | null;
-  /** Area viewport bounds; null until hydrated (older URLs). Retained for
-   *  area-autocomplete scoping (locationRestriction), NOT for match filtering. */
-  viewport: AreaViewport | null;
+  parentLabel?: string | null;
+  searchRegionLabel?: string | null;
 }
 
 /**
- * A selected City with its canonical Google Place identity + coordinates.
- * placeId drives canonical city-association membership (Auto); lat/lng anchor
- * explicit-distance circles when no area is selected. viewport scopes the
- * area autocomplete to this city. (Prompt 3 — canonical Search location.)
+ * A selected root City identified by its Reeve canonical `geo_place` UUID — a
+ * `search_region` or `settlement`. `geoPlaceId` drives canonical membership.
  */
 export interface CityToken {
-  placeId: string;
+  /** Reeve canonical geo_place UUID (root). */
+  geoPlaceId: string;
+  kind: "search_region" | "settlement";
   label: string;
-  lat: number;
-  lng: number;
-  viewport: AreaViewport | null;
+  settlementSubtype?: "city" | "town" | "village" | null;
+  searchRegionId?: string | null;
+  searchRegionLabel?: string | null;
 }
 
 // ─── Search context (setup fields — persisted in URL) ─────────────────────────
@@ -81,16 +64,12 @@ export interface CityToken {
 export interface SearchContext {
   mode: SearchMode | null;
   /**
-   * Normalized lowercase city identifier (e.g. "bengaluru", "mumbai").
-   * Plain string — no Place ID stored here. Google Place ID for the city
-   * is deferred to Phase 4 (Search Setup).
+   * Normalized lowercase label of the first selected city. RETAINED (not map-only):
+   * it is the SEO/H1 heading source (`formatSearchHeading`), the toolbar context
+   * fallback, and the per-city key for confirmed-search memory + the IP-notice copy.
    */
   city: string | null;
-  /**
-   * Selected cities as canonical Place anchors (Prompt 3). Source of truth for
-   * city location filtering. `city` above is a derived lowercase label of the
-   * first city, retained for display + legacy URL back-compat.
-   */
+  /** Selected root cities (canonical geo_place UUIDs) — source of truth for city filtering. */
   cities: CityToken[];
   locations: LocationToken[]; // max 5
   /**
@@ -151,12 +130,11 @@ export interface BuyFilters {
   hasExperienceFeedback?: boolean;
 }
 
-// ─── Sort & view ──────────────────────────────────────────────────────────────
+// ─── Sort ─────────────────────────────────────────────────────────────────────
 
 export type RentSortKey = (typeof RENT_SORT_KEYS)[number];
 export type BuySortKey = (typeof BUY_SORT_KEYS)[number];
 export type SearchSortKey = RentSortKey | BuySortKey;
-export type SearchViewMode = (typeof SEARCH_VIEW_MODES)[number];
 
 // ─── Cursor pagination ────────────────────────────────────────────────────────
 
@@ -185,11 +163,10 @@ export interface SearchState {
   context: SearchContext;
   filters: RentFilters | BuyFilters;
   sort: SearchSortKey;
-  view: SearchViewMode;
   cursor: SearchCursor | null;  // null = first page
-  mapBounds: MapBounds | null;
+  /** Return-scroll / card-highlight target (login-return, detail-return). LIST-only. */
   selectedPropertyId: string | null;
-  /** Distance radius in km; null = Auto (association + safety-net). Prompt 3. */
+  /** Distance radius in km; null = Auto (canonical FINAL membership). Locality-only. */
   distanceKm: number | null;
 }
 

@@ -1,26 +1,17 @@
 import { describe, it, expect } from "vitest";
-import {
-  SEARCH_PAGE_SIZE,
-  MAP_MARKERS_LIMIT,
-} from "@/features/search/data/searchContracts";
+import { SEARCH_PAGE_SIZE } from "@/features/search/data/searchContracts";
 import type { SearchPropertiesInput } from "@/features/search/data/searchContracts";
 import type { SearchPropertyRpcRow } from "@/features/search/data/searchResultContract";
-import type { SearchMapMarkerRpcRow } from "@/features/search/data/searchMarkerContract";
 
 describe("search contracts", () => {
   it("SEARCH_PAGE_SIZE is 20", () => {
     expect(SEARCH_PAGE_SIZE).toBe(20);
   });
 
-  it("MAP_MARKERS_LIMIT is 200", () => {
-    expect(MAP_MARKERS_LIMIT).toBe(200);
-  });
-
   it("SearchPropertiesInput accepts a valid rent input", () => {
     const input: SearchPropertiesInput = {
       mode: "rent",
-      cityAnchors: [{ placeId: "city_blr", lat: 12.9716, lng: 77.5946 }],
-      areaAnchors: [],
+      geoPlaceIds: ["11111111-1111-1111-1111-111111111111"],
       distanceKm: null,
       propertyTypes: [],
       minPrice: null,
@@ -70,15 +61,5 @@ describe("search contracts", () => {
     type HasFav = "isFavourited" extends Keys ? true : false;
     const _check: HasFav = false;
     expect(_check).toBe(false);
-  });
-
-  it("SearchMapMarkerRpcRow has price_kind not displayPrice", () => {
-    type Keys = keyof SearchMapMarkerRpcRow;
-    type HasDisplay = "displayPrice" extends Keys ? true : false;
-    type HasKind = "price_kind" extends Keys ? true : false;
-    const _noDisplay: HasDisplay = false;
-    const _hasKind: HasKind = true;
-    expect(_noDisplay).toBe(false);
-    expect(_hasKind).toBe(true);
   });
 });

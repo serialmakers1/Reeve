@@ -46,6 +46,7 @@ import {
 import { validateYoutubeUrl } from "@/lib/ownerTextValidation";
 import { cn } from "@/lib/utils";
 import { REJECTION_REASONS, formatRejectionReason } from "@/lib/rejectionReasons";
+import { AdminLocationPanel } from "@/components/property-address/AdminLocationPanel";
 
 interface PropertyRow {
   id: string; owner_id: string; status: string;
@@ -429,7 +430,12 @@ export default function ListingReviewDetail() {
       .update({ status: "listed" }).eq("id", property.id);
     setBusy(false);
     if (error) {
-      toast({ title: "Could not approve", description: error.message, variant: "destructive" });
+      const publishBlocked = /location_not_ready:publish_location_incomplete/.test(error.message ?? "");
+      toast({
+        title: publishBlocked ? "Location not ready to publish" : "Could not approve",
+        description: publishBlocked ? "Finalize the property's location (below) before publishing." : error.message,
+        variant: "destructive",
+      });
       await load();
       return;
     }
@@ -475,6 +481,8 @@ export default function ListingReviewDetail() {
     if (error) {
       const msg = /no longer pending/i.test(error.message)
         ? "This edit was superseded or cancelled by the owner. Refreshing…"
+        : /location_not_ready:publish_location_incomplete/.test(error.message)
+        ? "The property's location must be finalized before this edit can be re-published."
         : error.message;
       toast({ title: "Could not approve", description: msg, variant: "destructive" });
       await load();
@@ -737,9 +745,9 @@ export default function ListingReviewDetail() {
             </ReviewField>
           ) : null}
 
-          {/* Canonical location (Prompt 4) — Google-resolved address + read-only pin +
-              building source + canonical City/Area associations. Read-only. */}
-          <CanonicalLocationPanel property={property} associations={associations} />
+          {/* Admin location review + correction (Prompt 3) — trusted final engine: exact pin/building,
+              Discovery geography, and finalization. Replaces the read-only CanonicalLocationPanel. */}
+          <AdminLocationPanel propertyId={property.id} token={session?.access_token ?? null} onChanged={load} />
 
           {/* Location free-text fields — highlighted for new listings; neutral on
               edit reviews (edits cannot change location, and the diff carries any

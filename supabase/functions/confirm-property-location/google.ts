@@ -5,40 +5,18 @@ const PLACES_BASE = "https://places.googleapis.com/v1/places";
 const GEOCODE_BASE = "https://maps.googleapis.com/maps/api/geocode/json";
 
 export const PLACE_FIELD_MASK =
-  "id,displayName,formattedAddress,location,types,addressComponents,viewport";
+  "id,displayName,formattedAddress,location,types,addressComponents,viewport,plusCode";
 
-export interface LatLng { lat: number; lng: number }
-export interface Bounds { ne: LatLng; sw: LatLng }
-
-export interface PlaceDetails {
-  id: string;
-  displayName: string | null;
-  formattedAddress: string | null;
-  location: LatLng | null;
-  types: string[];
-  viewport: Bounds | null;
-  // raw address components (Places New shape): { types, longText, shortText }
-  addressComponents: Array<{ types: string[]; longText: string; shortText?: string }>;
-}
-
-export interface GeocodeArea {
-  place_id: string;
-  display_name: string;
-  containment: "WITHIN" | "OUTSKIRTS" | "NEAR" | null;
-}
-
-export interface ReverseGeocode {
-  country: string | null;               // short admin country code, e.g. "IN"
-  // administrative hierarchy candidates carrying place_ids
-  cityCandidate: { place_id: string; display_name: string } | null;
-  // ALL result-level city-typed entities (locality / administrative_area_level_3) for this pin,
-  // carrying their result types so the caller can classify semantic city evidence (Prompt 4A B1).
-  cityResults: Array<{ place_id: string; display_name: string; types: string[] }>;
-  routeCandidate: { place_id: string; display_name: string } | null;
-  areas: GeocodeArea[];                   // Address Descriptor areas (place_id + containment)
-  components: Array<{ types: string[]; long_name: string; short_name: string }>;
-  rawResultsCount: number;
-}
+// Shared pure types live in types.ts (no Deno) so pure modules/tests can import them
+// without pulling this Deno-using module into the app TypeScript program.
+import type {
+  LatLng, Bounds, PlaceDetails, GeocodeArea, ReverseGeocode,
+  FinalPinComponent, FinalPinResolution, StreetViewMeta,
+} from "./types.ts";
+export type {
+  LatLng, Bounds, PlaceDetails, GeocodeArea, ReverseGeocode,
+  FinalPinComponent, FinalPinResolution, StreetViewMeta,
+} from "./types.ts";
 
 function key(): string {
   const k = Deno.env.get("GOOGLE_MAPS_SERVER_KEY");
@@ -72,6 +50,7 @@ export async function fetchPlaceDetails(placeId: string): Promise<PlaceDetails> 
     location: loc,
     types: Array.isArray(j.types) ? j.types : [],
     viewport: vp,
+    plusCode: j.plusCode?.globalCode ?? null,
     addressComponents: Array.isArray(j.addressComponents)
       ? j.addressComponents.map((c: Record<string, unknown>) => ({
           types: (c.types as string[]) ?? [],
@@ -155,4 +134,96 @@ function routeName(r: Record<string, unknown>): string {
   const comps = (r.address_components as Array<Record<string, unknown>>) ?? [];
   const rt = comps.find((c) => ((c.types as string[]) ?? []).includes("route"));
   return (rt?.long_name as string) ?? "";
+}
+
+// ── Phase 2: final-pin reverse geocode with normalized status (rural India bug fix) ──
+// Distinguishes transient provider failure / ZERO_RESULTS / OK so the caller never treats
+// "no country" as "outside India". The legacy reverseGeocode() above is left UNCHANGED.
+
+export async function reverseGeocodeFinalPin(lat: number, lng: number): Promise<FinalPinResolution> {
+  const empty: FinalPinResolution = {
+    status: "transient", country: null, components: [], formatted_address: null, plus_code: null,
+    cityResults: [], routeCandidate: null, areas: [],
+  };
+  let res: Response;
+  try {
+    res = await fetch(
+      `${GEOCODE_BASE}?latlng=${lat},${lng}&extra_computations=ADDRESS_DESCRIPTORS&region=in&language=en&key=${key()}`,
+      { method: "GET" },
+    );
+  } catch {
+    return { ...empty, status: "transient" };
+  }
+  if (!res.ok) return { ...empty, status: "transient" };
+  let j: Record<string, unknown>;
+  try { j = await res.json(); } catch { return { ...empty, status: "transient" }; }
+  const gstatus = j.status as string;
+  if (gstatus === "ZERO_RESULTS") return { ...empty, status: "zero_results" };
+  if (gstatus !== "OK") return { ...empty, status: "transient" };
+
+  const results: Array<Record<string, unknown>> = Array.isArray(j.results) ? j.results : [];
+  let country: string | null = null;
+  let routeCandidate: FinalPinResolution["routeCandidate"] = null;
+  const cityResults: FinalPinResolution["cityResults"] = [];
+  const seenCity = new Set<string>();
+
+  for (const r of results) {
+    const comps = (r.address_components as Array<Record<string, unknown>>) ?? [];
+    for (const c of comps) {
+      const t = (c.types as string[]) ?? [];
+      if (t.includes("country") && !country) country = (c.short_name as string) ?? null;
+    }
+    const rTypes = (r.types as string[]) ?? [];
+    if (r.place_id && (rTypes.includes("locality") || rTypes.includes("administrative_area_level_3"))) {
+      const pid = r.place_id as string;
+      if (!seenCity.has(pid)) { seenCity.add(pid); cityResults.push({ place_id: pid, display_name: cityName(r), types: rTypes }); }
+    }
+    if (!routeCandidate && rTypes.includes("route") && r.place_id) {
+      routeCandidate = { place_id: r.place_id as string, display_name: routeName(r) };
+    }
+  }
+
+  // Most-specific result (results[0]) drives factual components + formatted address + plus code.
+  const top = results[0] ?? {};
+  const components: FinalPinComponent[] = ((top.address_components as Array<Record<string, unknown>>) ?? []).map((c) => ({
+    types: (c.types as string[]) ?? [], long_name: (c.long_name as string) ?? "", short_name: (c.short_name as string) ?? "",
+  }));
+  const plus_code = ((j.plus_code as Record<string, unknown>)?.global_code as string) ?? null;
+
+  const areas: GeocodeArea[] = [];
+  const ad = (j.address_descriptor as Record<string, unknown>) ?? null;
+  if (ad && Array.isArray(ad.areas)) {
+    for (const a of ad.areas as Array<Record<string, unknown>>) {
+      const pid = a.place_id as string | undefined;
+      if (!pid) continue;
+      const dn = (a.display_name as Record<string, unknown>)?.text as string | undefined;
+      areas.push({ place_id: pid, display_name: dn ?? "", containment: ((a.containment as string) ?? null) as GeocodeArea["containment"] });
+    }
+  }
+
+  return {
+    status: "ok", country, components,
+    formatted_address: (top.formatted_address as string) ?? null,
+    plus_code, cityResults, routeCandidate, areas,
+  };
+}
+
+// ── Street View availability metadata (no image bytes). Accepts a pin OR a specific pano id. ──
+export async function streetViewMetadata(
+  q: { lat: number; lng: number } | { panoId: string },
+): Promise<StreetViewMeta> {
+  const base = "https://maps.googleapis.com/maps/api/streetview/metadata";
+  const param = "panoId" in q ? `pano=${encodeURIComponent(q.panoId)}` : `location=${q.lat},${q.lng}`;
+  let res: Response;
+  try {
+    res = await fetch(`${base}?${param}&key=${key()}`, { method: "GET" });
+  } catch {
+    return { available: false, pano_id: null, location: null };
+  }
+  if (!res.ok) return { available: false, pano_id: null, location: null };
+  let j: Record<string, unknown>;
+  try { j = await res.json(); } catch { return { available: false, pano_id: null, location: null }; }
+  if (j.status !== "OK") return { available: false, pano_id: null, location: null };
+  const loc = j.location ? { lat: (j.location as Record<string, number>).lat, lng: (j.location as Record<string, number>).lng } : null;
+  return { available: true, pano_id: (j.pano_id as string) ?? null, location: loc };
 }

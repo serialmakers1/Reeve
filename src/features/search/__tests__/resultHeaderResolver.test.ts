@@ -12,13 +12,12 @@ function stateWith(city: string | null, locations: LocationToken[] = []): Search
 
 const area = (id: string, label: string): LocationToken => ({
   id,
+  geoPlaceId: id,
+  kind: "locality",
+  scopeRootId: "11111111-1111-1111-1111-111111111111",
   label,
-  type: "area",
-  cityId: "bengaluru",
-  placeId: id,
-  lat: null,
-  lng: null,
-  viewport: null,
+  parentLabel: null,
+  searchRegionLabel: null,
 });
 
 describe("resultHeaderLabel", () => {

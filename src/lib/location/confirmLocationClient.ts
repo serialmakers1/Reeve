@@ -40,33 +40,6 @@ export interface ResolvedProperty {
 }
 export interface CandidateCity { place_id: string; display_name: string }
 export interface CandidateArea { place_id: string; display_name: string; preselect: boolean }
-export type SecondaryCityMode = "auto" | "admin";
-export interface ResolveResult {
-  ok: true; property_id: string;
-  property: ResolvedProperty;
-  primary_city: CandidateCity | null; city_unresolved: boolean;
-  areas: CandidateArea[]; road: { place_id: string; display_name: string } | null;
-  /** Admin-only: full Google semantic city-evidence set for this pin (offer ONLY these). */
-  city_candidates?: CandidateCity[];
-  /** Admin-only: the effective secondary cities (≤2). */
-  secondary_cities?: CandidateCity[];
-  /** Durable secondary-city intent; the server is authoritative. */
-  secondary_city_mode?: SecondaryCityMode;
-}
-
-/**
- * 4-state override wire contract. Key PRESENCE is meaningful:
- *  - omit the key entirely → server applies its mode-aware default
- *  - `null` → explicit "use Google" (recompute)
- *  - value (`"<id>"` / `[ids]`) → explicit choice; `[]` = admin "no secondaries"
- */
-export interface OverrideWire { cityPlaceId?: string | null; secondaryCityPlaceIds?: string[] | null }
-function overrideBody(o?: OverrideWire): Record<string, unknown> {
-  const b: Record<string, unknown> = {};
-  if (o && Object.prototype.hasOwnProperty.call(o, "cityPlaceId")) b.city_place_id = o.cityPlaceId;
-  if (o && Object.prototype.hasOwnProperty.call(o, "secondaryCityPlaceIds")) b.secondary_city_place_ids = o.secondaryCityPlaceIds;
-  return b;
-}
 
 interface CallOpts { token: string; body: Record<string, unknown> }
 
@@ -90,31 +63,119 @@ async function call<T>(opts: CallOpts): Promise<LocationCallResult<T>> {
   return { ok: false, error: (json?.error as LocationErrorCode) ?? "google_unavailable" };
 }
 
-export function resolveLocation(
-  token: string, propertyId: string, placeId: string, lat: number, lng: number, override?: OverrideWire,
-) {
-  return call<ResolveResult>({
-    token,
-    body: { mode: "resolve", property_id: propertyId, place_id: placeId, lat, lng, ...overrideBody(override) },
-  });
-}
-
-export function confirmLocation(token: string, args: {
-  propertyId: string; placeId: string; lat: number; lng: number;
-  buildingName?: string | null; selectedAreaIds?: string[]; extraAreaId?: string | null;
-} & OverrideWire) {
-  return call<{ ok: true; property_id: string; confirmed: true }>({
-    token,
-    body: {
-      mode: "confirm", property_id: args.propertyId, place_id: args.placeId, lat: args.lat, lng: args.lng,
-      building_name: args.buildingName ?? null,
-      selected_area_ids: args.selectedAreaIds ?? [],
-      extra_area_id: args.extraAreaId ?? null,
-      ...overrideBody(args),
-    },
-  });
-}
-
 export function updateBuildingName(token: string, propertyId: string, buildingName: string | null) {
   return call<{ ok: true }>({ token, body: { mode: "update_building_name", property_id: propertyId, building_name: buildingName } });
+}
+
+// ── Phase 2 trusted location engine (use_pin preview / commit_pin write) ──
+// Additive; NOT wired into any UI in Phase 2. The full structured engine response is
+// returned verbatim (its error shape is `{ code }`, distinct from the legacy string errors).
+
+export type IndiaValidation = "confirmed" | "outside" | "unresolved";
+export type ResolutionStatus = "complete" | "discovery_incomplete" | "india_unresolved" | "retryable_google";
+export type BuildingOutcome = "SAME" | "UNCERTAIN" | "CONFLICT" | "NOT_APPLICABLE";
+
+export interface PinCandidate {
+  candidate_key: string; geo_place_id: string | null; kind: string; display_name: string;
+  evidence_type: string; recommendation?: "recommended" | "suggestion"; root_eligible?: boolean; is_primary?: boolean;
+  source?: "system" | "owner";
+}
+export interface RejectedExtra { place_id: string; reason: string }
+export interface PinEngineResult {
+  ok: boolean;
+  property_id: string;
+  exact_location?: { lat: number; lng: number; formatted_address: string | null; india_validation: IndiaValidation };
+  factual?: Record<string, string | null>;
+  resolution_status?: ResolutionStatus;
+  building?: { outcome: BuildingOutcome; display_name?: string | null; source?: "google" | "owner" | "admin" | null; provider_place_id?: string | null };
+  discovery?: {
+    root?: unknown; associations: PinCandidate[]; suggestions: PinCandidate[]; missing_root: boolean;
+    /** Owner-added extras the server could not use ("Something is missing" rejections). */
+    rejected_extras?: RejectedExtra[];
+    /** use_pin only: >1 owner-added settlement while the pin has no deterministic root. */
+    ambiguous_root?: boolean;
+  };
+  street_view?: { available: boolean; fallback: boolean; pano_id?: string | null };
+  error?: { code: string };
+}
+
+async function callPinEngine(token: string, body: Record<string, unknown>): Promise<PinEngineResult> {
+  let res: Response;
+  try {
+    res = await fetch(FN_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { ok: false, property_id: (body.property_id as string) ?? "", error: { code: "network" } };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  // Normalize the two error shapes into one: structured `{ code }` (use_pin/commit_pin) OR a bare
+  // string from errResp(...) (e.g. { error: "outside_service_area" }). Callers read `error.code`.
+  if (typeof j.error === "string") j.error = { code: j.error };
+  j.ok = j.ok === true;
+  return j as unknown as PinEngineResult;
+}
+
+export function resolvePinPreview(
+  token: string,
+  args: { propertyId: string; lat: number; lng: number; placeId?: string | null; buildingName?: string | null; extraPlaceIds?: string[] },
+): Promise<PinEngineResult> {
+  return callPinEngine(token, {
+    mode: "use_pin", property_id: args.propertyId, lat: args.lat, lng: args.lng,
+    place_id: args.placeId ?? null, building_name: args.buildingName ?? null,
+    ...(args.extraPlaceIds && args.extraPlaceIds.length ? { extra_place_ids: args.extraPlaceIds } : {}),
+  });
+}
+
+export function commitPin(
+  token: string,
+  args: {
+    propertyId: string; lat: number; lng: number; placeId?: string | null;
+    selectedCandidateKeys?: string[]; buildingChoice?: "keep" | "clear" | "set"; buildingName?: string | null;
+    extraPlaceIds?: string[];
+  },
+): Promise<PinEngineResult> {
+  return callPinEngine(token, {
+    mode: "commit_pin", property_id: args.propertyId, lat: args.lat, lng: args.lng,
+    place_id: args.placeId ?? null,
+    ...(args.selectedCandidateKeys ? { selected_candidate_keys: args.selectedCandidateKeys } : {}),
+    ...(args.buildingChoice ? { building_choice: args.buildingChoice } : {}),
+    building_name: args.buildingName ?? null,
+    ...(args.extraPlaceIds && args.extraPlaceIds.length ? { extra_place_ids: args.extraPlaceIds } : {}),
+  });
+}
+
+/** Owner Discovery confirmation — stamps discovery_confirmed_at via the trusted Edge action. */
+export function confirmDiscovery(token: string, propertyId: string): Promise<PinEngineResult> {
+  return callPinEngine(token, { mode: "confirm_discovery", property_id: propertyId });
+}
+
+// ── Admin-only trusted actions (Prompt 3) ──────────────────────────────────
+export interface AdminDiscoveryArgs {
+  propertyId: string;
+  keepGeoPlaceIds: string[];
+  addGeoPlaceIds?: string[];
+  extraPlaceIds?: string[];
+  rootGeoPlaceId?: string | null;
+  rootExtraPlaceId?: string | null;
+}
+
+/** Admin Discovery correction — server validates keep/add/extras + root; writes via replace RPC. */
+export function adminUpdateDiscovery(token: string, args: AdminDiscoveryArgs): Promise<PinEngineResult> {
+  return callPinEngine(token, {
+    mode: "admin_update_discovery",
+    property_id: args.propertyId,
+    keep_geo_place_ids: args.keepGeoPlaceIds,
+    ...(args.addGeoPlaceIds && args.addGeoPlaceIds.length ? { add_geo_place_ids: args.addGeoPlaceIds } : {}),
+    ...(args.extraPlaceIds && args.extraPlaceIds.length ? { extra_place_ids: args.extraPlaceIds } : {}),
+    ...(args.rootGeoPlaceId !== undefined ? { root_geo_place_id: args.rootGeoPlaceId } : {}),
+    ...(args.rootExtraPlaceId ? { root_extra_place_id: args.rootExtraPlaceId } : {}),
+  });
+}
+
+/** Admin Discovery finalization — stamps discovery_finalized_at via the trusted Edge action. */
+export function finalizeDiscovery(token: string, propertyId: string): Promise<PinEngineResult> {
+  return callPinEngine(token, { mode: "finalize_discovery", property_id: propertyId });
 }

@@ -68,7 +68,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 import PropertyPreview, { type PropertyPreviewData, type PreviewImage } from "@/components/listing/PropertyPreview";
-import { PropertyLocationFlow, type ConfirmedLocationSummary } from '@/components/property-address/PropertyLocationFlow';
+import { OwnerLocationPin, type ConfirmedLocationSummary, type BuildingSource } from '@/components/property-address/OwnerLocationPin';
+import { isBuildingNameRequired } from '@/lib/location/isLocationReadyForSubmit';
+
+/** Persisted-location readiness classification (mirrors the M1 FINAL_OK / LEGACY_OK contract). */
+type LocationReadiness = {
+  status: 'loading' | 'ready';
+  kind: 'final' | 'legacy' | 'none';
+  discoveryConfirmed: boolean;
+  buildingSource: BuildingSource;
+};
 
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const DRAFT_LIMIT = 20;
@@ -378,9 +387,10 @@ function computeSectionStatus(
   imageCount: number,
   errored: Set<SectionNum>,
   openedSections: Set<SectionNum>,
+  loc: LocationReadiness,
 ): SectionStatus {
   const isErrored = errored.has(section);
-  const complete = isSectionComplete(section, f, imageCount, openedSections);
+  const complete = isSectionComplete(section, f, imageCount, openedSections, loc);
   if (complete) return "complete";
   if (isErrored) return "error";
   if (isSectionTouched(section, f, imageCount)) return "in_progress";
@@ -398,13 +408,19 @@ function isSectionComplete(
   f: FormState,
   imageCount: number,
   openedSections: Set<SectionNum>,
+  loc: LocationReadiness,
 ): boolean {
   switch (section) {
     case 1: {
-      // Prompt 2: canonical Google location. Missing street/locality/pincode/state is non-blocking.
-      // Building name required only for apartment/duplex_apartment (matches Submit invariant).
-      const needBuilding = f.property_type === "apartment" || f.property_type === "duplex_apartment";
-      return !!(f.location_verified_by_owner && f.city.trim() && f.place_id && (!needBuilding || f.building_name.trim().length >= 2));
+      // Prompt 3 P2 fix: explicit FINAL_READY OR LEGACY_READY, mirroring the M1 submit invariant.
+      // Not complete until the persisted-location classification has hydrated (avoids a false ✓).
+      if (loc.status !== "ready") return false;
+      const needBuilding = isBuildingNameRequired(f.property_type);
+      const buildingOk = !needBuilding || f.building_name.trim().length >= 2;
+      if (!buildingOk || !f.location_verified_by_owner || f.latitude == null || f.longitude == null) return false;
+      const finalReady = loc.kind === "final" && loc.discoveryConfirmed;
+      const legacyReady = loc.kind === "legacy" && !!f.place_id && f.address_mode === "google_place";
+      return finalReady || legacyReady;
     }
     case 2: return !!(f.bhk && f.property_type);
     case 3: {
@@ -565,6 +581,7 @@ export default function ListProperty() {
   // Prompt 2: true while a location replacement is being searched/reviewed but not yet
   // re-confirmed. Blocks Submit so an unconfirmed candidate can never be submitted.
   const [locationDirty, setLocationDirty] = useState(false);
+  const [locationState, setLocationState] = useState<LocationReadiness>({ status: 'loading', kind: 'none', discoveryConfirmed: false, buildingSource: null });
   const draftCheckedRef = useRef(false);
   // Live mirror of `form` so async blur-validation can compare against the current
   // value (a closed-over `form` would be stale and defeat the stale-response guard).
@@ -689,6 +706,30 @@ export default function ListProperty() {
     })();
   }, [authLoading, user?.id, propertyId]);
 
+  // ─── Location readiness (FINAL/LEGACY classification, mirrors M1) ─────────
+  // Source of truth for section-1 completeness + OwnerLocationPin hydration. Reads the association
+  // shape so a legacy draft is never mistaken for a final-committed-not-confirmed one.
+  const loadLocationReadiness = useCallback(async (pid: string, buildingNameSource: unknown, discoveryConfirmedAt: unknown) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: assoc, error } = await (supabase as any)
+      .from("property_geo_associations")
+      .select("relationship, is_primary, geo_places(kind)")
+      .eq("property_id", pid);
+    if (error) return; // keep prior/loading — never silently classify as 'none' on a query error
+    const rows = (assoc ?? []) as Array<{ relationship: string | null; is_primary: boolean; geo_places: { kind?: string } | null }>;
+    const finalPrimaries = rows.filter((r) => r.relationship == null && r.is_primary === true && ["settlement", "search_region"].includes(r.geo_places?.kind ?? ""));
+    const legacyPrimaries = rows.filter((r) => r.relationship === "primary_city");
+    const kind: LocationReadiness["kind"] = finalPrimaries.length === 1 ? "final" : legacyPrimaries.length === 1 ? "legacy" : "none";
+    setLocationState({ status: "ready", kind, discoveryConfirmed: !!discoveryConfirmedAt, buildingSource: (buildingNameSource as BuildingSource) ?? null });
+  }, []);
+
+  // Fresh create with nothing persisted yet → ready/none immediately (no async classification needed).
+  useEffect(() => {
+    if (!isEditMode && !draftIdFromQuery && !propertyId) {
+      setLocationState({ status: "ready", kind: "none", discoveryConfirmed: false, buildingSource: null });
+    }
+  }, [isEditMode, draftIdFromQuery, propertyId]);
+
   // ─── Load property in edit mode (URL /list/:id) ──────────────────────────
   useEffect(() => {
     if (!isEditMode || !idParam || !user?.id) return;
@@ -773,6 +814,7 @@ export default function ListProperty() {
       // Merge only proposed SCALARS for display (live values otherwise).
       const merged = pending ? { ...prop, ...proposedScalars } : prop;
       prefillFormFromRow(merged, setForm);
+      void loadLocationReadiness(prop.id, prop.building_name_source, prop.discovery_confirmed_at);
       // Surface pending custom additions in the editors (display only).
       if (addAmenities.length || addFurnishing.length) {
         setForm((f) => ({
@@ -815,6 +857,7 @@ export default function ListProperty() {
         .maybeSingle();
       if (!data) return;
       prefillFormFromRow(data as Record<string, unknown>, setForm);
+      void loadLocationReadiness(data.id, data.building_name_source, data.discovery_confirmed_at);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, isEditMode]);
@@ -840,10 +883,10 @@ export default function ListProperty() {
   const sectionStatuses = useMemo(() => {
     const map = {} as Record<SectionNum, SectionStatus>;
     for (const s of [1, 2, 3, 4, 5, 6, 7, 8, 9] as SectionNum[]) {
-      map[s] = computeSectionStatus(s, form, images.length, erroredSections, openedSections);
+      map[s] = computeSectionStatus(s, form, images.length, erroredSections, openedSections, locationState);
     }
     return map;
-  }, [form, images.length, erroredSections, openedSections]);
+  }, [form, images.length, erroredSections, openedSections, locationState]);
 
   const requiredComplete = REQUIRED_SECTIONS.filter((s) => sectionStatuses[s] === "complete").length;
 
@@ -1032,7 +1075,7 @@ export default function ListProperty() {
     return res.ok;
   }, []);
 
-  // ─── Trusted location (PropertyLocationFlow → Edge Function) ─────────────
+  // ─── Trusted location (OwnerLocationPin → confirm-property-location Edge) ──
   // Prompt 2: canonical geography is written ONLY by the confirm-property-location Edge
   // Function. The client no longer autosaves location. This callback fires AFTER a
   // successful atomic server confirm — it updates local form state for display + section /
@@ -1047,9 +1090,12 @@ export default function ListProperty() {
       building_name: s.building_name ?? '',
       latitude: s.latitude,
       longitude: s.longitude,
-      address_mode: 'google_place',
+      // A confirmed pin with a Google building place_id is 'google_place'; a manual/rural pin is 'manual'.
+      address_mode: s.place_id ? 'google_place' : 'manual',
       location_verified_by_owner: s.verified,
     }));
+    // onConfirmed fires only after commit + discovery confirm both succeed → final + confirmed.
+    setLocationState({ status: 'ready', kind: 'final', discoveryConfirmed: true, buildingSource: s.building_source });
   }, [setForm]);
 
   // Ensure a minimal locationless draft exists (single draft creator) so the trusted
@@ -1841,12 +1887,12 @@ export default function ListProperty() {
           <SectionShell num={1} title="Where is your property?" status={sectionStatuses[1]} summary={sectionSummary(1, form, images)} required>
             <div className="space-y-4">
               {addressEditable ? (
-                <PropertyLocationFlow
+                <OwnerLocationPin
                   propertyId={propertyId}
                   ensureDraft={ensureDraft}
                   token={session?.access_token ?? null}
                   propertyType={form.property_type || null}
-                  confirmed={(form.location_verified_by_owner && form.place_id) ? {
+                  confirmed={(form.location_verified_by_owner && form.latitude != null) ? {
                     place_id: form.place_id,
                     formatted_address: form.formatted_address || null,
                     city: form.city || null,
@@ -1855,7 +1901,12 @@ export default function ListProperty() {
                     latitude: form.latitude,
                     longitude: form.longitude,
                     verified: form.location_verified_by_owner,
+                    building_source: locationState.buildingSource,
                   } : null}
+                  locationKind={locationState.kind}
+                  discoveryConfirmed={locationState.discoveryConfirmed}
+                  buildingSource={locationState.buildingSource}
+                  hydrating={locationState.status !== 'ready'}
                   onConfirmed={handleLocationConfirmed}
                   onDirtyChange={setLocationDirty}
                 />

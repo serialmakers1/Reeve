@@ -7,10 +7,23 @@ import {
   buildReturnUrl,
 } from "../state/searchStateUtils";
 import { getDefaultSearchState } from "../domain/searchDefaults";
-import type { SearchState, RentFilters, BuyFilters, LocationToken } from "../domain/searchTypes";
+import type { SearchState, RentFilters, BuyFilters, LocationToken, CityToken } from "../domain/searchTypes";
 
-function makeToken(id: string, cityId: string | null): LocationToken {
-  return { id, label: `Area ${id}`, type: "area", cityId, placeId: null, lat: null, lng: null, viewport: null };
+const BLR_ID = "11111111-1111-1111-1111-111111111111";
+const MUM_ID = "22222222-2222-2222-2222-222222222222";
+const uuidOf = (key: string): string => {
+  let h = 0;
+  for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `${h.toString(16).padStart(8, "0")}-0000-0000-0000-000000000000`;
+};
+const BLR_ROOT: CityToken = {
+  geoPlaceId: BLR_ID, kind: "settlement", label: "Bengaluru", settlementSubtype: "city",
+};
+
+function makeToken(id: string, scopeRootId: string): LocationToken {
+  return {
+    id: uuidOf(id), geoPlaceId: uuidOf(id), kind: "locality", scopeRootId, label: `Area ${id}`,
+  };
 }
 
 describe("normalizeSearchState", () => {
@@ -26,14 +39,14 @@ describe("normalizeSearchState", () => {
   });
 
   it("deduplicates locations by id", () => {
-    const t = makeToken("loc1", "bengaluru");
+    const t = makeToken("loc1", BLR_ID);
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
       context: {
         mode: "rent",
         city: "bengaluru",
-        cities: [],
-        locations: [t, t, makeToken("loc2", "bengaluru")],
+        cities: [BLR_ROOT],
+        locations: [t, t, makeToken("loc2", BLR_ID)],
         propertyTypes: [],
       },
     };
@@ -42,34 +55,32 @@ describe("normalizeSearchState", () => {
   });
 
   it("trims locations to max 5", () => {
-    const locations = Array.from({ length: 7 }, (_, i) =>
-      makeToken(`loc${i}`, "bengaluru"),
-    );
+    const locations = Array.from({ length: 7 }, (_, i) => makeToken(`loc${i}`, BLR_ID));
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
-      context: { mode: "rent", city: "bengaluru", cities: [], locations, propertyTypes: [] },
+      context: { mode: "rent", city: "bengaluru", cities: [BLR_ROOT], locations, propertyTypes: [] },
     };
     const result = normalizeSearchState(state);
     expect(result.context.locations).toHaveLength(5);
   });
 
-  it("removes locations with mismatched cityId", () => {
+  it("removes details whose owning root is not selected", () => {
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
       context: {
         mode: "rent",
         city: "bengaluru",
-        cities: [],
+        cities: [BLR_ROOT],
         locations: [
-          makeToken("loc1", "bengaluru"),
-          makeToken("loc2", "mumbai"), // wrong city
+          makeToken("loc1", BLR_ID),
+          makeToken("loc2", MUM_ID), // root not selected
         ],
         propertyTypes: [],
       },
     };
     const result = normalizeSearchState(state);
     expect(result.context.locations).toHaveLength(1);
-    expect(result.context.locations[0].id).toBe("loc1");
+    expect(result.context.locations[0].id).toBe(uuidOf("loc1"));
   });
 
   it("cursor passthrough (null remains null)", () => {

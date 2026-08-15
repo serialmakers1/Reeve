@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavourites } from "@/hooks/useFavourites";
@@ -12,7 +12,17 @@ import {
 import type { SearchPropertiesResult } from "../data/searchDataClient";
 import { useSearchState } from "./useSearchState";
 import { buildSearchInput } from "./buildSearchInput";
-import { useAreaViewports } from "../hooks/useAreaViewports";
+import { useCanonicalHydration } from "./useCanonicalHydration";
+
+// Deployed radius-eligibility failures are raised via PostgreSQL RAISE, so they
+// surface in error.message (error.code = 'P0001'), NOT a dedicated code. Match text.
+const RADIUS_FAILURE_RE =
+  /locality_no_representative_point|radius_requires_locality|invalid_radius/;
+
+export function isRadiusFailure(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  return RADIUS_FAILURE_RE.test(msg);
+}
 
 // ─── Pure utility: merge two pages by ID, preserving server order ─────────────
 
@@ -42,8 +52,9 @@ export function shouldRecoverAreas(
 function computeSearchKey(state: ReturnType<typeof useSearchState>["state"]): string {
   return JSON.stringify({
     mode: state.context.mode,
-    cities: state.context.cities.map((c) => c.placeId),
-    locationIds: state.context.locations.map((l) => l.id),
+    // Canonical geo_place UUIDs (never labels) so two same-name places differ.
+    cities: state.context.cities.map((c) => c.geoPlaceId),
+    locationIds: state.context.locations.map((l) => l.geoPlaceId),
     distanceKm: state.distanceKm,
     propertyTypes: state.context.propertyTypes,
     sort: state.sort,
@@ -88,21 +99,28 @@ export interface UseSearchResultsReturn {
   loadMore: () => void;
   /** Set only when primary succeeded with 0 rows AND areas are selected. */
   areaFallback: AreaFallback | null;
+  /** One-shot notice when an explicit distance was auto-reset (radius ineligible). */
+  distanceNotice: string | null;
 }
 
 export function useSearchResults(): UseSearchResultsReturn {
-  const { state, hasValidContext, setCursor } = useSearchState();
+  const { state, hasValidContext, setCursor, setDistanceKm } = useSearchState();
   const { isFavourited } = useFavourites();
-  const { areaViewportsReady, areaViewportsError } = useAreaViewports();
+  // Authoritative canonical hydration gate — the location-filtered query must not run
+  // from an unhydrated URL/memory snapshot.
+  const { locationReady } = useCanonicalHydration();
 
   const searchKey = useMemo(() => computeSearchKey(state), [state]);
   const input = useMemo(() => buildSearchInput(state), [state]);
-  // Area anchors carry their own Place coordinates (captured at selection), so the
-  // results query no longer waits on viewport hydration. Viewport hydration remains
-  // only for area-autocomplete scoping. Key on anchors so a late-hydrated anchor refetches.
-  const areaAnchorsKey = useMemo(() => JSON.stringify(input?.areaAnchors ?? []), [input]);
-  void areaViewportsReady;
+  // Key on the canonical geo_place UUIDs so a change to the selection refetches.
+  const geoPlaceIdsKey = useMemo(() => JSON.stringify(input?.geoPlaceIds ?? []), [input]);
   const gatingAreas = false;
+  // Gate only when the selection carries geo IDs (a bare/nationwide URL runs at once).
+  const hasGeoSelection =
+    state.context.cities.length > 0 || state.context.locations.length > 0;
+  const locationGateOpen = !hasGeoSelection || locationReady;
+  void gatingAreas;
+  const [distanceNotice, setDistanceNotice] = useState<string | null>(null);
 
   // Accumulated pages across load-more calls for the same searchKey
   const [accumulated, setAccumulated] = useState<PageAccumulation>({
@@ -112,8 +130,8 @@ export function useSearchResults(): UseSearchResultsReturn {
 
   const query = useQuery<SearchPropertiesResult, Error>({
     // Include cursorKey so each "load more" fires a new query
-    queryKey: ["searchResults", searchKey, areaAnchorsKey, cursorKey(state.cursor)],
-    enabled: hasValidContext && input !== null,
+    queryKey: ["searchResults", searchKey, geoPlaceIdsKey, cursorKey(state.cursor)],
+    enabled: hasValidContext && input !== null && locationGateOpen,
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
     queryFn: async (): Promise<SearchPropertiesResult> => {
@@ -152,13 +170,14 @@ export function useSearchResults(): UseSearchResultsReturn {
 
   const hasPages = accumulated.key === searchKey && accumulated.results.length > 0;
 
-  // While area viewports hydrate, present a loading state (never empty/city-wide).
-  const isInitialLoading = gatingAreas || (!hasPages && query.isFetching && hasValidContext);
+  // While canonical hydration is pending, present a loading state (never empty).
+  const isInitialLoading =
+    (!locationGateOpen && hasValidContext) ||
+    (!hasPages && query.isFetching && hasValidContext);
   const isLoadingMore = hasPages && query.isFetching && state.cursor !== null;
   const isRefreshing = hasPages && query.isFetching && state.cursor === null;
   const isEmpty =
-    !gatingAreas &&
-    !areaViewportsError &&
+    locationGateOpen &&
     !query.isFetching &&
     !query.error &&
     hasValidContext &&
@@ -185,6 +204,29 @@ export function useSearchResults(): UseSearchResultsReturn {
     }
   }, [query.isSuccess, query.data, state.cursor, setCursor]);
 
+  // Radius-eligibility failure recovery (one-shot). The deployed helper RAISEs when a
+  // selected locality has no representative_point / a radius lacks a locality anchor.
+  // Reset Distance to Auto ONCE (guarded per searchKey so it can't loop) and show a
+  // single notice; never remove the locality itself.
+  const radiusResetRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (isRadiusFailure(query.error) && state.distanceKm !== null) {
+      if (!radiusResetRef.current.has(searchKey)) {
+        radiusResetRef.current.add(searchKey);
+        setDistanceNotice(
+          "Distance search isn't available for one of these localities yet — showing exact-location matches instead.",
+        );
+        setDistanceKm(null);
+      }
+    }
+  }, [query.error, state.distanceKm, searchKey, setDistanceKm]);
+
+  // Clear the notice once a search without a distance failure succeeds.
+  useEffect(() => {
+    if (query.isSuccess && distanceNotice) setDistanceNotice(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.isSuccess, searchKey]);
+
   // True total over the filtered pre-cursor relation (exact; independent of page).
   const totalCount = query.data?.totalCount ?? results.length;
 
@@ -198,9 +240,18 @@ export function useSearchResults(): UseSearchResultsReturn {
   );
 
   const recoveryInput = useMemo(
-    // City-wide recovery clears the area anchors; city anchors + all else preserved.
-    () => (input ? { ...input, areaAnchors: [], cursor: null } : null),
-    [input],
+    // City-wide recovery drops the detail (locality/road) UUIDs + radius, keeping only
+    // the root (city) UUIDs. Explicitly labelled to the user — not a hidden expansion.
+    () =>
+      input
+        ? {
+            ...input,
+            geoPlaceIds: [...new Set(state.context.cities.map((c) => c.geoPlaceId))],
+            distanceKm: null,
+            cursor: null,
+          }
+        : null,
+    [input, state.context.cities],
   );
 
   const recoveryQuery = useQuery<SearchPropertiesResult, Error>({
@@ -245,10 +296,11 @@ export function useSearchResults(): UseSearchResultsReturn {
     isLoadingMore,
     isRefreshing,
     isEmpty,
-    error: areaViewportsError
-      ? new Error("We couldn't load your selected areas. Please try again.")
-      : (query.error ?? null),
+    // A radius-eligibility failure is auto-recovered (Distance→Auto), so it must not
+    // surface as a hard error — the re-run without distance produces the real result.
+    error: isRadiusFailure(query.error) ? null : (query.error ?? null),
     loadMore,
     areaFallback,
+    distanceNotice,
   };
 }

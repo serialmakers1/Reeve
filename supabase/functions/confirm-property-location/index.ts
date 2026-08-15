@@ -7,18 +7,32 @@
 import {
   fetchPlaceDetails,
   reverseGeocode,
+  reverseGeocodeFinalPin,
+  streetViewMetadata,
   type PlaceDetails,
   type LatLng,
 } from "./google.ts";
 import {
   isCanonicalCityType,
   buildCityEvidenceSet,
-  pickPrimaryCityPid,
-  deriveSecondaryCities,
-  validateAdminSecondaries,
-  CityClassifyError,
   type CityCandidate,
 } from "./geoClassify.ts";
+import {
+  mapFactual,
+  indiaStatus,
+  classifyCandidates,
+  buildingDecision,
+  chooseRootSettlement,
+  buildFinalAssociations,
+  computeBuildingIntent,
+  classifyExtraPlace,
+  resolveAdminDiscovery,
+  type PreviewCandidate,
+  type FinalKind,
+  type AdminAddInput,
+} from "./resolvePin.ts";
+
+const MAX_EXTRA_PLACES = 5;
 
 const has = (o: Record<string, unknown>, k: string) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -118,12 +132,91 @@ async function deriveActor(userId: string): Promise<"owner" | "admin"> {
   return role === "admin" || role === "super_admin" ? "admin" : "owner";
 }
 
-interface PropertyRow { owner_id: string; status: string; property_type: string | null }
+interface PropertyRow {
+  owner_id: string; status: string; property_type: string | null;
+  building_name: string | null; building_name_source: string | null; place_id: string | null;
+  streetview_pano_id: string | null;
+}
 async function loadProperty(propertyId: string): Promise<PropertyRow | null> {
-  const r = await srSelect(`properties?id=eq.${propertyId}&select=owner_id,status,property_type`);
+  const r = await srSelect(
+    `properties?id=eq.${propertyId}&select=owner_id,status,property_type,building_name,building_name_source,place_id,streetview_pano_id`,
+  );
   if (!r.ok) return null;
   const rows = await r.json();
   return rows?.[0] ?? null;
+}
+
+// ── Phase 2 engine helpers (use_pin / commit_pin) ──────────────────────────────
+const NEW_OWNER_STATUSES = new Set(["draft", "changes_requested"]);
+
+function validCoord(lat: unknown, lng: unknown): lat is number {
+  return typeof lat === "number" && typeof lng === "number" &&
+    Number.isFinite(lat) && Number.isFinite(lng) &&
+    lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+/** Fresh Google resolution shared by use_pin (preview) and commit_pin (write). */
+async function engineResolve(placeId: string | null, pin: LatLng) {
+  let place: PlaceDetails | null = null;
+  let placeFetchFailed = false;
+  if (placeId) {
+    try { place = await fetchPlaceDetails(placeId); } catch { placeFetchFailed = true; }
+  }
+  const rg = await reverseGeocodeFinalPin(pin.lat, pin.lng);
+  return { place, placeFetchFailed, rg };
+}
+
+/** Read-only: attach an existing canonical geo_place_id to a candidate (NO write, NO resolver). */
+async function existingGeoPlaceId(providerPlaceId: string): Promise<string | null> {
+  const r = await srSelect(
+    `geo_provider_refs?provider=eq.google&provider_place_id=eq.${encodeURIComponent(providerPlaceId)}&select=geo_place_id`,
+  );
+  if (!r.ok) return null;
+  const rows = await r.json();
+  return rows?.[0]?.geo_place_id ?? null;
+}
+
+interface GeoPlaceRow { id: string; kind: string; search_region_id: string | null }
+async function loadGeoPlace(id: string): Promise<GeoPlaceRow | null> {
+  const r = await srSelect(`geo_places?id=eq.${id}&select=id,kind,search_region_id`);
+  if (!r.ok) return null;
+  const rows = await r.json();
+  return rows?.[0] ?? null;
+}
+
+const EXPECTED_RESOLVER_CONFLICT = /ambiguous canonical match|incompatible with requested/i;
+function isExpectedCanonicalResolutionConflict(msg: string): boolean {
+  return EXPECTED_RESOLVER_CONFLICT.test(msg);
+}
+
+type EnrichedCandidate = PreviewCandidate & { geo_place_id: string | null };
+
+/** Canonicalize a candidate via the trusted resolver (may throw expected conflict). Returns geo_place uuid.
+ *  `parentGeoPlaceId` is a REEVE UUID (never a Google place_id); anchor pin used for provider-less rows. */
+async function resolveCanonical(
+  c: PreviewCandidate,
+  opts?: { parentGeoPlaceId?: string | null; anchorLat?: number; anchorLng?: number; anchorQuality?: string },
+): Promise<string> {
+  const args: Record<string, unknown> = {
+    p_kind: c.kind,
+    p_display_name: c.display_name || c.provider_place_id || c.kind,
+    p_provider: c.provider,                  // null for provider-less
+    p_provider_place_id: c.provider_place_id, // null for provider-less
+  };
+  if (opts?.parentGeoPlaceId) args.p_parent_geo_place_id = opts.parentGeoPlaceId;
+  if (typeof opts?.anchorLat === "number") { args.p_lat = opts.anchorLat; args.p_lng = opts.anchorLng; }
+  if (opts?.anchorQuality) args.p_anchor_quality = opts.anchorQuality;
+  const r = await srRpc("resolve_canonical_geo_place", args);
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json(); // uuid
+}
+
+function previewAssoc(c: EnrichedCandidate) {
+  return {
+    candidate_key: c.candidate_key, geo_place_id: c.geo_place_id, kind: c.kind,
+    display_name: c.display_name, evidence_type: c.evidence_type,
+    recommendation: c.recommendation, root_eligible: c.root_eligible,
+  };
 }
 
 function countryOf(p: PlaceDetails): string | null {
@@ -231,180 +324,6 @@ async function resolveGeography(placeId: string, pin: LatLng) {
 
 type Resolved = Awaited<ReturnType<typeof resolveGeography>>;
 
-// ── Persisted geography (for grandfathering + unchanged-target detection) ──
-interface PersistedGeo {
-  placeId: string | null;
-  lat: number | null;
-  lng: number | null;
-  mode: "auto" | "admin";
-  primary: { place_id: string; geo_place_id: string; display_name: string; source: string } | null;
-  secondaries: Array<{ place_id: string; geo_place_id: string; display_name: string; source: string }>;
-}
-async function loadPersistedGeo(propertyId: string): Promise<PersistedGeo> {
-  const empty: PersistedGeo = { placeId: null, lat: null, lng: null, mode: "auto", primary: null, secondaries: [] };
-  const pr = await srSelect(`properties?id=eq.${propertyId}&select=place_id,latitude,longitude,secondary_city_mode`);
-  if (pr.ok) {
-    const rows = await pr.json();
-    const row = rows?.[0];
-    if (row) {
-      empty.placeId = row.place_id ?? null;
-      empty.lat = row.latitude ?? null;
-      empty.lng = row.longitude ?? null;
-      empty.mode = row.secondary_city_mode === "admin" ? "admin" : "auto";
-    }
-  }
-  const ar = await srSelect(
-    `property_geo_associations?property_id=eq.${propertyId}&select=relationship,source,geo_place_id,geo_places(place_id,display_name)`,
-  );
-  if (ar.ok) {
-    const rows = (await ar.json()) as Array<Record<string, unknown>>;
-    for (const r of rows) {
-      const gp = r.geo_places as { place_id?: string; display_name?: string } | null;
-      if (!gp?.place_id) continue;
-      const rec = { place_id: gp.place_id, geo_place_id: r.geo_place_id as string, display_name: gp.display_name ?? "", source: (r.source as string) ?? "google" };
-      if (r.relationship === "primary_city") empty.primary = rec;
-      else if (r.relationship === "secondary_city") empty.secondaries.push(rec);
-    }
-  }
-  return empty;
-}
-
-/** Effective geography = final primary + secondaries + durable mode. Pure decision + validation;
- *  throws CityClassifyError on invalid admin overrides. Fetches place details ONLY for explicit
- *  admin secondary ids not already resolved in cityPlaceMap. */
-async function computeFinalGeography(
-  actor: "owner" | "admin",
-  body: Record<string, unknown>,
-  resolved: Resolved,
-  persisted: PersistedGeo,
-) {
-  const evidence = resolved.cityEvidence;
-  const evidenceIds = new Set(evidence.map((c) => c.placeId));
-  const googlePrimaryPid = resolved.primaryCity?.place_id ?? null;
-
-  const unchanged =
-    !!persisted.placeId && persisted.placeId === resolved.place.id &&
-    persisted.lat != null && persisted.lng != null &&
-    haversine(resolved.pin, { lat: persisted.lat, lng: persisted.lng }) <= 100;
-
-  const gfPrimary = unchanged && persisted.primary?.source === "admin" ? persisted.primary.place_id : null;
-  const gfSecondaryIds = new Set(
-    unchanged ? persisted.secondaries.filter((s) => s.source === "admin").map((s) => s.place_id) : [],
-  );
-  const persistedPrimaryPid = unchanged ? persisted.primary?.place_id ?? null : null;
-
-  // city_place_id field presence (omit / null / value)
-  let overridePid: string | null | undefined = undefined;
-  if (has(body, "city_place_id")) {
-    const v = body.city_place_id;
-    overridePid = v === null ? null : (typeof v === "string" && v ? v : undefined);
-  }
-
-  const primary = pickPrimaryCityPid(actor, googlePrimaryPid, overridePid, evidenceIds, gfPrimary, persistedPrimaryPid);
-  const finalPrimaryPid = primary?.placeId ?? null;
-
-  // secondary_city_place_ids field presence → mode-aware state machine
-  const hasSecKey = has(body, "secondary_city_place_ids");
-  const secVal = hasSecKey ? body.secondary_city_place_ids : undefined;
-  if (hasSecKey && actor !== "admin") throw new CityClassifyError("owner_cannot_set_secondaries");
-
-  type SecOut = { place_id: string; display_name: string; center: LatLng | null; geo_place_id: string | null; source: "google" | "admin" };
-  let secondaries: SecOut[] = [];
-  let mode: "auto" | "admin";
-
-  const autoDerive = (): SecOut[] =>
-    deriveSecondaryCities(evidence, finalPrimaryPid).map((c) => {
-      const m = resolved.cityPlaceMap.get(c.placeId);
-      return { place_id: c.placeId, display_name: m?.display_name ?? c.displayName, center: m?.center ?? null, geo_place_id: null, source: "google" as const };
-    });
-
-  if (!unchanged) {
-    // brand-new target → reset to auto
-    if (Array.isArray(secVal)) { // admin immediately set explicit on a new target
-      mode = "admin";
-      secondaries = await validateExplicit(secVal as unknown[], finalPrimaryPid, evidenceIds, resolved, new Set());
-    } else {
-      mode = "auto";
-      secondaries = autoDerive();
-    }
-  } else if (secVal === null) {
-    mode = "auto";
-    secondaries = autoDerive();
-  } else if (Array.isArray(secVal)) {
-    mode = "admin";
-    secondaries = await validateExplicit(secVal as unknown[], finalPrimaryPid, evidenceIds, resolved, gfSecondaryIds);
-  } else {
-    // omitted, unchanged target → mode-aware preserve / recompute
-    if (persisted.mode === "admin") {
-      mode = "admin";
-      secondaries = persisted.secondaries
-        .filter((s) => s.place_id !== finalPrimaryPid) // reconcile against final primary
-        .map((s) => ({ place_id: s.place_id, display_name: s.display_name, center: null, geo_place_id: s.geo_place_id, source: s.source === "admin" ? "admin" as const : "google" as const }));
-    } else {
-      mode = "auto";
-      secondaries = autoDerive();
-    }
-  }
-
-  // ALWAYS reconcile: never let the final primary appear as a secondary.
-  secondaries = secondaries.filter((s) => s.place_id !== finalPrimaryPid);
-
-  return { primary, finalPrimaryPid, secondaries, mode, evidence, unchanged };
-}
-
-/** Validate + resolve explicit admin secondary ids. Fetches place details for centers/types. */
-async function validateExplicit(
-  ids: unknown[],
-  finalPrimaryPid: string | null,
-  evidenceIds: Set<string>,
-  resolved: Resolved,
-  gfSecondaryIds: Set<string>,
-): Promise<Array<{ place_id: string; display_name: string; center: LatLng | null; geo_place_id: string | null; source: "admin" }>> {
-  const fetched: CityCandidate[] = [];
-  const centers = new Map<string, { display_name: string; center: LatLng }>();
-  for (const raw of ids) {
-    if (typeof raw !== "string" || !raw) continue;
-    const cached = resolved.cityPlaceMap.get(raw);
-    if (cached) {
-      fetched.push({ placeId: raw, displayName: cached.display_name, types: ["locality"], country: "IN" });
-      centers.set(raw, cached);
-      continue;
-    }
-    const cp = await fetchPlaceDetails(raw);
-    const country = countryOf(cp) ?? "IN";
-    fetched.push({ placeId: cp.id, displayName: cp.displayName ?? "", types: cp.types, country });
-    if (cp.location) centers.set(cp.id, { display_name: cp.displayName ?? "", center: cp.location });
-  }
-  const validated = validateAdminSecondaries(fetched, finalPrimaryPid, evidenceIds, gfSecondaryIds);
-  return validated.map((c) => {
-    const m = centers.get(c.placeId);
-    return { place_id: c.placeId, display_name: m?.display_name ?? c.displayName, center: m?.center ?? null, geo_place_id: null, source: "admin" as const };
-  });
-}
-
-function candidateSummary(r: Resolved, fin?: Awaited<ReturnType<typeof computeFinalGeography>>) {
-  const primaryPid = fin?.primary?.placeId ?? r.primaryCity?.place_id ?? null;
-  const primaryName = fin?.primary
-    ? (r.cityPlaceMap.get(fin.primary.placeId)?.display_name ?? r.primaryCity?.display_name ?? "")
-    : r.primaryCity?.display_name ?? "";
-  return {
-    property: {
-      place_id: r.place.id,
-      latitude: r.pin.lat, longitude: r.pin.lng, ...r.address,
-      building_name: r.hasBuilding ? r.place.displayName : null,
-      building_source: r.hasBuilding ? "google" : null,
-      owner_building_required: !r.hasBuilding,
-    },
-    primary_city: primaryPid ? { place_id: primaryPid, display_name: primaryName } : null,
-    city_unresolved: !primaryPid,
-    // full Google semantic city-evidence set for this pin (admin UI offers ONLY these)
-    city_candidates: r.cityEvidence.map((c) => ({ place_id: c.placeId, display_name: c.displayName })),
-    secondary_cities: (fin?.secondaries ?? []).map((s) => ({ place_id: s.place_id, display_name: s.display_name })),
-    secondary_city_mode: fin?.mode ?? "auto",
-    areas: r.areaCands.map((a) => ({ place_id: a.place_id, display_name: a.display_name, preselect: a.preselect })),
-    road: r.roadCand ? { place_id: r.roadCand.place_id, display_name: r.roadCand.display_name } : null,
-  };
-}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: CORS_HEADERS });
@@ -459,149 +378,438 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, property_id: propertyId });
     }
 
-    if (mode === "resolve" || mode === "confirm") {
-      const placeId: string = body.place_id ?? "";
-      const pin: LatLng | null = (typeof body.lat === "number" && typeof body.lng === "number")
-        ? { lat: body.lat, lng: body.lng } : null;
-      if (!placeId || !pin) return errResp("search_again", 400);
+    // ── Phase 2 engine: use_pin (preview, no write) / commit_pin (atomic write) ──
+    if (mode === "use_pin" || mode === "commit_pin") {
+      if (!validCoord(body.lat, body.lng)) return errResp("invalid_coordinates", 400);
+      const pin: LatLng = { lat: body.lat as number, lng: body.lng as number };
+      const placeId: string | null = (typeof body.place_id === "string" && body.place_id) ? body.place_id : null;
+      // Authorization already enforced above (owner owns + draft/changes_requested; admin) BEFORE any Google call.
 
-      let resolved: Resolved;
-      try {
-        resolved = await resolveGeography(placeId, pin);
-      } catch (e) {
-        const m = (e as Error).message;
-        if (["search_again", "outside_service_area", "place_not_found"].includes(m)) {
-          return errResp(m === "place_not_found" ? "search_again" : m, 400);
+      // Owner-added "Something is missing" extras: selected Google place_ids ONLY (never labels/kinds).
+      // Validated array, deduped, hard-capped. Absent ⇒ no change.
+      if (has(body, "extra_place_ids") && body.extra_place_ids != null && !Array.isArray(body.extra_place_ids)) {
+        return errResp("invalid_extra_place_ids", 400);
+      }
+      const extraIds = Array.isArray(body.extra_place_ids)
+        ? [...new Set((body.extra_place_ids as unknown[]).filter((x): x is string => typeof x === "string" && x.length > 0))]
+        : [];
+      if (extraIds.length > MAX_EXTRA_PLACES) return errResp("too_many_extra_places", 400);
+
+      const { place, placeFetchFailed, rg } = await engineResolve(placeId, pin);
+      if (rg.status === "transient") {
+        return json({ ok: false, property_id: propertyId, resolution_status: "retryable_google", error: { code: "retryable_google" } }, 503);
+      }
+      // NOTE: the `transient → retryable_google` check above runs BEFORE indiaStatus (which maps
+      // transient→"unresolved"), so a provider outage is never mislabeled as india_unresolved.
+      const india = indiaStatus(rg);
+      const rootCity = chooseRootSettlement(rg.cityResults); // shared deterministic root (preview + commit + factual)
+      const factual = mapFactual(rg, rootCity?.display_name ?? null);
+      const exact_location = { lat: pin.lat, lng: pin.lng, formatted_address: factual.formatted_address, india_validation: india };
+
+      // India gate FIRST (BOTH modes) — before any building/Street View/candidate work.
+      if (india === "outside") return errResp("outside_service_area", 400);
+      if (india === "unresolved") {
+        return json({ ok: false, property_id: propertyId, exact_location, factual, resolution_status: "india_unresolved", error: { code: "india_unresolved" } }, 200);
+      }
+      // india === "confirmed" for everything below.
+
+      const building = buildingDecision(place, pin, factual, { placeIdSupplied: !!placeId, placeFetchFailed });
+      const svMeta = await streetViewMetadata({ lat: pin.lat, lng: pin.lng });
+
+      // Candidates + READ-ONLY existing-canonical match (no resolver call in preview).
+      const cands = classifyCandidates(rg);
+      const enriched: EnrichedCandidate[] = [];
+      for (const c of cands) {
+        const gid = c.provider_place_id ? await existingGeoPlaceId(c.provider_place_id) : null;
+        enriched.push({ ...c, geo_place_id: gid });
+      }
+
+      // Owner-added extras: FRESH Place Details + taxonomy/plausibility (final rules, never legacy
+      // extra_area_id thresholds). Building-eligible/unsupported/outside/too-far are rejected. Same
+      // validation in BOTH modes — preview never trusts a prior classification. Safe-parent (root)
+      // context for localities is enforced at commit, below.
+      type AcceptedExtra = { place: PlaceDetails; kind: "settlement" | "locality" | "road" };
+      const acceptedExtras: AcceptedExtra[] = [];
+      const rejectedExtras: Array<{ place_id: string; reason: string }> = [];
+      for (const eid of extraIds) {
+        let ep: PlaceDetails | null = null;
+        try { ep = await fetchPlaceDetails(eid); } catch { rejectedExtras.push({ place_id: eid, reason: "not_found" }); continue; }
+        const cls = classifyExtraPlace(ep, pin);
+        if (!cls.kind) { rejectedExtras.push({ place_id: eid, reason: cls.reason ?? "rejected" }); continue; }
+        acceptedExtras.push({ place: ep, kind: cls.kind });
+      }
+      const settlementExtras = acceptedExtras.filter((e) => e.kind === "settlement");
+
+      // Owner-added extras echoed as recommended discovery (read-only preview; no resolver/write).
+      const extraPreviews = acceptedExtras.map((e) => ({
+        candidate_key: `${e.kind}:google:${e.place.id}`, geo_place_id: null, kind: e.kind,
+        display_name: e.place.displayName ?? "", evidence_type: "owner_added",
+        recommendation: "recommended" as const, root_eligible: e.kind === "settlement", source: "owner" as const,
+      }));
+
+      if (mode === "use_pin") {
+        // Deterministic root (same rule as commit) — never Google array order.
+        let root = (rootCity ? enriched.find((c) => c.kind === "settlement" && c.provider_place_id === rootCity.place_id) : null) ?? null;
+        let ownerRootPreview: (typeof extraPreviews)[number] | null = null;
+        // Missing-root recovery preview: exactly one owner-added settlement may serve as root (rural).
+        if (!root && rootCity === null && settlementExtras.length === 1) {
+          ownerRootPreview = extraPreviews.find((e) => e.kind === "settlement") ?? null;
         }
-        console.error("resolve error", m);
-        return errResp("google_unavailable", 503);
+        const hasRoot = !!root || !!ownerRootPreview;
+        // A locality extra needs a settlement/root context to be persistable — flag if none, and tell
+        // the owner why (mirrors the commit-time no_root_context rejection) instead of silently dropping.
+        const localityExtrasNeedRoot = !hasRoot && acceptedExtras.some((e) => e.kind === "locality");
+        if (localityExtrasNeedRoot) {
+          for (const e of acceptedExtras) if (e.kind === "locality") rejectedExtras.push({ place_id: e.place.id, reason: "no_root_context" });
+        }
+        const rootPreview = root
+          ? { candidate_key: root.candidate_key, geo_place_id: root.geo_place_id, kind: root.kind, display_name: root.display_name }
+          : ownerRootPreview
+          ? { candidate_key: ownerRootPreview.candidate_key, geo_place_id: null, kind: "settlement", display_name: ownerRootPreview.display_name }
+          : null;
+        // Root-serving owner settlement isn't also an ordinary association; others (localities/roads) are.
+        const nonRootExtras = extraPreviews.filter((e) => e !== ownerRootPreview && !(localityExtrasNeedRoot && e.kind === "locality"));
+        return json({
+          ok: true, property_id: propertyId, exact_location, factual,
+          resolution_status: hasRoot ? "complete" : "discovery_incomplete",
+          building: { outcome: building.outcome, display_name: building.display_name, source: building.source, provider_place_id: building.provider_place_id },
+          discovery: {
+            root: rootPreview,
+            associations: [...enriched.filter((c) => c.recommendation === "recommended").map(previewAssoc), ...nonRootExtras],
+            suggestions: enriched.filter((c) => c.recommendation === "suggestion").map(previewAssoc),
+            missing_root: !hasRoot,
+            rejected_extras: rejectedExtras,
+            ambiguous_root: rootCity === null && settlementExtras.length > 1,
+          },
+          street_view: { available: svMeta.available, fallback: false, pano_id: svMeta.pano_id },
+        });
       }
 
-      const persisted = await loadPersistedGeo(propertyId);
-      let fin: Awaited<ReturnType<typeof computeFinalGeography>>;
-      try {
-        fin = await computeFinalGeography(actor, body, resolved, persisted);
-      } catch (e) {
-        if (e instanceof CityClassifyError) return errResp(e.code, 400);
-        const m = (e as Error).message;
-        if (m === "place_not_found") return errResp("city_not_associated", 400);
-        console.error("finalize error", m);
-        return errResp("google_unavailable", 503);
+      // ── commit_pin (WRITE) — india already confirmed above ──
+      // Persistable (recommended) vs suggestion-only; selection may only pick within persistable.
+      const persistable = enriched.filter((c) => c.recommendation === "recommended");
+      const persistableKeys = new Set(persistable.map((c) => c.candidate_key));
+      let chosen = persistable;
+      if (Array.isArray(body.selected_candidate_keys)) {
+        const sel = body.selected_candidate_keys as string[];
+        for (const k of sel) if (!persistableKeys.has(k)) return errResp("invalid_candidate_selection", 400);
+        chosen = persistable.filter((c) => sel.includes(c.candidate_key));
       }
 
-      const summary = candidateSummary(resolved, fin);
+      // Canonicalize (resolver). Settlement-FIRST so localities can be parented to the Reeve UUID.
+      // Catch ONLY expected resolver conflicts → suggestion; other errors fail the whole commit.
+      const resolvedAssoc: Array<{ geo_place_id: string; kind: string; evidence_type: string; source: "system" | "owner" }> = [];
+      const conflictSuggestions: EnrichedCandidate[] = [];
+      let rootSettlementGeoPlaceId: string | null = null;
+      // rootCity computed once in the shared block above (same deterministic rule as preview).
 
-      if (mode === "resolve") return json({ ok: true, property_id: propertyId, ...summary });
-
-      // confirm — recompute authoritative allowed set; accept only owner selections from it.
-      if (!fin.primary) return errResp("city_unresolved", 400);
-      const finalPrimaryName = resolved.cityPlaceMap.get(fin.primary.placeId)?.display_name
-        ?? resolved.primaryCity?.display_name ?? "";
-
-      // building: server precedence — credible Google building wins over any client name.
-      const optionalType = NO_SOCIETY_TYPES.has(prop.property_type ?? "");
-      let buildingName: string | null;
-      if (resolved.hasBuilding) buildingName = resolved.place.displayName;
-      else {
-        const owner = typeof body.building_name === "string" ? body.building_name.trim() : "";
-        buildingName = owner || null;
-        if (!buildingName && !optionalType) return errResp("building_name_required", 400);
-      }
-
-      // Association entries: reuse an existing geo_place_id (preserve path) OR upsert a new one.
-      type AssocEntry = {
-        role: "primary_city" | "secondary_city" | "area_road"; source: string; confidence: string | null;
-        reuseGeoPlaceId?: string; upsert?: { place_id: string; display_name: string; kind: string; center: LatLng };
+      // Dedupe is by canonical geo_place_id: a first write wins, so an owner extra resolving to an
+      // already-present SYSTEM candidate keeps the system row (source stays 'system').
+      const tryResolve = async (
+        c: EnrichedCandidate,
+        opts?: { parentGeoPlaceId?: string | null; anchorLat?: number; anchorLng?: number; anchorQuality?: string },
+        source: "system" | "owner" = "system",
+      ): Promise<string | null> => {
+        let gid: string;
+        try { gid = await resolveCanonical(c, opts); }
+        catch (e) {
+          const msg = (e as Error).message;
+          if (isExpectedCanonicalResolutionConflict(msg)) { conflictSuggestions.push(c); return null; }
+          throw e;
+        }
+        const gp = await loadGeoPlace(gid);
+        const kind = gp?.kind ?? c.kind;
+        if (!resolvedAssoc.some((a) => a.geo_place_id === gid)) resolvedAssoc.push({ geo_place_id: gid, kind, evidence_type: c.evidence_type, source });
+        if (gp?.kind === "settlement" && gp.search_region_id) { // curated (not proximity) search_region
+          const sr = await loadGeoPlace(gp.search_region_id);
+          if (sr?.kind === "search_region" && !resolvedAssoc.some((a) => a.geo_place_id === sr.id)) {
+            resolvedAssoc.push({ geo_place_id: sr.id, kind: "search_region", evidence_type: "curated_search_region", source: "system" });
+          }
+        }
+        return gid;
       };
-      const entries: AssocEntry[] = [];
 
-      // primary_city — from the FINAL primary (Google or admin override), reconciled server-side.
-      {
-        const m = resolved.cityPlaceMap.get(fin.primary.placeId);
-        if (m) entries.push({ role: "primary_city", source: fin.primary.source, confidence: "high", upsert: { place_id: fin.primary.placeId, display_name: m.display_name, kind: "city", center: m.center } });
-        else if (persisted.primary?.place_id === fin.primary.placeId) entries.push({ role: "primary_city", source: fin.primary.source, confidence: "high", reuseGeoPlaceId: persisted.primary.geo_place_id });
-        else return errResp("city_unresolved", 400);
-      }
-
-      // secondary_city — Google-derived (auto, untamperable), preserved admin (reused), or explicit admin.
-      for (const s of fin.secondaries) {
-        if (s.geo_place_id) entries.push({ role: "secondary_city", source: s.source, confidence: null, reuseGeoPlaceId: s.geo_place_id });
-        else if (s.center) entries.push({ role: "secondary_city", source: s.source, confidence: null, upsert: { place_id: s.place_id, display_name: s.display_name, kind: "city", center: s.center } });
-      }
-
-      const allowedAreaIds = new Set(resolved.areaCands.map((a) => a.place_id));
-      const selectedAreas: string[] = Array.isArray(body.selected_area_ids) ? body.selected_area_ids : [];
-      for (const a of resolved.areaCands) {
-        if (a.preselect || selectedAreas.includes(a.place_id)) {
-          entries.push({ role: "area_road", source: "google", confidence: a.containment === "WITHIN" ? "high" : "medium", upsert: { place_id: a.place_id, display_name: a.display_name, kind: "area", center: a.center } });
+      try {
+        // 1) settlements first — root is ONLY the deterministic chooseRootSettlement pick (no auto-promotion).
+        for (const s of chosen.filter((c) => c.kind === "settlement")) {
+          const gid = await tryResolve(s);
+          if (gid && rootCity && s.provider_place_id === rootCity.place_id) rootSettlementGeoPlaceId = gid;
         }
-      }
-      if (resolved.roadCand && selectedAreas.includes(resolved.roadCand.place_id)) {
-        entries.push({ role: "area_road", source: "google", confidence: "medium", upsert: { place_id: resolved.roadCand.place_id, display_name: resolved.roadCand.display_name, kind: "road", center: resolved.roadCand.center } });
-      }
-      // reject any selected id not in the allowed set (tamper guard) — except the owner extra below
-      for (const id of selectedAreas) {
-        if (!allowedAreaIds.has(id) && id !== resolved.roadCand?.place_id && id !== (body.extra_area_id ?? "")) {
-          return errResp("search_again", 400);
+        // If the deterministic root wasn't resolved/selected, rootSettlementGeoPlaceId stays null
+        // → provider-less locality skipped, missing_root, no other settlement promoted to primary.
+        // 2) localities + roads
+        for (const c of chosen.filter((x) => x.kind !== "settlement")) {
+          if (c.kind === "locality" && c.provider === null) {
+            if (!rootSettlementGeoPlaceId) continue; // provider-less locality needs a settlement root
+            await tryResolve(c, { parentGeoPlaceId: rootSettlementGeoPlaceId, anchorLat: pin.lat, anchorLng: pin.lng, anchorQuality: "verified_point" });
+          } else if (c.kind === "locality") {
+            await tryResolve(c, { parentGeoPlaceId: rootSettlementGeoPlaceId ?? undefined });
+          } else {
+            await tryResolve(c); // road (or other) — no forced settlement parent
+          }
         }
+      } catch (e) {
+        console.error("resolve_canonical error", (e as Error).message);
+        return errResp("save_failed", 500);
       }
 
-      // owner/admin one extra area/road (outside suggestions) — verify + India + plausibility
-      const extraId: string = body.extra_area_id ?? "";
-      if (extraId) {
-        try {
-          const ep = await fetchPlaceDetails(extraId);
-          const eCountry = ep.addressComponents.find((c) => c.types.includes("country"))?.shortText;
-          const kind = ep.types.includes("route") ? "road" : "area";
-          const isAreaish = ep.types.includes("route") || ep.types.some((t) => t.startsWith("sublocality") || t === "neighborhood" || t === "locality") || !isBuildingResult(ep.types) === false;
-          if (!ep.location || (eCountry ?? "IN").toUpperCase() !== "IN" || !isAreaish) return errResp("implausible_area", 400);
-          const maxM = kind === "road" ? 10000 : 3000;
-          if (haversine(pin, ep.location) > maxM) return errResp("implausible_area", 400);
-          entries.push({ role: "area_road", source: actor === "admin" ? "admin" : "owner", confidence: null, upsert: { place_id: ep.id, display_name: ep.displayName ?? "", kind, center: ep.location } });
-        } catch {
-          return errResp("implausible_area", 400);
+      // ── Owner-added extras (Something is missing) — resolved with FINAL context rules ──
+      // Provenance: source='owner', evidence_type='owner_added'. A locality REQUIRES a settlement/root
+      // context (parented + verified_point anchor) — never a parentless/collapsed locality; without a
+      // safe root it is rejected. Missing-root recovery: when the pin yielded NO deterministic settlement
+      // (rootCity===null) and exactly one owner-added settlement exists, it becomes the primary root.
+      const resolveExtra = async (
+        e: AcceptedExtra,
+        opts?: { parentGeoPlaceId?: string | null; anchorLat?: number; anchorLng?: number; anchorQuality?: string },
+      ): Promise<string | null> => {
+        const ec: EnrichedCandidate = {
+          candidate_key: `${e.kind}:google:${e.place.id}`, kind: e.kind, display_name: e.place.displayName ?? "",
+          provider: "google", provider_place_id: e.place.id, evidence_type: "owner_added",
+          recommendation: "recommended", root_eligible: e.kind === "settlement", geo_place_id: null,
+        };
+        return await tryResolve(ec, opts, "owner");
+      };
+      try {
+        const localityExtras = acceptedExtras.filter((e) => e.kind === "locality");
+        const roadExtras = acceptedExtras.filter((e) => e.kind === "road");
+        // Settlements: missing-root recovery (exactly one, no deterministic root) → primary root; else plain associations.
+        if (!rootSettlementGeoPlaceId && rootCity === null && settlementExtras.length === 1) {
+          const gid = await resolveExtra(settlementExtras[0]);
+          if (gid) rootSettlementGeoPlaceId = gid;
+        } else {
+          for (const s of settlementExtras) await resolveExtra(s); // >1, or a deterministic root already exists → non-root
         }
+        // Localities need a safe settlement/root context; reject (skip) when none.
+        for (const l of localityExtras) {
+          if (!rootSettlementGeoPlaceId) { rejectedExtras.push({ place_id: l.place.id, reason: "no_root_context" }); continue; }
+          await resolveExtra(l, { parentGeoPlaceId: rootSettlementGeoPlaceId, anchorLat: pin.lat, anchorLng: pin.lng, anchorQuality: "verified_point" });
+        }
+        // Roads: unchanged Phase-2 behavior — no forced settlement parent.
+        for (const r of roadExtras) await resolveExtra(r);
+      } catch (e) {
+        console.error("resolve_canonical extra error", (e as Error).message);
+        return errResp("save_failed", 500);
       }
 
-      // mint geo_places (trusted, only for new ones) → association array
-      const associations: Array<Record<string, unknown>> = [];
-      for (const e of entries) {
-        let gid = e.reuseGeoPlaceId;
-        if (!gid && e.upsert) {
-          const gr = await srRpc("upsert_geo_place", {
-            p_place_id: e.upsert.place_id, p_display_name: e.upsert.display_name, p_kind: e.upsert.kind,
-            p_center_lat: e.upsert.center.lat, p_center_lng: e.upsert.center.lng,
-          });
-          if (!gr.ok) { console.error("upsert_geo_place failed", await gr.text()); return errResp("google_unavailable", 503); }
-          gid = await gr.json(); // returns uuid
-        }
-        if (!gid) continue;
-        associations.push({ geo_place_id: gid, relationship: e.role, source: e.source, confidence: e.confidence });
+      // Root = the resolved deterministic settlement; a curated search_region may root ONLY when there was
+      // no settlement candidate at all (rootCity===null). If rootCity existed but wasn't resolved/selected
+      // → no root (missing_root), never auto-promote another settlement.
+      const rootAssoc = rootSettlementGeoPlaceId
+        ? (resolvedAssoc.find((a) => a.geo_place_id === rootSettlementGeoPlaceId) ?? null)
+        : (rootCity ? null : (resolvedAssoc.find((a) => a.kind === "search_region") ?? null));
+      const finalAssociations = buildFinalAssociations(resolvedAssoc, rootAssoc?.geo_place_id ?? null);
+
+      const bi = computeBuildingIntent(
+        { building_name: prop.building_name, building_name_source: prop.building_name_source, place_id: prop.place_id },
+        place, body.building_choice as ("keep" | "clear" | "set" | undefined),
+        body.building_name as (string | null | undefined), actor,
+      );
+
+      // Street View: final-pin first; SAME-building fallback revalidates the stored pano.
+      let sv = { available: svMeta.available, pano_id: svMeta.pano_id, fallback: false };
+      if (!svMeta.available && building.outcome === "SAME" && prop.streetview_pano_id) {
+        const rev = await streetViewMetadata({ panoId: prop.streetview_pano_id });
+        if (rev.available) sv = { available: true, pano_id: prop.streetview_pano_id, fallback: true };
       }
 
-      const location = {
-        place_id: resolved.place.id, formatted_address: resolved.address.formatted_address,
-        latitude: pin.lat, longitude: pin.lng,
-        viewport_ne_lat: resolved.place.viewport?.ne.lat ?? null, viewport_ne_lng: resolved.place.viewport?.ne.lng ?? null,
-        viewport_sw_lat: resolved.place.viewport?.sw.lat ?? null, viewport_sw_lng: resolved.place.viewport?.sw.lng ?? null,
-        city: finalPrimaryName,
-        locality: resolved.address.locality, street_address: resolved.address.street_address,
-        street_number: resolved.address.street_number, route: resolved.address.route,
-        sublocality_1: resolved.address.sublocality_1, sublocality_2: resolved.address.sublocality_2,
-        neighborhood: resolved.address.neighborhood, district: resolved.address.district,
-        state: resolved.address.state, pincode: resolved.address.pincode,
-        building_name: buildingName,
-        building_name_source: resolved.hasBuilding ? "google" : (buildingName ? (actor === "admin" ? "admin" : "owner") : null),
-        secondary_city_mode: fin.mode,
+      const hasBuildingPlace = !!bi.place_id;
+      const p_location = {
+        latitude: pin.lat, longitude: pin.lng, country_code: "IN",
+        country: factual.country, state: factual.state, district: factual.district, pincode: factual.pincode,
+        city: factual.city, locality: factual.locality, sublocality_1: factual.sublocality_1, sublocality_2: factual.sublocality_2,
+        neighborhood: factual.neighborhood, route: factual.route, street_number: factual.street_number,
+        street_address: factual.street_address, formatted_address: factual.formatted_address, plus_code: factual.plus_code,
+        building_name: bi.building_name, building_name_source: bi.building_name_source, place_id: bi.place_id,
+        viewport_ne_lat: hasBuildingPlace && place?.viewport ? place.viewport.ne.lat : null,
+        viewport_ne_lng: hasBuildingPlace && place?.viewport ? place.viewport.ne.lng : null,
+        viewport_sw_lat: hasBuildingPlace && place?.viewport ? place.viewport.sw.lat : null,
+        viewport_sw_lng: hasBuildingPlace && place?.viewport ? place.viewport.sw.lng : null,
       };
 
-      const ar = await srRpc("apply_property_location", {
+      const ar = await srRpc("apply_final_property_location", {
         p_property_id: propertyId, p_actor_user_id: user.id, p_actor_type: actor,
-        p_location: location, p_associations: associations,
+        p_location, p_final_associations: finalAssociations, p_streetview: { available: sv.available, pano_id: sv.pano_id },
       });
-      if (!ar.ok) { console.error("apply_property_location failed", await ar.text()); return errResp("save_failed", 400); }
+      if (!ar.ok) { console.error("apply_final_property_location failed", await ar.text()); return errResp("save_failed", 500); }
 
+      return json({
+        ok: true, property_id: propertyId, exact_location, factual,
+        resolution_status: rootAssoc ? "complete" : "discovery_incomplete",
+        building: { outcome: building.outcome, display_name: bi.building_name, source: bi.building_name_source, provider_place_id: bi.place_id },
+        discovery: {
+          root: rootAssoc ? { geo_place_id: rootAssoc.geo_place_id, kind: rootAssoc.kind } : null,
+          associations: finalAssociations,
+          suggestions: [...enriched.filter((c) => c.recommendation === "suggestion"), ...conflictSuggestions].map(previewAssoc),
+          missing_root: !rootAssoc,
+          rejected_extras: rejectedExtras,
+        },
+        street_view: { available: sv.available, fallback: sv.fallback, pano_id: sv.pano_id },
+      });
+    }
+
+    // ── Owner Discovery confirmation — thin trusted wrapper over the service-role lifecycle RPC ──
+    if (mode === "confirm_discovery") {
+      // Actor is server-derived; owner-only in Prompt 2 (admin finalize is Prompt 3). Ownership +
+      // draft/changes_requested lifecycle already enforced in the shared authz block above.
+      if (actor !== "owner") return errResp("forbidden", 403);
+      const r = await srRpc("confirm_property_discovery_geography", { p_property_id: propertyId });
+      if (!r.ok) {
+        const t = await r.text();
+        console.error("confirm_discovery failed", t);
+        // _assert_final_discovery_valid failed (no valid root / pin not confirmed) vs other DB error.
+        return errResp("discovery_not_ready", 409);
+      }
       return json({ ok: true, property_id: propertyId, confirmed: true });
+    }
+
+    // ── Admin Discovery correction (trusted; admin-only). Follows the existing admin edit flow —
+    // no new status gate. The trusted engine remains the sole writer of canonical discovery. ──
+    if (mode === "admin_update_discovery") {
+      if (actor !== "admin") return errResp("forbidden", 403);
+      const uniqStr = (v: unknown): string[] =>
+        Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && x.length > 0))] : [];
+      const strOrNull = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
+      const keepIds = uniqStr(body.keep_geo_place_ids);
+      const addIds = uniqStr(body.add_geo_place_ids);
+      const extraIds = uniqStr(body.extra_place_ids);
+      if (addIds.length + extraIds.length > MAX_EXTRA_PLACES) return errResp("too_many_additions", 400);
+      const rootGeoPlaceId = strOrNull(body.root_geo_place_id);
+      const rootExtraPlaceId = strOrNull(body.root_extra_place_id);
+
+      // Property pin (required for plausibility).
+      const prRes = await srSelect(`properties?id=eq.${propertyId}&select=latitude,longitude`);
+      const prRow = prRes.ok ? (await prRes.json())?.[0] : null;
+      if (!prRow || prRow.latitude == null || prRow.longitude == null) return errResp("no_pin", 400);
+      const pin: LatLng = { lat: prRow.latitude, lng: prRow.longitude };
+
+      // Current associations (with kind) — the only source of kept provenance.
+      const curRes = await srSelect(
+        `property_geo_associations?property_id=eq.${propertyId}&select=geo_place_id,is_primary,source,evidence_type,geo_places(kind)`,
+      );
+      if (!curRes.ok) return errResp("save_failed", 500);
+      const current = ((await curRes.json()) as Array<Record<string, unknown>>).map((r) => ({
+        geo_place_id: r.geo_place_id as string,
+        kind: (r.geo_places as { kind?: string } | null)?.kind ?? "",
+        source: (r.source as string) ?? "system",
+        evidence_type: (r.evidence_type as string) ?? "",
+        is_primary: r.is_primary === true,
+      }));
+      const currentIds = new Set(current.map((c) => c.geo_place_id));
+      // keep must reference currently-associated rows (server-verified; browser can't import arbitrary rows).
+      for (const id of keepIds) if (!currentIds.has(id)) return errResp("not_kept", 400);
+
+      const buildAdminEC = (place: PlaceDetails, kind: FinalKind): EnrichedCandidate => ({
+        candidate_key: `${kind}:google:${place.id}`, kind, display_name: place.displayName ?? "",
+        provider: "google", provider_place_id: place.id, evidence_type: "admin_override",
+        recommendation: "recommended", root_eligible: kind === "settlement", geo_place_id: null,
+      });
+
+      try {
+        const adds: AdminAddInput[] = [];
+        const settlementUUIDs: string[] = [];          // resulting settlements (kept + added) → locality parent + SR context
+        const contextSRIds = new Set<string>();        // search_region_ids of resulting settlements/localities
+        // seed settlement context from kept rows + load their search_region_ids in one batch
+        const keptContextIds = keepIds.filter((id) => {
+          const c = current.find((x) => x.geo_place_id === id);
+          return c && (c.kind === "settlement" || c.kind === "locality");
+        });
+        for (const id of keepIds) {
+          const c = current.find((x) => x.geo_place_id === id);
+          if (c?.kind === "settlement") settlementUUIDs.push(id);
+        }
+        const batchIds = [...new Set([...keptContextIds, ...addIds])];
+        const gpById = new Map<string, { kind: string; search_region_id: string | null; center_lat: number | null; center_lng: number | null }>();
+        if (batchIds.length) {
+          const gr = await srSelect(`geo_places?id=in.(${batchIds.join(",")})&select=id,kind,search_region_id,center_lat,center_lng`);
+          if (gr.ok) for (const g of (await gr.json()) as Array<Record<string, unknown>>) {
+            gpById.set(g.id as string, { kind: g.kind as string, search_region_id: (g.search_region_id as string) ?? null, center_lat: (g.center_lat as number) ?? null, center_lng: (g.center_lng as number) ?? null });
+          }
+        }
+        for (const id of keptContextIds) { const sr = gpById.get(id)?.search_region_id; if (sr) contextSRIds.add(sr); }
+
+        // Existing-canonical additions: validate final kind + plausibility; search_region deferred.
+        const pendingSR: string[] = [];
+        for (const id of addIds) {
+          const gp = gpById.get(id);
+          if (!gp || !["search_region", "settlement", "locality", "road"].includes(gp.kind)) return errResp("invalid_add", 400);
+          if (gp.kind === "search_region") { pendingSR.push(id); continue; }
+          if (gp.center_lat == null || gp.center_lng == null) return errResp("invalid_add", 400);
+          const maxM = gp.kind === "settlement" ? 25000 : 5000;
+          if (haversine(pin, { lat: gp.center_lat, lng: gp.center_lng }) > maxM) return errResp("implausible_add", 400);
+          adds.push({ geo_place_id: id, kind: gp.kind });
+          if (gp.kind === "settlement") { settlementUUIDs.push(id); if (gp.search_region_id) contextSRIds.add(gp.search_region_id); }
+          if (gp.kind === "locality" && gp.search_region_id) contextSRIds.add(gp.search_region_id);
+        }
+
+        // Google "Something is missing" extras — fresh Place Details + classify + canonical resolve.
+        const classified: Array<{ place: PlaceDetails; kind: FinalKind }> = [];
+        for (const eid of extraIds) {
+          let ep: PlaceDetails | null = null;
+          try { ep = await fetchPlaceDetails(eid); } catch { return errResp("implausible_add", 400); }
+          const cls = classifyExtraPlace(ep, pin);
+          if (!cls.kind) return errResp("implausible_add", 400);
+          classified.push({ place: ep, kind: cls.kind });
+        }
+        // settlements first (so localities can parent to a resulting settlement UUID)
+        for (const e of classified.filter((x) => x.kind === "settlement")) {
+          const gid = await resolveCanonical(buildAdminEC(e.place, "settlement"));
+          adds.push({ geo_place_id: gid, kind: "settlement" }); settlementUUIDs.push(gid);
+        }
+        const settlementParent = settlementUUIDs[0] ?? null;
+        for (const e of classified.filter((x) => x.kind === "locality")) {
+          if (!settlementParent) return errResp("locality_no_context", 400);
+          const gid = await resolveCanonical(buildAdminEC(e.place, "locality"), { parentGeoPlaceId: settlementParent, anchorLat: pin.lat, anchorLng: pin.lng, anchorQuality: "verified_point" });
+          adds.push({ geo_place_id: gid, kind: "locality" });
+        }
+        for (const e of classified.filter((x) => x.kind === "road")) {
+          const gid = await resolveCanonical(buildAdminEC(e.place, "road"));
+          adds.push({ geo_place_id: gid, kind: "road" });
+        }
+
+        // search_region additions: allowed only if already associated OR the curated SR of a kept/added settlement/locality.
+        for (const id of pendingSR) {
+          if (!currentIds.has(id) && !contextSRIds.has(id)) return errResp("invalid_search_region", 400);
+          adds.push({ geo_place_id: id, kind: "search_region" });
+        }
+
+        // Explicit root: prefer root_geo_place_id; else resolve root_extra_place_id (must be a settlement) into the set.
+        let finalRootId: string | null = rootGeoPlaceId;
+        if (!finalRootId && rootExtraPlaceId) {
+          let rep: PlaceDetails | null = null;
+          try { rep = await fetchPlaceDetails(rootExtraPlaceId); } catch { return errResp("invalid_root", 400); }
+          const rcls = classifyExtraPlace(rep, pin);
+          if (rcls.kind !== "settlement") return errResp("invalid_root", 400);
+          const gid = await resolveCanonical(buildAdminEC(rep, "settlement"));
+          if (!adds.some((a) => a.geo_place_id === gid) && !keepIds.includes(gid)) adds.push({ geo_place_id: gid, kind: "settlement" });
+          finalRootId = gid;
+        }
+
+        const decision = resolveAdminDiscovery({ current, keepIds, adds, rootGeoPlaceId: finalRootId });
+        if ("error" in decision) return errResp(decision.error, 400);
+
+        const rr = await srRpc("replace_property_discovery_geography", { p_property_id: propertyId, p_associations: decision.payload });
+        if (!rr.ok) { console.error("admin_update_discovery replace failed", await rr.text()); return errResp("save_failed", 500); }
+        return json({ ok: true, property_id: propertyId, updated: true });
+      } catch (e) {
+        console.error("admin_update_discovery error", (e as Error).message);
+        return errResp("save_failed", 500);
+      }
+    }
+
+    // ── Admin Discovery finalization — thin wrapper over the service-role RPC (no status gate). ──
+    if (mode === "finalize_discovery") {
+      if (actor !== "admin") return errResp("forbidden", 403);
+      const r = await srRpc("finalize_property_discovery_geography", { p_property_id: propertyId });
+      if (!r.ok) {
+        const t = await r.text();
+        console.error("finalize_discovery failed", t);
+        const code = /exact location not confirmed/.test(t) ? "location_not_confirmed"
+          : /exactly one primary|primary association must/.test(t) ? "root_required"
+          : /all-final|at least one association/.test(t) ? "discovery_incomplete"
+          : "finalize_failed";
+        return errResp(code, 409);
+      }
+      return json({ ok: true, property_id: propertyId, finalized: true });
     }
 
     return errResp("bad_mode", 400);

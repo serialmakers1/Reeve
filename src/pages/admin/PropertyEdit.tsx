@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ArrowLeft, ExternalLink, RefreshCw } from "lucide-react";
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
-import { PropertyLocationFlow } from '@/components/property-address/PropertyLocationFlow';
+import { AdminLocationPanel } from '@/components/property-address/AdminLocationPanel';
 import { updateBuildingName, LOCATION_ERROR_COPY } from '@/lib/location/confirmLocationClient';
 import { useAuth } from '@/hooks/useAuth';
 import { Separator } from '@/components/ui/separator';
@@ -261,7 +261,6 @@ export default function PropertyEdit() {
   const [listerFlatNumber, setListerFlatNumber] = useState<string | null>(null);
   const [streetviewChecking, setStreetviewChecking] = useState(false);
   // Durable secondary-city mode (auto|admin) — deterministic init for the admin correction UI.
-  const [secondaryCityMode, setSecondaryCityMode] = useState<"auto" | "admin">("auto");
 
   // Photos
   const [images, setImages] = useState<PropertyImage[]>([]);
@@ -401,7 +400,6 @@ export default function PropertyEdit() {
       }
 
       // Google Maps Phase 1 — hydrate address fields
-      setSecondaryCityMode((row.secondary_city_mode as 'auto' | 'admin') === 'admin' ? 'admin' : 'auto');
       setPlaceId((row.place_id as string) ?? null);
       setFormattedAddress((row.formatted_address as string) ?? null);
       setAddressMode((row.address_mode as 'google_place' | 'manual' | null) ?? null);
@@ -1120,33 +1118,7 @@ export default function PropertyEdit() {
         <Section title="Location">
           {/* Prompt 2: admin geographic changes go through the SAME trusted server flow
               (server derives actor=admin). Canonical location is write-locked at the DB. */}
-          <PropertyLocationFlow
-            propertyId={id ?? null}
-            ensureDraft={async () => id ?? null}
-            token={session?.access_token ?? null}
-            propertyType={propertyType || null}
-            canOverrideCity
-            initialSecondaryMode={secondaryCityMode}
-            confirmed={placeId ? {
-              place_id: placeId,
-              formatted_address: formattedAddress,
-              city: city || null,
-              locality: sublocality1 || null,
-              building_name: buildingName || null,
-              latitude,
-              longitude,
-              verified: locationVerifiedByOwner,
-            } : null}
-            onConfirmed={(s) => {
-              setBuildingName(s.building_name ?? '');
-              setCity(s.city ?? '');
-              setFormattedAddress(s.formatted_address);
-              setPlaceId(s.place_id);
-              setLatitude(s.latitude);
-              setLongitude(s.longitude);
-              setLocationVerifiedByOwner(s.verified);
-            }}
-          />
+          {id && <AdminLocationPanel propertyId={id} token={session?.access_token ?? null} />}
 
           {/* Admin building-name-only correction — trusted update_building_name path.
               Corrects only the building name (marked admin-edited); never changes the

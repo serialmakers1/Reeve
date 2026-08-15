@@ -12,8 +12,17 @@ import {
 } from "../state/searchLocationStorage";
 import { confirmSelection, emptyHistory } from "../state/searchLocationHistory";
 
-function area(id: string): LocationToken {
-  return { id, label: id, type: "area", cityId: null, placeId: id, lat: null, lng: null, viewport: null };
+const BLR_ROOT = "11111111-1111-1111-1111-111111111111";
+function uuidOf(key: string): string {
+  let h = 0;
+  for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `${h.toString(16).padStart(8, "0")}-0000-0000-0000-000000000000`;
+}
+function area(key: string): LocationToken {
+  return {
+    id: uuidOf(key), geoPlaceId: uuidOf(key), kind: "locality", scopeRootId: BLR_ROOT,
+    label: key, parentLabel: null, searchRegionLabel: null,
+  };
 }
 
 beforeEach(() => {
@@ -61,7 +70,7 @@ describe("pending confirmation (sessionStorage)", () => {
     writePendingConfirm("bengaluru", [area("wf")], "buy", ["apartment"]);
     const p = readPendingConfirm();
     expect(p?.city).toBe("bengaluru");
-    expect(p?.areas.map((a) => a.id)).toEqual(["wf"]);
+    expect(p?.areas.map((a) => a.label)).toEqual(["wf"]);
     expect(p?.mode).toBe("buy");
     expect(p?.propertyTypes).toEqual(["apartment"]);
   });

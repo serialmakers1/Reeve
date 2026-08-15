@@ -262,7 +262,12 @@ export default function OwnerPropertyManagement() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).from("properties").update({ status: nextStatus }).eq("id", property.id);
     if (error) {
-      toast({ title: `Could not ${actionLabel}`, description: error.message, variant: "destructive" });
+      const publishBlocked = nextStatus === "listed" && /location_not_ready:publish_location_incomplete/.test(error.message ?? "");
+      toast({
+        title: `Could not ${actionLabel}`,
+        description: publishBlocked ? "This property's location needs Admin finalization before it can be re-listed." : error.message,
+        variant: "destructive",
+      });
       return;
     }
     posthog?.capture("commons_property_action", {

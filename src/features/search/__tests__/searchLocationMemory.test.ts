@@ -20,7 +20,13 @@ import { readAnonHistory, readAccountCache, readPendingConfirm } from "../state/
 import { confirmSelection, emptyHistory } from "../state/searchLocationHistory";
 
 function area(id: string): LocationToken {
-  return { id, label: id, type: "area", cityId: null, placeId: id, lat: null, lng: null, viewport: null };
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const uuid = `${h.toString(16).padStart(8, "0")}-0000-0000-0000-000000000000`;
+  return {
+    id: uuid, geoPlaceId: uuid, kind: "locality", scopeRootId: "11111111-1111-1111-1111-111111111111",
+    label: id, parentLabel: null, searchRegionLabel: null,
+  };
 }
 
 beforeEach(() => {

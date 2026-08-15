@@ -65,7 +65,10 @@ describe("serializeSearchState", () => {
   });
 
   it("locations_data is written as v1 envelope", () => {
-    const token = { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null, lat: null, lng: null, viewport: null };
+    const token = {
+      id: "aaaaaaaa-0000-0000-0000-000000000001", geoPlaceId: "aaaaaaaa-0000-0000-0000-000000000001",
+      kind: "locality" as const, scopeRootId: "11111111-1111-1111-1111-111111111111", label: "Koramangala",
+    };
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
       context: { mode: "rent", city: "bengaluru", cities: [], locations: [token], propertyTypes: [] },
@@ -75,38 +78,9 @@ describe("serializeSearchState", () => {
     const parsed = JSON.parse(atob(out.get("locations_data")!));
     expect(parsed.v).toBe(1);
     expect(Array.isArray(parsed.items)).toBe(true);
-    expect(parsed.items[0].id).toBe("loc1");
-  });
-
-  it('view="list" is omitted (default)', () => {
-    const state = { ...getDefaultSearchState("rent"), view: "list" as const };
-    expect(serializeSearchState(state).has("view")).toBe(false);
-  });
-
-  it('view="map" appears in output', () => {
-    const state = { ...getDefaultSearchState("rent"), view: "map" as const };
-    expect(serializeSearchState(state).get("view")).toBe("map");
-  });
-
-  it("mapBounds omitted when view is not map", () => {
-    const state: SearchState = {
-      ...getDefaultSearchState("rent"),
-      view: "list",
-      mapBounds: { ne: { lat: 13.1, lng: 77.8 }, sw: { lat: 12.8, lng: 77.4 } },
-    };
-    const out = serializeSearchState(state);
-    expect(out.has("ne_lat")).toBe(false);
-  });
-
-  it("mapBounds written when view is map", () => {
-    const state: SearchState = {
-      ...getDefaultSearchState("rent"),
-      view: "map",
-      mapBounds: { ne: { lat: 13.1, lng: 77.8 }, sw: { lat: 12.8, lng: 77.4 } },
-    };
-    const out = serializeSearchState(state);
-    expect(out.get("ne_lat")).toBe("13.1");
-    expect(out.get("sw_lng")).toBe("77.4");
+    expect(parsed.items[0].id).toBe("aaaaaaaa-0000-0000-0000-000000000001");
+    expect(parsed.items[0].kind).toBe("locality");
+    expect(parsed.items[0].scopeRootId).toBe("11111111-1111-1111-1111-111111111111");
   });
 
   it("empty bhk array is omitted", () => {
@@ -128,30 +102,38 @@ describe("serializeSearchState", () => {
   // ── Location serialization ────────────────────────────────────────────────
 
   it("serializes location tokens: ids in locations, full json in locations_data", () => {
-    const token = { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null, lat: null, lng: null, viewport: null };
+    const id = "aaaaaaaa-0000-0000-0000-000000000001";
+    const token = {
+      id, geoPlaceId: id, kind: "locality" as const, scopeRootId: "11111111-1111-1111-1111-111111111111",
+      label: "Koramangala", parentLabel: null, searchRegionLabel: null,
+    };
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
       context: { mode: "rent", city: "bengaluru", cities: [], locations: [token], propertyTypes: [] },
     };
     const out = serializeSearchState(state);
-    expect(out.get("locations")).toBe("loc1");
+    expect(out.get("locations")).toBe(id);
     expect(out.has("locations_data")).toBe(true);
   });
 
   it("round-trip: state with two location tokens", () => {
-    const tokens = [
-      { id: "loc1", label: "Koramangala", type: "area" as const, cityId: "bengaluru", placeId: null, lat: null, lng: null, viewport: null },
-      { id: "loc2", label: "Indiranagar", type: "area" as const, cityId: "bengaluru", placeId: null, lat: null, lng: null, viewport: null },
-    ];
-    // Areas require an owning canonical city (no city ⇒ no areas). Bengaluru owns both.
-    const blr = { placeId: "city_blr", label: "Bengaluru", lat: 12.9716, lng: 77.5946, viewport: null };
+    const BLR_ID = "11111111-1111-1111-1111-111111111111";
+    const loc = (n: number, label: string) => ({
+      id: `aaaaaaaa-0000-0000-0000-00000000000${n}`, geoPlaceId: `aaaaaaaa-0000-0000-0000-00000000000${n}`,
+      kind: "locality" as const, scopeRootId: BLR_ID, label,
+    });
+    const tokens = [loc(1, "Koramangala"), loc(2, "Indiranagar")];
+    // Details require an owning canonical root (no root ⇒ no details). Bengaluru owns both.
+    const blr = {
+      geoPlaceId: BLR_ID, kind: "settlement" as const, label: "Bengaluru", settlementSubtype: "city" as const,
+    };
     const state: SearchState = {
       ...getDefaultSearchState("rent"),
       context: { mode: "rent", city: "bengaluru", cities: [blr], locations: tokens, propertyTypes: [] },
     };
     const rt = parseSearchUrl(serializeSearchState(state));
     expect(rt.context.locations).toHaveLength(2);
-    expect(rt.context.locations[0].id).toBe("loc1");
+    expect(rt.context.locations[0].id).toBe("aaaaaaaa-0000-0000-0000-000000000001");
     expect(rt.context.locations[1].label).toBe("Indiranagar");
   });
 

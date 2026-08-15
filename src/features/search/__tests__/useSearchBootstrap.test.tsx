@@ -7,7 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 const mockAuth = { user: null as { id: string } | null, isLoading: false };
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => mockAuth }));
 
-const geo = { approxCity: null as { city: string } | null, status: "idle" as string };
+const geo = { approxCity: null as { geoPlaceId: string; kind: string; label: string } | null, status: "idle" as string };
 const geoEnabledCalls: boolean[] = [];
 vi.mock("../hooks/useVercelGeoCity", () => ({
   useVercelGeoCity: (enabled: boolean) => {
@@ -99,7 +99,7 @@ describe("useSearchBootstrap precedence", () => {
   });
 
   it("no memory + IP success → resolved with an IP notice", async () => {
-    geo.approxCity = { city: "pune" };
+    geo.approxCity = { geoPlaceId: "pune-root", kind: "settlement", label: "Pune" };
     geo.status = "done";
     const { result } = renderHook(() => useSearchBootstrap(), {
       wrapper: wrapperFor("/search?type=rent"),

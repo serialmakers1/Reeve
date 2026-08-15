@@ -1266,47 +1266,162 @@ export type Database = {
           },
         ]
       }
+      geo_place_aliases: {
+        Row: {
+          alias: string
+          created_at: string
+          geo_place_id: string
+          id: string
+          language: string | null
+          normalized_alias: string
+          updated_at: string
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          geo_place_id: string
+          id?: string
+          language?: string | null
+          normalized_alias: string
+          updated_at?: string
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          geo_place_id?: string
+          id?: string
+          language?: string | null
+          normalized_alias?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "geo_place_aliases_geo_place_id_fkey"
+            columns: ["geo_place_id"]
+            isOneToOne: false
+            referencedRelation: "geo_places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       geo_places: {
         Row: {
+          anchor_quality: string | null
           bbox_ne_lat: number | null
           bbox_ne_lng: number | null
           bbox_sw_lat: number | null
           bbox_sw_lng: number | null
-          center_lat: number
-          center_lng: number
+          center_lat: number | null
+          center_lng: number | null
           created_at: string
           display_name: string
           id: string
           kind: string
-          place_id: string
+          normalized_name: string | null
+          parent_geo_place_id: string | null
+          place_id: string | null
+          representative_point: unknown
+          search_region_id: string | null
+          settlement_subtype: string | null
+          updated_at: string
         }
         Insert: {
+          anchor_quality?: string | null
           bbox_ne_lat?: number | null
           bbox_ne_lng?: number | null
           bbox_sw_lat?: number | null
           bbox_sw_lng?: number | null
-          center_lat: number
-          center_lng: number
+          center_lat?: number | null
+          center_lng?: number | null
           created_at?: string
           display_name: string
           id?: string
           kind: string
-          place_id: string
+          normalized_name?: string | null
+          parent_geo_place_id?: string | null
+          place_id?: string | null
+          representative_point?: unknown
+          search_region_id?: string | null
+          settlement_subtype?: string | null
+          updated_at?: string
         }
         Update: {
+          anchor_quality?: string | null
           bbox_ne_lat?: number | null
           bbox_ne_lng?: number | null
           bbox_sw_lat?: number | null
           bbox_sw_lng?: number | null
-          center_lat?: number
-          center_lng?: number
+          center_lat?: number | null
+          center_lng?: number | null
           created_at?: string
           display_name?: string
           id?: string
           kind?: string
-          place_id?: string
+          normalized_name?: string | null
+          parent_geo_place_id?: string | null
+          place_id?: string | null
+          representative_point?: unknown
+          search_region_id?: string | null
+          settlement_subtype?: string | null
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "geo_places_parent_geo_place_id_fkey"
+            columns: ["parent_geo_place_id"]
+            isOneToOne: false
+            referencedRelation: "geo_places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "geo_places_search_region_id_fkey"
+            columns: ["search_region_id"]
+            isOneToOne: false
+            referencedRelation: "geo_places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      geo_provider_refs: {
+        Row: {
+          created_at: string
+          geo_place_id: string
+          id: string
+          last_verified_at: string | null
+          provider: string
+          provider_place_id: string
+          provider_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          geo_place_id: string
+          id?: string
+          last_verified_at?: string | null
+          provider: string
+          provider_place_id: string
+          provider_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          geo_place_id?: string
+          id?: string
+          last_verified_at?: string | null
+          provider?: string
+          provider_place_id?: string
+          provider_type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "geo_provider_refs_geo_place_id_fkey"
+            columns: ["geo_place_id"]
+            isOneToOne: false
+            referencedRelation: "geo_places"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inspection_appliances: {
         Row: {
@@ -2762,9 +2877,12 @@ export type Database = {
           building_rules: string | null
           city: string | null
           country: string | null
+          country_code: string | null
           created_at: string
           current_listed_period_started_at: string | null
           description: string | null
+          discovery_confirmed_at: string | null
+          discovery_finalized_at: string | null
           district: string | null
           draft_at: string | null
           expected_price_per_sqft: number | null
@@ -2777,6 +2895,7 @@ export type Database = {
           furnishing: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail: Json | null
           gas_type: string | null
+          geom_exact: unknown
           google_maps_url: string | null
           id: string
           inspected_at: string | null
@@ -2801,6 +2920,7 @@ export type Database = {
           lister_role: string
           listing_type: Database["public"]["Enums"]["property_listing_type"]
           locality: string | null
+          location_confirmed_at: string | null
           location_verified_at: string | null
           location_verified_by_owner: boolean
           lock_in_months: number | null
@@ -2848,7 +2968,6 @@ export type Database = {
           sale_brokerage_pct: number | null
           sale_listing_confirmed_at: string | null
           sale_price: number | null
-          secondary_city_mode: string
           security_deposit_amount: number | null
           security_deposit_months: number
           service_agreement_id: string | null
@@ -2903,9 +3022,12 @@ export type Database = {
           building_rules?: string | null
           city?: string | null
           country?: string | null
+          country_code?: string | null
           created_at?: string
           current_listed_period_started_at?: string | null
           description?: string | null
+          discovery_confirmed_at?: string | null
+          discovery_finalized_at?: string | null
           district?: string | null
           draft_at?: string | null
           expected_price_per_sqft?: number | null
@@ -2918,6 +3040,7 @@ export type Database = {
           furnishing?: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail?: Json | null
           gas_type?: string | null
+          geom_exact?: unknown
           google_maps_url?: string | null
           id?: string
           inspected_at?: string | null
@@ -2942,6 +3065,7 @@ export type Database = {
           lister_role: string
           listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
+          location_confirmed_at?: string | null
           location_verified_at?: string | null
           location_verified_by_owner?: boolean
           lock_in_months?: number | null
@@ -2989,7 +3113,6 @@ export type Database = {
           sale_brokerage_pct?: number | null
           sale_listing_confirmed_at?: string | null
           sale_price?: number | null
-          secondary_city_mode?: string
           security_deposit_amount?: number | null
           security_deposit_months?: number
           service_agreement_id?: string | null
@@ -3044,9 +3167,12 @@ export type Database = {
           building_rules?: string | null
           city?: string | null
           country?: string | null
+          country_code?: string | null
           created_at?: string
           current_listed_period_started_at?: string | null
           description?: string | null
+          discovery_confirmed_at?: string | null
+          discovery_finalized_at?: string | null
           district?: string | null
           draft_at?: string | null
           expected_price_per_sqft?: number | null
@@ -3059,6 +3185,7 @@ export type Database = {
           furnishing?: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail?: Json | null
           gas_type?: string | null
+          geom_exact?: unknown
           google_maps_url?: string | null
           id?: string
           inspected_at?: string | null
@@ -3083,6 +3210,7 @@ export type Database = {
           lister_role?: string
           listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
+          location_confirmed_at?: string | null
           location_verified_at?: string | null
           location_verified_by_owner?: boolean
           lock_in_months?: number | null
@@ -3130,7 +3258,6 @@ export type Database = {
           sale_brokerage_pct?: number | null
           sale_listing_confirmed_at?: string | null
           sale_price?: number | null
-          secondary_city_mode?: string
           security_deposit_amount?: number | null
           security_deposit_months?: number
           service_agreement_id?: string | null
@@ -3503,28 +3630,37 @@ export type Database = {
         Row: {
           confidence: string | null
           created_at: string
+          distance_m: number | null
+          evidence_type: string | null
           geo_place_id: string
           id: string
+          is_primary: boolean
           property_id: string
-          relationship: string
+          relationship: string | null
           source: string
         }
         Insert: {
           confidence?: string | null
           created_at?: string
+          distance_m?: number | null
+          evidence_type?: string | null
           geo_place_id: string
           id?: string
+          is_primary?: boolean
           property_id: string
-          relationship: string
+          relationship?: string | null
           source: string
         }
         Update: {
           confidence?: string | null
           created_at?: string
+          distance_m?: number | null
+          evidence_type?: string | null
           geo_place_id?: string
           id?: string
+          is_primary?: boolean
           property_id?: string
-          relationship?: string
+          relationship?: string | null
           source?: string
         }
         Relationships: [
@@ -4265,6 +4401,10 @@ export type Database = {
       }
     }
     Functions: {
+      _assert_final_discovery_valid: {
+        Args: { p_property_id: string }
+        Returns: undefined
+      }
       _build_rating_side_v2: {
         Args: {
           p_acc_den: number
@@ -4281,21 +4421,26 @@ export type Database = {
         }
         Returns: Json
       }
+      _geo_insert_aliases: {
+        Args: { p_aliases: string[]; p_geo_place_id: string }
+        Returns: undefined
+      }
       admin_delete_comment: { Args: { p_comment_id: string }; Returns: Json }
       admin_delete_draft_property: {
         Args: { p_property_id: string }
         Returns: undefined
       }
       admin_unhide_comment: { Args: { p_comment_id: string }; Returns: Json }
-      apply_property_location: {
+      apply_final_property_location: {
         Args: {
           p_actor_type: string
           p_actor_user_id: string
-          p_associations: Json
+          p_final_associations: Json
           p_location: Json
           p_property_id: string
+          p_streetview: Json
         }
-        Returns: string
+        Returns: undefined
       }
       approve_edit_request: {
         Args: { p_edit_request_id: string }
@@ -4321,6 +4466,10 @@ export type Database = {
           property_id: string
         }[]
       }
+      confirm_property_discovery_geography: {
+        Args: { p_property_id: string }
+        Returns: undefined
+      }
       confirm_sale_listing: {
         Args: { p_property_id: string }
         Returns: {
@@ -4334,8 +4483,11 @@ export type Database = {
         Args: { p_image_id: string }
         Returns: undefined
       }
-      earth: { Args: never; Returns: number }
       ensure_user_exists: { Args: never; Returns: undefined }
+      finalize_property_discovery_geography: {
+        Args: { p_property_id: string }
+        Returns: undefined
+      }
       generate_pseudonym: { Args: never; Returns: string }
       get_admin_comment_report_details: {
         Args: { p_comment_id: string }
@@ -4494,120 +4646,6 @@ export type Database = {
           reports_upheld: number
           total_count: number
           user_id: string
-        }[]
-      }
-      get_map_markers: {
-        Args: {
-          p_amenities?: string[]
-          p_area_boxes?: Json
-          p_availability_confirmed_within_days?: number
-          p_available_by?: string
-          p_bhk?: string[]
-          p_city: string
-          p_furnishing?: string[]
-          p_has_experience_feedback?: boolean
-          p_has_video_walkthrough?: boolean
-          p_khata_type?: string[]
-          p_limit?: number
-          p_listed_within_days?: number
-          p_listing_type: Database["public"]["Enums"]["property_listing_type"]
-          p_location_ids?: string[]
-          p_max_annual_increase?: number
-          p_max_carpet_area?: number
-          p_max_deposit?: number
-          p_max_lock_in_months?: number
-          p_max_move_in_charges?: number
-          p_max_notice_days?: number
-          p_max_price?: number
-          p_max_rent_brokerage_fixed?: number
-          p_max_sale_brokerage_pct?: number
-          p_max_super_built_up?: number
-          p_min_carpet_area?: number
-          p_min_price?: number
-          p_min_response_rate?: number
-          p_min_super_built_up?: number
-          p_ne_lat: number
-          p_ne_lng: number
-          p_negotiable?: boolean
-          p_parking_2w?: string[]
-          p_parking_4w?: string[]
-          p_pet_policy?: string[]
-          p_possession_before?: string
-          p_possession_status?: string[]
-          p_property_tax_paid?: boolean
-          p_property_type?: string
-          p_rera_disclosed?: boolean
-          p_sw_lat: number
-          p_sw_lng: number
-          p_zero_rent_brokerage?: boolean
-        }
-        Returns: {
-          building_name: string
-          latitude: number
-          listing_type: string
-          location_mode: string
-          longitude: number
-          match_count: number
-          price_amount: number
-          price_kind: string
-          property_id: string
-        }[]
-      }
-      get_map_markers_v2: {
-        Args: {
-          p_amenities?: string[]
-          p_area_anchors?: Json
-          p_availability_confirmed_within_days?: number
-          p_available_by?: string
-          p_bhk?: string[]
-          p_city_anchors?: Json
-          p_distance_km?: number
-          p_furnishing?: string[]
-          p_has_experience_feedback?: boolean
-          p_has_video_walkthrough?: boolean
-          p_khata_type?: string[]
-          p_limit?: number
-          p_listed_within_days?: number
-          p_listing_type: Database["public"]["Enums"]["property_listing_type"]
-          p_max_annual_increase?: number
-          p_max_carpet_area?: number
-          p_max_deposit?: number
-          p_max_lock_in_months?: number
-          p_max_move_in_charges?: number
-          p_max_notice_days?: number
-          p_max_price?: number
-          p_max_rent_brokerage_fixed?: number
-          p_max_sale_brokerage_pct?: number
-          p_max_super_built_up?: number
-          p_min_carpet_area?: number
-          p_min_price?: number
-          p_min_response_rate?: number
-          p_min_super_built_up?: number
-          p_ne_lat: number
-          p_ne_lng: number
-          p_negotiable?: boolean
-          p_parking_2w?: string[]
-          p_parking_4w?: string[]
-          p_pet_policy?: string[]
-          p_possession_before?: string
-          p_possession_status?: string[]
-          p_property_tax_paid?: boolean
-          p_property_type?: string
-          p_rera_disclosed?: boolean
-          p_sw_lat: number
-          p_sw_lng: number
-          p_zero_rent_brokerage?: boolean
-        }
-        Returns: {
-          building_name: string
-          latitude: number
-          listing_type: string
-          location_mode: string
-          longitude: number
-          match_count: number
-          price_amount: number
-          price_kind: string
-          property_id: string
         }[]
       }
       get_my_daily_request_remaining: { Args: never; Returns: number }
@@ -4769,15 +4807,42 @@ export type Database = {
         Args: { p_new_am: Json; p_new_fd: Json; p_old_am: Json; p_old_fd: Json }
         Returns: boolean
       }
-      reeve_search_property_ids: {
+      reeve_search_geo_by_ids: {
+        Args: { p_ids: string[] }
+        Returns: {
+          display_name: string
+          id: string
+          kind: string
+          parent_display_name: string
+          parent_geo_place_id: string
+          search_region_display_name: string
+          search_region_id: string
+          settlement_subtype: string
+        }[]
+      }
+      reeve_search_geo_suggest: {
         Args: {
-          p_area_anchors: Json
-          p_city_anchors: Json
-          p_distance_km: number
+          p_kinds?: string[]
+          p_limit?: number
+          p_parent_geo_place_id?: string
+          p_query: string
+          p_search_region_id?: string
         }
+        Returns: {
+          display_name: string
+          id: string
+          kind: string
+          parent_display_name: string
+          parent_geo_place_id: string
+          search_region_display_name: string
+          search_region_id: string
+          settlement_subtype: string
+        }[]
+      }
+      reeve_search_property_ids_v2: {
+        Args: { p_distance_km: number; p_geo_place_ids: string[] }
         Returns: string[]
       }
-      reeve_search_safety_net_m: { Args: never; Returns: number }
       reject_edit_request: {
         Args: {
           p_edit_request_id: string
@@ -4794,6 +4859,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      replace_property_discovery_geography: {
+        Args: { p_associations: Json; p_property_id: string }
+        Returns: undefined
+      }
       report_comment: {
         Args: { p_comment_id: string; p_notes?: string; p_reason: string }
         Returns: Json
@@ -4806,114 +4875,37 @@ export type Database = {
         }
         Returns: string
       }
-      run_stale_listing_sweep: { Args: never; Returns: number }
-      search_compact_properties: {
+      resolve_canonical_geo_place: {
         Args: {
-          p_amenities?: string[]
-          p_area_boxes?: Json
-          p_availability_confirmed_within_days?: number
-          p_available_by?: string
-          p_bhk?: string[]
-          p_city: string
-          p_cursor_availability_confirmed_at?: string
-          p_cursor_id?: string
-          p_cursor_listed_at?: string
-          p_cursor_price_amount?: number
-          p_furnishing?: string[]
-          p_has_experience_feedback?: boolean
-          p_has_video_walkthrough?: boolean
-          p_khata_type?: string[]
-          p_limit?: number
-          p_listed_within_days?: number
-          p_listing_type: Database["public"]["Enums"]["property_listing_type"]
-          p_location_ids?: string[]
-          p_max_annual_increase?: number
-          p_max_carpet_area?: number
-          p_max_deposit?: number
-          p_max_lock_in_months?: number
-          p_max_move_in_charges?: number
-          p_max_notice_days?: number
-          p_max_price?: number
-          p_max_rent_brokerage_fixed?: number
-          p_max_sale_brokerage_pct?: number
-          p_max_super_built_up?: number
-          p_min_carpet_area?: number
-          p_min_price?: number
-          p_min_response_rate?: number
-          p_min_super_built_up?: number
-          p_negotiable?: boolean
-          p_parking_2w?: string[]
-          p_parking_4w?: string[]
-          p_pet_policy?: string[]
-          p_possession_before?: string
-          p_possession_status?: string[]
-          p_property_tax_paid?: boolean
-          p_property_type?: string
-          p_rera_disclosed?: boolean
-          p_sort?: string
-          p_zero_rent_brokerage?: boolean
+          p_aliases?: string[]
+          p_anchor_quality?: string
+          p_display_name: string
+          p_kind: string
+          p_lat?: number
+          p_lng?: number
+          p_parent_geo_place_id?: string
+          p_provider?: string
+          p_provider_place_id?: string
+          p_provider_type?: string
+          p_search_region_id?: string
+          p_settlement_subtype?: string
         }
-        Returns: {
-          availability_confirmed_at: string
-          bathrooms: number
-          bhk: string
-          building_age_years: number
-          building_name: string
-          carpet_area_sqft: number
-          city: string
-          experience_feedback: Json
-          floor_number: number
-          furnishing: string
-          latitude: number
-          listed_at: string
-          lister_role: string
-          listing_type: string
-          locality: string
-          location_mode: string
-          lock_in_months: number
-          longitude: number
-          notice_period_days: number
-          owner_id: string
-          parking_2w: string
-          parking_2w_count: number
-          parking_4w: string
-          parking_4w_count: number
-          pet_policy: string
-          photo_count: number
-          possession_date: string
-          possession_status: string
-          price_amount: number
-          price_kind: string
-          price_negotiable: boolean
-          primary_image_url: string
-          property_id: string
-          property_type: string
-          rent_brokerage_fixed_amount: number
-          rent_brokerage_months: number
-          rent_brokerage_type: string
-          response_handled_count: number
-          response_rate_pct: number
-          sale_brokerage_pct: number
-          security_deposit_amount: number
-          super_built_up_sqft: number
-          total_floors: number
-          youtube_walkthrough_url: string
-        }[]
+        Returns: string
       }
-      search_compact_properties_v2: {
+      run_stale_listing_sweep: { Args: never; Returns: number }
+      search_compact_properties_v3: {
         Args: {
           p_amenities?: string[]
-          p_area_anchors?: Json
           p_availability_confirmed_within_days?: number
           p_available_by?: string
           p_bhk?: string[]
-          p_city_anchors?: Json
           p_cursor_availability_confirmed_at?: string
           p_cursor_id?: string
           p_cursor_listed_at?: string
           p_cursor_price_amount?: number
           p_distance_km?: number
           p_furnishing?: string[]
+          p_geo_place_ids?: string[]
           p_has_experience_feedback?: boolean
           p_has_video_walkthrough?: boolean
           p_khata_type?: string[]

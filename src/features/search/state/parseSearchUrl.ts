@@ -1,5 +1,5 @@
 import { parseSearchMode } from "../domain/searchMode";
-import type { SearchState, SearchCursor, RentFilters, BuyFilters, LocationToken, CityToken, MapBounds, BhkValue, FurnishingValue, ParkingValue, PossessionValue, PetPolicyValue, KhataValue } from "../domain/searchTypes";
+import type { SearchState, SearchCursor, RentFilters, BuyFilters, LocationToken, CityToken, BhkValue, FurnishingValue, ParkingValue, PossessionValue, PetPolicyValue, KhataValue } from "../domain/searchTypes";
 import {
   BHK_VALUES,
   FURNISHING_VALUES,
@@ -9,9 +9,7 @@ import {
   KHATA_VALUES,
   RENT_SORT_KEYS,
   BUY_SORT_KEYS,
-  SEARCH_VIEW_MODES,
   DEFAULT_SORT,
-  DEFAULT_VIEW,
 
   MAX_SELECTED_LOCATIONS,
   MAX_SELECTED_CITIES,
@@ -19,7 +17,6 @@ import {
   URL_PARAMS,
 } from "../domain/searchConstants";
 import { getDefaultSearchState } from "../domain/searchDefaults";
-import { SEARCH_MAP_ENABLED } from "../domain/searchFeatureFlags";
 import { normalizePropertyTypes } from "../domain/propertyTypes";
 import { validateLocationToken, validateCityToken } from "./locationTokenValidation";
 import { pruneOrphanAreas } from "./searchStateUtils";
@@ -109,8 +106,8 @@ function decodeCitiesData(raw: string | null): CityToken[] {
       if (result.length >= MAX_SELECTED_CITIES) break;
       const token = validateCityToken(item);
       if (!token) continue;
-      if (seen.has(token.placeId)) continue;
-      seen.add(token.placeId);
+      if (seen.has(token.geoPlaceId)) continue;
+      seen.add(token.geoPlaceId);
       result.push(token);
     }
     return result;
@@ -209,11 +206,12 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
   const locations = pruneOrphanAreas(cities, rawLocations);
 
   // ── Distance ── (validated against the option set; then normalized to Auto when
-  // there is no usable geographic anchor — an explicit distance is inert without one)
+  // there is no locality anchor — an explicit distance is inert without one, and
+  // PostGIS radius eligibility is locality-only)
   const distOpts = DISTANCE_OPTIONS_KM as readonly number[];
   const rawDist = parseFloat_(params.get(P.distanceKm));
-  const hasAnchor = cities.length > 0 || locations.length > 0;
-  const distanceKm = hasAnchor && rawDist !== null && distOpts.includes(rawDist) ? rawDist : null;
+  const hasLocality = locations.some((l) => l.kind === "locality");
+  const distanceKm = hasLocality && rawDist !== null && distOpts.includes(rawDist) ? rawDist : null;
 
   // Multi-select property types. Accepts legacy single value (?pt=villa) and
   // comma-joined (?pt=apartment,duplex_apartment); normalized to valid/dedup/ordered.
@@ -256,15 +254,7 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
     ? (rawSort as SearchState["sort"])
     : DEFAULT_SORT;
 
-  // ── View ──
-  // While Map/Split are gated off, any restored map/split state normalizes to list
-  // here (single source), so no Map mounts and no extra navigation entry is created.
-  const rawView = params.get(P.view) ?? "";
-  const view = !SEARCH_MAP_ENABLED
-    ? "list"
-    : (SEARCH_VIEW_MODES as readonly string[]).includes(rawView)
-      ? (rawView as SearchState["view"])
-      : DEFAULT_VIEW;
+  // Search is LIST-only: any stale ?view=map|split and map-bounds params are ignored.
 
   // ── Cursor ──
   const cursorRaw = params.get(URL_PARAMS.cursor);
@@ -277,16 +267,6 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
       cursor = null;
     }
   }
-
-  // ── Map bounds ──
-  const neLat = parseFloat_(params.get(P.boundsNeLat));
-  const neLng = parseFloat_(params.get(P.boundsNeLng));
-  const swLat = parseFloat_(params.get(P.boundsSwLat));
-  const swLng = parseFloat_(params.get(P.boundsSwLng));
-  const mapBounds: MapBounds | null =
-    neLat !== null && neLng !== null && swLat !== null && swLng !== null
-      ? { ne: { lat: neLat, lng: neLng }, sw: { lat: swLat, lng: swLng } }
-      : null;
 
   // ── Selected property ──
   const selectedPropertyId = params.get(P.selectedPropertyId) || null;
@@ -391,9 +371,7 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
     context: { mode, city, cities, locations, propertyTypes },
     filters,
     sort,
-    view,
     cursor,
-    mapBounds,
     selectedPropertyId,
     distanceKm,
   };

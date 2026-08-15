@@ -5,6 +5,7 @@ import {
   emptyHistory,
   validateHistory,
 } from "./searchLocationHistory";
+import { validateLocationToken } from "./locationTokenValidation";
 
 // ─── Keys ───────────────────────────────────────────────────────────────────
 
@@ -144,7 +145,13 @@ export function readPendingConfirm(): PendingConfirmV1 | null {
     if (parsed?.version !== 1) return null;
     if (typeof parsed.city !== "string" || !parsed.city) return null;
     if (typeof parsed.expiresAt !== "number" || parsed.expiresAt < Date.now()) return null;
-    const areas = Array.isArray(parsed.areas) ? (parsed.areas as LocationToken[]) : [];
+    // Slot-specific sanitize: only canonical detail tokens survive (old Google-shaped
+    // or cross-slot records are discarded before entering active Search state).
+    const areas = Array.isArray(parsed.areas)
+      ? (parsed.areas
+          .map((a) => validateLocationToken(a))
+          .filter((a): a is LocationToken => a !== null))
+      : [];
     const mode: SearchMode = parsed.mode === "buy" ? "buy" : "rent";
     const propertyTypes = Array.isArray(parsed.propertyTypes)
       ? (parsed.propertyTypes as unknown[]).filter((x): x is string => typeof x === "string")
