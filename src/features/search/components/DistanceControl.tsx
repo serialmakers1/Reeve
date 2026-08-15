@@ -11,16 +11,15 @@ import { DISTANCE_OPTIONS_KM } from "@/features/search/domain/searchConstants";
  */
 export function DistanceControl({ className }: { className?: string }) {
   const { state, setDistanceKm } = useSearchState();
-  const { cities, locations } = state.context;
-  const hasAnchor = cities.length > 0 || locations.length > 0;
+  const { locations } = state.context;
+  // Only a selected locality can anchor an explicit radius (PostGIS locality-only).
+  const hasAnchor = locations.some((l) => l.kind === "locality");
   const active = state.distanceKm;
 
   const helper =
     active === null
       ? null
-      : locations.length > 0
-        ? `Within ${active} km of your selected areas; results may extend beyond the city`
-        : `Within ${active} km of your selected city${cities.length > 1 ? "s" : ""}; results may extend beyond city boundaries`;
+      : `Within ${active} km of your selected localities; results may extend beyond the city`;
 
   const btn =
     "h-9 min-w-[44px] rounded-full border px-3 text-xs font-medium shrink-0 transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 disabled:pointer-events-none";

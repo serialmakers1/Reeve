@@ -12,23 +12,22 @@ export function buildSearchInput(state: SearchState): SearchPropertiesInput | nu
 
   const f = state.filters as RentFilters & BuyFilters;
 
-  // City anchors: canonical Place identity + coords (from the Setup selection).
-  const cityAnchors = (cities ?? []).map((c) => ({
-    placeId: c.placeId,
-    lat: c.lat,
-    lng: c.lng,
-  }));
-  // Area anchors: only areas that carry a Place id + finite center (older URL
-  // tokens without coords cannot anchor and are dropped).
-  const areaAnchors = locations
-    .filter((l) => l.placeId && l.lat !== null && l.lng !== null)
-    .map((l) => ({ placeId: l.placeId!, lat: l.lat!, lng: l.lng! }));
+  // Canonical geo identity: roots (cities) + details (localities/roads), deduped
+  // Reeve geo_place UUIDs. Empty ⇒ nationwide. No Google Place IDs, no coordinates.
+  const geoPlaceIds = [
+    ...(cities ?? []).map((c) => c.geoPlaceId),
+    ...(locations ?? []).map((l) => l.geoPlaceId),
+  ].filter((id): id is string => typeof id === "string" && id.length > 0);
+  const dedupedGeoPlaceIds = [...new Set(geoPlaceIds)];
+
+  // Explicit distance is only meaningful with a locality anchor; otherwise Auto.
+  const hasLocality = (locations ?? []).some((l) => l.kind === "locality");
+  const distanceKm = hasLocality ? (state.distanceKm ?? null) : null;
 
   return {
     mode,
-    cityAnchors,
-    areaAnchors,
-    distanceKm: state.distanceKm ?? null,
+    geoPlaceIds: dedupedGeoPlaceIds,
+    distanceKm,
     propertyTypes: propertyTypes ?? [],
 
     minPrice: f.minPrice ?? null,

@@ -6,7 +6,7 @@ import type { SearchPropertyRpcRow } from "../data/searchResultContract";
 
 function baseInput(overrides: Partial<SearchPropertiesInput> = {}): SearchPropertiesInput {
   return {
-    mode: "rent", cityAnchors: [{ placeId: "city_blr", lat: 12.9716, lng: 77.5946 }], areaAnchors: [], distanceKm: null, propertyTypes: [],
+    mode: "rent", geoPlaceIds: ["blr-root"], distanceKm: null, propertyTypes: [],
     minPrice: null, maxPrice: null, bhk: [], furnishing: [], possessionStatus: [],
     availableBy: null, listedWithin: null, availabilityConfirmedWithin: null, maxDeposit: null,
     maxLockIn: null, maxNotice: null, maxAnnualIncrease: null, maxMoveInCharges: null, petPolicy: [],
@@ -30,13 +30,13 @@ describe("searchProperties — RPC payload", () => {
   it("sends p_bhk with selected BHK values (filter reaches the request)", async () => {
     const { client, rpc } = mockClient();
     await searchProperties(baseInput({ bhk: ["1BHK"] }), client);
-    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v2", expect.objectContaining({ p_bhk: ["1BHK"] }));
+    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v3", expect.objectContaining({ p_bhk: ["1BHK"] }));
   });
 
   it("sends p_bhk null when no BHK selected (empty default does not filter)", async () => {
     const { client, rpc } = mockClient();
     await searchProperties(baseInput({ bhk: [] }), client);
-    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v2", expect.objectContaining({ p_bhk: null }));
+    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v3", expect.objectContaining({ p_bhk: null }));
   });
 
   it("maps furnishing + price + geo anchors + distance to the correct RPC args", async () => {
@@ -44,19 +44,18 @@ describe("searchProperties — RPC payload", () => {
     await searchProperties(
       baseInput({
         furnishing: ["semi_furnished"], minPrice: 10000, maxPrice: 40000,
-        areaAnchors: [{ placeId: "p1", lat: 12.95, lng: 77.65 }],
+        geoPlaceIds: ["blr-root", "kora-loc"],
         distanceKm: 5,
       }),
       client,
     );
     expect(rpc).toHaveBeenCalledWith(
-      "search_compact_properties_v2",
+      "search_compact_properties_v3",
       expect.objectContaining({
         p_furnishing: ["semi_furnished"],
         p_min_price: 10000,
         p_max_price: 40000,
-        p_city_anchors: [{ place_id: "city_blr", lat: 12.9716, lng: 77.5946 }],
-        p_area_anchors: [{ place_id: "p1", lat: 12.95, lng: 77.65 }],
+        p_geo_place_ids: ["blr-root", "kora-loc"],
         p_distance_km: 5,
       }),
     );

@@ -181,7 +181,12 @@ export default function OwnerDashboard() {
       .select("status, is_active, current_listed_period_started_at, availability_confirmed_at, sale_listing_confirmed_at, listed_at")
       .maybeSingle();
     if (error || !data) {
-      toast({ title: "Could not re-list", description: error?.message, variant: "destructive" });
+      const publishBlocked = /location_not_ready:publish_location_incomplete/.test(error?.message ?? "");
+      toast({
+        title: "Could not re-list",
+        description: publishBlocked ? "This property's location needs Admin finalization before it can be re-listed." : error?.message,
+        variant: "destructive",
+      });
       return;
     }
     patchProperty(propertyId, {

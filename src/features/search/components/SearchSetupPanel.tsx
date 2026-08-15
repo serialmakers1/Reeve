@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { pruneAreasForRemovedCity } from "@/features/search/state/searchStateUtils";
-import { useResolveCity, type CanonicalCity } from "@/features/search/hooks/useResolveCity";
+import { resolveCanonicalCityByName } from "@/features/search/data/geoSuggestClient";
 import { POPULAR_CITIES } from "@/features/search/domain/popularCities";
 import type { SearchMode } from "@/features/search/domain/searchMode";
-import type { LocationToken, CityToken, AreaViewport } from "@/features/search/domain/searchTypes";
+import type { LocationToken, CityToken } from "@/features/search/domain/searchTypes";
 import {
   Dialog,
   DialogContent,
@@ -20,50 +21,15 @@ import { CitySearchInput } from "./CitySearchInput";
 import { LocationSearchInput } from "./LocationSearchInput";
 import { PropertyTypeSelector } from "./PropertyTypeSelector";
 
-type Viewport = { low: { lat: number; lng: number }; high: { lat: number; lng: number } };
-type LatLng = { lat: number; lng: number };
-
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-/** Places {low,high} → canonical {sw,ne}. */
-function toAreaViewport(vp: Viewport | null): AreaViewport | null {
-  return vp ? { sw: { lat: vp.low.lat, lng: vp.low.lng }, ne: { lat: vp.high.lat, lng: vp.high.lng } } : null;
-}
-/** Canonical {sw,ne} → Places {low,high} for area-autocomplete scoping. */
-function toLowHigh(vp: AreaViewport | null): Viewport | null {
-  return vp ? { low: { lat: vp.sw.lat, lng: vp.sw.lng }, high: { lat: vp.ne.lat, lng: vp.ne.lng } } : null;
-}
-
-/**
- * Build a canonical city anchor. Requires ALL of placeId + REAL Google center +
- * viewport (Prompt 3A) — never a viewport-midpoint fallback. Returns null otherwise.
- */
-function buildCityToken(
-  city: string,
-  displayValue: string,
-  placeId: string | null,
-  center: LatLng | null,
-  vp: Viewport | null,
-): CityToken | null {
-  if (!placeId || !center || !vp) return null;
-  if (!Number.isFinite(center.lat) || !Number.isFinite(center.lng)) return null;
-  return {
-    placeId,
-    label: displayValue || titleCase(city),
-    lat: center.lat,
-    lng: center.lng,
-    viewport: toAreaViewport(vp),
-  };
-}
 
 interface SearchSetupDraft {
   mode: SearchMode | null;
   cities: CityToken[];
-  /** placeId of the city whose Areas the Area search currently targets. */
-  activeCityId: string | null;
+  /** geoPlaceId of the root whose details the Location search currently targets. */
+  activeRootId: string | null;
   locations: LocationToken[];
   propertyTypes: string[];
-  showManualCity: boolean;
 }
 
 export interface SearchSetupPanelProps {
@@ -71,7 +37,7 @@ export interface SearchSetupPanelProps {
   onOpenChange: (open: boolean) => void;
   onSubmit?: (ctx: { mode: SearchMode; city: string | null; locations: LocationToken[]; propertyTypes: string[] }) => void;
   /** Approximate canonical city from Vercel geo — adopted only if no city chosen yet. */
-  suggestedCity?: CanonicalCity | null;
+  suggestedCity?: CityToken | null;
   /** Fired the first time the user selects/changes a city — stops geo prefill from overwriting. */
   onCityInteraction?: () => void;
   /** Remembered recent city names (most-recent first) for quick re-selection. */
@@ -88,7 +54,6 @@ export interface SearchSetupPanelProps {
 
 export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, onCityInteraction, recentCities, getCityMemory, onConfirmSetup, onRemoveCity, onClearRecent }: SearchSetupPanelProps) {
   const { state, setContext } = useSearchState();
-  const { resolveCityByName } = useResolveCity();
 
   // True once the user selects/changes a city — blocks geo prefill.
   const userTouchedCityRef = useRef(false);
@@ -102,24 +67,21 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
 
   const contextKey = JSON.stringify({
     mode: state.context.mode,
-    cities: state.context.cities.map((c) => c.placeId),
-    locations: state.context.locations.map((l) => ({ id: l.id, cityId: l.cityId })),
+    cities: state.context.cities.map((c) => c.geoPlaceId),
+    locations: state.context.locations.map((l) => ({ id: l.id, scopeRootId: l.scopeRootId })),
     propertyTypes: state.context.propertyTypes,
   });
 
   const initDraft = (): SearchSetupDraft => ({
     mode: state.context.mode,
     cities: state.context.cities,
-    // Default active city = the most-recently-added (last) — never collapse to one.
-    activeCityId: state.context.cities.at(-1)?.placeId ?? null,
+    activeRootId: state.context.cities.at(-1)?.geoPlaceId ?? null,
     locations: state.context.locations,
     propertyTypes: state.context.propertyTypes,
-    showManualCity: false,
   });
 
   const [draft, setDraft] = useState<SearchSetupDraft>(initDraft);
 
-  // Resync draft when panel opens or when URL context changes while open.
   useEffect(() => {
     if (!open) return;
     setDraft(initDraft());
@@ -127,64 +89,56 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   }, [open, contextKey]);
 
   const activeCity: CityToken | null =
-    draft.cities.find((c) => c.placeId === draft.activeCityId) ?? draft.cities.at(-1) ?? null;
+    draft.cities.find((c) => c.geoPlaceId === draft.activeRootId) ?? draft.cities.at(-1) ?? null;
 
   // ── City add / remove / active ──────────────────────────────────────────────
   function addCity(token: CityToken) {
     setDraft((d) => {
-      if (d.cities.some((c) => c.placeId === token.placeId)) {
-        return { ...d, activeCityId: token.placeId }; // dedupe: just focus it
+      if (d.cities.some((c) => c.geoPlaceId === token.geoPlaceId)) {
+        return { ...d, activeRootId: token.geoPlaceId };
       }
-      return { ...d, cities: [...d.cities, token], activeCityId: token.placeId };
+      return { ...d, cities: [...d.cities, token], activeRootId: token.geoPlaceId };
     });
   }
 
-  function setActiveCity(placeId: string) {
-    setDraft((d) => ({ ...d, activeCityId: placeId }));
+  function setActiveCity(geoPlaceId: string) {
+    setDraft((d) => ({ ...d, activeRootId: geoPlaceId }));
   }
 
-  function removeCity(placeId: string) {
+  function removeCity(geoPlaceId: string) {
     setDraft((d) => {
-      const removed = d.cities.find((c) => c.placeId === placeId);
-      const cities = d.cities.filter((c) => c.placeId !== placeId);
-      // Prune only the removed city's areas; if no city remains, clear all areas.
+      const removed = d.cities.find((c) => c.geoPlaceId === geoPlaceId);
+      const cities = d.cities.filter((c) => c.geoPlaceId !== geoPlaceId);
       let locations = removed ? pruneAreasForRemovedCity(removed, d.locations) : d.locations;
       if (cities.length === 0) locations = [];
-      const activeCityId = cities.some((c) => c.placeId === d.activeCityId)
-        ? d.activeCityId
-        : cities.at(-1)?.placeId ?? null;
-      return { ...d, cities, locations, activeCityId };
+      const activeRootId = cities.some((c) => c.geoPlaceId === d.activeRootId)
+        ? d.activeRootId
+        : cities.at(-1)?.geoPlaceId ?? null;
+      return { ...d, cities, locations, activeRootId };
     });
   }
 
-  function handleCitySelected(
-    city: string,
-    displayValue: string,
-    placeId: string,
-    center: LatLng,
-    viewport: Viewport,
-  ) {
+  function handleCitySelected(token: CityToken) {
     markCityTouched();
-    const token = buildCityToken(city, displayValue, placeId, center, viewport);
-    if (token) addCity(token);
+    addCity(token);
   }
 
   async function resolveAndAddCity(name: string, restoreAreas: boolean) {
     markCityTouched();
     setResolvingCity(name);
     try {
-      const resolved = await resolveCityByName(name);
-      const token = resolved
-        ? buildCityToken(resolved.city, resolved.displayLabel, resolved.placeId, resolved.center, resolved.viewport)
-        : null;
-      if (!token) return; // unresolved (missing placeId/center/viewport) → not addable
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const token = await resolveCanonicalCityByName(name, supabase as any);
+      if (!token) return; // ambiguous / no canonical match → user picks from typed search
       addCity(token);
       if (restoreAreas) {
-        const mem = getCityMemory?.(resolved!.city);
+        const mem = getCityMemory?.(token.label.toLowerCase());
         if (mem && mem.lastSelectedAreas.length > 0) {
           setDraft((d) => {
             const existing = new Set(d.locations.map((l) => l.id));
-            const add = mem.lastSelectedAreas.filter((a) => !existing.has(a.id));
+            const add = mem.lastSelectedAreas.filter(
+              (a) => !existing.has(a.id) && a.scopeRootId === token.geoPlaceId,
+            );
             return { ...d, locations: [...d.locations, ...add] };
           });
         }
@@ -197,21 +151,17 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   // Adopt the geo-suggested approximate city — only while untouched and no city yet.
   useEffect(() => {
     if (!suggestedCity || userTouchedCityRef.current) return;
-    const vp = suggestedCity.viewport ? { low: suggestedCity.viewport.low, high: suggestedCity.viewport.high } : null;
-    const token = buildCityToken(suggestedCity.city, suggestedCity.displayLabel, suggestedCity.placeId, suggestedCity.center, vp);
-    if (!token) return;
-    setDraft((d) => (d.cities.length > 0 ? d : { ...d, cities: [token], activeCityId: token.placeId }));
+    setDraft((d) => (d.cities.length > 0 ? d : { ...d, cities: [suggestedCity], activeRootId: suggestedCity.geoPlaceId }));
   }, [suggestedCity]);
 
   const recentAreasForActiveCity =
-    activeCity ? getCityMemory?.(activeCity.label.toLowerCase())?.recentAreas ?? [] : [];
+    activeCity ? (getCityMemory?.(activeCity.label.toLowerCase())?.recentAreas ?? []).filter((a) => a.scopeRootId === activeCity.geoPlaceId) : [];
 
   const canSubmit = !!draft.mode;
 
-  // Approximate = adopted geo city, single, untouched.
   const isApproxCity =
     !!suggestedCity && !userTouchedCityRef.current &&
-    draft.cities.length === 1 && draft.cities[0].placeId === suggestedCity.placeId;
+    draft.cities.length === 1 && draft.cities[0].geoPlaceId === suggestedCity.geoPlaceId;
   const approxHelperText =
     draft.mode === "buy"
       ? `We've started with homes for sale near ${draft.cities[0]?.label ?? ""}. Change anything below.`
@@ -220,7 +170,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   function handleSubmit() {
     if (!canSubmit) return;
     const cities = draft.cities;
-    const locations = draft.locations.filter((l) => l.placeId !== null);
+    const locations = draft.locations;
     const primaryLabel = cities[0]?.label.toLowerCase() ?? null;
     const committed = {
       mode: draft.mode!,
@@ -244,10 +194,10 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   }
 
   const cityChip = (c: CityToken) => {
-    const active = c.placeId === activeCity?.placeId;
+    const active = c.geoPlaceId === activeCity?.geoPlaceId;
     return (
       <div
-        key={c.placeId}
+        key={c.geoPlaceId}
         className={cn(
           "flex items-center rounded-lg border",
           active ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background",
@@ -256,8 +206,8 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
         <button
           type="button"
           aria-pressed={active}
-          data-testid={`city-chip-${c.placeId}`}
-          onClick={() => setActiveCity(c.placeId)}
+          data-testid={`city-chip-${c.geoPlaceId}`}
+          onClick={() => setActiveCity(c.geoPlaceId)}
           className={cn(
             "h-9 rounded-l-lg pl-3.5 pr-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
             !active && "hover:text-foreground",
@@ -268,8 +218,8 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
         <button
           type="button"
           aria-label={`Remove ${c.label}`}
-          data-testid={`city-remove-${c.placeId}`}
-          onClick={() => removeCity(c.placeId)}
+          data-testid={`city-remove-${c.geoPlaceId}`}
+          onClick={() => removeCity(c.geoPlaceId)}
           className={cn(
             "flex h-9 w-8 items-center justify-center rounded-r-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
             active ? "hover:bg-primary-foreground/20" : "text-muted-foreground hover:text-foreground hover:bg-muted",
@@ -304,24 +254,17 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                 <p className="text-sm font-medium">
                   Cities <span className="text-muted-foreground font-normal">(add one or more)</span>
                 </p>
-                <CitySearchInput
-                  displayValue=""
-                  onCitySelected={handleCitySelected}
-                  showManualFallback={draft.showManualCity}
-                  onToggleManualFallback={() => setDraft((d) => ({ ...d, showManualCity: !d.showManualCity }))}
-                />
+                <CitySearchInput onCitySelected={handleCitySelected} />
                 {isApproxCity && (
                   <p className="flex items-center gap-1 text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3" /> Approximate location
                   </p>
                 )}
 
-                {/* Selected city chips — click to make active for Area search; × removes */}
                 {draft.cities.length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-1">{draft.cities.map(cityChip)}</div>
                 )}
 
-                {/* Recent cities — select adds the city (and restores its saved areas) */}
                 {recentCities && recentCities.length > 0 && (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between pt-1">
@@ -367,7 +310,6 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                   </div>
                 )}
 
-                {/* Popular cities — resolve canonically via the shared Google flow */}
                 <p className="pt-1 text-xs font-medium text-muted-foreground">Popular cities</p>
                 <div className="flex flex-wrap gap-2">
                   {POPULAR_CITIES.map((name) => {
@@ -391,23 +333,23 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
               </section>
             </div>
 
-            {/* Right column: Areas (scoped to the active city) */}
+            {/* Right column: Localities (scoped to the active root) */}
             <div className="space-y-5 min-w-0">
               {activeCity && (
                 <section className="space-y-2">
                   <p className="text-sm font-medium" data-testid="areas-header">
-                    Areas in {activeCity.label}{" "}
+                    Localities in {activeCity.label}{" "}
                     <span className="text-muted-foreground font-normal">(optional)</span>
                   </p>
                   {draft.cities.length > 1 && (
                     <p className="text-xs text-muted-foreground">
-                      Searching areas in <span className="font-medium text-foreground">{activeCity.label}</span> — tap a city
+                      Searching localities in <span className="font-medium text-foreground">{activeCity.label}</span> — tap a city
                       chip to switch.
                     </p>
                   )}
                   {recentAreasForActiveCity.length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-xs font-medium text-muted-foreground">Recent areas in {activeCity.label}</p>
+                      <p className="text-xs font-medium text-muted-foreground">Recent localities in {activeCity.label}</p>
                       <div className="flex flex-wrap gap-2">
                         {recentAreasForActiveCity.map((area) => {
                           const picked = draft.locations.some((l) => l.id === area.id);
@@ -438,25 +380,13 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                     </div>
                   )}
                   <LocationSearchInput
-                    city={activeCity.label.toLowerCase()}
-                    cityId={activeCity.placeId}
-                    cityViewport={toLowHigh(activeCity.viewport)}
-                    cityResolved={true}
-                    selected={draft.locations.filter((l) => l.cityId === activeCity.placeId || l.cityId === activeCity.label.toLowerCase())}
+                    root={activeCity}
+                    selected={draft.locations.filter((l) => l.scopeRootId === activeCity.geoPlaceId)}
                     onAdd={(token) => {
                       if (draft.locations.length >= 5 || draft.locations.some((l) => l.id === token.id)) return;
                       setDraft((d) => ({ ...d, locations: [...d.locations, token] }));
                     }}
                     onRemove={(id) => setDraft((d) => ({ ...d, locations: d.locations.filter((l) => l.id !== id) }))}
-                    onClearAll={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        // Clear only the ACTIVE city's areas — keep other cities' areas.
-                        locations: d.locations.filter(
-                          (l) => !(l.cityId === activeCity.placeId || l.cityId === activeCity.label.toLowerCase()),
-                        ),
-                      }))
-                    }
                   />
                 </section>
               )}

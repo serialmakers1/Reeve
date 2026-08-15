@@ -5,8 +5,6 @@ import { mapRpcRowToResult } from "./searchResultContract";
 import type { SearchCursor, SearchSortKey } from "@/features/search/domain/searchTypes";
 import type { SearchPropertiesInput } from "./searchContracts";
 import { SEARCH_PAGE_SIZE } from "./searchContracts";
-import type { MapMarkersInput, SearchMapMarker, SearchMapMarkerRpcRow } from "./searchMarkerContract";
-import { mapRpcRowToMarker } from "./searchMarkerContract";
 import { propertyTypesToCsv } from "@/features/search/domain/propertyTypes";
 
 export interface SearchPropertiesResult {
@@ -37,10 +35,9 @@ export async function searchProperties(
     input.cursor?.sort === "availability_confirmed" ? input.cursor : null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabaseClient as any).rpc("search_compact_properties_v2", {
+  const { data, error } = await (supabaseClient as any).rpc("search_compact_properties_v3", {
     p_listing_type: input.mode === "buy" ? "sale" : "rent",
-    p_city_anchors: input.cityAnchors.map((a) => ({ place_id: a.placeId, lat: a.lat, lng: a.lng })),
-    p_area_anchors: input.areaAnchors.map((a) => ({ place_id: a.placeId, lat: a.lat, lng: a.lng })),
+    p_geo_place_ids: input.geoPlaceIds.length > 0 ? input.geoPlaceIds : null,
     p_distance_km: input.distanceKm,
     p_property_type: propertyTypesToCsv(input.propertyTypes),
     p_min_price: input.minPrice,
@@ -157,66 +154,4 @@ export function buildSearchCursor(row: SearchPropertyRpcRow, sort: SearchSortKey
     availabilityConfirmedAt: row.availability_confirmed_at,
     id: row.property_id,
   };
-}
-
-/**
- * Fetches map markers from get_map_markers RPC.
- * Completely separate from search_compact_properties — no cursor, no sort, no pagination.
- * Accepts viewport bounds + the subset of filters the RPC supports.
- */
-export async function fetchMapMarkers(
-  input: MapMarkersInput,
-  supabaseClient: SupabaseClient,
-): Promise<SearchMapMarker[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabaseClient as any).rpc("get_map_markers_v2", {
-    // ── Core ──────────────────────────────────────────────────────────────────
-    p_listing_type: input.listingType,
-    p_sw_lat: input.bounds.sw.lat,
-    p_sw_lng: input.bounds.sw.lng,
-    p_ne_lat: input.bounds.ne.lat,
-    p_ne_lng: input.bounds.ne.lng,
-    p_limit: Math.min(input.limit ?? 200, 500),
-    // ── Canonical geo membership (same predicate as the list RPC) ──────────────
-    p_city_anchors: (input.cityAnchors ?? []).map((a) => ({ place_id: a.placeId, lat: a.lat, lng: a.lng })),
-    p_area_anchors: (input.areaAnchors ?? []).map((a) => ({ place_id: a.placeId, lat: a.lat, lng: a.lng })),
-    p_distance_km: input.distanceKm ?? null,
-    p_property_type: propertyTypesToCsv(input.propertyTypes ?? []),
-    p_bhk: input.bhk ?? [],
-    p_furnishing: input.furnishing ?? [],
-    p_min_price: input.minPrice ?? null,
-    p_max_price: input.maxPrice ?? null,
-    p_parking_4w: input.parking4w ?? [],
-    p_parking_2w: input.parking2w ?? [],
-    p_amenities: input.amenities ?? [],
-    p_has_video_walkthrough: input.hasVideoWalkthrough ?? null,
-    p_min_response_rate: input.minResponseRate ?? null,
-    p_has_experience_feedback: input.hasExperienceFeedback ?? null,
-    // ── Rent-only ──────────────────────────────────────────────────────────────
-    p_available_by: input.availableBy ?? null,
-    p_listed_within_days: input.listedWithinDays ?? null,
-    p_availability_confirmed_within_days: input.availabilityConfirmedWithinDays ?? null,
-    p_max_deposit: input.maxDeposit ?? null,
-    p_max_lock_in_months: input.maxLockInMonths ?? null,
-    p_max_notice_days: input.maxNoticeDays ?? null,
-    p_max_annual_increase: input.maxAnnualIncrease ?? null,
-    p_max_move_in_charges: input.maxMoveInCharges ?? null,
-    p_pet_policy: input.petPolicy ?? [],
-    p_zero_rent_brokerage: input.zeroRentBrokerage ?? null,
-    p_max_rent_brokerage_fixed: input.maxRentBrokerageFixed ?? null,
-    // ── Buy-only ───────────────────────────────────────────────────────────────
-    p_possession_status: input.possessionStatus ?? [],
-    p_possession_before: input.possessionBefore ?? null,
-    p_negotiable: input.negotiable ?? null,
-    p_min_carpet_area: input.minCarpetArea ?? null,
-    p_max_carpet_area: input.maxCarpetArea ?? null,
-    p_min_super_built_up: input.minSuperBuiltUp ?? null,
-    p_max_super_built_up: input.maxSuperBuiltUp ?? null,
-    p_max_sale_brokerage_pct: input.maxSaleBrokeragePct ?? null,
-    p_rera_disclosed: input.reraDisclosed ?? null,
-    p_khata_type: input.khataType ?? [],
-    p_property_tax_paid: input.propertyTaxPaid ?? null,
-  });
-  if (error) throw error;
-  return ((data ?? []) as SearchMapMarkerRpcRow[]).map(mapRpcRowToMarker);
 }

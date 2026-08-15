@@ -489,7 +489,7 @@ const PropertyDetail: React.FC = () => {
         property_type: parsed.context.propertyType ?? null,
         filter_groups: getActiveFilterGroups(parsed.filters, mode),
         result_count_bucket: "unknown",
-        view_mode: parsed.view ?? null,
+        view_mode: "list",
         device_class: getDeviceClass(),
       };
     } catch {

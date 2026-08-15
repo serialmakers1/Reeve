@@ -5,7 +5,7 @@ import type {
   RentFilters,
   BuyFilters,
 } from "./searchTypes";
-import { DEFAULT_SORT, DEFAULT_VIEW } from "./searchConstants";
+import { DEFAULT_SORT } from "./searchConstants";
 
 export function getDefaultRentFilters(): RentFilters {
   return {};
@@ -24,9 +24,7 @@ export function getDefaultSearchState(mode: SearchMode | null): SearchState {
     context: { ...getDefaultSearchContext(), mode },
     filters: mode === "buy" ? getDefaultBuyFilters() : getDefaultRentFilters(),
     sort: DEFAULT_SORT,
-    view: DEFAULT_VIEW,
     cursor: null,
-    mapBounds: null,
     selectedPropertyId: null,
     distanceKm: null,
   };

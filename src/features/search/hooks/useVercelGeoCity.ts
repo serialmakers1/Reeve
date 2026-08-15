@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { useResolveCity, type CanonicalCity } from "@/features/search/hooks/useResolveCity";
+import { supabase } from "@/integrations/supabase/client";
+import { resolveCanonicalCityByName } from "@/features/search/data/geoSuggestClient";
+import type { CityToken } from "@/features/search/domain/searchTypes";
 
 /**
- * Fetches coarse Vercel IP geo once (India-only) and resolves it to a canonical
- * Search city via the shared Google resolve. Returns the approximate canonical city
- * (or null). All failures are swallowed — the caller falls back to nationwide.
+ * Fetches coarse Vercel IP geo once (India-only) and resolves the city NAME to a
+ * Reeve canonical root CityToken via `reeve_search_geo_suggest` (Phase 4 · Prompt 3).
+ * No Google. All failures are swallowed — the caller falls back to setup/nationwide.
  *
  * Does NOT apply anything to state; the caller decides whether/how to apply it,
  * guarding against overwriting a user selection.
@@ -13,16 +15,13 @@ export type VercelGeoStatus = "idle" | "loading" | "done";
 
 export function useVercelGeoCity(
   enabled: boolean,
-): { approxCity: CanonicalCity | null; status: VercelGeoStatus } {
-  const { resolveCityByName, isReady } = useResolveCity();
-  const [approxCity, setApproxCity] = useState<CanonicalCity | null>(null);
-  // "done" means the attempt finished (success or failure) — the bootstrap uses this
-  // to fall through to the setup panel when no usable city was resolved.
+): { approxCity: CityToken | null; status: VercelGeoStatus } {
+  const [approxCity, setApproxCity] = useState<CityToken | null>(null);
   const [status, setStatus] = useState<VercelGeoStatus>("idle");
   const ranRef = useRef(false);
 
   useEffect(() => {
-    if (!enabled || !isReady || ranRef.current) return;
+    if (!enabled || ranRef.current) return;
     ranRef.current = true;
     let cancelled = false;
     setStatus("loading");
@@ -34,7 +33,8 @@ export function useVercelGeoCity(
         const geo = (await res.json()) as { country?: string | null; city?: string | null };
         if (cancelled) return;
         if (geo?.country !== "IN" || !geo?.city) return;
-        const canonical = await resolveCityByName(geo.city);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const canonical = await resolveCanonicalCityByName(geo.city, supabase as any);
         if (!cancelled && canonical) setApproxCity(canonical);
       } catch {
         /* nationwide fallback */
@@ -46,7 +46,7 @@ export function useVercelGeoCity(
     return () => {
       cancelled = true;
     };
-  }, [enabled, isReady, resolveCityByName]);
+  }, [enabled]);
 
   return { approxCity, status };
 }

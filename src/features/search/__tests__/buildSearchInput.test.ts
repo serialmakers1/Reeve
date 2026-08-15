@@ -6,8 +6,19 @@ import type { SearchState, RentFilters, BuyFilters } from "../domain/searchTypes
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const BLR = { placeId: "city_blr", label: "Bengaluru", lat: 12.9716, lng: 77.5946, viewport: null };
-const MUM = { placeId: "city_mum", label: "Mumbai", lat: 19.076, lng: 72.8777, viewport: null };
+const BLR = {
+  geoPlaceId: "blr-root", kind: "settlement" as const, label: "Bengaluru",
+  settlementSubtype: "city" as const, searchRegionId: "blr-region", searchRegionLabel: "Bengaluru Urban",
+};
+const MUM = {
+  geoPlaceId: "mum-root", kind: "settlement" as const, label: "Mumbai",
+  settlementSubtype: "city" as const, searchRegionId: "mum-region", searchRegionLabel: "Mumbai",
+};
+// A canonical locality detail owned by BLR (enables an explicit distance radius).
+const KORAMANGALA = {
+  id: "kora-loc", geoPlaceId: "kora-loc", kind: "locality" as const, scopeRootId: "blr-root",
+  label: "Koramangala", parentLabel: "Bengaluru", searchRegionLabel: "Bengaluru Urban",
+};
 
 function rentState(overrides: Partial<SearchState> = {}): SearchState {
   return {
@@ -39,7 +50,7 @@ describe("buildSearchInput — disabled cases", () => {
     };
     const input = buildSearchInput(state);
     expect(input).not.toBeNull();
-    expect(input!.cityAnchors).toEqual([]);
+    expect(input!.geoPlaceIds).toEqual([]);
   });
 
   it("returns non-null for valid rent state", () => {
@@ -66,38 +77,34 @@ describe("buildSearchInput — mode/listing_type mapping", () => {
 // ─── Context fields ───────────────────────────────────────────────────────────
 
 describe("buildSearchInput — context fields", () => {
-  it("maps selected cities to cityAnchors {placeId,lat,lng}", () => {
-    expect(buildSearchInput(rentState())!.cityAnchors).toEqual([
-      { placeId: "city_blr", lat: 12.9716, lng: 77.5946 },
-    ]);
+  it("maps selected roots to canonical geoPlaceIds", () => {
+    expect(buildSearchInput(rentState())!.geoPlaceIds).toEqual(["blr-root"]);
   });
 
-  it("derives areaAnchors from area Place centres; drops coord-less tokens", () => {
+  it("flattens roots + detail localities into deduped geoPlaceIds", () => {
     const state = rentState({
       context: {
         mode: "rent", city: "bengaluru", cities: [BLR],
-        locations: [
-          {
-            id: "loc1", label: "Koramangala", type: "area", cityId: "bengaluru", placeId: "p1",
-            lat: 12.93, lng: 77.62,
-            viewport: { sw: { lat: 12.9, lng: 77.6 }, ne: { lat: 12.95, lng: 77.65 } },
-          },
-          // coord-less token cannot anchor and is dropped
-          { id: "loc2", label: "Indiranagar", type: "area", cityId: "bengaluru", placeId: "p2", lat: null, lng: null, viewport: null },
-        ],
+        locations: [KORAMANGALA],
         propertyTypes: [],
       },
     });
     const input = buildSearchInput(state)!;
-    expect(input.areaAnchors).toEqual([{ placeId: "p1", lat: 12.93, lng: 77.62 }]);
+    expect(input.geoPlaceIds).toEqual(["blr-root", "kora-loc"]);
   });
 
-  it("empty locations → empty areaAnchors array", () => {
-    expect(buildSearchInput(rentState())!.areaAnchors).toEqual([]);
+  it("empty locations → only root geoPlaceIds", () => {
+    expect(buildSearchInput(rentState())!.geoPlaceIds).toEqual(["blr-root"]);
   });
 
-  it("passes distanceKm through", () => {
-    expect(buildSearchInput(rentState({ distanceKm: 5 }))!.distanceKm).toBe(5);
+  it("distanceKm passes through only with a locality anchor; else null", () => {
+    const withLocality = rentState({
+      distanceKm: 5,
+      context: { mode: "rent", city: "bengaluru", cities: [BLR], locations: [KORAMANGALA], propertyTypes: [] },
+    });
+    expect(buildSearchInput(withLocality)!.distanceKm).toBe(5);
+    // city-only (no locality) → distance is inert, normalized to null
+    expect(buildSearchInput(rentState({ distanceKm: 5 }))!.distanceKm).toBeNull();
     expect(buildSearchInput(rentState())!.distanceKm).toBeNull();
   });
 

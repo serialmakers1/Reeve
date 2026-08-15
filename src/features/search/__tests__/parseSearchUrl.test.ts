@@ -5,32 +5,27 @@ function p(qs: string): URLSearchParams {
   return new URLSearchParams(qs);
 }
 
-// A selected Bengaluru city so legacy `cityId:"bengaluru"` area tokens satisfy the
-// Area→City invariant (no city ⇒ no areas). Appended to area-survival URLs.
+// A selected canonical Bengaluru root so detail tokens (scopeRootId === BLR) satisfy
+// the ownership invariant (no city ⇒ no areas). Appended to area-survival URLs.
+const BLR_ID = "11111111-1111-1111-1111-111111111111";
+const detailId = (i: number): string => `00000000-0000-0000-0000-0000000000${String(10 + i)}`;
 const CITIES_BLR = btoa(JSON.stringify({
   v: 1,
-  items: [{ placeId: "city_blr", label: "Bengaluru", lat: 12.9716, lng: 77.5946 }],
+  items: [{ id: BLR_ID, kind: "settlement", label: "Bengaluru" }],
 }));
-const withBlr = (qs: string): string => `${qs}&cities=city_blr&cities_data=${CITIES_BLR}`;
+const withBlr = (qs: string): string => `${qs}&cities=${BLR_ID}&cities_data=${CITIES_BLR}`;
+const detail = (i: number, label: string) => ({
+  id: detailId(i), kind: "locality", label, scopeRootId: BLR_ID,
+});
 
 describe("parseSearchUrl", () => {
-  // Map/Split are gated off (SEARCH_MAP_ENABLED=false) → any view normalizes to list.
-  it("normalizes view=map to list (Map/Split gated off)", () => {
-    expect(parseSearchUrl(p("type=rent&view=map")).view).toBe("list");
-  });
-  it("normalizes view=split to list (Map/Split gated off)", () => {
-    expect(parseSearchUrl(p("type=rent&view=split")).view).toBe("list");
-  });
-
   it("returns default state for empty params (mode defaults to rent)", () => {
     const state = parseSearchUrl(p(""));
     expect(state.context.mode).toBe("rent");
     expect(state.context.city).toBeNull();
     expect(state.context.locations).toEqual([]);
     expect(state.sort).toBe("newest");
-    expect(state.view).toBe("list");
     expect(state.cursor).toBeNull();
-    expect(state.mapBounds).toBeNull();
     expect(state.selectedPropertyId).toBeNull();
   });
 
@@ -67,56 +62,29 @@ describe("parseSearchUrl", () => {
   });
 
   it("keeps all five locations when exactly five are present", () => {
-    // Build 5 tokens
-    const tokens = Array.from({ length: 5 }, (_, i) => ({
-      id: `loc${i}`,
-      label: `Area ${i}`,
-      type: "area",
-      cityId: "bengaluru",
-      placeId: null,
-    }));
+    const tokens = Array.from({ length: 5 }, (_, i) => detail(i, `Area ${i}`));
     const ids = tokens.map((t) => t.id).join(",");
     const data = btoa(JSON.stringify({ v: 1, items: tokens }));
     const state = parseSearchUrl(p(withBlr(`type=rent&locations=${ids}&locations_data=${data}`)));
     expect(state.context.locations).toHaveLength(5);
   });
 
-  it("parses an area viewport from locations_data (persisted for geographic filtering)", () => {
-    const tokens = [
-      {
-        id: "loc1", label: "Whitefield", type: "area", cityId: "bengaluru", placeId: "p1",
-        viewport: { sw: { lat: 12.9, lng: 77.7 }, ne: { lat: 13.0, lng: 77.8 } },
-      },
-    ];
+  it("canonical detail carries kind + scopeRootId; legacy viewport is inert (null)", () => {
+    const tokens = [detail(1, "Whitefield")];
     const data = btoa(JSON.stringify({ v: 1, items: tokens }));
-    const state = parseSearchUrl(p(withBlr(`type=rent&locations=loc1&locations_data=${data}`)));
-    expect(state.context.locations[0].viewport).toEqual({
-      sw: { lat: 12.9, lng: 77.7 },
-      ne: { lat: 13.0, lng: 77.8 },
-    });
-  });
-
-  it("sets viewport null when locations_data omits/has malformed viewport", () => {
-    const tokens = [{ id: "loc1", label: "A", type: "area", cityId: "bengaluru", placeId: "p1" }];
-    const data = btoa(JSON.stringify({ v: 1, items: tokens }));
-    const state = parseSearchUrl(p(withBlr(`type=rent&locations=loc1&locations_data=${data}`)));
-    expect(state.context.locations[0].viewport).toBeNull();
+    const state = parseSearchUrl(p(withBlr(`type=rent&locations=${detailId(1)}&locations_data=${data}`)));
+    expect(state.context.locations[0].kind).toBe("locality");
+    expect(state.context.locations[0].scopeRootId).toBe(BLR_ID);
   });
 
   it("trims to five locations when six are provided", () => {
-    const tokens = Array.from({ length: 6 }, (_, i) => ({
-      id: `loc${i}`,
-      label: `Area ${i}`,
-      type: "area",
-      cityId: "bengaluru",
-      placeId: null,
-    }));
+    const tokens = Array.from({ length: 6 }, (_, i) => detail(i, `Area ${i}`));
     const ids = tokens.map((t) => t.id).join(",");
     const data = btoa(JSON.stringify({ v: 1, items: tokens }));
     const state = parseSearchUrl(p(withBlr(`type=rent&locations=${ids}&locations_data=${data}`)));
     expect(state.context.locations).toHaveLength(5);
-    expect(state.context.locations[0].id).toBe("loc0");
-    expect(state.context.locations[4].id).toBe("loc4");
+    expect(state.context.locations[0].id).toBe(detailId(0));
+    expect(state.context.locations[4].id).toBe(detailId(4));
   });
 
   it("swaps minPrice/maxPrice when min > max", () => {
@@ -150,14 +118,6 @@ describe("parseSearchUrl", () => {
   it('resets unknown sort to "newest"', () => {
     const state = parseSearchUrl(p("type=rent&sort=bogus"));
     expect(state.sort).toBe("newest");
-  });
-
-  it('view=split normalizes to list while Map/Split are gated off', () => {
-    expect(parseSearchUrl(p("type=rent&view=split")).view).toBe("list");
-  });
-
-  it('resets nonsense view to "list"', () => {
-    expect(parseSearchUrl(p("type=rent&view=nonsense")).view).toBe("list");
   });
 
   it("null cursor when cursor param absent (first page)", () => {
@@ -225,33 +185,25 @@ describe("parseSearchUrl", () => {
   });
 
   it("accepts valid v1 envelope locations_data", () => {
-    const tokens = [{ id: "loc1", label: "Koramangala", type: "area", cityId: "bengaluru", placeId: null }];
+    const tokens = [detail(1, "Koramangala")];
     const data = btoa(JSON.stringify({ v: 1, items: tokens }));
-    const state = parseSearchUrl(p(withBlr(`type=rent&locations=loc1&locations_data=${data}`)));
+    const state = parseSearchUrl(p(withBlr(`type=rent&locations=${detailId(1)}&locations_data=${data}`)));
     expect(state.context.locations).toHaveLength(1);
     expect(state.context.locations[0].label).toBe("Koramangala");
   });
 
   it("rejects location token with injection pattern in label", () => {
-    const tokens = [{ id: "loc1", label: "<script>alert(1)</script>", type: "area", cityId: "bengaluru", placeId: null }];
+    const tokens = [{ ...detail(1, "<script>alert(1)</script>") }];
     const data = btoa(JSON.stringify({ v: 1, items: tokens }));
-    const state = parseSearchUrl(p(`type=rent&locations=loc1&locations_data=${data}`));
+    const state = parseSearchUrl(p(withBlr(`type=rent&locations=${detailId(1)}&locations_data=${data}`)));
     expect(state.context.locations).toHaveLength(0);
   });
 
-  it("parses all four map bounds", () => {
-    const state = parseSearchUrl(
-      p("type=rent&ne_lat=13.1&ne_lng=77.8&sw_lat=12.8&sw_lng=77.4"),
-    );
-    expect(state.mapBounds).toEqual({
-      ne: { lat: 13.1, lng: 77.8 },
-      sw: { lat: 12.8, lng: 77.4 },
-    });
-  });
-
-  it("returns null mapBounds when one bound is missing", () => {
-    const state = parseSearchUrl(p("type=rent&ne_lat=13.1&ne_lng=77.8&sw_lat=12.8"));
-    expect(state.mapBounds).toBeNull();
+  it("rejects an old google-shaped location token (no canonical UUID/kind)", () => {
+    const tokens = [{ id: "loc1", label: "Koramangala", type: "area", cityId: "bengaluru", placeId: "p1" }];
+    const data = btoa(JSON.stringify({ v: 1, items: tokens }));
+    const state = parseSearchUrl(p(withBlr(`type=rent&locations=loc1&locations_data=${data}`)));
+    expect(state.context.locations).toHaveLength(0);
   });
 
   it("ignores locations when locations_data is missing (Option C: no location tokens)", () => {
@@ -274,7 +226,7 @@ describe("parseSearchUrl", () => {
 
   it("parses a full rent URL", () => {
     const state = parseSearchUrl(
-      p("type=rent&city=bengaluru&bhk=2BHK,3BHK&furn=semi_furnished&sort=price_asc&view=split"),
+      p("type=rent&city=bengaluru&bhk=2BHK,3BHK&furn=semi_furnished&sort=price_asc"),
     );
     expect(state.context.mode).toBe("rent");
     expect(state.context.city).toBe("bengaluru");
@@ -282,7 +234,6 @@ describe("parseSearchUrl", () => {
     expect(rf.bhk).toEqual(["2BHK", "3BHK"]);
     expect(rf.furnishing).toEqual(["semi_furnished"]);
     expect(state.sort).toBe("price_asc");
-    expect(state.view).toBe("list"); // view=split normalized to list (Map/Split gated off)
   });
 
   it("parses a full buy URL", () => {

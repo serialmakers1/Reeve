@@ -39,27 +39,18 @@ export const RENT_SORT_KEYS = [
 
 export const BUY_SORT_KEYS = ["newest", "price_asc", "price_desc"] as const;
 
-export const SEARCH_VIEW_MODES = ["list", "split", "map"] as const;
-
 // ─── Scalar defaults ──────────────────────────────────────────────────────────
 
 export const MAX_SELECTED_LOCATIONS = 5;
 export const MAX_SELECTED_CITIES = 3;
 export const DEFAULT_SORT = "newest" as const;
-export const DEFAULT_VIEW = "list" as const;
 
-// ─── Distance control (Prompt 3) ─────────────────────────────────────────────
+// ─── Distance control ─────────────────────────────────────────────────────────
 // Explicit radius options in km. `null` (Auto) is the default and is NOT listed
-// here. Auto = canonical association membership + the safety-net below.
+// here. Auto = canonical FINAL semantic membership; explicit radius = PostGIS
+// locality-only `ST_DWithin` (Search is LIST-only; no map, no safety-net).
 export const DISTANCE_OPTIONS_KM = [2, 5, 10, 20, 30, 50] as const;
 export type DistanceKm = (typeof DISTANCE_OPTIONS_KM)[number];
-
-// Auto area safety-net (metres). MUST equal DB reeve_search_safety_net_m().
-// Empirically measured from real Google centers via earthdistance:
-// Whitefield↔Brookefield 3520 m, ↔Kadugodi 3129 m (captured); ↔Marathahalli
-// 5829 m, ↔Indiranagar 11.8 km, ↔HSR 13.1 km (excluded). 4000 m is the smallest
-// round value capturing adjacent naming-neighbours while excluding distinct areas.
-export const SEARCH_AREA_SAFETY_NET_M = 4000;
 
 // ─── Aggregate display thresholds (locked from Prompt 1 diagnosis) ────────────
 
@@ -92,14 +83,8 @@ export const URL_PARAMS = {
   furnishing: "furn",
   // UI state
   sort: "sort",
-  view: "view",
   cursor: "cursor",
   selectedPropertyId: "pid",
-  // Map bounds
-  boundsNeLat: "ne_lat",
-  boundsNeLng: "ne_lng",
-  boundsSwLat: "sw_lat",
-  boundsSwLng: "sw_lng",
   // Rent-specific
   availableBy: "avail_by",
   listedWithin: "listed_within",

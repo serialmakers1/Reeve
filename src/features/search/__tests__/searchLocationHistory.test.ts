@@ -15,8 +15,18 @@ import {
   type SearchLocationHistory,
 } from "../state/searchLocationHistory";
 
-function area(id: string, label = id): LocationToken {
-  return { id, label, type: "area", cityId: null, placeId: id, lat: null, lng: null, viewport: null };
+const BLR_ROOT = "11111111-1111-1111-1111-111111111111";
+// Deterministic canonical UUID from a short key (labels stay human-readable).
+function uuidOf(key: string): string {
+  let h = 0;
+  for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `${h.toString(16).padStart(8, "0")}-0000-0000-0000-000000000000`;
+}
+function area(key: string, label = key): LocationToken {
+  return {
+    id: uuidOf(key), geoPlaceId: uuidOf(key), kind: "locality", scopeRootId: BLR_ROOT,
+    label, parentLabel: null, searchRegionLabel: null,
+  };
 }
 
 describe("confirmSelection (v2 — full setup)", () => {
@@ -39,7 +49,7 @@ describe("confirmSelection (v2 — full setup)", () => {
     h = confirmSelection(h, "bengaluru", [area("wf"), area("mrt")], "buy", ["apartment", "duplex_apartment"], 3);
     const latest = latestSelection(h);
     expect(latest?.city).toBe("bengaluru");
-    expect(latest?.areas.map((a) => a.id)).toEqual(["wf", "mrt"]);
+    expect(latest?.areas.map((a) => a.label)).toEqual(["wf", "mrt"]);
     expect(latest?.mode).toBe("buy");
     expect(latest?.propertyTypes).toEqual(["apartment", "duplex_apartment"]);
   });
@@ -58,8 +68,8 @@ describe("confirmSelection (v2 — full setup)", () => {
     let h = emptyHistory();
     h = confirmSelection(h, "bengaluru", [area("wf")], "rent", [], 1);
     h = confirmSelection(h, "mumbai", [area("powai")], "rent", [], 2);
-    expect(recentAreasForCity(h, "bengaluru").map((a) => a.id)).toEqual(["wf"]);
-    expect(recentAreasForCity(h, "mumbai").map((a) => a.id)).toEqual(["powai"]);
+    expect(recentAreasForCity(h, "bengaluru").map((a) => a.label)).toEqual(["wf"]);
+    expect(recentAreasForCity(h, "mumbai").map((a) => a.label)).toEqual(["powai"]);
   });
 
   it("caps city history at MAX_HISTORY_CITIES (6th drops the oldest)", () => {
@@ -147,7 +157,7 @@ describe("validateHistory — version compat", () => {
       ],
     };
     const h = validateHistory(raw);
-    expect(h.cities[0].lastSelectedAreas.map((a) => a.id)).toEqual(["wf"]);
+    expect(h.cities[0].lastSelectedAreas.map((a) => a.label)).toEqual(["wf"]);
   });
 });
 
@@ -180,7 +190,7 @@ describe("mergeHistories", () => {
       cities: [{ city: "bengaluru", lastSelectedAreas: [area("new")], recentAreas: [area("new")], mode: "buy", propertyTypes: ["apartment"], confirmedAt: 5 }],
     };
     const merged = mergeHistories(server, session);
-    expect(merged.cities[0].lastSelectedAreas.map((a) => a.id)).toEqual(["new"]);
+    expect(merged.cities[0].lastSelectedAreas.map((a) => a.label)).toEqual(["new"]);
     expect(merged.cities[0].mode).toBe("buy");
     expect(merged.cities[0].propertyTypes).toEqual(["apartment"]);
   });

@@ -7,7 +7,6 @@ export const SEARCH_EVENTS = {
   CONTEXT_SUBMITTED: "search_context_submitted",
   RESULTS_LOADED: "search_results_loaded",
   LISTING_OPENED: "listing_opened",
-  MAP_OPENED: "map_opened",
   FAVOURITE_COMPLETED: "favourite_completed",
   CONTACT_REQUESTED: "contact_requested",
   NO_RESULTS_VIEWED: "no_results_viewed",
@@ -108,12 +107,9 @@ export function getActiveFilterGroups(
 
 export function buildSearchContext(
   state: SearchState,
-  extra: { resultsCount: number; isDesktop: boolean },
+  extra: { resultsCount: number },
 ): Record<string, unknown> {
   const mode = state.context.mode ?? "rent";
-  // Mobile split visually behaves as list — report "list" not "split"
-  const effectiveViewMode =
-    state.view === "split" && !extra.isDesktop ? "list" : state.view;
 
   return {
     search_session_id: getOrCreateSearchSessionId(),
@@ -126,7 +122,7 @@ export function buildSearchContext(
       (state.context.propertyTypes ?? []).length === 1 ? state.context.propertyTypes[0] : null,
     filter_groups: getActiveFilterGroups(state.filters, mode),
     result_count_bucket: bucketResultCount(extra.resultsCount),
-    view_mode: effectiveViewMode,
+    view_mode: "list", // Search is LIST-only
     device_class: getDeviceClass(),
   };
 }

@@ -1,39 +1,27 @@
 import type { SearchMode } from "@/features/search/domain/searchMode";
 import type {
   SearchSortKey,
-  MapBounds,
   SearchCursor,
 } from "@/features/search/domain/searchTypes";
 
 /** Maximum number of results per page from the compact search RPC. */
 export const SEARCH_PAGE_SIZE = 20;
 
-/** Maximum number of map markers returned per viewport query. */
-export const MAP_MARKERS_LIMIT = 200;
-
 /**
- * Logical input to the compact property search.
- * Constructed by the frontend from SearchState before calling the RPC.
+ * Logical input to the compact property search (LIST-only).
+ * Constructed by the frontend from SearchState before calling `search_compact_properties_v3`.
  *
  * Filter semantics:
- * - locationIds: OR within city
+ * - geoPlaceIds: canonical membership (OR within group)
  * - bhk / furnishing / possessionStatus / petPolicy / khataType: OR within each array
  * - amenities: AND (must have all)
  * - All arrays are deduplicated and valid-value-filtered before being sent
  */
-/** Canonical geo anchor sent to the v2 search RPCs (Prompt 3).
- *  placeId → canonical association match; lat/lng → distance/safety-net anchor. */
-export interface GeoAnchor {
-  placeId: string;
-  lat: number;
-  lng: number;
-}
-
 export interface SearchPropertiesInput {
   mode: SearchMode;
-  cityAnchors: GeoAnchor[];          // selected cities; [] = no city filter (nationwide)
-  areaAnchors: GeoAnchor[];          // selected areas/roads; [] = no area filter
-  distanceKm: number | null;         // explicit radius; null = Auto (association + safety-net)
+  /** Reeve canonical geo_place UUIDs (roots + details); [] = nationwide (Phase 4 · Prompt 3). */
+  geoPlaceIds: string[];
+  distanceKm: number | null;         // explicit radius (locality anchor only); null = Auto (canonical membership)
   propertyTypes: string[]; // multi-select; sent to the RPC as a deterministic CSV string ('' filter cleared)
 
   // Price
@@ -84,31 +72,4 @@ export interface SearchPropertiesInput {
   sort: SearchSortKey;
   cursor: SearchCursor | null;       // null = first page
   limit: number;                     // max SEARCH_PAGE_SIZE
-}
-
-/**
- * Logical input to the Map markers query.
- * Returns a minimal payload for rendering markers within a viewport.
- */
-export interface SearchMapMarkersInput {
-  mode: SearchMode;
-  city: string;
-  bounds: MapBounds;                 // required — no bounds = no map query
-
-  // Active filters (same semantics as SearchPropertiesInput)
-  minPrice: number | null;
-  maxPrice: number | null;
-  bhk: string[];
-  furnishing: string[];
-  possessionStatus: string[];
-  amenities: string[];
-  hasVideoWalkthrough: boolean | null;
-  petPolicy: string[];
-  parking4w: string[];
-  parking2w: string[];
-  minResponseRate: number | null;
-  hasExperienceFeedback: boolean | null;
-  listedWithin: number | null;
-
-  limit: number;                     // max MAP_MARKERS_LIMIT
 }
