@@ -486,6 +486,20 @@ Deno.serve(async (req: Request) => {
       }
 
       // ── commit_pin (WRITE) — india already confirmed above ──
+
+      // Bug 2A: a newly submitted non-null Place ID that couldn't be resolved must fail explicitly.
+      // Do not silently commit with old building evidence from a different location.
+      if (placeId !== null && placeId !== prop.place_id && place === null) {
+        return errResp("search_again", 400);
+      }
+
+      // Guard: owner cannot replace to a new physical location when an admin has locked the
+      // building identity. The DB RPC silently preserves the admin building, causing divergence
+      // between what the Edge returns and what is persisted. Reject up-front instead.
+      if (actor === "owner" && body.location_replaced === true && prop.building_name_source === "admin") {
+        return errResp("locked", 403);
+      }
+
       // Persistable (recommended) vs suggestion-only; selection may only pick within persistable.
       const persistable = enriched.filter((c) => c.recommendation === "recommended");
       const persistableKeys = new Set(persistable.map((c) => c.candidate_key));
@@ -599,11 +613,75 @@ Deno.serve(async (req: Request) => {
         : (rootCity ? null : (resolvedAssoc.find((a) => a.kind === "search_region") ?? null));
       const finalAssociations = buildFinalAssociations(resolvedAssoc, rootAssoc?.geo_place_id ?? null);
 
-      const bi = computeBuildingIntent(
+      let bi = computeBuildingIntent(
         { building_name: prop.building_name, building_name_source: prop.building_name_source, place_id: prop.place_id },
         place, body.building_choice as ("keep" | "clear" | "set" | undefined),
         body.building_name as (string | null | undefined), actor,
       );
+
+      // Bug 2B: clear stale place_id on intentional manual path or confirmed conflict.
+      if (placeId === null || building.outcome === "CONFLICT") {
+        bi = { ...bi, place_id: null };
+      }
+
+      // Location replacement: rebuild building from null-existing so no A-location evidence survives.
+      // No admin exemption — after a physical location change, all prior building evidence is invalid.
+      const locationReplaced = body.location_replaced === true;
+      if (locationReplaced) {
+        bi = computeBuildingIntent(
+          { building_name: null, building_name_source: null, place_id: null },
+          place,
+          body.building_choice as ("keep" | "clear" | "set" | undefined),
+          body.building_name as (string | null | undefined),
+          actor,
+        );
+      }
+
+      // Invariant C: owner pin-adjustment provenance. Two independent signals:
+      //   pin_adjustment_reference → reference coordinates before first drag (owner sends pre-drag pos)
+      //   location_replaced        → owner entered a new location context (handled above for building)
+      // Admin actions must never CREATE new owner provenance; admin A→B may CLEAR stale provenance.
+      let ownerProvenanceKeys: {
+        owner_pin_adjusted_at: string | null;
+        owner_pin_adjustment_distance_m: number | null;
+      } | undefined;
+
+      const pinRef = body.pin_adjustment_reference as { lat: number; lng: number } | null | undefined;
+      const validRef =
+        pinRef != null &&
+        Number.isFinite((pinRef as { lat: number; lng: number }).lat) &&
+        Number.isFinite((pinRef as { lat: number; lng: number }).lng) &&
+        (pinRef as { lat: number; lng: number }).lat >= -90 &&
+        (pinRef as { lat: number; lng: number }).lat <= 90 &&
+        (pinRef as { lat: number; lng: number }).lng >= -180 &&
+        (pinRef as { lat: number; lng: number }).lng <= 180;
+
+      if (actor === "owner") {
+        if (validRef) {
+          const ref = pinRef as { lat: number; lng: number };
+          const distM = haversine({ lat: ref.lat, lng: ref.lng }, { lat: pin.lat, lng: pin.lng });
+          if (distM > 1) {
+            // Drag > 1 m: record B-drag provenance. Wins over locationReplaced (A→B + drag B = fresh B provenance).
+            ownerProvenanceKeys = {
+              owner_pin_adjusted_at: new Date().toISOString(),
+              owner_pin_adjustment_distance_m: Math.round(distM),
+            };
+          } else if (locationReplaced) {
+            // A→B + ≤1 m drop: clear stale A provenance.
+            ownerProvenanceKeys = { owner_pin_adjusted_at: null, owner_pin_adjustment_distance_m: null };
+          }
+          // ≤1 m + no replacement: keys absent → DB unchanged.
+        } else if (locationReplaced) {
+          // Replacement with no drag reference: clear stale A provenance.
+          ownerProvenanceKeys = { owner_pin_adjusted_at: null, owner_pin_adjustment_distance_m: null };
+        }
+        // Neither: keys absent → DB unchanged.
+      } else if (actor === "admin" && locationReplaced) {
+        // Admin A→B replacement: clear stale owner provenance from the old location context.
+        // Admin must NEVER set a new owner timestamp/distance — only null clearing is allowed here.
+        ownerProvenanceKeys = { owner_pin_adjusted_at: null, owner_pin_adjustment_distance_m: null };
+      }
+      // Admin ordinary pin correction (no locationReplaced): keys absent → DB unchanged.
 
       // Street View: final-pin first; SAME-building fallback revalidates the stored pano.
       let sv = { available: svMeta.available, pano_id: svMeta.pano_id, fallback: false };
@@ -624,6 +702,7 @@ Deno.serve(async (req: Request) => {
         viewport_ne_lng: hasBuildingPlace && place?.viewport ? place.viewport.ne.lng : null,
         viewport_sw_lat: hasBuildingPlace && place?.viewport ? place.viewport.sw.lat : null,
         viewport_sw_lng: hasBuildingPlace && place?.viewport ? place.viewport.sw.lng : null,
+        ...(ownerProvenanceKeys !== undefined ? ownerProvenanceKeys : {}),
       };
 
       const ar = await srRpc("apply_final_property_location", {

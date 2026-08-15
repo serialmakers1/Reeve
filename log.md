@@ -1,3 +1,39 @@
+## [2026-08-16] fix | Prevented owner location replacement from retaining Admin-locked building evidence [20:44 IST]
+
+Edge function corrective patch. When `actor === "owner"`, `body.location_replaced === true`, and `prop.building_name_source === "admin"`, the DB RPC `apply_final_property_location` silently preserves the admin-locked building while the Edge returns fresh B-location building data — silent divergence. Fix: single `errResp("locked", 403)` guard inserted in `commit_pin` immediately after the Bug 2A check and before any resolver/DB write. Uses the existing `locked` error code already handled by the client (`LOCATION_ERROR_COPY.locked`). No migrations, no UI changes, no new error codes.
+
+- **Guard placement:** between Bug 2A (`search_again`) and `const persistable = ...`, before all `resolveCanonical` calls.
+- **Scope:** owner A→B with admin building only. Owner ordinary Move Pin, owner building-only edits, admin A→B, all other paths — unaffected.
+- **Deploy:** Edge v14 live; smoke → `ok: true`.
+
+## [2026-08-16] fix | Completed Phase 5 core location correctness and persistence fixes [14:30 IST]
+
+Phase 5 · Prompt 2 — three invariants established: exact pin wins for Maps links (A), stale building evidence cannot survive location replacement (B), durable owner pin-move provenance (C).
+
+- **Bug 1 (P0 — Maps link):** Removed `query_place_id` from `buildGoogleMapsLink` entirely. `GoogleMapsLinkInput` no longer accepts `place_id`. Tests 1–2 updated to cast through `unknown` and assert `query_place_id` never appears; all 7 pass.
+- **Bug 2A (P1 — unresolvable new Place):** Added early-return guard in `commit_pin`: if a new non-null `place_id` was submitted but couldn't be resolved (`place === null`), returns `search_again` (400) before any DB write. Prevents silent commit with old building evidence.
+- **Bug 2B (P1 — stale place_id on manual path / CONFLICT):** After `computeBuildingIntent`, if `placeId === null` or `building.outcome === "CONFLICT"`, spreads `{ place_id: null }` into `bi`. Old provider evidence cannot survive an intentional manual submit.
+- **Location replacement (invariant B):** When `location_replaced === true`, re-calls `computeBuildingIntent` with null-existing to rebuild building entirely from B context. No admin exemption — all previous-location evidence is invalid regardless of who set it.
+- **Invariant C — provenance columns:** Migration A adds `owner_pin_adjusted_at` (timestamptz, nullable) + `owner_pin_adjustment_distance_m` (numeric, nullable, CHECK ≥0) to `properties`. Migration B adds per-column CASE logic to `apply_final_property_location` RPC (key-presence detection: key present → write; key absent → DB unchanged).
+- **Edge function wiring:** `pin_adjustment_reference` (pre-drag coords) + `location_replaced` signals flow from `OwnerLocationPin` → `confirmLocationClient.commitPin` → Edge. Owner drag >1m: records provenance. Owner A→B: clears stale A provenance. Admin A→B: clears stale owner provenance (never sets new). Admin ordinary correction: keys absent, DB unchanged.
+- **AdminLocationPanel:** `AdminPinEditor.save()` detects true A→B (`pinChanged && providerChanged`) and sends `locationReplaced: true`.
+- **Supabase types:** regenerated; `owner_pin_adjusted_at` + `owner_pin_adjustment_distance_m` present in `properties` Row type.
+- **Deploy:** Edge v13 live; smoke → `ok: true`, all Google APIs confirmed.
+
+## [2026-08-15] plan | Phase 5 Prompt 1 — location correctness diagnosis + implementation plan [15:40 IST]
+
+Full state-machine trace + invalidation matrix + Prompt 2 plan. Two confirmed root-cause bugs; no migration needed.
+- **Bug 1 (P0 — Maps link):** `buildGoogleMapsLink` appends `&query_place_id=<properties.place_id>`. Google Maps resolves `query_place_id` preferentially over `query=lat,lng`, so any property where `place_id` is stale (owner moved to a new city) shows the OLD building. **Fix:** remove `query_place_id` from the URL builder entirely. `place_id` is building *naming evidence*, not physical location identity — it must never anchor a map link. Also removes `place_id` from `GoogleMapsLinkInput`. No DB change.
+- **Bug 2 (P1 — stale place_id persisted):** `computeBuildingIntent` "keep" path + `existing.building_name_source` set → returns `{ ...existing }` unchanged, preserving the old building `place_id` even when `place === null` (owner used manual / "Can't find it?" path). **Fix (1 line in `index.ts`):** after `computeBuildingIntent`, if `!placeId` (no building Place was selected in this session), set `bi.place_id = null`. Preserves `building_name` and `building_name_source`; only clears stale provider evidence. Transient fetch failures are NOT affected (placeId is non-null in that case).
+- **Invalidation matrix:** commit_pin always REGENERATES pin/factual/location_confirmed_at; RESETS discovery_confirmed/finalized_at; KEEPS/SETS building per `computeBuildingIntent`. place_id should be CLEARED when no building selected (bug 2). SV regenerated from new pin (SAME-outcome fallback for stored pano preserved — correct). No fields need a new DB column.
+- **State machine verified:** SAME outcome → no building question shown + `buildingConfirmed=true` auto-set (by design). UNCERTAIN → owner picks Yes/No. CONFLICT → owner must confirm or change (choice='set'). NOT_APPLICABLE → no building evidence at pin.
+- **Discovery lifecycle:** every `commit_pin` → `replace_property_discovery_geography` → resets discovery timestamps atomically. No bug.
+- **No async races** found. `useCanonicalHydration` stale guard (Phase 4 P3) already in place.
+- **No migration needed.** Pin-move provenance: existing timestamps (`location_confirmed_at`, `discovery_confirmed_at`, `discovery_finalized_at`) are sufficient.
+- **Deferred to Prompt 3:** SV toggle in owner flow, geolocation button removal, vibrant UI hierarchy. **Prompt 4:** Search popular-cities UX.
+
+## [2026-08-15] diagnosis | Diagnosed post-deploy location and Search acceptance regressions [12:09 IST]
+
 ## [2026-08-15] refactor | Completed Phase 4 final location/Search cleanup and removed legacy Map architecture [08:04 IST]
 
 Search is now LIST-only; Map/Split permanently removed; legacy Search/location DB + code retired on the live DB (test data, no legacy-compat required).

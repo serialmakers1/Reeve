@@ -1,29 +1,28 @@
 import { describe, it, expect } from "vitest";
-import { buildGoogleMapsLink } from "@/lib/googleMapsLink";
+import { buildGoogleMapsLink, type GoogleMapsLinkInput } from "@/lib/googleMapsLink";
 
 describe("buildGoogleMapsLink", () => {
-  it("prefers coordinates and appends query_place_id when place_id exists", () => {
+  it("uses coordinates only; ignores place_id even if present in input", () => {
+    // Cast through unknown to reproduce the stale-bug scenario and prove it never leaks.
     const url = buildGoogleMapsLink({
       place_id: "ChIJ_test",
       latitude: 12.9716,
       longitude: 77.5946,
       formatted_address: "somewhere",
-    });
-    expect(url).toBe(
-      "https://www.google.com/maps/search/?api=1&query=12.9716%2C77.5946&query_place_id=ChIJ_test",
-    );
+    } as unknown as GoogleMapsLinkInput);
+    expect(url).toBe("https://www.google.com/maps/search/?api=1&query=12.9716%2C77.5946");
+    expect(url).not.toContain("query_place_id");
   });
 
-  it("falls back to formatted_address when coordinates are missing", () => {
+  it("falls back to formatted_address when coordinates missing; ignores place_id", () => {
     const url = buildGoogleMapsLink({
       place_id: "ChIJ_abc",
       latitude: null,
       longitude: null,
       formatted_address: "Prestige Lakeside, Bengaluru",
-    });
-    expect(url).toBe(
-      "https://www.google.com/maps/search/?api=1&query=Prestige%20Lakeside%2C%20Bengaluru&query_place_id=ChIJ_abc",
-    );
+    } as unknown as GoogleMapsLinkInput);
+    expect(url).toBe("https://www.google.com/maps/search/?api=1&query=Prestige%20Lakeside%2C%20Bengaluru");
+    expect(url).not.toContain("query_place_id");
   });
 
   it("uses coordinates without a place_id (no query_place_id param)", () => {
