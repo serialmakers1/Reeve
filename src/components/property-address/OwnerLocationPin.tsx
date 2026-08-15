@@ -169,6 +169,12 @@ export function OwnerLocationPin({
   const [deselected, setDeselected] = useState<Set<string>>(new Set());
   const [extraPlaceIds, setExtraPlaceIds] = useState<string[]>([]);
 
+  // Provenance tracking for owner pin-adjustment (Invariant C).
+  // pinAdjustmentRef: position captured BEFORE the first drag in the current session.
+  // wasLocationReplaced: true when the owner explicitly entered a new location context (A→B).
+  const [pinAdjustmentRef, setPinAdjustmentRef] = useState<{ lat: number; lng: number } | null>(null);
+  const [wasLocationReplaced, setWasLocationReplaced] = useState(false);
+
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const buildingRequired = isBuildingNameRequired(propertyType);
 
@@ -196,7 +202,22 @@ export function OwnerLocationPin({
       await place.fetchFields({ fields: ["location", "id"] });
       const loc = place.location;
       if (!loc) { setErrorMsg("That location didn't match. Please search again."); return; }
-      setSelectedPlaceId(place.id);       // server decides if it is building evidence (geographic-only won't be)
+      const newPlaceId: string = place.id;
+      setSelectedPlaceId(newPlaceId); // server decides if it is building evidence (geographic-only won't be)
+
+      // Replacement detection: explicitly entering a new location context when one already exists.
+      // First-ever listings: confirmed === null → not a replacement.
+      // Re-selecting the same confirmed place (same place_id): reset flag — not a replacement.
+      const replacingExisting = confirmed != null;
+      const definiteSameSelection = confirmed?.place_id != null && newPlaceId === confirmed.place_id;
+      const isReplacement = replacingExisting && !definiteSameSelection;
+      setWasLocationReplaced(isReplacement);
+      if (isReplacement) {
+        // Clear stale A-location building state so it cannot leak into the B commit payload.
+        setBuildingName(""); setBuildingEditing(false); setBuildingConfirmed(false);
+      }
+      setPinAdjustmentRef(null); // new location context; next drag will re-capture from B's position
+
       setExtraPlaceIds([]); setDeselected(new Set());
       staleReset();
       setPin({ lat: loc.lat(), lng: loc.lng() });
@@ -207,6 +228,15 @@ export function OwnerLocationPin({
 
   const startManual = async () => {
     await ensureDraft();
+
+    // Replacement detection: entering manual path while a confirmed location already exists.
+    const replacingExisting = confirmed != null;
+    setWasLocationReplaced(replacingExisting);
+    if (replacingExisting) {
+      setBuildingName(""); setBuildingEditing(false); setBuildingConfirmed(false);
+    }
+    setPinAdjustmentRef(null);
+
     setSelectedPlaceId(null); setExtraPlaceIds([]); setDeselected(new Set()); staleReset();
     if (!pin) { setPin(INDIA_CENTER); }
     setSeedKey((k) => k + 1);
@@ -221,7 +251,12 @@ export function OwnerLocationPin({
     );
   };
 
-  const onPinMove = useCallback((p: LatLng) => { setPin(p); staleReset(); }, [staleReset]);
+  const onPinMove = useCallback((p: LatLng) => {
+    // Capture the pre-drag position once on the first move of this session.
+    if (pin && !pinAdjustmentRef) setPinAdjustmentRef({ lat: pin.lat, lng: pin.lng });
+    setPin(p);
+    staleReset();
+  }, [staleReset, pin, pinAdjustmentRef]);
 
   // ── use_pin (read-only preview) ──
   const runPreview = useCallback(async (extras: string[] = extraPlaceIds) => {
@@ -310,6 +345,8 @@ export function OwnerLocationPin({
     const commit = await commitPin(token, {
       propertyId: pid, lat: pin.lat, lng: pin.lng, placeId: selectedPlaceId,
       selectedCandidateKeys, buildingChoice, buildingName: buildingName.trim() || null, extraPlaceIds,
+      ...(pinAdjustmentRef ? { referenceLatLng: pinAdjustmentRef } : {}),
+      ...(wasLocationReplaced ? { locationReplaced: true } : {}),
     });
     if (!commit.ok || commit.discovery?.missing_root) {
       const code = commit.error?.code;
@@ -339,6 +376,8 @@ export function OwnerLocationPin({
       setPhase("review");
       return;
     }
+    setPinAdjustmentRef(null);
+    setWasLocationReplaced(false);
     onConfirmed(summary);
     setPhase("confirmed");
   };
@@ -359,6 +398,9 @@ export function OwnerLocationPin({
     // Retain the existing trusted Google building Place ID so re-resolving the pin can still evaluate
     // SAME/UNCERTAIN/CONFLICT; stays null for manual/rural properties that never had building evidence.
     setSelectedPlaceId(confirmed?.place_id ?? null); setExtraPlaceIds([]); setDeselected(new Set()); staleReset();
+    // Adjusting current location — NOT a replacement. Reset provenance so next drag captures fresh.
+    setWasLocationReplaced(false);
+    setPinAdjustmentRef(null);
   };
 
   // ── Discovery items for the panel (root excluded; owner-added flagged) ──

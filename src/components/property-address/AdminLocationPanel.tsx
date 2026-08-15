@@ -301,7 +301,9 @@ function AdminPinEditor({ propertyId, token, start, existingPlaceId, existingBui
     setPhase("saving");
     const outcome = preview?.building?.outcome;
     const buildingChoice = edited && buildingName.trim() ? "set" : (outcome === "CONFLICT" ? "set" : "keep");
-    const r = await commitPin(token, { propertyId, lat: pin.lat, lng: pin.lng, placeId, buildingChoice, buildingName: buildingName.trim() || null });
+    // True A→B: pin moved to a genuinely new location AND provider changed → clear stale owner provenance.
+    const locationReplaced = pinChanged && providerChanged;
+    const r = await commitPin(token, { propertyId, lat: pin.lat, lng: pin.lng, placeId, buildingChoice, buildingName: buildingName.trim() || null, ...(locationReplaced ? { locationReplaced: true } : {}) });
     if (!r.ok) { setErr(r.error?.code === "outside_service_area" ? "Reeve currently supports properties in India." : "Couldn't save the location. Try again."); setPhase("review"); return; }
     onSaved();
   };

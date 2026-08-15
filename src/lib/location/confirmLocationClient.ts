@@ -135,6 +135,10 @@ export function commitPin(
     propertyId: string; lat: number; lng: number; placeId?: string | null;
     selectedCandidateKeys?: string[]; buildingChoice?: "keep" | "clear" | "set"; buildingName?: string | null;
     extraPlaceIds?: string[];
+    /** Coordinates of the pin BEFORE the first drag in this session (owner only). */
+    referenceLatLng?: { lat: number; lng: number } | null;
+    /** True when the owner explicitly selected a new physical location (A→B replacement). */
+    locationReplaced?: boolean;
   },
 ): Promise<PinEngineResult> {
   return callPinEngine(token, {
@@ -144,6 +148,8 @@ export function commitPin(
     ...(args.buildingChoice ? { building_choice: args.buildingChoice } : {}),
     building_name: args.buildingName ?? null,
     ...(args.extraPlaceIds && args.extraPlaceIds.length ? { extra_place_ids: args.extraPlaceIds } : {}),
+    ...(args.referenceLatLng !== undefined ? { pin_adjustment_reference: args.referenceLatLng } : {}),
+    ...(args.locationReplaced ? { location_replaced: true } : {}),
   });
 }
 

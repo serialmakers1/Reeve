@@ -6,14 +6,13 @@
  *        valid finite lat,lng  →  formatted_address  →  assembled address parts
  *   2. If no usable query can be built, return null (caller shows a muted
  *      "Location not resolved" message rather than a misleading pin).
- *   3. Append &query_place_id only when a non-empty place_id exists.
+ *   3. Only lat/lng coordinates are used — no place_id is appended.
  *
  * Admin-only unit/flat identifiers (flat_number, lister_flat_number) are NEVER
  * included in the external URL.
  */
 
 export interface GoogleMapsLinkInput {
-  place_id?: string | null;
   formatted_address?: string | null;
   latitude?: number | null;
   longitude?: number | null;
@@ -63,8 +62,5 @@ export function buildGoogleMapsLink(p: GoogleMapsLinkInput): string | null {
 
   if (!query) return null;
 
-  let url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-  const placeId = clean(p.place_id);
-  if (placeId) url += `&query_place_id=${encodeURIComponent(placeId)}`;
-  return url;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
