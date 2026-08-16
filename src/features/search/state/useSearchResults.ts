@@ -101,6 +101,10 @@ export interface UseSearchResultsReturn {
   areaFallback: AreaFallback | null;
   /** One-shot notice when an explicit distance was auto-reset (radius ineligible). */
   distanceNotice: string | null;
+  /** Whether canonical geo hydration has completed (gates location-filtered queries). */
+  locationReady: boolean;
+  /** Outcome of the most recent URL hydration attempt (null if not needed). */
+  hydrationOutcome: import("./useCanonicalHydration").HydrationOutcome;
 }
 
 export function useSearchResults(): UseSearchResultsReturn {
@@ -108,7 +112,7 @@ export function useSearchResults(): UseSearchResultsReturn {
   const { isFavourited } = useFavourites();
   // Authoritative canonical hydration gate — the location-filtered query must not run
   // from an unhydrated URL/memory snapshot.
-  const { locationReady } = useCanonicalHydration();
+  const { locationReady, hydrationOutcome } = useCanonicalHydration();
 
   const searchKey = useMemo(() => computeSearchKey(state), [state]);
   const input = useMemo(() => buildSearchInput(state), [state]);
@@ -302,5 +306,7 @@ export function useSearchResults(): UseSearchResultsReturn {
     loadMore,
     areaFallback,
     distanceNotice,
+    locationReady,
+    hydrationOutcome,
   };
 }

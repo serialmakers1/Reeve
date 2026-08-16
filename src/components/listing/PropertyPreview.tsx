@@ -133,7 +133,7 @@ export default function PropertyPreview({ open, onOpenChange, data, isFirstSubmi
   const bhkLabel = labelForValue(BHK_OPTIONS as unknown as { value: string; label: string }[], data.bhk);
   const furnishingLabel = labelForValue(FURNISHING_OPTIONS as unknown as { value: string; label: string }[], data.furnishing);
   const propertyTypeLabel = labelForValue(PROPERTY_TYPE_OPTIONS as unknown as { value: string; label: string }[], data.property_type);
-  const derivedTitle = `${bhkLabel} in ${data.locality || data.city || "your neighborhood"}`;
+  const derivedTitle = `${bhkLabel} in ${data.building_name?.trim() || data.locality || data.city || "your neighborhood"}`;
   const isSale = data.listing_type === "sale";
 
   // Rent terms — coerce string form values to numbers for color logic

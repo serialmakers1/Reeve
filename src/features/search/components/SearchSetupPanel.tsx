@@ -14,12 +14,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { MapPin, X } from "lucide-react";
+import { AlertTriangle, MapPin, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RentBuySelector } from "./RentBuySelector";
 import { CitySearchInput } from "./CitySearchInput";
 import { LocationSearchInput } from "./LocationSearchInput";
 import { PropertyTypeSelector } from "./PropertyTypeSelector";
+import { usePopularCityAvailability } from "@/features/search/hooks/usePopularCityAvailability";
 
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -64,6 +65,8 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
     }
   };
   const [resolvingCity, setResolvingCity] = useState<string | null>(null);
+  const [pruningNotice, setPruningNotice] = useState<string | null>(null);
+  const { availability, retryCity } = usePopularCityAvailability(POPULAR_CITIES);
 
   const contextKey = JSON.stringify({
     mode: state.context.mode,
@@ -85,6 +88,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   useEffect(() => {
     if (!open) return;
     setDraft(initDraft());
+    setPruningNotice(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, contextKey]);
 
@@ -106,10 +110,24 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   }
 
   function removeCity(geoPlaceId: string) {
+    // Compute pruning count from the current draft snapshot before the state update.
+    setPruningNotice(null);
+    const removed = draft.cities.find((c) => c.geoPlaceId === geoPlaceId);
+    const remainingCities = draft.cities.filter((c) => c.geoPlaceId !== geoPlaceId);
+    const prunedLocs = removed ? pruneAreasForRemovedCity(removed, draft.locations) : draft.locations;
+    const finalLocs = remainingCities.length === 0 ? [] : prunedLocs;
+    const prunedCount = draft.locations.length - finalLocs.length;
+    if (prunedCount === 1) {
+      const label = draft.locations.find((l) => l.scopeRootId === geoPlaceId)?.label ?? "A location";
+      setPruningNotice(`"${label}" was removed because its city or region is no longer selected.`);
+    } else if (prunedCount > 1) {
+      setPruningNotice(`${prunedCount} locations were removed because their city or region is no longer selected.`);
+    }
+
     setDraft((d) => {
-      const removed = d.cities.find((c) => c.geoPlaceId === geoPlaceId);
+      const removed2 = d.cities.find((c) => c.geoPlaceId === geoPlaceId);
       const cities = d.cities.filter((c) => c.geoPlaceId !== geoPlaceId);
-      let locations = removed ? pruneAreasForRemovedCity(removed, d.locations) : d.locations;
+      let locations = removed2 ? pruneAreasForRemovedCity(removed2, d.locations) : d.locations;
       if (cities.length === 0) locations = [];
       const activeRootId = cities.some((c) => c.geoPlaceId === d.activeRootId)
         ? d.activeRootId
@@ -313,7 +331,61 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                 <p className="pt-1 text-xs font-medium text-muted-foreground">Popular cities</p>
                 <div className="flex flex-wrap gap-2">
                   {POPULAR_CITIES.map((name) => {
-                    const selected = draft.cities.some((c) => c.label.toLowerCase() === name.toLowerCase());
+                    const avail = availability[name];
+                    const status = avail?.status ?? "loading";
+
+                    if (status === "loading") {
+                      return (
+                        <div
+                          key={name}
+                          aria-busy="true"
+                          aria-label={`Checking ${name}…`}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 text-sm font-medium text-muted-foreground"
+                        >
+                          {name}
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        </div>
+                      );
+                    }
+
+                    if (status === "unavailable") {
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          aria-disabled="true"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") e.preventDefault();
+                          }}
+                          className="inline-flex h-auto min-h-[36px] flex-col items-start rounded-lg border border-dashed border-border bg-background px-3.5 py-1.5 text-left cursor-not-allowed opacity-60"
+                        >
+                          <span className="text-sm font-medium leading-tight">{name}</span>
+                          <span className="text-xs text-muted-foreground leading-tight">Not available yet</span>
+                        </button>
+                      );
+                    }
+
+                    if (status === "error") {
+                      return (
+                        <Button
+                          key={name}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          aria-label={`Retry checking ${name}`}
+                          onClick={() => retryCity(name)}
+                          className="inline-flex h-auto min-h-[36px] flex-col items-start rounded-lg px-3.5 py-1.5 text-left"
+                        >
+                          <span className="text-sm font-medium leading-tight">{name}</span>
+                          <span className="text-xs text-muted-foreground leading-tight">Unable to check · Try again</span>
+                        </Button>
+                      );
+                    }
+
+                    // status === "available"
+                    const token = avail.token!;
+                    const selected = draft.cities.some((c) => c.geoPlaceId === token.geoPlaceId);
                     return (
                       <Button
                         key={name}
@@ -321,20 +393,31 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                         variant={selected ? "default" : "outline"}
                         size="sm"
                         aria-pressed={selected}
+                        disabled={selected}
                         className={cn("h-9 rounded-lg px-3.5 text-sm font-medium", selected && "bg-primary text-primary-foreground hover:bg-primary/90")}
-                        disabled={resolvingCity !== null}
-                        onClick={() => resolveAndAddCity(name, false)}
+                        onClick={() => { markCityTouched(); addCity(token); }}
                       >
-                        {resolvingCity === name ? "…" : name}
+                        {name}
                       </Button>
                     );
                   })}
                 </div>
+                {POPULAR_CITIES.some((n) => availability[n]?.status === "unavailable") && (
+                  <p className="text-xs text-muted-foreground">
+                    Cities marked "Not available yet" aren't currently available for direct selection in Reeve search.
+                  </p>
+                )}
               </section>
             </div>
 
             {/* Right column: Localities (scoped to the active root) */}
             <div className="space-y-5 min-w-0">
+              {pruningNotice && (
+                <p className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">
+                  <AlertTriangle className="h-3 w-3 shrink-0" />{pruningNotice}
+                </p>
+              )}
+
               {activeCity && (
                 <section className="space-y-2">
                   <p className="text-sm font-medium" data-testid="areas-header">

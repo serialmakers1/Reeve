@@ -53,6 +53,9 @@ export function DistanceControl({ className }: { className?: string }) {
           </button>
         ))}
       </div>
+      {!hasAnchor && (
+        <p className="px-1 text-xs text-muted-foreground">Select a locality to search by distance.</p>
+      )}
       {helper && <p className="px-1 text-xs text-muted-foreground">{helper}</p>}
     </div>
   );

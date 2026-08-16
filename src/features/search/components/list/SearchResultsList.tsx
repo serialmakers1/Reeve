@@ -32,6 +32,7 @@ interface SearchResultsListProps {
   isLoggedIn: boolean;
   onListingOpen?: (id: string, surface: "list" | "split") => void;
   nextPageHref?: string | null;
+  emptyLocationContext?: { singleCity?: string; hasLocations: boolean };
 }
 
 export function SearchResultsList({
@@ -58,6 +59,7 @@ export function SearchResultsList({
   onListingOpen,
   nextPageHref,
   areaFallback,
+  emptyLocationContext,
 }: SearchResultsListProps) {
   const { state, setContext } = useSearchState();
   const skeletonMode = state.context.mode;
@@ -134,13 +136,16 @@ export function SearchResultsList({
   }
 
   if (isEmpty && !areaFallback) {
+    const heading = emptyLocationContext?.singleCity
+      ? `No homes match your search in ${emptyLocationContext.singleCity}.`
+      : emptyLocationContext?.hasLocations
+        ? "No homes match your search in the selected locations."
+        : "No homes match your search.";
     return (
       <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
-        <p className="text-sm font-medium">No properties found</p>
+        <p className="text-sm font-medium">{heading}</p>
         <p className="text-xs text-muted-foreground">
-          {state.context.locations.length > 0
-            ? "Try removing some area filters or searching all of the city"
-            : "Try a different city, or adjust your search"}
+          Try adjusting your filters or searching a different area.
         </p>
         <button
           onClick={onOpenSetup}

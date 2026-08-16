@@ -94,6 +94,36 @@ export async function geoByIds(
 }
 
 /**
+ * Pure candidate-selection logic extracted from `resolveCanonicalCityByName`.
+ * Given a normalized search name and the rows returned by suggestGeo, returns
+ * the single safe CityToken to select, or null if the result is ambiguous.
+ * Selection order:
+ *   (a) unique exact normalized display_name match (prefer settlement);
+ *   (b) exactly one candidate total (alias support, e.g. "Bangalore" → "Bengaluru");
+ *   (c) null — ambiguous or no safe pick.
+ */
+export function selectCanonicalCityCandidate(
+  name: string,
+  rows: GeoSuggestRow[],
+): CityToken | null {
+  if (rows.length === 0) return null;
+  const q = norm(name.trim());
+  const exact = rows.filter((r) => norm(r.display_name) === q);
+  if (exact.length > 0) {
+    const settlement = exact.find((r) => r.kind === "settlement");
+    const uniqueExactIds = new Set(exact.map((r) => r.id));
+    if (uniqueExactIds.size === 1) return rowToCityToken(settlement ?? exact[0]);
+    if (settlement && exact.filter((r) => r.kind === "settlement").length === 1) {
+      return rowToCityToken(settlement);
+    }
+    return null;
+  }
+  const uniqueIds = new Set(rows.map((r) => r.id));
+  if (uniqueIds.size === 1) return rowToCityToken(rows[0]);
+  return null;
+}
+
+/**
  * Canonical city-name → root CityToken resolver (replaces the Google resolve).
  * Used by popular-cities clicks + IP prefill. Selection order (no arbitrary
  * contains-pick):
@@ -117,23 +147,5 @@ export async function resolveCanonicalCityByName(
   } catch {
     return null;
   }
-  if (rows.length === 0) return null;
-
-  const q = norm(trimmed);
-  const exact = rows.filter((r) => norm(r.display_name) === q);
-  if (exact.length > 0) {
-    const settlement = exact.find((r) => r.kind === "settlement");
-    // Unique exact match (a single distinct UUID, prefer settlement).
-    const uniqueExactIds = new Set(exact.map((r) => r.id));
-    if (uniqueExactIds.size === 1) return rowToCityToken(settlement ?? exact[0]);
-    if (settlement && exact.filter((r) => r.kind === "settlement").length === 1) {
-      return rowToCityToken(settlement);
-    }
-    return null;
-  }
-
-  // No exact match — accept only when the RPC gave exactly one candidate (alias).
-  const uniqueIds = new Set(rows.map((r) => r.id));
-  if (uniqueIds.size === 1) return rowToCityToken(rows[0]);
-  return null;
+  return selectCanonicalCityCandidate(trimmed, rows);
 }

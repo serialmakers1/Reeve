@@ -1,3 +1,22 @@
+## [2026-08-16] verify | Phase 5 P5 — Final integrated verification: CODEBASE GO [after P4]
+
+TypeScript: 0 Phase 5 errors (1 pre-existing noise in auto-generated `supabase/types.ts`). Build: `✓ built in 25.82s`, postbuild (7 SSG routes). `git diff --check`: 3 CRLF warnings only (non-functional worktree artifacts). Scope: no Map/Split imports, no hardcoded UUIDs, no Google Place identity in any Phase 5 file. Manual/live acceptance checklist handed off.
+
+## [2026-08-16] feat | Phase 5 P4 — Canonical Search Location UX feedback layer [17:07 IST]
+
+Frontend-only. 12 files modified/created. 451 tests passing.
+
+- **`usePopularCityAvailability` hook** (new): resolves POPULAR_CITIES on mount via `suggestGeo()` directly (not `resolveCanonicalCityByName`); `Promise.allSettled` for batch; `retryCity()` for per-city retry; status: loading/available/unavailable/error.
+- **`selectCanonicalCityCandidate`** extracted from `geoSuggestClient.ts` as named export; reused by both `resolveCanonicalCityByName` and the new hook.
+- **`SearchSetupPanel`**: Popular Cities rendered availability-aware (loading chip shows name + spinner; unavailable = dashed border + "Not available yet"; error = "Unable to check · Try again" + `retryCity`); pruning notice on `removeCity` with amber banner; `pruningNotice` cleared on re-open.
+- **`CitySearchInput`**: empty state "We don't have this location available in Reeve search yet." + error copy updated to "Couldn't load locations. Try again."
+- **`LocationSearchInput`**: root-change stale guard (`useEffect([root?.geoPlaceId])` increments genRef + resets all state); empty state with roads-aware copy; error copy updated.
+- **`DistanceControl`**: "Select a locality to search by distance." helper when `!hasAnchor`.
+- **`useCanonicalHydration`**: exposes `hydrationOutcome: HydrationOutcome` ("ok"/"partial"/"failed"/null); resets to null at start of each attempt; partial = sourceCities/Locations length mismatch.
+- **`useSearchResults`**: exposes `locationReady` + `hydrationOutcome` from hydration hook.
+- **`SearchBrowsePage`**: hydration banners (partial → amber; failed → neutral muted); client-side radius-reset notice (5s auto-dismiss) with `radiusBaselineReadyRef` tied to `search.locationReady`; `emptyLocationContext` passed to `SearchResultsList`.
+- **`SearchResultsList`**: location-aware zero-results heading (single city / multiple / none); sub-copy "Try adjusting your filters or searching a different area."
+
 ## [2026-08-16] fix | Prevented owner location replacement from retaining Admin-locked building evidence [20:44 IST]
 
 Edge function corrective patch. When `actor === "owner"`, `body.location_replaced === true`, and `prop.building_name_source === "admin"`, the DB RPC `apply_final_property_location` silently preserves the admin-locked building while the Edge returns fresh B-location building data — silent divergence. Fix: single `errResp("locked", 403)` guard inserted in `commit_pin` immediately after the Bug 2A check and before any resolver/DB write. Uses the existing `locked` error code already handled by the client (`LOCATION_ERROR_COPY.locked`). No migrations, no UI changes, no new error codes.

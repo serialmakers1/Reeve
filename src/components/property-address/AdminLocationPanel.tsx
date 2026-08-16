@@ -25,6 +25,7 @@ import {
   resolvePinPreview, commitPin, adminUpdateDiscovery, finalizeDiscovery, updateBuildingName,
   type PinEngineResult,
 } from "@/lib/location/confirmLocationClient";
+import { buildGoogleMapsLink } from "@/lib/googleMapsLink";
 
 interface AssocRow {
   geo_place_id: string;
@@ -45,6 +46,9 @@ interface PropRow {
   city: string | null; locality: string | null; route: string | null; street_address: string | null;
   location_confirmed_at: string | null; discovery_confirmed_at: string | null; discovery_finalized_at: string | null;
   streetview_available: boolean | null; streetview_pano_id: string | null;
+  owner_pin_adjusted_at: string | null;
+  owner_pin_adjustment_distance_m: number | null;
+  streetview_show_in_listing: boolean;
 }
 
 const FINAL_KINDS = ["search_region", "settlement", "locality", "road"];
@@ -87,7 +91,7 @@ export function AdminLocationPanel({ propertyId, token, onChanged }: { propertyI
     setLoading(true); setLoadError(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: p, error: pe } = await (supabase as any).from("properties")
-      .select("status,building_name,building_name_source,place_id,address_mode,formatted_address,latitude,longitude,country,state,district,pincode,city,locality,route,street_address,location_confirmed_at,discovery_confirmed_at,discovery_finalized_at,streetview_available,streetview_pano_id")
+      .select("status,building_name,building_name_source,place_id,address_mode,formatted_address,latitude,longitude,country,state,district,pincode,city,locality,route,street_address,location_confirmed_at,discovery_confirmed_at,discovery_finalized_at,streetview_available,streetview_pano_id,owner_pin_adjusted_at,owner_pin_adjustment_distance_m,streetview_show_in_listing")
       .eq("id", propertyId).maybeSingle();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: a, error: ae } = await (supabase as any).from("property_geo_associations")
@@ -148,24 +152,87 @@ export function AdminLocationPanel({ propertyId, token, onChanged }: { propertyI
             onSaved={async () => { setMode("view"); await refresh(); }} />
         ) : (
           <>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="overflow-hidden rounded-lg border">
-                <div className="h-[180px] w-full">
-                  {hasPin && <GoogleMap id="owner-pin-map" mapId={MAP_ID} defaultCenter={{ lat: prop.latitude as number, lng: prop.longitude as number }} defaultZoom={16} gestureHandling="greedy" clickableIcons={false}>
-                    <DraggablePin position={{ lat: prop.latitude as number, lng: prop.longitude as number }} draggable={false} />
-                  </GoogleMap>}
-                </div>
-                <p className="flex items-start gap-1.5 p-2 text-xs"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />{prop.formatted_address ?? "—"}</p>
-              </div>
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-                {([["Building", prop.building_name], ["Building source", prop.building_name_source ? SOURCE_LABEL[prop.building_name_source] ?? prop.building_name_source : null],
-                  ["Provider Place ID", prop.place_id], ["Address mode", prop.address_mode],
-                  ["Locality", prop.locality], ["City", prop.city], ["District", prop.district], ["State", prop.state], ["PIN", prop.pincode],
-                  ["Country", prop.country], ["Route", prop.route], ["Coordinates", hasPin ? `${prop.latitude}, ${prop.longitude}` : null],
-                  ["Street View", prop.streetview_available == null ? "Unknown" : prop.streetview_available ? "Available" : "None"]] as Array<[string, string | null]>)
-                  .filter(([, v]) => v).map(([k, v]) => (<div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="break-words">{v}</dd></div>))}
-              </dl>
+            {/* Compact factual review summary */}
+            <div className="space-y-1.5 rounded-md border bg-muted/20 px-3 py-2.5 text-sm">
+              {/* Pin confirmation row */}
+              {prop.location_confirmed_at ? (
+                <p className="flex items-center gap-1.5 text-green-700"><CheckCircle2 className="h-4 w-4 shrink-0" /> Exact pin confirmed · {new Date(prop.location_confirmed_at).toLocaleDateString("en-IN")}</p>
+              ) : hasPin ? (
+                <p className="flex items-center gap-1.5 text-muted-foreground">─ Coordinates available (not yet confirmed)</p>
+              ) : (
+                <p className="flex items-center gap-1.5 text-muted-foreground">─ Exact pin not set</p>
+              )}
+              {/* Provenance row — only when owner actually adjusted the pin */}
+              {prop.owner_pin_adjusted_at && (
+                <p className="flex items-center gap-1.5 text-amber-700">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  Owner adjusted the exact pin
+                  {prop.owner_pin_adjustment_distance_m != null && ` · ${Math.round(prop.owner_pin_adjustment_distance_m)} m`}
+                  {` · ${new Date(prop.owner_pin_adjusted_at).toLocaleDateString("en-IN")}`}
+                </p>
+              )}
+              {/* Building row */}
+              <p className="text-muted-foreground">
+                ─ Building: {prop.building_name ?? <em>Not set</em>}
+                {prop.building_name_source && ` · ${SOURCE_LABEL[prop.building_name_source] ?? prop.building_name_source}`}
+              </p>
+              {/* Discovery row */}
+              {prop.discovery_finalized_at ? (
+                <p className="flex items-center gap-1.5 text-green-700"><CheckCircle2 className="h-4 w-4 shrink-0" /> Discovery finalized</p>
+              ) : (
+                <p className="flex items-center gap-1.5 text-amber-700"><AlertTriangle className="h-4 w-4 shrink-0" /> Discovery needs finalization</p>
+              )}
+              {/* Street View row */}
+              {prop.streetview_available === true ? (
+                <p className="flex items-center gap-1.5 text-muted-foreground">
+                  ✓ Street View available
+                  {prop.streetview_show_in_listing && <span className="ml-1 rounded bg-green-100 px-1.5 py-0.5 text-[11px] font-medium text-green-800">Shown on listing</span>}
+                </p>
+              ) : prop.streetview_available === false ? (
+                <p className="text-muted-foreground">─ Street View not available</p>
+              ) : null}
             </div>
+
+            {/* Static location card — no live WebGL in view mode */}
+            {(() => {
+              const mapsUrl = hasPin
+                ? buildGoogleMapsLink({ latitude: prop.latitude, longitude: prop.longitude, formatted_address: prop.formatted_address })
+                : null;
+              return (
+                <div className="rounded-lg border bg-muted/30 p-4">
+                  <p className="flex items-start gap-1.5 text-sm font-medium">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    {prop.formatted_address || (hasPin ? `${prop.latitude}, ${prop.longitude}` : "No coordinates")}
+                  </p>
+                  {hasPin && (
+                    <p className="ml-5.5 mt-0.5 text-xs text-muted-foreground">
+                      {(prop.latitude as number).toFixed(6)}, {(prop.longitude as number).toFixed(6)}
+                    </p>
+                  )}
+                  {mapsUrl && (
+                    <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="ml-5.5 mt-2 inline-block text-xs text-primary">
+                      Open in Google Maps ↗
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
+
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+              {([["Building", prop.building_name], ["Building source", prop.building_name_source ? SOURCE_LABEL[prop.building_name_source] ?? prop.building_name_source : null],
+                ["Provider Place ID", prop.place_id], ["Address mode", prop.address_mode],
+                ["Locality", prop.locality], ["City", prop.city], ["District", prop.district], ["State", prop.state], ["PIN", prop.pincode],
+                ["Country", prop.country], ["Route", prop.route], ["Coordinates", hasPin ? `${prop.latitude}, ${prop.longitude}` : null],
+                ["Street View on listing",
+                  prop.streetview_available === true && prop.streetview_show_in_listing
+                    ? "Shown on listing"
+                    : prop.streetview_available === true
+                    ? "Available (not shown on listing)"
+                    : prop.streetview_available === false
+                    ? "Not available"
+                    : "Unknown"]] as Array<[string, string | null]>)
+                .filter(([, v]) => v).map(([k, v]) => (<div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="break-words">{v}</dd></div>))}
+            </dl>
             {/* Building-name-only correction — trusted updateBuildingName; leaves pin, associations & Street View untouched. */}
             {bnEditing ? (
               <div className="flex flex-wrap items-end gap-2">
@@ -250,14 +317,16 @@ function AdminPinEditor({ propertyId, token, start, existingPlaceId, existingBui
   const [q, setQ] = useState("");
   const [pin, setPin] = useState<LatLng | null>(start);
   const [seedKey, setSeedKey] = useState(0);
-  const [placeId, setPlaceId] = useState<string | null>(existingPlaceId); // seed existing so SAME/UNCERTAIN/CONFLICT is evaluable
+  const [placeId, setPlaceId] = useState<string | null>(existingPlaceId);
   const [preview, setPreview] = useState<PinEngineResult | null>(null);
   const [buildingName, setBuildingName] = useState(existingBuilding ?? "");
   const [edited, setEdited] = useState(false);
+  const [buildingReviewPending, setBuildingReviewPending] = useState(false);
   const [phase, setPhase] = useState<"pin" | "previewing" | "review" | "saving">("pin");
   const [err, setErr] = useState<string | null>(null);
 
   const onSelect = async (s: Suggestion) => {
+    if (phase !== "pin") return;
     setPredictions([]);
     try {
       const place = s.placePrediction.toPlace();
@@ -269,6 +338,11 @@ function AdminPinEditor({ propertyId, token, start, existingPlaceId, existingBui
 
   const runPreview = async () => {
     if (!token || !pin) return;
+    // Capture change flags BEFORE the async call — values must not drift mid-flight.
+    const pinChanged = !start || pin.lat !== start.lat || pin.lng !== start.lng;
+    const providerChanged = placeId !== existingPlaceId;
+    const locationReplaced = pinChanged && providerChanged;
+    const changedBeforePreview = pinChanged || providerChanged;
     setPhase("previewing"); setErr(null);
     const r = await resolvePinPreview(token, { propertyId, lat: pin.lat, lng: pin.lng, placeId });
     if (!r.ok) {
@@ -276,22 +350,26 @@ function AdminPinEditor({ propertyId, token, start, existingPlaceId, existingBui
       setErr(c === "outside_service_area" ? "Reeve currently supports properties in India." : c === "india_unresolved" ? "Move the pin onto the property (couldn't confirm India)." : "Couldn't verify this pin. Try again.");
       setPhase("pin"); return;
     }
-    setPreview(r); setBuildingName(r.building?.display_name ?? existingBuilding ?? ""); setEdited(false); setPhase("review");
+    // A→B building seed: never carry stale A-building into a true replacement.
+    if (locationReplaced) {
+      setBuildingName(r.building?.display_name ?? "");
+    } else {
+      setBuildingName(r.building?.display_name ?? existingBuilding ?? "");
+    }
+    setEdited(false);
+    if (changedBeforePreview) setBuildingReviewPending(true);
+    setPreview(r); setPhase("review");
   };
 
   const save = async () => {
     if (!token || !pin) return;
-    // Three-branch decision so a genuine geo/provider change re-resolves discovery, a building-name-only
-    // correction preserves associations, and a no-op writes nothing (never flips building source to admin).
     const pinChanged = !start || pin.lat !== start.lat || pin.lng !== start.lng;
     const providerChanged = placeId !== existingPlaceId;
-    // `edited` is true ONLY when the admin actually typed in the review input — runPreview() overwrites
-    // buildingName with the server preview name and sets edited=false, so a server-normalized name never
-    // counts as an admin edit (avoids stamping admin provenance on a no-op).
+    // `edited` is true ONLY when the admin actually typed in the review input.
     const buildingChanged = edited && buildingName.trim() !== (existingBuilding ?? "").trim();
     setErr(null);
     if (!pinChanged && !providerChanged) {
-      if (!buildingChanged) { onSaved(); return; } // nothing changed → no DB write
+      if (!buildingChanged) { onSaved(); return; }
       setPhase("saving");
       const br = await updateBuildingName(token, propertyId, buildingName.trim() || null);
       if (!br.ok) { setErr("Couldn't update the building name. Try again."); setPhase("review"); return; }
@@ -300,23 +378,36 @@ function AdminPinEditor({ propertyId, token, start, existingPlaceId, existingBui
     }
     setPhase("saving");
     const outcome = preview?.building?.outcome;
-    const buildingChoice = edited && buildingName.trim() ? "set" : (outcome === "CONFLICT" ? "set" : "keep");
-    // True A→B: pin moved to a genuinely new location AND provider changed → clear stale owner provenance.
     const locationReplaced = pinChanged && providerChanged;
+    const freshCredibleProviderSelected = providerChanged && !!placeId && preview?.building?.provider_place_id === placeId;
+    let buildingChoice: "keep" | "set" | "clear";
+    if (edited) {
+      buildingChoice = buildingName.trim() ? "set" : "clear";
+    } else if (freshCredibleProviderSelected || outcome === "CONFLICT") {
+      buildingChoice = "set";
+    } else {
+      buildingChoice = "keep";
+    }
     const r = await commitPin(token, { propertyId, lat: pin.lat, lng: pin.lng, placeId, buildingChoice, buildingName: buildingName.trim() || null, ...(locationReplaced ? { locationReplaced: true } : {}) });
     if (!r.ok) { setErr(r.error?.code === "outside_service_area" ? "Reeve currently supports properties in India." : "Couldn't save the location. Try again."); setPhase("review"); return; }
     onSaved();
   };
 
+  const inPin = phase === "pin";
+  const inReview = phase === "review" || phase === "saving";
+
   return (
     <div className="space-y-2 rounded-lg border p-3">
+      {/* Search input — enabled only in pin phase */}
       <div className="relative">
         <Label className="text-xs">Search a building/address (or drag the pin)</Label>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} className="min-h-[40px] pl-8" placeholder="Search…" onChange={(e) => { setQ(e.target.value); fetch(e.target.value); }} />
+          <Input value={q} className="min-h-[40px] pl-8" placeholder="Search…" disabled={!inPin}
+            onChange={(e) => { if (!inPin) return; setQ(e.target.value); fetch(e.target.value); }} />
         </div>
-        {predictions.length > 0 && (
+        {/* Suggestion list — only rendered in pin phase */}
+        {inPin && predictions.length > 0 && (
           <ul className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border bg-background shadow-md">
             {predictions.map((s: Suggestion) => (
               <li key={s.placePrediction.placeId} onClick={() => onSelect(s)} className="cursor-pointer px-3 py-2 text-sm hover:bg-muted">
@@ -329,25 +420,46 @@ function AdminPinEditor({ propertyId, token, start, existingPlaceId, existingBui
       {pin && (
         <div className="h-[220px] w-full overflow-hidden rounded-md border">
           <GoogleMap id="owner-pin-map" mapId={MAP_ID} defaultCenter={pin} defaultZoom={placeId ? 17 : 15} gestureHandling="greedy" clickableIcons={false}>
-            <DraggablePin position={pin} seedKey={seedKey} onMove={(p) => { setPin(p); setPreview(null); }} />
+            {/* Marker draggable only in pin phase */}
+            <DraggablePin position={pin} seedKey={seedKey} draggable={inPin}
+              onMove={inPin ? (p) => { setPin(p); setPreview(null); } : undefined} />
           </GoogleMap>
         </div>
       )}
-      {phase === "review" && preview && (
+      {inReview && preview && (
         <div className="space-y-1.5">
           <p className="text-sm">{preview.exact_location?.formatted_address}</p>
+          {/* Building review — require explicit "Keep this building" when pending */}
+          {buildingReviewPending && !edited && (
+            <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-2.5">
+              <span className="text-xs text-amber-800">Building at this location: <strong>{buildingName || "None detected"}</strong></span>
+              <Button type="button" size="sm" variant="outline" className="shrink-0"
+                onClick={() => setBuildingReviewPending(false)}>Keep this building</Button>
+            </div>
+          )}
           <div>
             <Label className="text-xs">Property / building name {preview.building?.source === "admin" ? "(admin-set)" : ""}</Label>
-            <Input value={buildingName} className="min-h-[40px]" onChange={(e) => { setBuildingName(e.target.value); setEdited(true); }} placeholder="Building / society name" />
+            <Input value={buildingName} className="min-h-[40px]" onChange={(e) => { setBuildingName(e.target.value); setEdited(true); setBuildingReviewPending(false); }} placeholder="Building / society name" />
           </div>
         </div>
       )}
       {err && <p className="text-sm text-destructive">{err}</p>}
       <div className="flex flex-wrap gap-2">
-        {(phase === "review" || phase === "saving") ? (
-          <Button type="button" size="sm" onClick={save} disabled={phase === "saving"}>{phase === "saving" ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> Saving…</> : "Save location"}</Button>
+        {inReview ? (
+          <>
+            <Button type="button" size="sm" onClick={save}
+              disabled={phase === "saving" || (buildingReviewPending && !edited)}>
+              {phase === "saving" ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> Saving…</> : "Save location"}
+            </Button>
+            <Button type="button" size="sm" variant="outline"
+              onClick={() => { setPreview(null); setBuildingReviewPending(false); setPhase("pin"); }}>
+              Move pin
+            </Button>
+          </>
         ) : (
-          <Button type="button" size="sm" onClick={runPreview} disabled={!pin || phase === "previewing"}>{phase === "previewing" ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> Checking…</> : "Use this pin"}</Button>
+          <Button type="button" size="sm" onClick={runPreview} disabled={!pin || phase === "previewing"}>
+            {phase === "previewing" ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> Checking…</> : "Use this pin"}
+          </Button>
         )}
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
       </div>
