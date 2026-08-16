@@ -100,6 +100,8 @@ export type SpecFieldOverrides = {
   showCounter?: boolean;
   /** Blur handler (text/textarea) — used for on-blur validation. */
   onBlur?: () => void;
+  /** Sets `id` on the underlying `<input>` element (text only) for focus targeting and aria-describedby. */
+  inputId?: string;
 };
 
 export type SpecFieldProps<T = unknown> = SpecFieldOverrides & {
@@ -196,6 +198,7 @@ export function SpecField<T = unknown>(props: SpecFieldProps<T>) {
     error,
     showCounter,
     onBlur,
+    inputId,
     readOnly,
     children,
     className,
@@ -291,17 +294,24 @@ export function SpecField<T = unknown>(props: SpecFieldProps<T>) {
       return (
         <Shell label={label} helper={helper} className={className}>
           <Input
+            id={inputId}
             value={(value as string | undefined) ?? ""}
             onChange={(e) => emit(e.target.value)}
             onBlur={onBlur}
             placeholder={placeholder}
             maxLength={effectiveMaxLength}
-            className="min-h-[44px]"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error && inputId ? `${inputId}-error` : undefined}
+            className={cn("min-h-[44px]", error && "border-destructive focus-visible:ring-destructive/30")}
           />
           {showCounter && effectiveMaxLength != null && (
             <p className="text-xs text-muted-foreground text-right">{len} / {effectiveMaxLength}</p>
           )}
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p id={inputId ? `${inputId}-error` : undefined} className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
           {children}
         </Shell>
       );
