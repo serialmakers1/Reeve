@@ -5,6 +5,7 @@ import { formatCitiesLabel } from "@/features/search/state/searchStateUtils";
 import { countActiveFilters } from "@/features/search/state/filterUtils";
 import { SortControl } from "../SortControl";
 import { RentBuySelector } from "../RentBuySelector";
+import { DistanceControl } from "../DistanceControl";
 import { quickFilterLabel } from "@/features/search/state/filterSummary";
 import type { RentFilters, BuyFilters } from "@/features/search/domain/searchTypes";
 
@@ -102,6 +103,9 @@ export function DesktopSearchToolbar({
         <SlidersHorizontal className="mr-1.5 h-3 w-3" />
         Filters{totalActive > 0 ? ` (${totalActive})` : ""}
       </button>
+
+      {/* Distance radius — disabled until a locality is selected */}
+      <DistanceControl className="shrink-0" />
 
       <div className="flex-1" />
 

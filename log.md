@@ -1,3 +1,10 @@
+## [2026-08-16] fix | Fixed desktop Radius rendering and unsupported-locality Radius fallback [19:46 IST]
+
+Frontend-only bug fixes. 3 files modified. 24 tests passing (7 new + 1 updated).
+
+- **Bug 1 — Desktop Radius missing**: `DistanceControl` was only rendered inside `SearchControlRow` (mobile, `desk:hidden`). Added `import + render` to `DesktopSearchToolbar.tsx` between "All Filters" and the spacer/Sort section.
+- **Bug 2 — `locality_no_representative_point` generic error**: `isRadiusFailure()` only extracted `.message` from `Error` instances and strings, missing plain `PostgrestError` objects (`{ message, code }`). Fixed via `extractErrMsg()` helper. Added `retry` predicate to `useQuery` (no retries for radius errors). `locality_no_representative_point` now gets a 5-second timer-owned notice ("Distance reset to Auto because radius search isn't available for this locality."); `radiusResetRef.current.clear()` on `distanceKm=null` allows re-recovery on a later km selection; `noticeDismissRef` guards the success-clear effect from racing the timer.
+
 ## [2026-08-16] verify | Phase 5 P5 — Final integrated verification: CODEBASE GO [after P4]
 
 TypeScript: 0 Phase 5 errors (1 pre-existing noise in auto-generated `supabase/types.ts`). Build: `✓ built in 25.82s`, postbuild (7 SSG routes). `git diff --check`: 3 CRLF warnings only (non-functional worktree artifacts). Scope: no Map/Split imports, no hardcoded UUIDs, no Google Place identity in any Phase 5 file. Manual/live acceptance checklist handed off.
