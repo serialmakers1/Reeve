@@ -19,9 +19,22 @@ import { useCanonicalHydration } from "./useCanonicalHydration";
 const RADIUS_FAILURE_RE =
   /locality_no_representative_point|radius_requires_locality|invalid_radius/;
 
+function extractErrMsg(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  if (err != null && typeof (err as Record<string, unknown>).message === "string")
+    return (err as { message: string }).message;
+  return "";
+}
+
 export function isRadiusFailure(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : typeof err === "string" ? err : "";
-  return RADIUS_FAILURE_RE.test(msg);
+  return RADIUS_FAILURE_RE.test(extractErrMsg(err));
+}
+
+// Narrow discriminator — only the live "no representative point" case gets the
+// 5-second timer lifecycle; other radius failures use the clear-on-success path.
+function isLocalityNoRepPoint(err: unknown): boolean {
+  return extractErrMsg(err).includes("locality_no_representative_point");
 }
 
 // ─── Pure utility: merge two pages by ID, preserving server order ─────────────
@@ -138,6 +151,9 @@ export function useSearchResults(): UseSearchResultsReturn {
     enabled: hasValidContext && input !== null && locationGateOpen,
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
+    // Never retry deterministic Radius eligibility errors (400s that will not resolve
+    // without a state change). Preserve the app-global retry policy (1) for all others.
+    retry: (failureCount, error) => !isRadiusFailure(error) && failureCount < 1,
     queryFn: async (): Promise<SearchPropertiesResult> => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const page = await searchProperties(input!, supabase as any);
@@ -213,21 +229,55 @@ export function useSearchResults(): UseSearchResultsReturn {
   // Reset Distance to Auto ONCE (guarded per searchKey so it can't loop) and show a
   // single notice; never remove the locality itself.
   const radiusResetRef = useRef<Set<string>>(new Set());
+  // Timer ref for the 5-second locality_no_representative_point notice.
+  // When non-null, the timer owns the notice and success-clear must not fire.
+  const noticeDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (noticeDismissRef.current) clearTimeout(noticeDismissRef.current); }, []);
+
   useEffect(() => {
     if (isRadiusFailure(query.error) && state.distanceKm !== null) {
       if (!radiusResetRef.current.has(searchKey)) {
         radiusResetRef.current.add(searchKey);
-        setDistanceNotice(
-          "Distance search isn't available for one of these localities yet — showing exact-location matches instead.",
-        );
         setDistanceKm(null);
+        if (isLocalityNoRepPoint(query.error)) {
+          // 5-second timer-owned notice; do NOT rely on the success-clear effect.
+          if (noticeDismissRef.current) clearTimeout(noticeDismissRef.current);
+          setDistanceNotice(
+            "Distance reset to Auto because radius search isn't available for this locality.",
+          );
+          noticeDismissRef.current = setTimeout(() => {
+            setDistanceNotice(null);
+            noticeDismissRef.current = null;
+          }, 5000);
+        } else {
+          // Other radius failures (radius_requires_locality, invalid_radius): return
+          // notice ownership to the success-clear effect below.
+          if (noticeDismissRef.current) {
+            clearTimeout(noticeDismissRef.current);
+            noticeDismissRef.current = null;
+          }
+          setDistanceNotice(
+            "Distance search isn't available for one of these localities yet — showing exact-location matches instead.",
+          );
+        }
       }
     }
   }, [query.error, state.distanceKm, searchKey, setDistanceKm]);
 
-  // Clear the notice once a search without a distance failure succeeds.
+  // Clear radiusResetRef when distanceKm returns to null so a later user-initiated
+  // km selection for the same locality can be handled again (not silently skipped).
   useEffect(() => {
-    if (query.isSuccess && distanceNotice) setDistanceNotice(null);
+    if (state.distanceKm === null) {
+      radiusResetRef.current.clear();
+    }
+  }, [state.distanceKm]);
+
+  // Clear the notice once a search without a distance failure succeeds — only when
+  // no timer currently owns the notice (locality_no_representative_point path).
+  useEffect(() => {
+    if (query.isSuccess && distanceNotice && noticeDismissRef.current === null) {
+      setDistanceNotice(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.isSuccess, searchKey]);
 
