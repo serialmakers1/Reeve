@@ -139,7 +139,12 @@ export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
       </div>
 
       {error && (
-        <p className="text-xs text-destructive">Location search is temporarily unavailable.</p>
+        <p className="text-xs text-destructive">Couldn't load locations. Try again.</p>
+      )}
+      {!error && inputText.trim() && !isLoading && suggestions.length === 0 && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          We don't have this location available in Reeve search yet.
+        </p>
       )}
     </div>
   );

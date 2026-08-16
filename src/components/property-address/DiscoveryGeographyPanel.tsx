@@ -27,9 +27,12 @@ interface Props {
   missingRoot: boolean;
   ambiguousRoot?: boolean;
   rejected?: Array<{ place_id: string; reason: string }>;
-  /** "Something is missing" trigger element. */
+  /** "+ Add another nearby area or road" trigger element. */
   children?: ReactNode;
   disabled?: boolean;
+  /** When true, suppress the internal heading ("Places people can use to find this property").
+   *  Use when the parent renders its own numbered section heading. */
+  hideHeading?: boolean;
 }
 
 const KIND_LABEL: Record<string, string> = { settlement: "Town / City", locality: "Locality", road: "Road" };
@@ -46,14 +49,16 @@ const REJECT_COPY: Record<string, string> = {
 
 export function DiscoveryGeographyPanel({
   rootName, items, deselected, onToggleSystem, onRemoveOwner,
-  missingRoot, ambiguousRoot, rejected, children, disabled,
+  missingRoot, ambiguousRoot, rejected, children, disabled, hideHeading,
 }: Props) {
   return (
     <div className="space-y-2.5">
-      <div>
-        <p className="text-sm font-medium">Places people can use to find this property</p>
-        <p className="text-xs text-muted-foreground">Reeve uses these locations to help people find your property.</p>
-      </div>
+      {!hideHeading && (
+        <div>
+          <p className="text-sm font-medium">Places people can use to find this property</p>
+          <p className="text-xs text-muted-foreground">Reeve uses these locations to help people find your property.</p>
+        </div>
+      )}
 
       {ambiguousRoot ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
@@ -61,7 +66,7 @@ export function DiscoveryGeographyPanel({
         </div>
       ) : missingRoot ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
-          We couldn't identify the town or city for this pin. Use “Something is missing” to add the nearest village, town or city.
+          We couldn't identify the town or city for this pin. Use “+ Add another nearby area or road” to add the nearest village, town or city.
         </div>
       ) : rootName ? (
         <div className="flex items-center gap-1.5 rounded-md bg-primary/5 px-2.5 py-1.5">

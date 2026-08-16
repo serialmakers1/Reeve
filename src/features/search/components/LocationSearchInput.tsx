@@ -40,6 +40,9 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
 
   const atMax = selected.length >= MAX_SELECTED_LOCATIONS;
   const disabled = !root;
+  const roadsWereSearched =
+    root?.kind === "search_region" ||
+    (root?.kind === "settlement" && !!root.searchRegionId);
 
   useEffect(() => setActiveIndex(-1), [suggestions]);
   useEffect(() => {
@@ -54,6 +57,23 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
     },
     [],
   );
+
+  // Root-change stale guard: when the active root switches, cancel any in-flight
+  // debounce and invalidate any running request so old-root results never appear.
+  useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    genRef.current++;
+    setInputText("");
+    setSuggestions([]);
+    setIsLoading(false);
+    setError(false);
+    setOpen(false);
+    setActiveIndex(-1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [root?.geoPlaceId]);
 
   const runSearch = useCallback(
     (val: string) => {
@@ -238,7 +258,14 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
         <p className="text-xs text-muted-foreground">Select a city first to search localities.</p>
       )}
       {error && !disabled && (
-        <p className="text-xs text-destructive">Location search is temporarily unavailable.</p>
+        <p className="text-xs text-destructive">Couldn't load locations. Try again.</p>
+      )}
+      {root && !atMax && !isLoading && !error && inputText.trim() && suggestions.length === 0 && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {roadsWereSearched
+            ? `No matching localities or roads in ${root.label}.`
+            : `No matching localities in ${root.label}.`}
+        </p>
       )}
     </div>
   );

@@ -42,6 +42,51 @@ export default function SearchBrowsePage() {
   // needs_setup. Closing it must not reopen on every render, so guard with a ref
   // that only resets for a genuinely new empty bootstrap (status back to checking).
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+
+  // ── Hydration outcome banners ────────────────────────────────────────────────
+  const [hydrationBanner, setHydrationBanner] = useState<"partial" | "failed" | null>(null);
+  useEffect(() => {
+    if (search.hydrationOutcome === "partial") {
+      setHydrationBanner("partial");
+    } else if (search.hydrationOutcome === "failed") {
+      setHydrationBanner("failed");
+    } else {
+      setHydrationBanner(null);
+    }
+  }, [search.hydrationOutcome]);
+
+  // ── Client-side distance-reset notice ───────────────────────────────────────
+  // Fires only when the user explicitly removes the last locality (not during hydration).
+  const [clientRadiusResetNotice, setClientRadiusResetNotice] = useState(false);
+  const radiusBaselineReadyRef = useRef(search.locationReady);
+  const prevDistanceRef = useRef<number | null>(state.distanceKm);
+  const prevHadLocalityRef = useRef(state.context.locations.some((l) => l.kind === "locality"));
+
+  useEffect(() => {
+    const hasLocality = state.context.locations.some((l) => l.kind === "locality");
+
+    if (!search.locationReady || !radiusBaselineReadyRef.current) {
+      prevDistanceRef.current = state.distanceKm;
+      prevHadLocalityRef.current = hasLocality;
+      if (search.locationReady) radiusBaselineReadyRef.current = true;
+      return;
+    }
+
+    const prevDistance = prevDistanceRef.current;
+    const prevHadLocality = prevHadLocalityRef.current;
+    prevDistanceRef.current = state.distanceKm;
+    prevHadLocalityRef.current = hasLocality;
+
+    if (prevDistance !== null && state.distanceKm === null && prevHadLocality && !hasLocality) {
+      setClientRadiusResetNotice(true);
+    }
+  }, [search.locationReady, state.distanceKm, state.context.locations]);
+
+  useEffect(() => {
+    if (!clientRadiusResetNotice) return;
+    const id = window.setTimeout(() => setClientRadiusResetNotice(false), 5000);
+    return () => window.clearTimeout(id);
+  }, [clientRadiusResetNotice]);
   const autoOpenedRef = useRef(false);
   useEffect(() => {
     if (bootstrap.status === "checking") {
@@ -250,10 +295,31 @@ export default function SearchBrowsePage() {
         </div>
       )}
 
+      {/* Hydration outcome banners */}
+      {hydrationBanner === "partial" && (
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 lg:px-6">
+          <span>Saved locations that are no longer available were removed.</span>
+          <button type="button" onClick={() => setHydrationBanner(null)} aria-label="Dismiss" className="shrink-0 text-amber-600 hover:text-amber-800">✕</button>
+        </div>
+      )}
+      {hydrationBanner === "failed" && (
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 rounded-md border border-border bg-muted/50 px-4 py-2 text-sm text-muted-foreground lg:px-6">
+          <span>We couldn't restore your saved locations. Search is continuing without location filters.</span>
+          <button type="button" onClick={() => setHydrationBanner(null)} aria-label="Dismiss" className="shrink-0 hover:text-foreground">✕</button>
+        </div>
+      )}
+
       {/* Distance auto-reset notice — a selected locality isn't radius-eligible yet */}
       {search.distanceNotice && (
         <div className="mx-auto max-w-6xl px-4 py-2 text-sm text-muted-foreground lg:px-6">
           {search.distanceNotice}
+        </div>
+      )}
+
+      {/* Client-side distance reset — user removed last locality */}
+      {clientRadiusResetNotice && (
+        <div className="mx-auto max-w-6xl px-4 py-2 text-sm text-muted-foreground lg:px-6">
+          Distance reset to Auto because radius search needs a locality.
         </div>
       )}
 
@@ -278,6 +344,13 @@ export default function SearchBrowsePage() {
               isLoggedIn={isLoggedIn}
               onListingOpen={handleListingOpen}
               nextPageHref={nextPageHref}
+              emptyLocationContext={(() => {
+                const cs = state.context.cities;
+                const ls = state.context.locations;
+                if (cs.length === 1 && ls.length === 0) return { singleCity: cs[0].label, hasLocations: false };
+                if (cs.length > 0 || ls.length > 0) return { hasLocations: true };
+                return { hasLocations: false };
+              })()}
             />
           </div>
         </div>

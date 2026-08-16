@@ -4,6 +4,8 @@ import { geoByIds, rowToCityToken, rowToLocationToken, type GeoSuggestRow } from
 import { useSearchState } from "./useSearchState";
 import type { CityToken, LocationToken, SearchContext } from "../domain/searchTypes";
 
+export type HydrationOutcome = "ok" | "partial" | "failed" | null;
+
 /**
  * Deterministic signature of the geographic selection: ordered roots + ordered
  * details-with-scope. Ordered (not sorted) so a reorder also counts as a change.
@@ -38,8 +40,14 @@ function geoSignature(context: SearchContext): string {
  * the success or failure result. If the user changed City/Locality mid-flight, the late
  * response is discarded (no `replaceSearchSetup`) so it can never overwrite or clear the
  * newer, already-authoritative selection — the gate simply opens on the newer state.
+ *
+ * `hydrationOutcome` reflects the result of the most recent hydration attempt:
+ *   null    = no geo IDs in URL (not needed) OR a new attempt is in progress
+ *   "ok"    = all IDs resolved, nothing dropped
+ *   "partial" = some IDs resolved, some dropped
+ *   "failed" = RPC error, entire selection was cleared
  */
-export function useCanonicalHydration(): { locationReady: boolean } {
+export function useCanonicalHydration(): { locationReady: boolean; hydrationOutcome: HydrationOutcome } {
   const { state, replaceSearchSetup } = useSearchState();
   const { cities, locations } = state.context;
 
@@ -49,6 +57,7 @@ export function useCanonicalHydration(): { locationReady: boolean } {
   const doneRef = useRef(false);
   const runningRef = useRef(false);
   const [ready, setReady] = useState(!needsHydration);
+  const [hydrationOutcome, setHydrationOutcome] = useState<HydrationOutcome>(null);
 
   // Live refs so the one-shot effect never needs changing deps.
   const stateRef = useRef(state);
@@ -69,9 +78,13 @@ export function useCanonicalHydration(): { locationReady: boolean } {
     }
 
     runningRef.current = true;
+    // Reset outcome so null → partial/failed transition fires correctly for each attempt.
+    setHydrationOutcome(null);
     let cancelled = false;
-    // Snapshot the geographic signature this request is for (same `s` as `ids`).
+    // Snapshot the geographic signature + source lists this request is for.
     const startedSig = geoSignature(s.context);
+    const sourceCities = s.context.cities;
+    const sourceLocations = s.context.locations;
 
     (async () => {
       let rows: GeoSuggestRow[] = [];
@@ -88,6 +101,7 @@ export function useCanonicalHydration(): { locationReady: boolean } {
       // Newer user selection landed mid-flight → this response is stale. Discard it
       // (apply nothing) and open the gate on the newer, already-authoritative state.
       if (geoSignature(cur.context) !== startedSig) {
+        setHydrationOutcome(null);
         doneRef.current = true;
         runningRef.current = false;
         setReady(true);
@@ -103,6 +117,7 @@ export function useCanonicalHydration(): { locationReady: boolean } {
           locations: [],
           propertyTypes: cur.context.propertyTypes,
         });
+        setHydrationOutcome("failed");
         doneRef.current = true;
         runningRef.current = false;
         setReady(true);
@@ -113,7 +128,7 @@ export function useCanonicalHydration(): { locationReady: boolean } {
 
       // Roots: preserve order; keep only rows that resolve to a valid root kind.
       const nextCities: CityToken[] = [];
-      for (const c of cur.context.cities) {
+      for (const c of sourceCities) {
         const row = byId.get(c.geoPlaceId);
         const token = row ? rowToCityToken(row) : null;
         if (token) nextCities.push(token);
@@ -123,13 +138,15 @@ export function useCanonicalHydration(): { locationReady: boolean } {
       // Details: keep only rows that resolve to a valid detail kind AND whose owning
       // root survived. scopeRootId is taken from the snapshot (it references a root).
       const nextLocations: LocationToken[] = [];
-      for (const l of cur.context.locations) {
+      for (const l of sourceLocations) {
         const row = byId.get(l.geoPlaceId);
         if (!row || !survivingRoots.has(l.scopeRootId)) continue;
         const token = rowToLocationToken(row, l.scopeRootId);
         if (token) nextLocations.push(token);
       }
 
+      // Non-location fields come from the current live state (not the snapshot),
+      // so any filter change made while hydration was running is preserved.
       replaceRef.current({
         mode: cur.context.mode ?? "rent",
         city: nextCities[0]?.label.toLowerCase() ?? null,
@@ -137,6 +154,11 @@ export function useCanonicalHydration(): { locationReady: boolean } {
         locations: nextLocations,
         propertyTypes: cur.context.propertyTypes,
       });
+
+      const partial =
+        nextCities.length !== sourceCities.length ||
+        nextLocations.length !== sourceLocations.length;
+      setHydrationOutcome(partial ? "partial" : "ok");
       doneRef.current = true;
       runningRef.current = false;
       setReady(true);
@@ -147,5 +169,5 @@ export function useCanonicalHydration(): { locationReady: boolean } {
     };
   }, []);
 
-  return { locationReady: ready };
+  return { locationReady: ready, hydrationOutcome };
 }

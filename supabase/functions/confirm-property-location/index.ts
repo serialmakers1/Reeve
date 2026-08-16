@@ -619,11 +619,6 @@ Deno.serve(async (req: Request) => {
         body.building_name as (string | null | undefined), actor,
       );
 
-      // Bug 2B: clear stale place_id on intentional manual path or confirmed conflict.
-      if (placeId === null || building.outcome === "CONFLICT") {
-        bi = { ...bi, place_id: null };
-      }
-
       // Location replacement: rebuild building from null-existing so no A-location evidence survives.
       // No admin exemption — after a physical location change, all prior building evidence is invalid.
       const locationReplaced = body.location_replaced === true;
@@ -635,6 +630,12 @@ Deno.serve(async (req: Request) => {
           body.building_name as (string | null | undefined),
           actor,
         );
+      }
+
+      // Bug 2B: clear stale place_id on intentional manual path or confirmed conflict.
+      // Must run LAST — after both the initial and replacement recomputations.
+      if (placeId === null || building.outcome === "CONFLICT") {
+        bi = { ...bi, place_id: null };
       }
 
       // Invariant C: owner pin-adjustment provenance. Two independent signals:

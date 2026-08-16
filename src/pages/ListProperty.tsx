@@ -77,6 +77,7 @@ type LocationReadiness = {
   kind: 'final' | 'legacy' | 'none';
   discoveryConfirmed: boolean;
   buildingSource: BuildingSource;
+  needsDiscoveryRoot: boolean;
 };
 
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
@@ -581,7 +582,7 @@ export default function ListProperty() {
   // Prompt 2: true while a location replacement is being searched/reviewed but not yet
   // re-confirmed. Blocks Submit so an unconfirmed candidate can never be submitted.
   const [locationDirty, setLocationDirty] = useState(false);
-  const [locationState, setLocationState] = useState<LocationReadiness>({ status: 'loading', kind: 'none', discoveryConfirmed: false, buildingSource: null });
+  const [locationState, setLocationState] = useState<LocationReadiness>({ status: 'loading', kind: 'none', discoveryConfirmed: false, buildingSource: null, needsDiscoveryRoot: false });
   const draftCheckedRef = useRef(false);
   // Live mirror of `form` so async blur-validation can compare against the current
   // value (a closed-over `form` would be stale and defeat the stale-response guard).
@@ -709,7 +710,7 @@ export default function ListProperty() {
   // ─── Location readiness (FINAL/LEGACY classification, mirrors M1) ─────────
   // Source of truth for section-1 completeness + OwnerLocationPin hydration. Reads the association
   // shape so a legacy draft is never mistaken for a final-committed-not-confirmed one.
-  const loadLocationReadiness = useCallback(async (pid: string, buildingNameSource: unknown, discoveryConfirmedAt: unknown) => {
+  const loadLocationReadiness = useCallback(async (pid: string, buildingNameSource: unknown, discoveryConfirmedAt: unknown, locationConfirmedAt: unknown) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: assoc, error } = await (supabase as any)
       .from("property_geo_associations")
@@ -720,13 +721,18 @@ export default function ListProperty() {
     const finalPrimaries = rows.filter((r) => r.relationship == null && r.is_primary === true && ["settlement", "search_region"].includes(r.geo_places?.kind ?? ""));
     const legacyPrimaries = rows.filter((r) => r.relationship === "primary_city");
     const kind: LocationReadiness["kind"] = finalPrimaries.length === 1 ? "final" : legacyPrimaries.length === 1 ? "legacy" : "none";
-    setLocationState({ status: "ready", kind, discoveryConfirmed: !!discoveryConfirmedAt, buildingSource: (buildingNameSource as BuildingSource) ?? null });
+    // Exact location is confirmed in DB but no canonical root settlement exists.
+    const needsDiscoveryRoot =
+      locationConfirmedAt != null &&
+      finalPrimaries.length === 0 &&
+      legacyPrimaries.length === 0;
+    setLocationState({ status: "ready", kind, discoveryConfirmed: !!discoveryConfirmedAt, buildingSource: (buildingNameSource as BuildingSource) ?? null, needsDiscoveryRoot });
   }, []);
 
   // Fresh create with nothing persisted yet → ready/none immediately (no async classification needed).
   useEffect(() => {
     if (!isEditMode && !draftIdFromQuery && !propertyId) {
-      setLocationState({ status: "ready", kind: "none", discoveryConfirmed: false, buildingSource: null });
+      setLocationState({ status: "ready", kind: "none", discoveryConfirmed: false, buildingSource: null, needsDiscoveryRoot: false });
     }
   }, [isEditMode, draftIdFromQuery, propertyId]);
 
@@ -814,7 +820,7 @@ export default function ListProperty() {
       // Merge only proposed SCALARS for display (live values otherwise).
       const merged = pending ? { ...prop, ...proposedScalars } : prop;
       prefillFormFromRow(merged, setForm);
-      void loadLocationReadiness(prop.id, prop.building_name_source, prop.discovery_confirmed_at);
+      void loadLocationReadiness(prop.id, prop.building_name_source, prop.discovery_confirmed_at, prop.location_confirmed_at);
       // Surface pending custom additions in the editors (display only).
       if (addAmenities.length || addFurnishing.length) {
         setForm((f) => ({
@@ -857,7 +863,7 @@ export default function ListProperty() {
         .maybeSingle();
       if (!data) return;
       prefillFormFromRow(data as Record<string, unknown>, setForm);
-      void loadLocationReadiness(data.id, data.building_name_source, data.discovery_confirmed_at);
+      void loadLocationReadiness(data.id, data.building_name_source, data.discovery_confirmed_at, data.location_confirmed_at);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, isEditMode]);
@@ -1080,23 +1086,55 @@ export default function ListProperty() {
   // Function. The client no longer autosaves location. This callback fires AFTER a
   // successful atomic server confirm — it updates local form state for display + section /
   // submit gating (the DB is already the source of truth).
-  const handleLocationConfirmed = useCallback((s: ConfirmedLocationSummary) => {
-    setForm((prev) => ({
-      ...prev,
+  // Called immediately after commit_pin succeeds (before confirmDiscovery). Updates local form state
+  // from the trusted commit summary. Do NOT write to DB — the Edge already persisted those columns.
+  const handleLocationPersisted = useCallback((
+    s: ConfirmedLocationSummary,
+    { needsDiscoveryRoot }: { needsDiscoveryRoot: boolean },
+  ) => {
+    const ff = s.freshFactual ?? {};
+    setForm((f) => ({
+      ...f,
       place_id: s.place_id,
       formatted_address: s.formatted_address ?? '',
-      city: s.city ?? '',
-      locality: s.locality ?? '',
       building_name: s.building_name ?? '',
       latitude: s.latitude,
       longitude: s.longitude,
-      // A confirmed pin with a Google building place_id is 'google_place'; a manual/rural pin is 'manual'.
+      // Factual address fields — sourced from Edge-persisted factual payload
+      city: (ff.city ?? '') as string,
+      locality: (ff.locality ?? '') as string,
+      state: (ff.state ?? '') as string,
+      pincode: (ff.pincode ?? '') as string,
+      country: (ff.country ?? null) as string | null,
+      district: (ff.district ?? null) as string | null,
+      sublocality_1: (ff.sublocality_1 ?? null) as string | null,
+      sublocality_2: (ff.sublocality_2 ?? null) as string | null,
+      neighborhood: (ff.neighborhood ?? null) as string | null,
+      route: (ff.route ?? null) as string | null,
+      street_number: (ff.street_number ?? null) as string | null,
+      street_address: (ff.street_address ?? '') as string,
+      plus_code: (ff.plus_code ?? null) as string | null,
       address_mode: s.place_id ? 'google_place' : 'manual',
-      location_verified_by_owner: s.verified,
+      location_verified_by_owner: true,
+      ...(s.freshStreetViewAvailable !== undefined
+        ? { streetview_available: s.freshStreetViewAvailable }
+        : {}),
     }));
-    // onConfirmed fires only after commit + discovery confirm both succeed → final + confirmed.
-    setLocationState({ status: 'ready', kind: 'final', discoveryConfirmed: true, buildingSource: s.building_source });
+    setLocationState((prev) => ({
+      ...prev,
+      status: 'ready',
+      kind: needsDiscoveryRoot ? 'none' : 'final',
+      discoveryConfirmed: false,
+      buildingSource: s.building_source,
+      needsDiscoveryRoot,
+    }));
   }, [setForm]);
+
+  // Called only when confirmDiscovery also succeeded (fully confirmed). At this point
+  // handleLocationPersisted has already updated the form fields — only update locationState.
+  const handleLocationConfirmed = useCallback((s: ConfirmedLocationSummary) => {
+    setLocationState({ status: 'ready', kind: 'final', discoveryConfirmed: true, buildingSource: s.building_source, needsDiscoveryRoot: false });
+  }, []);
 
   // Ensure a minimal locationless draft exists (single draft creator) so the trusted
   // location flow + photo uploads have a property_id. building_name is nullable (Prompt 2).
@@ -1909,6 +1947,11 @@ export default function ListProperty() {
                   hydrating={locationState.status !== 'ready'}
                   onConfirmed={handleLocationConfirmed}
                   onDirtyChange={setLocationDirty}
+                  streetViewAvailable={form.streetview_available}
+                  streetViewShowInListing={!!form.streetview_show_in_listing}
+                  onStreetViewToggle={(v) => updateField("streetview_show_in_listing", v)}
+                  needsDiscoveryRoot={locationState.needsDiscoveryRoot}
+                  onPersisted={handleLocationPersisted}
                 />
               ) : (
                 <div className="space-y-1">

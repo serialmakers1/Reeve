@@ -96,6 +96,44 @@ describe("useCanonicalHydration — stale-guard against a newer user selection",
       // The stale response is discarded: no replace, and the gate opens on B.
       await waitFor(() => expect(result.current.locationReady).toBe(true));
       expect(replaceSearchSetup).not.toHaveBeenCalled();
+      // hydrationOutcome must be null — the stale response was discarded
+      expect(result.current.hydrationOutcome).toBe(null);
     },
   );
+});
+
+describe("useCanonicalHydration — hydrationOutcome", () => {
+  it("returns ok when all IDs resolve successfully", async () => {
+    vi.mocked(geoByIds).mockResolvedValue(rowsForA);
+
+    mockStateReturn(stateWith([root(RA, "CityA")], [detail(DA, RA, "LocA")]));
+    const { result } = renderHook(() => useCanonicalHydration());
+
+    await waitFor(() => expect(result.current.locationReady).toBe(true));
+    expect(result.current.hydrationOutcome).toBe("ok");
+  });
+
+  it("returns partial when some IDs resolve and some are dropped", async () => {
+    // Only root resolves — locality is missing from the response
+    vi.mocked(geoByIds).mockResolvedValue([rowsForA[0]]); // only RA, not DA
+
+    mockStateReturn(stateWith([root(RA, "CityA")], [detail(DA, RA, "LocA")]));
+    const { result } = renderHook(() => useCanonicalHydration());
+
+    await waitFor(() => expect(result.current.locationReady).toBe(true));
+    expect(result.current.hydrationOutcome).toBe("partial");
+  });
+
+  it("returns failed when geoByIds throws", async () => {
+    vi.mocked(geoByIds).mockRejectedValue(new Error("network"));
+
+    mockStateReturn(stateWith([root(RA, "CityA")], []));
+    const { result } = renderHook(() => useCanonicalHydration());
+
+    await waitFor(() => expect(result.current.locationReady).toBe(true));
+    expect(result.current.hydrationOutcome).toBe("failed");
+    expect(replaceSearchSetup).toHaveBeenCalledWith(
+      expect.objectContaining({ cities: [], locations: [] }),
+    );
+  });
 });
