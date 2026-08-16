@@ -69,6 +69,7 @@ import { cn } from "@/lib/utils";
 
 import PropertyPreview, { type PropertyPreviewData, type PreviewImage } from "@/components/listing/PropertyPreview";
 import { OwnerLocationPin, type ConfirmedLocationSummary, type BuildingSource } from '@/components/property-address/OwnerLocationPin';
+import { validateFlatNumber } from "@/lib/validateFlatNumber";
 import { isBuildingNameRequired } from '@/lib/location/isLocationReadyForSubmit';
 
 /** Persisted-location readiness classification (mirrors the M1 FINAL_OK / LEGACY_OK contract). */
@@ -579,6 +580,8 @@ export default function ListProperty() {
   const [amenitiesDraftInvalid, setAmenitiesDraftInvalid] = useState(false);
   // Owner-only public-text validation errors, keyed by field. Never blocks autosave.
   const [textErrors, setTextErrors] = useState<Record<string, string | null>>({});
+  // True after the first failed Submit — shows the near-Submit field-count summary.
+  const [showSubmitFieldSummary, setShowSubmitFieldSummary] = useState(false);
   // Prompt 2: true while a location replacement is being searched/reviewed but not yet
   // re-confirmed. Blocks Submit so an unconfirmed candidate can never be submitted.
   const [locationDirty, setLocationDirty] = useState(false);
@@ -635,6 +638,12 @@ export default function ListProperty() {
   const { saveState, patch, saveNow, lastError, failureTick, hasPendingChanges, poisonedKeys } =
     useListingSave(propertyId);
 
+  // ─── Submit-summary count + reset ───────────────────────────────────────
+  const submitErrorCount = Object.values(textErrors).filter(Boolean).length;
+  useEffect(() => {
+    if (submitErrorCount === 0) setShowSubmitFieldSummary(false);
+  }, [submitErrorCount]);
+
   // ─── Surface save failures as a toast (D-127) ────────────────────────────
   // Fires on every failure via failureTick — re-toasts even when the same
   // column keeps 400ing with the same message across retries.
@@ -643,6 +652,16 @@ export default function ListProperty() {
     if (failureTick === 0) return; // skip initial mount
     if (saveState === "session_expired") return;
     if (!lastError) return;
+    // Intercept the Flat / Unit CHECK violation — show a friendly inline error
+    // instead of the raw PostgreSQL constraint name.
+    if (lastError.includes("properties_lister_flat_number_check")) {
+      setTextErrors((e) => ({
+        ...e,
+        lister_flat_number: "Use only letters, numbers, spaces, hyphens and slashes. Max 10 characters.",
+      }));
+      setOpenAccordion("section-1");
+      return;
+    }
     toast({
       variant: "destructive",
       title: "Save failed",
@@ -976,6 +995,14 @@ export default function ListProperty() {
     if (!isLiveListing) {
       setForm((prev) => ({ ...prev, [key]: value }));
       setTextErrors((e) => (e[key as string] ? { ...e, [key as string]: null } : e));
+      if (key === "lister_flat_number") {
+        const err = validateFlatNumber(value as string | null);
+        if (err) {
+          setTextErrors((e) => ({ ...e, lister_flat_number: err }));
+          return; // invalid — do NOT reach patch()
+        }
+        // Valid — textErrors already cleared above; showSubmitFieldSummary resets via effect.
+      }
       if (dbKeys.length) patch(payload);
       return;
     }
@@ -1407,6 +1434,17 @@ export default function ListProperty() {
       return;
     }
 
+    // Normalize lister_flat_number before flush.
+    // Validate first — only patch if the trimmed value is valid (prevents an invalid
+    // trimmed value from reaching Supabase). form.lister_flat_number is not used in
+    // any status-change RPC payload; values reach the DB only via patch/saveNow.
+    const normalizedFlatNumber = form.lister_flat_number?.trim() || null;
+    const flatNumberError = validateFlatNumber(normalizedFlatNumber);
+    if (!flatNumberError && normalizedFlatNumber !== form.lister_flat_number) {
+      setForm((prev) => ({ ...prev, lister_flat_number: normalizedFlatNumber }));
+      patch({ lister_flat_number: normalizedFlatNumber });
+    }
+
     // Flush any pending edits first
     await saveNow();
 
@@ -1425,7 +1463,7 @@ export default function ListProperty() {
           variant: "destructive",
           title: "Save failed — cannot submit",
           description: poisonedKeys.length > 0
-            ? `These fields didn't save: ${poisonedKeys.join(", ")}. Fix them in the highlighted section and try again.`
+            ? `These fields didn't save: ${poisonedKeys.map((k) => k === "lister_flat_number" ? "Flat / Unit number" : k).join(", ")}. Fix them in the highlighted section and try again.`
             : lastError ??
               "Some of your changes did not save. Fix the highlighted section and try again.",
         });
@@ -1472,11 +1510,23 @@ export default function ListProperty() {
     const yt = validateYoutubeUrl(form.youtube_walkthrough_url);
     if (!yt.ok) nextTextErrors.youtube_walkthrough_url = YOUTUBE_MESSAGE[yt.reason];
 
-    const firstBadField = [...serverFields, "youtube_walkthrough_url"].find(
-      (f) => nextTextErrors[f],
-    );
+    // Flat / Unit validation (client-side, synchronous). Uses the pre-computed
+    // normalizedFlatNumber so the result is consistent with what was patched above.
+    nextTextErrors.lister_flat_number = flatNumberError;
+
+    // Candidate fields ordered by visual position in the form (Section 1 → Section 8).
+    // lister_flat_number (Section 1) comes first so the user is taken to the earliest error.
+    const candidateFields = [
+      "lister_flat_number",
+      ...serverFields,
+      "youtube_walkthrough_url",
+    ];
+    const firstBadField = candidateFields.find((f) => nextTextErrors[f]);
+    const errorCount = Object.values(nextTextErrors).filter(Boolean).length;
+
     if (firstBadField || hadFailure) {
       setTextErrors((e) => ({ ...e, ...nextTextErrors }));
+      if (errorCount > 0) setShowSubmitFieldSummary(true);
       if (hadFailure) {
         toast({
           variant: "destructive",
@@ -1485,12 +1535,20 @@ export default function ListProperty() {
         });
       }
       if (firstBadField) {
-        const sec = DB_COLUMN_TO_SECTION[firstBadField];
-        if (sec) {
-          setOpenAccordion(`section-${sec}`);
+        if (firstBadField === "lister_flat_number") {
+          setOpenAccordion("section-1");
           setTimeout(() => {
-            document.getElementById(`section-${sec}-header`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            document.getElementById("lister_flat_number-input")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            document.getElementById("lister_flat_number-input")?.focus();
           }, 100);
+        } else {
+          const sec = DB_COLUMN_TO_SECTION[firstBadField];
+          if (sec) {
+            setOpenAccordion(`section-${sec}`);
+            setTimeout(() => {
+              document.getElementById(`section-${sec}-header`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 100);
+          }
         }
         toast({ title: "Fix the highlighted field before submitting", variant: "destructive" });
       }
@@ -1983,6 +2041,18 @@ export default function ListProperty() {
                 surface="owner_form"
                 value={form.lister_flat_number ?? ''}
                 onChange={(v: string) => updateField("lister_flat_number", v)}
+                onBlur={() => {
+                  const err = validateFlatNumber(form.lister_flat_number);
+                  if (!err && form.lister_flat_number) {
+                    const trimmed = form.lister_flat_number.trim();
+                    if (trimmed !== form.lister_flat_number) {
+                      setForm((prev) => ({ ...prev, lister_flat_number: trimmed || null }));
+                    }
+                  }
+                  setTextErrors((e) => ({ ...e, lister_flat_number: err }));
+                }}
+                error={textErrors["lister_flat_number"] ?? undefined}
+                inputId="lister_flat_number-input"
                 readOnly={tierOneLocked}
               >{ownerChip("lister_flat_number")}</SpecField>
               <SpecField fieldKey="landmark" surface="owner_form" value={form.landmark} onChange={(v: string) => updateField("landmark", v)} readOnly={ownerFieldReadOnly("landmark")} />
@@ -2441,7 +2511,13 @@ export default function ListProperty() {
 
         {/* Sticky footer submit bar */}
         <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-30 bg-background border-t px-4 py-3 md:pl-64">
-          <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+          <div className="max-w-2xl mx-auto space-y-2">
+          {showSubmitFieldSummary && submitErrorCount > 0 && (
+            <p className="text-sm font-medium text-destructive">
+              {submitErrorCount === 1 ? "1 field needs attention" : `${submitErrorCount} fields need attention`}
+            </p>
+          )}
+          <div className="flex items-center justify-between gap-3">
             <div className="text-xs">
               <SaveStateIndicator state={saveState} />
               <p className="text-muted-foreground mt-0.5">{requiredComplete}/5 required</p>
@@ -2460,6 +2536,7 @@ export default function ListProperty() {
                 </Button>
               )}
             </div>
+          </div>
           </div>
         </div>
       </div>
