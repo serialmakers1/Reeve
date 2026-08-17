@@ -1439,3 +1439,15 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-08-14] debug | Diagnosed Phase 4 canonical Search cutover and cleanup dependencies [22:44 IST]
 
 ## [2026-08-15] migrate | Added canonical public geography lookup and PostGIS list-search backend [00:45 IST]
+
+## [2026-08-17] feat | Created NRI Property Services page shell with reused FAQ and enquiry form [11:25 IST]
+
+## [2026-08-17] feat | Added NRI Property Services Band 1 hero [12:16 IST]
+
+## [2026-08-17] feat | Added NRI Property Services Band 2 situation router and service navigator [18:32 IST]
+
+## [2026-08-17] feat | Added NRI Property Services Band 3 concierge scope and three-step coordination process [20:55 IST]
+
+## [2026-08-17] feat | Added NRI Property Services Band 4 nine-article property guide with jump nav, sale journey, and inheritance sequence [15:40 IST]
+
+## [2026-08-17] feat | Added NRI responsibility trust section and promise boundaries [16:16 IST]
