@@ -8,12 +8,10 @@ type ServiceChoice =
   | "property_management"
   | "vacant_property_care"
   | "find_tenant"
+  | "nri_property_sale"
+  | "nri_rent_tds"
+  | "khata_mutation"
   | "not_sure";
-type PropertyStatusOption =
-  | "rented"
-  | "empty_staying_empty"
-  | "empty_need_tenant"
-  | "tenant_leaving";
 type PropertyTypeOption =
   | "apartment"
   | "villa_row_house"
@@ -23,12 +21,9 @@ type PreferredContactOption = "whatsapp" | "scheduled_call" | "telegram" | "boti
 
 interface FormData {
   serviceChoice:    ServiceChoice | "";
-  propertyStatus:   PropertyStatusOption | "";
   buildingStreet:   string;
   localityArea:     string;
   propertyType:     PropertyTypeOption | "";
-  bedrooms:         "1" | "2" | "3" | "4" | "5" | "";
-  monthlyRent:      string;
   name:             string;
   phone:            string;
   email:            string;
@@ -63,11 +58,11 @@ declare global {
 // ── Validation helpers ────────────────────────────────────────────────────────
 
 // ' = ' (straight apostrophe)
-// ‘ = ' (left single quotation mark)
-// ’ = ' (right single quotation mark)
-const NAME_RE   = /^[\p{L}\p{M} .'‘’\-]{2,80}$/u;
-const BLDG_RE   = /^[\p{L}\p{N} .,'‘’\-\/#&():]{1,120}$/u;
-const LOCALE_RE = /^[\p{L}\p{N} .,'‘’\-\/&()]{2,80}$/u;
+// ' = ' (left single quotation mark)
+// ' = ' (right single quotation mark)
+const NAME_RE   = /^[\p{L}\p{M} .'''\-]{2,80}$/u;
+const BLDG_RE   = /^[\p{L}\p{N} .,'''\-\/#&():]{1,120}$/u;
+const LOCALE_RE = /^[\p{L}\p{N} .,'''\-\/&()]{2,80}$/u;
 const HAS_LETTER          = /\p{L}/u;
 const HAS_LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
 const CTRL_CHARS          = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
@@ -85,12 +80,20 @@ function isValidEmail(v: string): boolean {
   return v.length <= 254 && EMAIL_RE.test(v.trim());
 }
 
-function parseRent(v: string): number | null {
-  const cleaned = v.replace(/[,\s]/g, "");
-  if (!cleaned) return null;
-  if (!/^\d+$/.test(cleaned)) return null;
-  const n = parseInt(cleaned, 10);
-  return isFinite(n) && n > 0 && n <= 100_000_000 ? n : null;
+// ── Service options ───────────────────────────────────────────────────────────
+
+const SERVICE_OPTIONS = [
+  { value: "property_management",  label: "Property Management",       bg: "bg-[#F0F5FF]", border: "border-[#2563EB]" },
+  { value: "vacant_property_care", label: "Vacant Property Care",      bg: "bg-[#EFFBF8]", border: "border-[#0F9F8F]" },
+  { value: "find_tenant",          label: "Find a Tenant",             bg: "bg-[#FFF2ED]", border: "border-[#F46F52]" },
+  { value: "nri_property_sale",    label: "NRI Property Sale",         bg: "bg-[#F5F3FF]", border: "border-[#7C3AED]" },
+  { value: "nri_rent_tds",         label: "NRI Rent & TDS",            bg: "bg-[#EFF6FF]", border: "border-[#2563EB]" },
+  { value: "khata_mutation",       label: "Khata & Mutation",          bg: "bg-[#FFFBEB]", border: "border-[#D97706]" },
+  { value: "not_sure",             label: "Not sure / Something else", bg: "bg-[#F2F5FA]", border: "border-[#0057F2]" },
+] as const;
+
+function getServiceLabel(value: ServiceChoice | ""): string {
+  return SERVICE_OPTIONS.find((o) => o.value === value)?.label ?? String(value);
 }
 
 // ── Step validators ───────────────────────────────────────────────────────────
@@ -98,7 +101,6 @@ function parseRent(v: string): number | null {
 function validateStep1(d: FormData): FieldErrors {
   const e: FieldErrors = {};
   if (!d.serviceChoice)  e.serviceChoice  = "Please select a service.";
-  if (!d.propertyStatus) e.propertyStatus = "Please select your property's current status.";
   const loc = d.localityArea.trim();
   if (!loc || !LOCALE_RE.test(loc) || !HAS_LETTER.test(loc)) {
     e.localityArea = "Enter a valid locality or area.";
@@ -107,23 +109,13 @@ function validateStep1(d: FormData): FieldErrors {
   if (bldg && (!BLDG_RE.test(bldg) || !HAS_LETTER_OR_DIGIT.test(bldg))) {
     e.buildingStreet = "Enter a valid building or street name.";
   }
+  if (!d.propertyType) {
+    e.propertyType = "Please select a property type.";
+  }
   return e;
 }
 
 function validateStep2(d: FormData): FieldErrors {
-  const e: FieldErrors = {};
-  if (!d.propertyType) {
-    e.propertyType = "Please select a property type.";
-  } else if (d.propertyType !== "plot_land" && !d.bedrooms) {
-    e.bedrooms = "Please select the number of bedrooms.";
-  }
-  if (d.monthlyRent.trim() && parseRent(d.monthlyRent) === null) {
-    e.monthlyRent = "Enter rent as a whole number, e.g. 45000.";
-  }
-  return e;
-}
-
-function validateStep3(d: FormData): FieldErrors {
   const e: FieldErrors = {};
   const name = d.name.trim();
   if (!name || !NAME_RE.test(name) || !HAS_LETTER.test(name)) {
@@ -132,7 +124,7 @@ function validateStep3(d: FormData): FieldErrors {
   if (!isValidPhone(d.phone)) {
     e.phone = "Enter a valid phone number with 7–15 digits.";
   }
-  if (!isValidEmail(d.email)) {
+  if (d.email.trim() && !isValidEmail(d.email)) {
     e.email = "Enter a valid email address.";
   }
   if (!d.preferredContact) {
@@ -155,12 +147,9 @@ function validateStep3(d: FormData): FieldErrors {
 
 const FIELD_ID_MAP: Partial<Record<keyof FormData, string>> = {
   serviceChoice:    "service-property_management",
-  propertyStatus:   "status-rented",
   buildingStreet:   "buildingStreet",
   localityArea:     "localityArea",
   propertyType:     "type-apartment",
-  bedrooms:         "bed-1",
-  monthlyRent:      "monthlyRent",
   name:             "name",
   phone:            "phone",
   email:            "email",
@@ -170,8 +159,7 @@ const FIELD_ID_MAP: Partial<Record<keyof FormData, string>> = {
 };
 
 const FIELD_ORDER: Array<keyof FormData> = [
-  "serviceChoice", "propertyStatus", "buildingStreet", "localityArea",
-  "propertyType", "bedrooms", "monthlyRent",
+  "serviceChoice", "buildingStreet", "localityArea", "propertyType",
   "name", "phone", "email", "preferredContact", "basedIn", "notes",
 ];
 
@@ -191,19 +179,15 @@ function focusFirstError(errors: FieldErrors) {
 // ── Payload builder ───────────────────────────────────────────────────────────
 
 function buildPayload(d: FormData) {
+  const emailTrimmed = d.email.trim();
   return {
     serviceChoice:    d.serviceChoice,
-    propertyStatus:   d.propertyStatus,
     buildingStreet:   d.buildingStreet.trim() || undefined,
     localityArea:     d.localityArea.trim(),
     propertyType:     d.propertyType,
-    bedrooms:         d.propertyType === "plot_land"
-                        ? null
-                        : (d.bedrooms ? parseInt(d.bedrooms, 10) : null),
-    monthlyRent:      parseRent(d.monthlyRent),
     name:             d.name.trim(),
     phone:            d.phone.trim(),
-    email:            d.email.trim().toLowerCase(),
+    email:            emailTrimmed ? emailTrimmed.toLowerCase() : undefined,
     preferredContact: d.preferredContact,
     basedIn:          d.basedIn.trim(),
     notes:            d.notes.trim() || undefined,
@@ -218,12 +202,9 @@ function makeInitialFormData(
 ): FormData {
   return {
     serviceChoice:    initialService ?? "",
-    propertyStatus:   "",
     buildingStreet:   "",
     localityArea:     "",
     propertyType:     "",
-    bedrooms:         "",
-    monthlyRent:      "",
     name:             "",
     phone:            "",
     email:            "",
@@ -296,11 +277,13 @@ function RadioCard({
     <label
       htmlFor={id}
       className={[
-        "flex items-center min-h-[52px] px-4 rounded-[11px]",
+        "flex items-center h-full min-h-[52px] px-4 rounded-[11px]",
         "border transition-colors duration-[100ms]",
         "focus-within:outline focus-within:outline-2 focus-within:outline-offset-2",
         disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer",
-        checked ? `${selectedBg} ${selectedBorder}` : "bg-white border-[#D9DEE7]",
+        checked
+          ? `${selectedBg} ${selectedBorder}`
+          : "bg-white border-[#D9DEE7] hover:bg-[#F8FAFC] hover:border-[#B8C5D8]",
       ].join(" ")}
       style={{ outlineColor: "#8FB7FF" }}
     >
@@ -330,11 +313,13 @@ function RadioCard({
 export default function PropertyEnquiryForm({
   initialService,
 }: PropertyEnquiryFormProps) {
-  const [step,        setStep]        = useState<1 | 2 | 3>(1);
+  const [step,        setStep]        = useState<1 | 2>(1);
   const [formData,    setFormData]    = useState<FormData>(() => makeInitialFormData(initialService));
   const [errors,      setErrors]      = useState<FieldErrors>({});
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [tsError,     setTsError]     = useState(false);
+  // showServiceSelector: true when showing full grid, false when showing compact chip
+  const [showServiceSelector, setShowServiceSelector] = useState(!initialService);
 
   const widgetIdRef           = useRef<string | null>(null);
   const turnstileContainerRef = useRef<HTMLDivElement>(null);
@@ -356,13 +341,7 @@ export default function PropertyEnquiryForm({
   // ── setField ─────────────────────────────────────────────────────────────
 
   function setField<K extends keyof FormData>(key: K, val: FormData[K]) {
-    setFormData((prev) => {
-      const next = { ...prev, [key]: val };
-      if (key === "propertyType" && val === "plot_land") {
-        next.bedrooms = "";
-      }
-      return next;
-    });
+    setFormData((prev) => ({ ...prev, [key]: val }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
   }
 
@@ -378,12 +357,6 @@ export default function PropertyEnquiryForm({
       field === "basedIn" ||
       field === "notes"
     ) {
-      allErrors = validateStep3(formData);
-    } else if (
-      field === "monthlyRent" ||
-      field === "propertyType" ||
-      field === "bedrooms"
-    ) {
       allErrors = validateStep2(formData);
     } else {
       allErrors = validateStep1(formData);
@@ -394,7 +367,7 @@ export default function PropertyEnquiryForm({
   // ── Turnstile — script load ───────────────────────────────────────────────
 
   useEffect(() => {
-    if (step !== 3) return;
+    if (step !== 2) return;
 
     if (!document.getElementById("cf-ts-script")) {
       const s = document.createElement("script");
@@ -410,7 +383,7 @@ export default function PropertyEnquiryForm({
   // ── Turnstile — widget lifecycle ──────────────────────────────────────────
 
   useEffect(() => {
-    if (step !== 3) {
+    if (step !== 2) {
       if (widgetIdRef.current !== null) {
         window.turnstile?.remove(widgetIdRef.current);
         widgetIdRef.current = null;
@@ -478,7 +451,7 @@ export default function PropertyEnquiryForm({
   function handleSubmitClick() {
     setTsError(false);
 
-    const stepErrors = validateStep3(formData);
+    const stepErrors = validateStep2(formData);
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
       focusFirstError(stepErrors);
@@ -543,7 +516,7 @@ export default function PropertyEnquiryForm({
   function handleRetry() {
     setTsError(false);
 
-    const stepErrors = validateStep3(formData);
+    const stepErrors = validateStep2(formData);
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
       focusFirstError(stepErrors);
@@ -567,25 +540,24 @@ export default function PropertyEnquiryForm({
   // ── Navigation ────────────────────────────────────────────────────────────
 
   function handleContinue() {
-    const stepErrors =
-      step === 1 ? validateStep1(formData) : validateStep2(formData);
+    const stepErrors = validateStep1(formData);
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
       focusFirstError(stepErrors);
       return;
     }
     setErrors({});
-    setStep((s) => (s < 3 ? ((s + 1) as 2 | 3) : s));
+    setStep(2);
     scrollToFormTop();
   }
 
   function handleBack() {
-    if (step === 3 && (submitState !== "idle" || tsError)) {
+    if (step === 2 && (submitState !== "idle" || tsError)) {
       setSubmitState("idle");
       setTsError(false);
       pendingPayloadRef.current = null;
     }
-    setStep((s) => (s > 1 ? ((s - 1) as 1 | 2) : s));
+    setStep(1);
     scrollToFormTop();
   }
 
@@ -636,16 +608,16 @@ export default function PropertyEnquiryForm({
           style={{ fontFamily: SANS }}
           className="text-[21px] lg:text-[24px] font-[700] text-[#0B1526] mb-3"
         >
-          Thanks — we’ve got your enquiry.
+          Thanks — we've got your enquiry.
         </h3>
         <p
           style={{ fontFamily: SANS }}
           className="text-[15px] font-[500] text-[#536074] leading-[1.55] max-w-[360px] mx-auto"
         >
-          We’ll review your property and get back to you within a day using your preferred
+          We'll review what you shared and get back to you within a day using your preferred
           contact method.
           {formData.preferredContact === "scheduled_call" &&
-            " We’ll coordinate the time before calling."}
+            " We'll coordinate the time before calling."}
         </p>
       </div>
     );
@@ -656,7 +628,7 @@ export default function PropertyEnquiryForm({
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
-        if (step === 1 || step === 2) handleContinue();
+        if (step === 1) handleContinue();
         else handleSubmitClick();
       }}
     >
@@ -665,18 +637,18 @@ export default function PropertyEnquiryForm({
 
       {/* Progress + step title */}
       <div>
-        <div aria-label={`Step ${step} of 3`}>
+        <div aria-label={`Step ${step} of 2`}>
           <p
             className="text-[12px] font-[700] uppercase tracking-[0.07em] text-[#718096]"
             style={{ fontFamily: SANS }}
           >
-            STEP {step} OF 3
+            STEP {step} OF 2
           </p>
           <div className="flex gap-[6px] mt-2">
-            {([1, 2, 3] as const).map((n) => (
+            {([1, 2] as const).map((n) => (
               <div
                 key={n}
-                className="h-[4px] flex-1 rounded-full transition-colors duration-[150ms]"
+                className="h-[4px] flex-1 rounded-full transition-colors duration-[200ms]"
                 style={{ background: n <= step ? "#0057F2" : "#E3E8EF" }}
               />
             ))}
@@ -686,17 +658,14 @@ export default function PropertyEnquiryForm({
           className="mt-5 text-[21px] sm:text-[22px] font-[700] text-[#0B1526]"
           style={{ fontFamily: SANS }}
         >
-          {step === 1
-            ? "Your property"
-            : step === 2
-            ? "Property details"
-            : "About you"}
+          {step === 1 ? "Your property" : "About you"}
         </h3>
       </div>
 
       {/* ── STEP 1 ── */}
       {step === 1 && (
         <div className="mt-6 space-y-6">
+
           {/* Service choice */}
           <fieldset
             aria-required="true"
@@ -705,64 +674,65 @@ export default function PropertyEnquiryForm({
             <legend className={labelCls()} style={{ fontFamily: SANS }}>
               Which service are you interested in?<Req />
             </legend>
-            <div className="mt-2 grid grid-cols-1 min-[420px]:grid-cols-2 gap-2">
-              {(
-                [
-                  { value: "property_management",  label: "Property Management",      bg: "bg-[#F0F5FF]", border: "border-[#2563EB]" },
-                  { value: "vacant_property_care", label: "Vacant Property Care",     bg: "bg-[#EFFBF8]", border: "border-[#0F9F8F]" },
-                  { value: "find_tenant",          label: "Find a Tenant",            bg: "bg-[#FFF2ED]", border: "border-[#F46F52]" },
-                  { value: "not_sure",             label: "Not sure — help me choose", bg: "bg-[#F2F5FA]", border: "border-[#0057F2]" },
-                ] as const
-              ).map((opt) => (
-                <RadioCard
-                  key={opt.value}
-                  id={`service-${opt.value}`}
-                  name="serviceChoice"
-                  value={opt.value}
-                  checked={formData.serviceChoice === opt.value}
-                  onChange={() => setField("serviceChoice", opt.value)}
-                  label={opt.label}
-                  selectedBg={opt.bg}
-                  selectedBorder={opt.border}
-                  required
-                />
-              ))}
-            </div>
-            <FieldError id="serviceChoice-error" msg={errors.serviceChoice} />
-          </fieldset>
 
-          {/* Property status */}
-          <fieldset
-            aria-required="true"
-            aria-describedby={errors.propertyStatus ? "propertyStatus-error" : undefined}
-          >
-            <legend className={labelCls()} style={{ fontFamily: SANS }}>
-              What’s happening with the property right now?<Req />
-            </legend>
-            <div className="mt-2 grid grid-cols-1 min-[420px]:grid-cols-2 gap-2">
-              {(
-                [
-                  { value: "rented",               label: "A tenant is living there" },
-                  { value: "empty_staying_empty",  label: "It’s empty and I’ll keep it empty" },
-                  { value: "empty_need_tenant",    label: "It’s empty and I want a tenant" },
-                  { value: "tenant_leaving",       label: "A tenant is leaving soon" },
-                ] as const
-              ).map((opt) => (
-                <RadioCard
-                  key={opt.value}
-                  id={`status-${opt.value}`}
-                  name="propertyStatus"
-                  value={opt.value}
-                  checked={formData.propertyStatus === opt.value}
-                  onChange={() => setField("propertyStatus", opt.value)}
-                  label={opt.label}
-                  selectedBg="bg-[#F0F5FF]"
-                  selectedBorder="border-[#2563EB]"
-                  required
-                />
-              ))}
-            </div>
-            <FieldError id="propertyStatus-error" msg={errors.propertyStatus} />
+            {/* Compact chip — shown when initialService provided and selector is closed */}
+            {!showServiceSelector && initialService && (
+              <div className="flex items-center justify-between gap-3 mt-2 px-4 py-3 rounded-[11px] border border-[#D9DEE7] bg-white">
+                <span className="text-[14px] font-[700] text-[#243244]">
+                  {getServiceLabel(formData.serviceChoice)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowServiceSelector(true)}
+                  className="-my-2 -mr-2 px-2 py-2 min-h-[40px] inline-flex items-center text-[13px] font-[650] text-[#0057F2] shrink-0 hover:text-[#0049D1] hover:underline transition-colors duration-[150ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                  style={{ outlineColor: "#8FB7FF" }}
+                >
+                  Change
+                </button>
+              </div>
+            )}
+
+            {/* Full selector — shown when no initialService, or when Change was clicked */}
+            {showServiceSelector && (
+              <>
+                <div className="mt-2 grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
+                  {SERVICE_OPTIONS.map((opt) => (
+                    <div
+                      key={opt.value}
+                      className={[
+                        "h-full",
+                        opt.value === "not_sure" ? "min-[360px]:col-span-2" : "",
+                      ].join(" ")}
+                    >
+                      <RadioCard
+                        id={`service-${opt.value}`}
+                        name="serviceChoice"
+                        value={opt.value}
+                        checked={formData.serviceChoice === opt.value}
+                        onChange={() => setField("serviceChoice", opt.value)}
+                        label={opt.label}
+                        selectedBg={opt.bg}
+                        selectedBorder={opt.border}
+                        required
+                      />
+                    </div>
+                  ))}
+                </div>
+                {/* Done button — only rendered when opened via Change (keyboard-safe close) */}
+                {initialService && (
+                  <button
+                    type="button"
+                    onClick={() => setShowServiceSelector(false)}
+                    className="mt-1 -ml-2 px-2 py-2 min-h-[40px] text-[13px] font-[600] text-[#0057F2] hover:text-[#0049D1] hover:underline transition-colors duration-[150ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                    style={{ outlineColor: "#8FB7FF", fontFamily: SANS }}
+                  >
+                    Done
+                  </button>
+                )}
+              </>
+            )}
+
+            <FieldError id="serviceChoice-error" msg={errors.serviceChoice} />
           </fieldset>
 
           {/* Property location */}
@@ -811,15 +781,6 @@ export default function PropertyEnquiryForm({
             </div>
           </div>
 
-          <button type="submit" className="w-full h-[52px] rounded-[12px] text-[16px] font-[700] text-white bg-[#0057F2] hover:bg-[#0049D1] active:bg-[#003FB6] transition-colors duration-[100ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ outlineColor: "#8FB7FF", fontFamily: SANS }}>
-            Continue →
-          </button>
-        </div>
-      )}
-
-      {/* ── STEP 2 ── */}
-      {step === 2 && (
-        <div className="mt-6 space-y-6">
           {/* Property type */}
           <fieldset
             aria-required="true"
@@ -831,10 +792,10 @@ export default function PropertyEnquiryForm({
             <div className="mt-2 grid grid-cols-2 gap-2">
               {(
                 [
-                  { value: "apartment",          label: "Apartment" },
-                  { value: "villa_row_house",    label: "Villa / row house" },
-                  { value: "independent_house",  label: "Independent house" },
-                  { value: "plot_land",          label: "Plot / land" },
+                  { value: "apartment",         label: "Apartment" },
+                  { value: "villa_row_house",   label: "Villa / row house" },
+                  { value: "independent_house", label: "Independent house" },
+                  { value: "plot_land",         label: "Plot / land" },
                 ] as const
               ).map((opt) => (
                 <RadioCard
@@ -854,117 +815,27 @@ export default function PropertyEnquiryForm({
             <FieldError id="propertyType-error" msg={errors.propertyType} />
           </fieldset>
 
-          {/* Bedrooms — hidden for plot/land */}
-          {formData.propertyType !== "plot_land" && (
-            <fieldset
-              aria-required="true"
-              aria-describedby={errors.bedrooms ? "bedrooms-error" : undefined}
-            >
-              <legend className={labelCls()} style={{ fontFamily: SANS }}>
-                Bedrooms<Req />
-              </legend>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(
-                  [
-                    { value: "1", label: "1 BHK" },
-                    { value: "2", label: "2 BHK" },
-                    { value: "3", label: "3 BHK" },
-                    { value: "4", label: "4 BHK" },
-                    { value: "5", label: "5+" },
-                  ] as const
-                ).map((opt) => (
-                  <RadioCard
-                    key={opt.value}
-                    id={`bed-${opt.value}`}
-                    name="bedrooms"
-                    value={opt.value}
-                    checked={formData.bedrooms === opt.value}
-                    onChange={() => setField("bedrooms", opt.value)}
-                    label={opt.label}
-                    selectedBg="bg-[#F0F5FF]"
-                    selectedBorder="border-[#2563EB]"
-                    required
-                  />
-                ))}
-              </div>
-              <FieldError id="bedrooms-error" msg={errors.bedrooms} />
-            </fieldset>
-          )}
-
           {formData.propertyType === "plot_land" && (
             <p
               className="text-[13.5px] font-[500] text-[#536074]"
               style={{ fontFamily: SANS }}
             >
-              We’ll confirm eligibility and pricing after reviewing the property.
+              We'll confirm eligibility and pricing after reviewing the property.
             </p>
           )}
 
-          {/* Monthly rent */}
-          <div>
-            <label htmlFor="monthlyRent" className={labelCls()} style={{ fontFamily: SANS }}>
-              Current or expected monthly rent<Opt />
-            </label>
-            <div className="relative">
-              <span
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-[16px] font-[500] text-[#536074] pointer-events-none select-none"
-                aria-hidden="true"
-              >
-                ₹
-              </span>
-              <input
-                id="monthlyRent"
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="45,000"
-                value={formData.monthlyRent}
-                onChange={(e) => setField("monthlyRent", e.target.value)}
-                onBlur={() => handleBlur("monthlyRent")}
-                aria-invalid={!!errors.monthlyRent}
-                aria-describedby={
-                  errors.monthlyRent
-                    ? "monthlyRent-error"
-                    : "monthlyRent-hint"
-                }
-                className={`${inputCls(!!errors.monthlyRent)} pl-8`}
-                style={{ outlineColor: "#8FB7FF", fontFamily: SANS }}
-              />
-            </div>
-            {!errors.monthlyRent && (
-              <p
-                id="monthlyRent-hint"
-                className="mt-1 text-[12.5px] font-[500] text-[#7A8593]"
-                style={{ fontFamily: SANS }}
-              >
-                If you don’t know it yet, leave this blank.
-              </p>
-            )}
-            <FieldError id="monthlyRent-error" msg={errors.monthlyRent} />
-          </div>
-
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="h-[52px] px-5 rounded-[12px] text-[15px] font-[600] text-[#536074] border border-[#D6DCE6] bg-white hover:bg-[#F7F9FC] transition-colors duration-[100ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-              style={{ outlineColor: "#8FB7FF", fontFamily: SANS }}
-            >
-              Back
-            </button>
-            <button
-              type="submit"
-              className="flex-1 h-[52px] rounded-[12px] text-[16px] font-[700] text-white bg-[#0057F2] hover:bg-[#0049D1] active:bg-[#003FB6] transition-colors duration-[100ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-              style={{ outlineColor: "#8FB7FF", fontFamily: SANS }}
-            >
-              Continue →
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="w-full h-[52px] rounded-[12px] text-[16px] font-[700] text-white bg-[#0057F2] hover:bg-[#0049D1] active:bg-[#003FB6] transition-colors duration-[100ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            style={{ outlineColor: "#8FB7FF", fontFamily: SANS }}
+          >
+            Continue →
+          </button>
         </div>
       )}
 
-      {/* ── STEP 3 ── */}
-      {step === 3 && (
+      {/* ── STEP 2 ── */}
+      {step === 2 && (
         <div className="mt-6 space-y-5">
           {/* Honeypot — off-screen, filled by bots only */}
           <input
@@ -1038,21 +909,20 @@ export default function PropertyEnquiryForm({
                 className="mt-1 text-[12.5px] font-[500] text-[#7A8593]"
                 style={{ fontFamily: SANS }}
               >
-                Include the country code if you’re outside India.
+                Include the country code if you're outside India.
               </p>
             )}
             <FieldError id="phone-error" msg={errors.phone} />
           </div>
 
-          {/* Email */}
+          {/* Email — optional */}
           <div>
             <label htmlFor="email" className={labelCls()} style={{ fontFamily: SANS }}>
-              Email<Req />
+              Email<Opt />
             </label>
             <input
               id="email"
               type="email"
-              required
               autoComplete="email"
               disabled={isLocked}
               value={formData.email}
@@ -1194,8 +1064,8 @@ export default function PropertyEnquiryForm({
                 style={{ fontFamily: SANS }}
               >
                 {tsError
-                  ? "We couldn’t verify this submission. Please try again."
-                  : "We couldn’t send your enquiry. Please try again."}
+                  ? "We couldn't verify this submission. Please try again."
+                  : "We couldn't send your enquiry. Please try again."}
               </p>
               <button
                 type="button"
@@ -1226,7 +1096,7 @@ export default function PropertyEnquiryForm({
               className="mt-3 text-center text-[12.5px] font-[500] text-[#687386]"
               style={{ fontFamily: SANS }}
             >
-              We’ll get back to you within a day. No spam calls. We don’t sell your enquiry.
+              We'll get back to you within a day. No spam calls. We don't sell your enquiry.
             </p>
             <button
               type="button"

@@ -7,11 +7,11 @@ const TURNSTILE_VERIFY_URL =
 
 // Apostrophe escapes — identical to client, character-for-character:
 // ' = ' (U+0027, straight apostrophe)
-// ‘ = ' (U+2018, left single quotation mark)
-// ’ = ' (U+2019, right single quotation mark)
-const SRV_NAME_RE   = /^[\p{L}\p{M} .'‘’\-]{2,80}$/u;
-const SRV_BLDG_RE   = /^[\p{L}\p{N} .,'‘’\-\/#&():]{1,120}$/u;
-const SRV_LOCALE_RE = /^[\p{L}\p{N} .,'‘’\-\/&()]{2,80}$/u;
+// ' = ' (U+2018, left single quotation mark)
+// ' = ' (U+2019, right single quotation mark)
+const SRV_NAME_RE   = /^[\p{L}\p{M} .'''\-]{2,80}$/u;
+const SRV_BLDG_RE   = /^[\p{L}\p{N} .,'''\-\/#&():]{1,120}$/u;
+const SRV_LOCALE_RE = /^[\p{L}\p{N} .,'''\-\/&()]{2,80}$/u;
 const SRV_HAS_L     = /\p{L}/u;
 const SRV_HAS_LD    = /[\p{L}\p{N}]/u;
 const SRV_CTRL      = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
@@ -24,81 +24,73 @@ function srvPhone(v: string): boolean {
   return digits.length >= 7 && digits.length <= 15;
 }
 
-const EnquirySchema = z
-  .object({
-    serviceChoice: z.enum([
-      "property_management",
-      "vacant_property_care",
-      "find_tenant",
-      "not_sure",
-    ]),
-    propertyStatus: z.enum([
-      "rented",
-      "empty_staying_empty",
-      "empty_need_tenant",
-      "tenant_leaving",
-    ]),
-    buildingStreet: z
-      .string()
-      .max(120)
-      .refine((v) => !v || (SRV_BLDG_RE.test(v.trim()) && SRV_HAS_LD.test(v.trim())))
-      .transform((v) => v?.trim() || undefined)
-      .optional(),
-    localityArea: z
-      .string()
-      .min(2)
-      .max(80)
-      .refine((v) => SRV_LOCALE_RE.test(v.trim()) && SRV_HAS_L.test(v.trim()))
-      .transform((v) => v.trim()),
-    propertyType: z.enum([
-      "apartment",
-      "villa_row_house",
-      "independent_house",
-      "plot_land",
-    ]),
-    bedrooms: z.number().int().min(1).max(5).nullable().optional(),
-    monthlyRent: z.number().int().min(1).max(100_000_000).nullable().optional(),
-    name: z
-      .string()
-      .min(2)
-      .max(80)
-      .refine((v) => SRV_NAME_RE.test(v.trim()) && SRV_HAS_L.test(v.trim()))
-      .transform((v) => v.trim()),
-    phone: z
-      .string()
-      .min(5)
-      .max(30)
-      .refine((v) => srvPhone(v))
-      .transform((v) => v.trim()),
-    email: z
-      .string()
-      .min(3)
-      .max(254)
-      .refine((v) => SRV_EMAIL_RE.test(v.trim()))
-      .transform((v) => v.trim().toLowerCase()),
-    preferredContact: z.enum(["whatsapp", "scheduled_call", "telegram", "botim"]),
-    basedIn: z
-      .string()
-      .min(2)
-      .max(80)
-      .refine((v) => SRV_LOCALE_RE.test(v.trim()) && SRV_HAS_L.test(v.trim()))
-      .transform((v) => v.trim()),
-    notes: z
-      .string()
-      .max(1000)
-      .refine((v) => !v || !SRV_CTRL.test(v))
-      .transform((v) => v?.trim() || undefined)
-      .optional(),
-    turnstileToken: z.string().min(1),
-  })
-  .refine(
-    (d) => d.propertyType === "plot_land" || d.bedrooms != null,
-    { message: "Bedrooms required for non-plot types", path: ["bedrooms"] }
-  )
-  .refine(
-    (d) => d.propertyType !== "plot_land" || d.bedrooms == null,
-    { message: "Plot/land must not include bedrooms", path: ["bedrooms"] }
-  );
+const EnquirySchema = z.object({
+  serviceChoice: z.enum([
+    "property_management",
+    "vacant_property_care",
+    "find_tenant",
+    "nri_property_sale",
+    "nri_rent_tds",
+    "khata_mutation",
+    "not_sure",
+  ]),
+  buildingStreet: z
+    .string()
+    .max(120)
+    .refine((v) => !v || (SRV_BLDG_RE.test(v.trim()) && SRV_HAS_LD.test(v.trim())))
+    .transform((v) => v?.trim() || undefined)
+    .optional(),
+  localityArea: z
+    .string()
+    .min(2)
+    .max(80)
+    .refine((v) => SRV_LOCALE_RE.test(v.trim()) && SRV_HAS_L.test(v.trim()))
+    .transform((v) => v.trim()),
+  propertyType: z.enum([
+    "apartment",
+    "villa_row_house",
+    "independent_house",
+    "plot_land",
+  ]),
+  name: z
+    .string()
+    .min(2)
+    .max(80)
+    .refine((v) => SRV_NAME_RE.test(v.trim()) && SRV_HAS_L.test(v.trim()))
+    .transform((v) => v.trim()),
+  phone: z
+    .string()
+    .min(5)
+    .max(30)
+    .refine((v) => srvPhone(v))
+    .transform((v) => v.trim()),
+  email: z
+    .string()
+    .max(254)
+    .optional()
+    .transform((v) => {
+      const t = (v ?? "").trim().toLowerCase();
+      return t || null;
+    })
+    .refine(
+      (v) => v === null || (v.length >= 3 && SRV_EMAIL_RE.test(v)),
+      "Invalid email"
+    ),
+  preferredContact: z.enum(["whatsapp", "scheduled_call", "telegram", "botim"]),
+  basedIn: z
+    .string()
+    .min(2)
+    .max(80)
+    .refine((v) => SRV_LOCALE_RE.test(v.trim()) && SRV_HAS_L.test(v.trim()))
+    .transform((v) => v.trim()),
+  notes: z
+    .string()
+    .max(1000)
+    .refine((v) => !v || !SRV_CTRL.test(v))
+    .transform((v) => v?.trim() || undefined)
+    .optional(),
+  turnstileToken: z.string().min(1),
+});
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -204,15 +196,12 @@ export default async function handler(request: Request): Promise<Response> {
     );
   }
 
-  // Build row (normalize optional empty strings → null)
+  // Build row
   const row = {
     service_choice:    data.serviceChoice,
-    property_status:   data.propertyStatus,
     building_street:   data.buildingStreet ?? null,
     locality_area:     data.localityArea,
     property_type:     data.propertyType,
-    bedrooms:          data.propertyType === "plot_land" ? null : (data.bedrooms ?? null),
-    monthly_rent:      data.monthlyRent ?? null,
     name:              data.name,
     phone:             data.phone,
     email:             data.email,
