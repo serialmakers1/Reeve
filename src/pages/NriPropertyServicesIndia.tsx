@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Globe, MapPin, Home, Shield, Users, BookOpen, Sparkles, Building2, FileText, Search, ChevronDown, FolderOpen, AlertTriangle, Percent, ScrollText, UserRound, Scale, Landmark } from "lucide-react";
 import Layout from "@/components/Layout";
 import PropertyEnquiryForm from "@/components/property-services/PropertyEnquiryForm";
@@ -1884,7 +1885,7 @@ function WhoDoesWhatSection() {
               const Icon = role.icon;
               const isLast = i === ROLES.length - 1;
               return (
-                <React.Fragment key={role.label}>
+                <Fragment key={role.label}>
                   <article className="min-w-0 p-[18px] sm:p-[20px] lg:p-[26px]">
                     <span className="relative flex-shrink-0 w-10 h-10 lg:w-11 lg:h-11" style={{ display: "block" }}>
                       <span aria-hidden="true" className="absolute inset-0 rounded-xl opacity-60"
@@ -1925,7 +1926,7 @@ function WhoDoesWhatSection() {
                            style={{ background: "linear-gradient(90deg, transparent, rgba(180,195,225,.16) 10%, rgba(180,195,225,.16) 90%, transparent)" }} />
                     </>
                   )}
-                </React.Fragment>
+                </Fragment>
               );
             })}
           </div>
