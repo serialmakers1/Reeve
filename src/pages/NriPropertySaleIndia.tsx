@@ -654,7 +654,7 @@ function ResultCta() {
       className="group inline-flex min-h-[48px] items-center justify-center gap-[6px] w-full sm:w-auto rounded-[11px] px-[20px] bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:bg-[#1E40AF] transition-[background-color,border-color,color,box-shadow] duration-[160ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] motion-reduce:transition-none"
       style={{ fontFamily: SANS, fontWeight: 600, fontSize: 14.5 }}
     >
-      Continue to the sale process{" "}
+      See how the sale process works{" "}
       <span className="transition-transform duration-[160ms] group-hover:translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none" aria-hidden="true">↓</span>
     </a>
   );
@@ -668,24 +668,31 @@ function StageMarker({
   animating: boolean; staggerIdx: number; desktop?: boolean;
 }) {
   const delay = `${staggerIdx * 55}ms`;
-  const wrapSize  = desktop ? "w-[56px] h-[56px]" : "w-[46px] h-[46px]";
-  const plateSize = desktop ? "w-[46px] h-[46px]" : "w-[40px] h-[40px]";
-  const diamBase  = desktop ? "w-[34px] h-[34px]" : "w-[28px] h-[28px]";
-  const diamDepth = desktop ? "w-[32px] h-[32px]" : "w-[26px] h-[26px]";
-  const iconSize  = desktop ? 18 : 16;
+  const wrapSize  = desktop ? "w-[62px] h-[62px]" : "w-[50px] h-[50px]";
+  const plateSize = desktop ? "w-[52px] h-[52px]" : "w-[44px] h-[44px]";
+  const maskSize  = desktop ? "w-[54px] h-[54px]" : "w-[46px] h-[46px]";
+  const diamBase  = desktop ? "w-[40px] h-[40px]" : "w-[32px] h-[32px]";
+  const diamDepth = desktop ? "w-[38px] h-[38px]" : "w-[30px] h-[30px]";
+  const iconSize  = desktop ? 20 : 18;
   return (
     <div className={`relative ${wrapSize} flex items-center justify-center`}>
+      {/* Opaque mask — occludes journey connector behind marker */}
+      <span
+        aria-hidden="true"
+        className={`absolute ${maskSize} rounded-full pointer-events-none z-[0]`}
+        style={{ background: "#0D1529" }}
+      />
       <div aria-hidden="true"
-        className={`absolute ${diamDepth} rotate-45 rounded-[6px] translate-x-[3px] translate-y-[3px] z-0`}
+        className={`absolute ${diamDepth} rotate-45 rounded-[6px] translate-x-[3px] translate-y-[3px] z-[1]`}
         style={{ background: `${accent}18` }} />
       <div aria-hidden="true"
-        className={`absolute ${diamBase} rotate-45 rounded-[7px] z-[1]`}
+        className={`absolute ${diamBase} rotate-45 rounded-[7px] z-[2]`}
         style={{
           background: "linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.035))",
           border: `1px solid ${accent}50`,
         }} />
       <div
-        className={`nri-stage-plate relative z-[2] ${plateSize} rounded-full flex items-center justify-center`}
+        className={`nri-stage-plate relative z-[3] ${plateSize} rounded-full flex items-center justify-center`}
         style={{
           background: "linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.055))",
           border: journeyActive ? `1px solid ${accent}60` : "1px solid rgba(147,197,253,.28)",
@@ -847,7 +854,7 @@ function NriSaleJourneySection() {
                   className="group flex flex-row items-stretch gap-[14px] min-[1200px]:flex-col min-[1200px]:items-center min-[1200px]:gap-0"
                 >
                   {/* Mobile-only: connector column */}
-                  <div className="min-[1200px]:hidden flex flex-col items-center w-[46px] shrink-0">
+                  <div className="min-[1200px]:hidden flex flex-col items-center w-[50px] shrink-0">
                     {/* Top connector segment */}
                     {idx > 0 && (
                       <div className="w-[2px] h-[14px] relative">
@@ -889,6 +896,15 @@ function NriSaleJourneySection() {
                             opacity: journeyActive ? 1 : 0,
                             transition: animating ? `opacity 200ms ease ${(idx + 0.5) * 55}ms` : "none",
                           }} />
+                        )}
+                        {stage.num === "02" && (
+                          <span
+                            aria-hidden="true"
+                            className="min-[1200px]:hidden absolute left-[14px] bottom-[6px] whitespace-nowrap pointer-events-none text-[10.5px] font-[700] uppercase tracking-[0.08em] text-[#FDBA74] leading-none"
+                            style={{ fontFamily: SANS }}
+                          >
+                            BANGALORE ON-GROUND · 02–04
+                          </span>
                         )}
                       </div>
                     )}
@@ -935,15 +951,6 @@ function NriSaleJourneySection() {
                     <p style={{ fontFamily: SANS, fontWeight: 425, fontSize: 13.5, lineHeight: 1.52, color: "#AEBBCF", marginTop: 6 }}>
                       {stage.description}
                     </p>
-                    {/* Bangalore label — mobile only, after stage 02 */}
-                    {stage.num === "02" && (
-                      <p
-                        className="min-[1200px]:hidden mt-[8px] text-[10.5px] font-[700] uppercase tracking-[0.08em] text-[#FDBA74]"
-                        style={{ fontFamily: SANS }}
-                      >
-                        BANGALORE ON-GROUND · 02–04
-                      </p>
-                    )}
                     {/* Owner callout — one DOM node; mobile: normal flow; desktop: CSS repositions */}
                     {stage.num === "04" && (
                       <div className="mt-[10px] min-[1200px]:m-0 nri-journey-callout-anchor">
@@ -1759,7 +1766,7 @@ function NriSaleEnquirySection({
             className="mt-[12px] text-[clamp(35px,9vw,42px)] lg:text-[clamp(44px,3.8vw,58px)] text-[#101828] max-w-[880px]"
             style={{ fontFamily: SERIF, fontWeight: 400, lineHeight: 1.03, letterSpacing: "-0.015em" }}
           >
-            Tell us about the property. We&rsquo;ll work out the next step.
+            Who handles what in an NRI property sale?
           </h2>
           <p
             className="mt-[14px] text-[15.5px] lg:text-[17.5px] max-w-[760px]"
@@ -1894,17 +1901,34 @@ function NriSaleEnquirySection({
           </div>
         </div>
 
-        {/* Enquiry form */}
+        {/* Enquiry — two-column desktop composition */}
         <div
           id="enquiry"
-          className="mt-[40px] min-[1200px]:mt-[54px] max-w-[640px] scroll-mt-16"
+          className="scroll-mt-16 mt-[40px] min-[1200px]:mt-[54px] max-w-[1180px] mx-auto min-[1200px]:grid min-[1200px]:grid-cols-[minmax(0,.72fr)_minmax(520px,1fr)] min-[1200px]:gap-[56px] min-[1200px]:items-start"
         >
-          <p
-            className="text-[12px] min-[1200px]:text-[13px] font-[700] uppercase tracking-[0.11em] mb-[20px]"
-            style={{ fontFamily: SANS, color: "#7C3AED" }}
-          >
-            ENQUIRY
-          </p>
+          {/* Left — conversion copy */}
+          <div className="mb-[24px] min-[1200px]:mb-0">
+            <p
+              className="text-[12px] min-[1200px]:text-[13px] font-[700] uppercase tracking-[0.11em]"
+              style={{ fontFamily: SANS, color: "#7C3AED" }}
+            >
+              ENQUIRY
+            </p>
+            <h3
+              className="mt-[10px] text-[clamp(32px,8vw,40px)] min-[1200px]:text-[clamp(40px,3vw,48px)] text-[#101828] max-w-[430px]"
+              style={{ fontFamily: SERIF, fontWeight: 400, lineHeight: 1.06, letterSpacing: "-0.015em" }}
+            >
+              Tell us about the property. We&rsquo;ll work out the next step.
+            </h3>
+            <p
+              className="mt-[12px] text-[15px] min-[1200px]:text-[16.5px] max-w-[420px]"
+              style={{ fontFamily: SANS, fontWeight: 450, lineHeight: 1.55, color: "#526174" }}
+            >
+              Share the property and location details. Any readiness answers shown in the form will come through with your enquiry.
+            </p>
+          </div>
+
+          {/* Right — form card */}
           <div
             className="rounded-[18px] lg:rounded-[22px] border border-[#E8E6E1] shadow-[0_18px_55px_rgba(15,23,42,.08)]"
             style={{ background: "#FFFDFC" }}
