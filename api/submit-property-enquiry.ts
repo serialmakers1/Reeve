@@ -89,6 +89,13 @@ const EnquirySchema = z.object({
     .refine((v) => !v || !SRV_CTRL.test(v))
     .transform((v) => v?.trim() || undefined)
     .optional(),
+  saleReadiness: z.object({
+    titleDocuments:   z.enum(["yes", "no", "unsure"]),
+    ownershipRecords: z.enum(["yes", "no", "unsure"]),
+    duesCurrent:      z.enum(["yes", "no", "unsure"]),
+    ownersAligned:    z.enum(["yes", "no", "unsure"]),
+    executionPlan:    z.enum(["yes", "no", "unsure"]),
+  }).strict().optional(),
   turnstileToken: z.string().min(1),
 });
 
@@ -147,8 +154,19 @@ export default async function handler(request: Request): Promise<Response> {
     return json({ success: true });
   }
 
+  // For non-Sale services, ignore any saleReadiness rather than failing validation.
+  // Guard against null/non-object body shapes (those are left for Zod to reject normally).
+  const isObjectBody =
+    typeof body === "object" && body !== null && !Array.isArray(body);
+
+  const bodyForValidation =
+    isObjectBody &&
+    (body as Record<string, unknown>).serviceChoice !== "nri_property_sale"
+      ? { ...(body as Record<string, unknown>), saleReadiness: undefined }
+      : body;
+
   // Zod validation
-  const parsed = EnquirySchema.safeParse(body);
+  const parsed = EnquirySchema.safeParse(bodyForValidation);
   if (!parsed.success) {
     return json({ error: "Validation failed" }, 400);
   }
@@ -208,6 +226,9 @@ export default async function handler(request: Request): Promise<Response> {
     preferred_contact: data.preferredContact,
     based_in:          data.basedIn,
     notes:             data.notes ?? null,
+    ...(data.serviceChoice === "nri_property_sale" && data.saleReadiness
+      ? { sale_readiness: data.saleReadiness }
+      : {}),
     request_ip:        rawIp,
     ip_country:        request.headers.get("x-vercel-ip-country") ?? null,
     ip_region:         request.headers.get("x-vercel-ip-country-region") ?? null,
