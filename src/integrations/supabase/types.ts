@@ -3880,6 +3880,7 @@ export type Database = {
           preferred_contact: string
           property_type: string
           request_ip: string | null
+          sale_readiness: Json | null
           service_choice: string
           source_page: string
           status: string
@@ -3904,6 +3905,7 @@ export type Database = {
           preferred_contact: string
           property_type: string
           request_ip?: string | null
+          sale_readiness?: Json | null
           service_choice: string
           source_page?: string
           status?: string
@@ -3928,6 +3930,7 @@ export type Database = {
           preferred_contact?: string
           property_type?: string
           request_ip?: string | null
+          sale_readiness?: Json | null
           service_choice?: string
           source_page?: string
           status?: string

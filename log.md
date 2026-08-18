@@ -1,3 +1,55 @@
+## [2026-08-18] feat | Added Band 6 NRI Property Sale responsibility board + enquiry form section
+
+Frontend + API + migration. 4 files modified, 1 migration file created.
+
+- Added `RESPONSIBILITY_ROLES` (4-role board: You decide / Reeve coordinates / Licensed professionals advise / Authorities decide) with 2.5D depth plane, 4-colour rail, hover overlays, mobile 2-col grid layout
+- Added `NriSaleEnquirySection` with ambient radial gradient background, `ENQUIRY_STYLE` (hover + reduced-motion rules + entry animation), no-promises `<aside>`
+- Added `toSaleReadinessContext` utility — returns `SaleReadinessContext | null`, null for partial answers
+- Extended `PropertyEnquiryForm` with `saleReadiness` + `onRemoveSaleReadiness` props; added readiness summary block (flagged-only rows, "Not sure" label, Variant A/B, Edit/Remove actions, entry animation)
+- Extended `buildPayload` to accept `SaleReadinessContext | null`; conditionally spreads `saleReadiness` into payload for NRI sale service only
+- Extended `api/submit-property-enquiry.ts` Zod schema with `.strict().optional()` `saleReadiness` object; pre-validation strip for non-sale services; conditional `sale_readiness` spread in row builder
+- Added migration `supabase/migrations/20260818120000_add_sale_readiness_to_enquiries.sql` (user must apply before deploy)
+- `#enquiry` anchor now resolves — Band 5 CTAs ("Start a sale enquiry" / "Talk through the situation") scroll correctly
+
+## [2026-08-18] feat | Added Band 5 NRI Property Sale sell-rent-wait decision deck [20:30 IST]
+
+Frontend-only. 1 file modified (`src/pages/NriPropertySaleIndia.tsx`). 0 new tests.
+
+- Added `DECISION_OPTIONS` (3 options: Sell/Rent/Wait) + `DECISION_STYLE` module-level constants
+- `DECISION_STYLE`: visual state (lane tint, tile ring, action fill/border) via `(hover:hover)` + unconditional `:focus-within`; 160ms transitions gated inside `(hover:hover) and (prefers-reduced-motion:no-preference)`; arrow translation hover-only; `!important` to override inline styles
+- `DecisionMarker`: 2.5D marker — depth plane same size as tile (44px mobile / 52px desktop), translated 3px/4px behind; two Icon instances (mobile/desktop hidden) since lucide `size` is not CSS-overridable
+- `NriSaleDecisionSection`: twilight dark advisory section; desktop fork SVG with three `linearGradient` defs (`gradientUnits="userSpaceOnUse"`) from neutral centre to Sell orange / Rent teal / Wait violet; `grid-cols-3` at 1200px; `flex-col min-[360px]:flex-row` phone reflow at 320px; equal-height desktop CTAs via `flex-1` + `mt-auto` wrapper; shell `overflow-hidden` clips lane hover backgrounds; external depth plane outside shell
+- Rent CTA resolves to `/find-tenant-bangalore`; Sell/Wait use `href="#enquiry"` intentionally — functional when Band 6 adds `id="enquiry"` target
+- TypeScript: no new errors. Build: passes.
+
+## [2026-08-18] feat | Added Band 4 NRI Property Sale tax and money settlement ledger [19:55 IST]
+
+Frontend-only. 1 file modified (`src/pages/NriPropertySaleIndia.tsx`). 0 new tests.
+
+- Added `MONEY_FLOW` (5 checkpoints: Buyer/Sale Consideration/Tax Withholding/Seller/Banking Remittance) + `EXPLANATIONS` (4 dl rows) module-level constants
+- `TAX_MONEY_STYLE`: self-contained CSS block with `--money-accent-hover` CSS variable hover rule (`!important` to override inline `boxShadow`); strengthens checkpoint's coloured ring on hover rather than replacing with grey
+- `MoneyStation`: raised 2.5D white rounded-square tile — depth plane (accent tinted), front surface gradient, stagger-delayed border/shadow activation, `connectorAccent` for icon colour preserving blue→cyan→orange→teal→violet visual sequence
+- `NriSaleTaxMoneySection`: light `#F2FBF8→#FAFCFB→#F7F9FF` settlement environment, IntersectionObserver one-shot activation (threshold 0.08, same pattern as Band 3)
+- Desktop horizontal layout at `min-[1200px]:`: 5-col `<ol>`, icon block `h-72px` + stem `h-10px` + node dot `h-18px` → SVG route `top:82 height:18 y=9`; `gradientUnits="userSpaceOnUse"` x1=100→x2=900 avoids bounding-box gradient failure on horizontal path; base path `M 50 9 H 950`, active `M 100 9 H 900`
+- Mobile vertical timeline: scaleY connector animation with stagger, blue→cyan→orange→teal→violet connector gradient chain; `sm:max-w-[650px]` tablet text cap
+- 2.5D depth plane (`translate-x-6 translate-y-8`, blue/teal/violet gradient edge visible beneath white ledger surface)
+- Ledger header: "CONCEPTUAL TRANSACTION FLOW" + "ACTUAL REQUIREMENTS VARY" chip (`flex-wrap` prevents 320px overflow)
+- Explanation `<dl>`: 4-col desktop grid with vertical dividers, stacked mobile rows with horizontal dividers; `max-w-[720px]` tablet cap on `<dd>`
+- Professional boundary `<aside>` with `Scale` icon; no warning card, no alert triangle
+
+## [2026-08-18] feat | Added Band 3 NRI Property Sale transaction journey [NriPropertySaleIndia]
+
+Frontend-only. 1 file modified (`src/pages/NriPropertySaleIndia.tsx`). 0 new tests.
+
+- Added `STAGES` module-level constant (6 stages: Prepare → Present → Find & screen → Evaluate → Coordinate → Complete)
+- `StageMarker`: layered diamond + circular plate, `journeyActive`/`animating` dual boolean, stagger-delayed border-color reveal, immediate box-shadow hover
+- `OwnerCallout`: single DOM `<aside>` — normal flow on mobile, CSS-repositioned (`position:absolute`) below Stage 04 on desktop via `.nri-journey-callout-anchor`
+- `NriSaleJourneySection`: dark section with IntersectionObserver (threshold 0.08, one-shot), one semantic `<ol>` switching between mobile vertical timeline and desktop 6-col horizontal grid at `min-[1200px]:`
+- Desktop SVG route (`pathLength="1"` draw animation, gradient stops 0%/#3B82F6 → 28%/#22D3EE → 62%/#8B5CF6 → 100%/#2DD4BF), positioned at `top:24` to align with marker centers
+- Mobile colour connectors (scaleY reveal, coral parallel offset for stages 02–04)
+- Bangalore bracket SVG (stages 02–04 column span, opacity fade)
+- `REVEAL_STYLE` extended: marker-plate hover (!important overrides inline boxShadow), callout anchor media query
+
 ## [2026-08-16] fix | Fixed desktop Radius rendering and unsupported-locality Radius fallback [19:46 IST]
 
 Frontend-only bug fixes. 3 files modified. 24 tests passing (7 new + 1 updated).
@@ -1451,3 +1503,9 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-08-17] feat | Added NRI Property Services Band 4 nine-article property guide with jump nav, sale journey, and inheritance sequence [15:40 IST]
 
 ## [2026-08-17] feat | Added NRI responsibility trust section and promise boundaries [16:16 IST]
+
+## [2026-08-18] feat | Added NRI Property Sale page shell and route [14:50 IST]
+
+## [2026-08-18] feat | Added Band 1 NRI Property Sale hero [15:07 IST]
+
+## [2026-08-18] feat | Added Band 2 NRI Property Sale readiness assessment [16:20 IST]

@@ -36,8 +36,30 @@ interface FormData {
 type FieldErrors = Partial<Record<keyof FormData, string>>;
 type SubmitState = "idle" | "verifying" | "submitting" | "success" | "error";
 
+// ── Sale Readiness context (exported so NriPropertySaleIndia.tsx can import the type) ──
+
+type SaleReadinessValue = "yes" | "no" | "unsure";
+
+export interface SaleReadinessContext {
+  titleDocuments:   SaleReadinessValue;
+  ownershipRecords: SaleReadinessValue;
+  duesCurrent:      SaleReadinessValue;
+  ownersAligned:    SaleReadinessValue;
+  executionPlan:    SaleReadinessValue;
+}
+
+const READINESS_LABELS: Record<keyof SaleReadinessContext, string> = {
+  titleDocuments:   "Title documents",
+  ownershipRecords: "Ownership records",
+  duesCurrent:      "Property dues",
+  ownersAligned:    "Owners / heirs",
+  executionPlan:    "Signing & registration plan",
+};
+
 interface PropertyEnquiryFormProps {
-  initialService?: Exclude<ServiceChoice, "not_sure"> | null;
+  initialService?:        Exclude<ServiceChoice, "not_sure"> | null;
+  saleReadiness?:         SaleReadinessContext | null;
+  onRemoveSaleReadiness?: () => void;
 }
 
 // ── Turnstile global ──────────────────────────────────────────────────────────
@@ -178,7 +200,7 @@ function focusFirstError(errors: FieldErrors) {
 
 // ── Payload builder ───────────────────────────────────────────────────────────
 
-function buildPayload(d: FormData) {
+function buildPayload(d: FormData, ctx?: SaleReadinessContext | null) {
   const emailTrimmed = d.email.trim();
   return {
     serviceChoice:    d.serviceChoice,
@@ -192,6 +214,9 @@ function buildPayload(d: FormData) {
     basedIn:          d.basedIn.trim(),
     notes:            d.notes.trim() || undefined,
     company_website:  d.company_website,
+    ...(d.serviceChoice === "nri_property_sale" && ctx
+      ? { saleReadiness: ctx }
+      : {}),
   };
 }
 
@@ -312,6 +337,8 @@ function RadioCard({
 
 export default function PropertyEnquiryForm({
   initialService,
+  saleReadiness,
+  onRemoveSaleReadiness,
 }: PropertyEnquiryFormProps) {
   const [step,        setStep]        = useState<1 | 2>(1);
   const [formData,    setFormData]    = useState<FormData>(() => makeInitialFormData(initialService));
@@ -465,7 +492,7 @@ export default function PropertyEnquiryForm({
       return;
     }
 
-    pendingPayloadRef.current = buildPayload(formData);
+    pendingPayloadRef.current = buildPayload(formData, saleReadiness);
     setSubmitState("verifying");
 
     // Reset before execute when recovering from a previous error
@@ -531,7 +558,7 @@ export default function PropertyEnquiryForm({
       return;
     }
 
-    pendingPayloadRef.current = buildPayload(formData);
+    pendingPayloadRef.current = buildPayload(formData, saleReadiness);
     setSubmitState("verifying");
     window.turnstile.reset(widgetIdRef.current);
     window.turnstile.execute("#property-enquiry-turnstile");
@@ -734,6 +761,81 @@ export default function PropertyEnquiryForm({
 
             <FieldError id="serviceChoice-error" msg={errors.serviceChoice} />
           </fieldset>
+
+          {/* Sale Readiness summary — shown only when all 5 answers exist + current service = nri_property_sale */}
+          {formData.serviceChoice === "nri_property_sale" && saleReadiness && (() => {
+            const keys = Object.keys(READINESS_LABELS) as (keyof SaleReadinessContext)[];
+            const flagged = keys.filter(k => saleReadiness[k] !== "yes");
+            const allGood = flagged.length === 0;
+            return (
+              <div
+                className="nri-sr-summary p-[14px] sm:p-[16px]"
+                style={{
+                  background: "#F8F7FF",
+                  border: "1px solid #DDD6FE",
+                  borderLeft: "3px solid #7C3AED",
+                  borderRadius: 10,
+                }}
+              >
+                <p style={{ fontFamily: SANS, fontWeight: 700, fontSize: 11, letterSpacing: "0.08em",
+                  textTransform: "uppercase", color: "#6D28D9" }}>
+                  From your sale readiness check
+                </p>
+                {allGood ? (
+                  <p className="mt-[6px] text-[13.5px] sm:text-[14px]"
+                     style={{ fontFamily: SANS, fontWeight: 600, color: "#243244" }}>
+                    ✓ Main readiness basics covered in your check.
+                  </p>
+                ) : (
+                  <>
+                    <div className="mt-[6px] border-b border-[#E7E3F7] pb-[8px]">
+                      <p className="text-[13.5px] sm:text-[14px]"
+                         style={{ fontFamily: SANS, fontWeight: 600, color: "#243244" }}>
+                        {flagged.length} area{flagged.length > 1 ? "s" : ""} worth checking
+                      </p>
+                    </div>
+                    <ul className="mt-[8px] flex flex-col gap-[6px]">
+                      {flagged.map(k => (
+                        <li key={k} className="flex items-center justify-between gap-2">
+                          <span style={{ fontFamily: SANS, fontWeight: 500, fontSize: 13, color: "#475569" }}>
+                            {READINESS_LABELS[k]}
+                          </span>
+                          {saleReadiness[k] === "no" ? (
+                            <span className="text-[11px] font-[600] px-[7px] py-[2px] rounded-full border"
+                              style={{ background: "#FFF3EC", color: "#B93815", borderColor: "#FED7AA" }}>
+                              No
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-[600] px-[7px] py-[2px] rounded-full border"
+                              style={{ background: "#F5F3FF", color: "#6D28D9", borderColor: "#DDD6FE" }}>
+                              Not sure
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                <div className="mt-[10px] flex items-center gap-[12px]">
+                  <a
+                    href="#sale-readiness"
+                    className="min-h-[44px] inline-flex items-center text-[12px] font-[500] underline underline-offset-2"
+                    style={{ color: "#6D28D9" }}
+                  >
+                    Edit answers
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveSaleReadiness?.()}
+                    className="min-h-[44px] inline-flex items-center text-[12px] font-[500] underline underline-offset-2"
+                    style={{ color: "#64748B", fontFamily: SANS }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Property location */}
           <div>
