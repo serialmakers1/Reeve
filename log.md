@@ -1,3 +1,15 @@
+## [2026-08-18] refine | NRI Property Sale page — journey markers, mobile Bangalore annotation, Responsibility heading, enquiry composition
+
+`src/pages/NriPropertySaleIndia.tsx` only. `PropertyEnquiryForm` and all other pages unchanged.
+
+- Readiness CTA copy: "See how the sale process works" (was "Continue to the sale process"); destination `#sale-journey` unchanged
+- Journey markers: added opaque `#0D1529` mask inside wrapper (z-0) to occlude connector behind glass plates; bumped existing geometry to z-1/2/3
+- Journey markers: desktop 56→62px wrapper / 46→52px plate / 18→20px icon; mobile 46→50px wrapper / 40→44px plate / 16→18px icon; connector SVG `top: 24` unchanged
+- Mobile connector column: `w-[46px]` → `w-[50px]` to match enlarged marker
+- Mobile Bangalore label: removed from Stage 02 content block; re-anchored to bottom of 02→03 connector segment via `absolute left-[14px] bottom-[6px]`
+- Responsibility H2: "Who handles what in an NRI property sale?" (was "Tell us about the property…")
+- Enquiry section: two-column desktop grid (`max-w-[1180px]`, ~40/60 split); left col: ENQUIRY eyebrow + conversion h3 + support copy; right col: existing form card; mobile remains stacked
+
 ## [2026-08-18] feat | Added Band 6 NRI Property Sale responsibility board + enquiry form section
 
 Frontend + API + migration. 4 files modified, 1 migration file created.
