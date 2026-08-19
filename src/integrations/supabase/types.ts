@@ -3879,6 +3879,7 @@ export type Database = {
           phone: string
           preferred_contact: string
           property_type: string
+          rent_tds_check: Json | null
           request_ip: string | null
           sale_readiness: Json | null
           service_choice: string
@@ -3904,6 +3905,7 @@ export type Database = {
           phone: string
           preferred_contact: string
           property_type: string
+          rent_tds_check?: Json | null
           request_ip?: string | null
           sale_readiness?: Json | null
           service_choice: string
@@ -3929,6 +3931,7 @@ export type Database = {
           phone?: string
           preferred_contact?: string
           property_type?: string
+          rent_tds_check?: Json | null
           request_ip?: string | null
           sale_readiness?: Json | null
           service_choice?: string

@@ -31,6 +31,7 @@ import VacantPropertyCareBangalore from "./pages/VacantPropertyCareBangalore";
 import FindTenantBangalore from "./pages/FindTenantBangalore";
 import NriPropertyServicesIndia from "./pages/NriPropertyServicesIndia";
 import NriPropertySaleIndia from "./pages/NriPropertySaleIndia";
+import NriRentTdsIndia from "./pages/NriRentTdsIndia";
 
 // ── Lazy imports ───────────────────────────────────────────────────────────────
 const PropertyDetail         = React.lazy(() => import("./pages/PropertyDetail"));
@@ -156,6 +157,7 @@ function AppInner() {
         <Route path="/find-tenant-bangalore" element={<FindTenantBangalore />} />
         <Route path="/nri-property-services-india" element={<NriPropertyServicesIndia />} />
         <Route path="/nri-property-sale-india" element={<NriPropertySaleIndia />} />
+        <Route path="/nri-rent-tds-india" element={<NriRentTdsIndia />} />
         <Route path="/eligibility" element={<Eligibility />} />
         <Route path="/my-properties" element={<Navigate to="/owner-dashboard" replace />} />
         <Route path="/owner-dashboard" element={<OwnerDashboard />} />
