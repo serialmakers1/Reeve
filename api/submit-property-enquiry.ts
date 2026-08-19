@@ -96,6 +96,13 @@ const EnquirySchema = z.object({
     ownersAligned:    z.enum(["yes", "no", "unsure"]),
     executionPlan:    z.enum(["yes", "no", "unsure"]),
   }).strict().optional(),
+  rentTdsCheck: z.object({
+    propertyRented:   z.enum(["yes", "no", "unsure"]),
+    tenantDeducting:  z.enum(["yes", "no", "unsure"]),
+    deductionRecords: z.enum(["yes", "no", "unsure"]),
+    caHandling:       z.enum(["yes", "no", "unsure"]),
+    overOneYear:      z.enum(["yes", "no", "unsure"]),
+  }).strict().optional(),
   turnstileToken: z.string().min(1),
 });
 
@@ -154,16 +161,25 @@ export default async function handler(request: Request): Promise<Response> {
     return json({ success: true });
   }
 
-  // For non-Sale services, ignore any saleReadiness rather than failing validation.
+  // Strip service-specific context fields for services that don't own them.
   // Guard against null/non-object body shapes (those are left for Zod to reject normally).
   const isObjectBody =
     typeof body === "object" && body !== null && !Array.isArray(body);
 
-  const bodyForValidation =
-    isObjectBody &&
-    (body as Record<string, unknown>).serviceChoice !== "nri_property_sale"
-      ? { ...(body as Record<string, unknown>), saleReadiness: undefined }
-      : body;
+  const rawBody = body as Record<string, unknown>;
+  const serviceChoice = rawBody.serviceChoice;
+
+  const bodyForValidation = isObjectBody
+    ? {
+        ...rawBody,
+        ...(serviceChoice !== "nri_property_sale"
+          ? { saleReadiness: undefined }
+          : {}),
+        ...(serviceChoice !== "nri_rent_tds"
+          ? { rentTdsCheck: undefined }
+          : {}),
+      }
+    : body;
 
   // Zod validation
   const parsed = EnquirySchema.safeParse(bodyForValidation);
@@ -228,6 +244,9 @@ export default async function handler(request: Request): Promise<Response> {
     notes:             data.notes ?? null,
     ...(data.serviceChoice === "nri_property_sale" && data.saleReadiness
       ? { sale_readiness: data.saleReadiness }
+      : {}),
+    ...(data.serviceChoice === "nri_rent_tds" && data.rentTdsCheck
+      ? { rent_tds_check: data.rentTdsCheck }
       : {}),
     request_ip:        rawIp,
     ip_country:        request.headers.get("x-vercel-ip-country") ?? null,

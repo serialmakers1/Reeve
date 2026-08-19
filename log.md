@@ -1,3 +1,50 @@
+## [2026-08-19] feat | NRI Rent & TDS page — Band 5 Reeve coordination + sticky CTA
+
+`src/pages/NriRentTdsIndia.tsx` only.
+
+- Added `ChevronDown` to lucide-react import; added `useEffect` to React import
+- Added `COORD_SOURCES`, `SCOPE_ROWS`, `RESP_ITEMS`, `PORT_TOPS` module-level consts
+- `NriRentTdsCoordinationSection`: section with multi-radial ambient gradient; intro with eyebrow, SERIF H2, concept lead, support copy
+- Coordination Switchboard: 5-col desktop grid (31fr / 8fr / 25fr / 9fr / 27fr) + phone flex-col. Desktop: source input stack (glass surface, hover-guarded `onMouseEnter/Leave`, icon-well filter transition, connector opacity transition, Reeve-side port halos via `box-shadow` inline + `transition-[box-shadow]` class), inbound connector channel (`desk:grid-rows-4` deterministic alignment), Reeve node (2.5D, blue gradient, absolute port dots at 12.5%/37.5%/62.5%/87.5%), outbound connector (blue→teal + arrowhead), Owner tile (2.5D, lighter). Mobile: source stack with `pl-[10px] pr-0 py-[9px]`, 20px port gutter, `right-[9px]` collector rail; horizontal bridge `w-[calc(50%_-_9px)] self-end mr-[9px]`; chevron arrowhead; Reeve node full-width; blue→teal gradient Reeve→Owner connector; Owner tile
+- Service scope: desktop 3-col table rows; mobile native `<details className="group">` accordion with `group-open:rotate-180` chevron; Khata link in Exceptions only
+- Responsibility area: 4-cell rail with shared linear-gradient background and quote line
+- `NriRentTdsStickyCTA`: always-mounted `<a>`, RAF-throttled scroll/resize, `aria-hidden` + `tabIndex` + `pointer-events` gate, `z-40`, `env(safe-area-inset-bottom)`, desktop right-anchor reset
+
+## [2026-08-19] feat | NRI Rent & TDS page — Band 4 lower deduction certificate
+
+`src/pages/NriRentTdsIndia.tsx` only. `PropertyEnquiryForm.tsx` and all other files unchanged.
+
+- Added `Scale` to lucide-react import; added `BAND4_STYLE` (nri-band4-glow-h / nri-band4-glow-v, opacity-0 base, 300% travel, reduced-motion off)
+- Added `FORM128_STEPS` module-level const (4 steps: ASSESS / PREPARE / DECIDE / APPLY)
+- Added `NriRentTdsLowerDeductionSection`: dark indigo background with violet/teal radials, left-aligned intro, SERIF H2 with Tailwind clamp responsive sizing
+- Authorised Rate Bridge: 3-col desktop grid (`minmax(0,34fr) minmax(190px,32fr) minmax(0,34fr)`), phone vertical flex; Default slab (orange 2.5D), Authorised slab (violet/teal 2.5D), shared centre gate with hidden/shown responsive connector tracks and sequential mobile glow (2.75s stagger); all glow inside `overflow-hidden` clipped tracks
+- Trust rail: Scale icon, "Not every tenancy needs an application" lead, body copy
+- Form 128: SERIF large numerals, 4-col desktop / 2×2 phone grid, desktop inter-step gradient connector
+- Financial-year strip: CalendarDays, inline-flex max-w-full, 320px-safe stacked phone layout
+- Responsibility line: centred, border-t separator
+- All decorative icons and layers `aria-hidden`; inserted between Band 3 and EnquirySection
+
+## [2026-08-19] feat | NRI Rent & TDS page — Band 3 tenant compliance transit line
+
+`src/pages/NriRentTdsIndia.tsx` only. `PropertyEnquiryForm.tsx` and all other files unchanged.
+
+- Added `NriRentTdsTenantComplianceSection`: centred editorial intro, semantic `<ol aria-label="Tenant TDS process">` four-step transit line (desktop horizontal 4-col / phone vertical), gradient connector station-01→station-04, 2.5D station circles (cyan/orange/blue/teal)
+- Terminology rail with violet left-border and exact statutory copy (Section 393(2), Form 128, Section 395)
+- Consequence rail: shared surface, tenant (UserRound) + landlord (House), desktop 2-col / phone stacked
+- Historic-years `<section id="tds-not-deducted-on-rent">`: 2.5D warm panel (orange/coral depth plate, off-white surface), desktop 40/60 left/right composition, vertical phone recomposition, 3-step RECONSTRUCT→VERIFY→RESOLVE mini-flow, footer CTA `href="#enquiry"`
+- No new dependencies; no keyframe animations; CTA uses `motion-reduce:transition-none`
+
+## [2026-08-19] feat | NRI Rent & TDS page — Band 2 Situation Check console
+
+`src/pages/NriRentTdsIndia.tsx` + `src/components/property-services/PropertyEnquiryForm.tsx`.
+
+- Added `NriRentTdsSituationCheck` component: 5-question self-assessment console with progress rail, 3-column answer grid on all viewports, keyed result dock with 3 semantic tags (Tenant withholding / Deduction records / Historic years)
+- Mobile collapse: phone-only teaser (`sm:hidden`) → "Start the check" → full console (`nriTdsConsoleIn` 180ms entry); single DOM copy
+- Result dock always present (`min-h-[150px] sm:min-h-[165px]`); `key={resultKey}` re-triggers `nriTdsReveal` 220ms on every answer change; `role="status"` for screen reader
+- Native radio semantics: `<fieldset>` / `<legend>` / `<input type="radio" className="sr-only">` in styled `<label>`
+- State lifted to page root: `tdsAnswers: RentTdsAnswers`; `EnquirySection` receives `tdsAnswers` + `onRemoveTdsCheck`
+- `PropertyEnquiryForm`: exported `RentTdsCheckContext` interface; `buildRentTdsContextNote()` pure helper; additive `rentTdsCheck` + `onRemoveRentTdsCheck` props; serialize context into `notes` via `finalNotes` pattern; `effectiveNotesMax` reduces textarea limit when check active; `validateStep2(d, notesMax)` optional second param (existing call sites unaffected); Rent/TDS summary panel with chips + Edit/Remove actions in Step 1
+
 ## [2026-08-18] refine | NRI Property Sale page — journey markers, mobile Bangalore annotation, Responsibility heading, enquiry composition
 
 `src/pages/NriPropertySaleIndia.tsx` only. `PropertyEnquiryForm` and all other pages unchanged.
@@ -1521,3 +1568,18 @@ Typecheck: 415 errors (baseline 413, +2, within ±5 tolerance). None in touched 
 ## [2026-08-18] feat | Added Band 1 NRI Property Sale hero [15:07 IST]
 
 ## [2026-08-18] feat | Added Band 2 NRI Property Sale readiness assessment [16:20 IST]
+
+## [2026-08-19] create | Added /nri-rent-tds-india page foundation with existing enquiry section [02:29 IST]
+
+## [2026-08-19] feat | Added NRI Rent & TDS Band 1 hero and money-flow experience [02:58 IST]
+
+## [2026-08-19] feat | NRI Rent & TDS Band 6 + structured TDS persistence [03:45 IST]
+
+`NriRentTdsIndia.tsx`, `PropertyEnquiryForm.tsx`, `api/submit-property-enquiry.ts` changed.
+New migration: `supabase/migrations/20260819120000_add_rent_tds_check_to_enquiries.sql` (pending manual deployment).
+
+- Band 6: dark deep-blue background; exact new H2/support/reassurance copy; no response-time promise
+- Next-property decision (Managed 2.5D slab, Let quieter card) + Sale + NRI Hub contextual links below form card
+- Structured rentTdsCheck: removed buildRentTdsContextNote notes-prepend workaround; rentTdsCheck now sent as structured payload field for nri_rent_tds; notes restored to full 1000-char limit
+- API: rentTdsCheck added to Zod schema; stripped for non-nri_rent_tds services; rent_tds_check written to DB conditionally
+- Migration: adds nullable rent_tds_check jsonb column — PENDING manual deploy + type regen before code can write it

@@ -48,6 +48,14 @@ export interface SaleReadinessContext {
   executionPlan:    SaleReadinessValue;
 }
 
+export interface RentTdsCheckContext {
+  propertyRented:   "yes" | "no" | "unsure";
+  tenantDeducting:  "yes" | "no" | "unsure";
+  deductionRecords: "yes" | "no" | "unsure";
+  caHandling:       "yes" | "no" | "unsure";
+  overOneYear:      "yes" | "no" | "unsure";
+}
+
 const READINESS_LABELS: Record<keyof SaleReadinessContext, string> = {
   titleDocuments:   "Title documents",
   ownershipRecords: "Ownership records",
@@ -56,10 +64,13 @@ const READINESS_LABELS: Record<keyof SaleReadinessContext, string> = {
   executionPlan:    "Signing & registration plan",
 };
 
+
 interface PropertyEnquiryFormProps {
   initialService?:        Exclude<ServiceChoice, "not_sure"> | null;
   saleReadiness?:         SaleReadinessContext | null;
   onRemoveSaleReadiness?: () => void;
+  rentTdsCheck?:          RentTdsCheckContext | null;
+  onRemoveRentTdsCheck?:  () => void;
 }
 
 // ── Turnstile global ──────────────────────────────────────────────────────────
@@ -137,7 +148,7 @@ function validateStep1(d: FormData): FieldErrors {
   return e;
 }
 
-function validateStep2(d: FormData): FieldErrors {
+function validateStep2(d: FormData, notesMax = 1000): FieldErrors {
   const e: FieldErrors = {};
   const name = d.name.trim();
   if (!name || !NAME_RE.test(name) || !HAS_LETTER.test(name)) {
@@ -156,8 +167,8 @@ function validateStep2(d: FormData): FieldErrors {
   if (!based || !LOCALE_RE.test(based) || !HAS_LETTER.test(based)) {
     e.basedIn = "Enter a valid city or location.";
   }
-  if (d.notes.length > 1000) {
-    e.notes = "Keep this to 1,000 characters or fewer.";
+  if (d.notes.length > notesMax) {
+    e.notes = `Keep this to ${notesMax.toLocaleString()} characters or fewer.`;
   }
   if (d.notes.trim() && CTRL_CHARS.test(d.notes)) {
     e.notes = "Keep this to 1,000 characters or fewer.";
@@ -200,7 +211,11 @@ function focusFirstError(errors: FieldErrors) {
 
 // ── Payload builder ───────────────────────────────────────────────────────────
 
-function buildPayload(d: FormData, ctx?: SaleReadinessContext | null) {
+function buildPayload(
+  d: FormData,
+  saleCtx?: SaleReadinessContext | null,
+  rentTdsCtx?: RentTdsCheckContext | null,
+) {
   const emailTrimmed = d.email.trim();
   return {
     serviceChoice:    d.serviceChoice,
@@ -214,8 +229,11 @@ function buildPayload(d: FormData, ctx?: SaleReadinessContext | null) {
     basedIn:          d.basedIn.trim(),
     notes:            d.notes.trim() || undefined,
     company_website:  d.company_website,
-    ...(d.serviceChoice === "nri_property_sale" && ctx
-      ? { saleReadiness: ctx }
+    ...(d.serviceChoice === "nri_property_sale" && saleCtx
+      ? { saleReadiness: saleCtx }
+      : {}),
+    ...(d.serviceChoice === "nri_rent_tds" && rentTdsCtx
+      ? { rentTdsCheck: rentTdsCtx }
       : {}),
   };
 }
@@ -339,6 +357,8 @@ export default function PropertyEnquiryForm({
   initialService,
   saleReadiness,
   onRemoveSaleReadiness,
+  rentTdsCheck,
+  onRemoveRentTdsCheck,
 }: PropertyEnquiryFormProps) {
   const [step,        setStep]        = useState<1 | 2>(1);
   const [formData,    setFormData]    = useState<FormData>(() => makeInitialFormData(initialService));
@@ -384,7 +404,7 @@ export default function PropertyEnquiryForm({
       field === "basedIn" ||
       field === "notes"
     ) {
-      allErrors = validateStep2(formData);
+      allErrors = validateStep2(formData, effectiveNotesMax);
     } else {
       allErrors = validateStep1(formData);
     }
@@ -478,7 +498,7 @@ export default function PropertyEnquiryForm({
   function handleSubmitClick() {
     setTsError(false);
 
-    const stepErrors = validateStep2(formData);
+    const stepErrors = validateStep2(formData, effectiveNotesMax);
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
       focusFirstError(stepErrors);
@@ -492,7 +512,7 @@ export default function PropertyEnquiryForm({
       return;
     }
 
-    pendingPayloadRef.current = buildPayload(formData, saleReadiness);
+    pendingPayloadRef.current = buildPayload(formData, saleReadiness, rentTdsCheck);
     setSubmitState("verifying");
 
     // Reset before execute when recovering from a previous error
@@ -543,7 +563,7 @@ export default function PropertyEnquiryForm({
   function handleRetry() {
     setTsError(false);
 
-    const stepErrors = validateStep2(formData);
+    const stepErrors = validateStep2(formData, effectiveNotesMax);
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
       focusFirstError(stepErrors);
@@ -558,7 +578,7 @@ export default function PropertyEnquiryForm({
       return;
     }
 
-    pendingPayloadRef.current = buildPayload(formData, saleReadiness);
+    pendingPayloadRef.current = buildPayload(formData, saleReadiness, rentTdsCheck);
     setSubmitState("verifying");
     window.turnstile.reset(widgetIdRef.current);
     window.turnstile.execute("#property-enquiry-turnstile");
@@ -591,6 +611,8 @@ export default function PropertyEnquiryForm({
   // ── Derived state ─────────────────────────────────────────────────────────
 
   const isLocked = submitState === "verifying" || submitState === "submitting";
+
+  const effectiveNotesMax = 1000;
 
   // ── Input class helper ────────────────────────────────────────────────────
 
@@ -827,6 +849,76 @@ export default function PropertyEnquiryForm({
                   <button
                     type="button"
                     onClick={() => onRemoveSaleReadiness?.()}
+                    className="min-h-[44px] inline-flex items-center text-[12px] font-[500] underline underline-offset-2"
+                    style={{ color: "#64748B", fontFamily: SANS }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Rent & TDS summary — shown only when check is complete + current service = nri_rent_tds */}
+          {formData.serviceChoice === "nri_rent_tds" && rentTdsCheck && (() => {
+            const isRented = rentTdsCheck.propertyRented === "yes";
+            const tenantWithholding = isRented && rentTdsCheck.tenantDeducting !== "yes";
+            const deductionRecords  = isRented && rentTdsCheck.deductionRecords !== "yes";
+            const historicYears     = rentTdsCheck.overOneYear === "yes" && (tenantWithholding || deductionRecords);
+            const chips = [
+              ...(tenantWithholding ? [{ label: "Tenant withholding", bg: "#FFF7ED", color: "#B45309", border: "#FED7AA" }] : []),
+              ...(deductionRecords  ? [{ label: "Deduction records",  bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" }] : []),
+              ...(historicYears     ? [{ label: "Historic years",     bg: "#F5F3FF", color: "#6D28D9", border: "#DDD6FE" }] : []),
+            ];
+            return (
+              <div
+                className="p-[14px] sm:p-[16px]"
+                style={{
+                  background: "#F8F7FF",
+                  border: "1px solid #DDD6FE",
+                  borderLeft: "3px solid #7C3AED",
+                  borderRadius: 10,
+                }}
+              >
+                <p style={{ fontFamily: SANS, fontWeight: 700, fontSize: 11, letterSpacing: "0.08em",
+                  textTransform: "uppercase", color: "#6D28D9" }}>
+                  From your rent &amp; TDS check
+                </p>
+                {chips.length === 0 ? (
+                  <p className="mt-[6px] text-[13.5px] sm:text-[14px]"
+                     style={{ fontFamily: SANS, fontWeight: 600, color: "#243244" }}>
+                    No specific review area surfaced in your check.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-[6px] text-[13.5px] sm:text-[14px]"
+                       style={{ fontFamily: SANS, fontWeight: 600, color: "#243244" }}>
+                      {chips.length} area{chips.length > 1 ? "s" : ""} worth a closer look
+                    </p>
+                    <div className="mt-[8px] flex flex-wrap gap-[6px]">
+                      {chips.map(c => (
+                        <span
+                          key={c.label}
+                          className="inline-flex items-center px-[9px] py-[3px] rounded-full text-[11px] font-[600]"
+                          style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}` }}
+                        >
+                          {c.label}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <div className="mt-[10px] flex items-center gap-[12px]">
+                  <a
+                    href="#rent-tds-check"
+                    className="min-h-[44px] inline-flex items-center text-[12px] font-[500] underline underline-offset-2"
+                    style={{ color: "#6D28D9" }}
+                  >
+                    Edit answers
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveRentTdsCheck?.()}
                     className="min-h-[44px] inline-flex items-center text-[12px] font-[500] underline underline-offset-2"
                     style={{ color: "#64748B", fontFamily: SANS }}
                   >
@@ -1117,6 +1209,7 @@ export default function PropertyEnquiryForm({
               id="notes"
               rows={3}
               disabled={isLocked}
+              maxLength={effectiveNotesMax}
               placeholder="Anything we should know about the property or timing?"
               value={formData.notes}
               onChange={(e) => setField("notes", e.target.value)}
