@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { UserRound, ReceiptText, WalletCards, ShieldCheck, Check, X, CircleHelp, ClipboardCheck, UserCheck, Landmark, FileCheck2, BookOpenCheck, CalendarDays, House, Scale, ChevronDown } from "lucide-react";
 import Layout from "@/components/Layout";
-import PropertyEnquiryForm, { type RentTdsCheckContext } from "@/components/property-services/PropertyEnquiryForm";
+import PropertyEnquiryForm, { type RentTdsCheckContext, getRentTdsReview } from "@/components/property-services/PropertyEnquiryForm";
 
 const SERIF = "'Instrument Serif', Georgia, serif";
 const SANS = "'DM Sans', system-ui, sans-serif";
@@ -71,11 +71,12 @@ const TDS_QUESTIONS: {
   question: string;
   helper?: string;
 }[] = [
-  { key: "propertyRented",   num: "01", question: "Is the property already rented?" },
-  { key: "tenantDeducting",  num: "02", question: "Is your tenant deducting tax from the rent?" },
-  { key: "deductionRecords", num: "03", question: "Are you receiving the deduction certificates and records?",
+  { key: "propertyRented",   num: "01", question: "Is the property already rented?",
+    helper: "Choose Yes if rent is being paid now or you're reviewing an earlier rental period." },
+  { key: "tenantDeducting",  num: "02", question: "Is tax being deducted from the rent before it is paid to you?" },
+  { key: "deductionRecords", num: "03", question: "Are you receiving the deduction certificates and supporting records?",
     helper: "For example, records showing what was deducted and deposited." },
-  { key: "caHandling",       num: "04", question: "Do you already have a CA handling the rental-tax work?" },
+  { key: "caHandling",       num: "04", question: "Do you already have a CA or tax professional handling the rental-tax work?" },
   { key: "overOneYear",      num: "05", question: "Has this rental arrangement been running for more than one year?" },
 ];
 
@@ -225,7 +226,7 @@ function NriRentTdsHeroSection() {
         />
 
         <div className="relative mx-auto max-w-[1320px] px-5 sm:px-8 lg:px-12">
-          <div className="xl:grid xl:grid-cols-[58fr_42fr] xl:gap-10 xl:items-start">
+          <div className="xl:grid xl:grid-cols-[58fr_42fr] xl:gap-10 xl:items-stretch">
 
             {/* ── LEFT COLUMN ── */}
             <div className="pt-12 sm:pt-14 lg:pt-[80px] pb-12 sm:pb-16 xl:pb-[72px]">
@@ -497,7 +498,7 @@ function NriRentTdsHeroSection() {
             {/* ── END LEFT COLUMN ── */}
 
             {/* ── RIGHT COLUMN: desktop money flow ── */}
-            <div className="hidden xl:flex flex-col pt-[72px] pb-[72px]">
+            <div className="hidden xl:flex xl:self-stretch xl:flex-col xl:justify-center xl:py-0">
 
               {/* Five-column deterministic grid: [node | connector | node | connector | node] */}
               <div
@@ -718,11 +719,10 @@ function NriRentTdsHeroSection() {
 
 // ── Band 2: Situation Check ───────────────────────────────────────────────────
 
-const CHIP_COLORS: Record<string, { bg: string; color: string; border: string }> = {
-  "Tenant withholding": { bg: "#FFF7ED", color: "#B45309", border: "#FED7AA" },
-  "Deduction records":  { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
-  "Historic years":     { bg: "#F5F3FF", color: "#6D28D9", border: "#DDD6FE" },
-};
+const REVIEW_CHIP_STYLE = {
+  review:  { bg: "#FFF7ED", color: "#B45309", border: "#FED7AA" },
+  clarify: { bg: "#F5F3FF", color: "#6D28D9", border: "#DDD6FE" },
+} as const;
 
 function NriRentTdsSituationCheck({
   answers,
@@ -733,22 +733,11 @@ function NriRentTdsSituationCheck({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const answeredCount = TDS_QUESTIONS.filter(q => answers[q.key] !== undefined).length;
-  const allComplete   = answeredCount === 5;
-  const isRented      = answers.propertyRented === "yes";
-
-  const needsTenantWithholding = allComplete && isRented && answers.tenantDeducting !== "yes";
-  const needsDeductionRecords  = allComplete && isRented && answers.deductionRecords !== "yes";
-  const needsHistoricYears     =
-    allComplete && answers.overOneYear === "yes" && (needsTenantWithholding || needsDeductionRecords);
-
-  const tags = [
-    ...(needsTenantWithholding ? ["Tenant withholding"] : []),
-    ...(needsDeductionRecords  ? ["Deduction records"]  : []),
-    ...(needsHistoricYears     ? ["Historic years"]      : []),
-  ];
-
-  const resultKey = TDS_QUESTIONS.map(q => answers[q.key] ?? "").join("|");
+  const answeredCount  = TDS_QUESTIONS.filter(q => answers[q.key] !== undefined).length;
+  const allComplete    = answeredCount === 5;
+  const rentTdsContext = allComplete ? toRentTdsCheckContext(answers) : null;
+  const tdsResult      = rentTdsContext ? getRentTdsReview(rentTdsContext) : null;
+  const resultKey      = TDS_QUESTIONS.map(q => answers[q.key] ?? "").join("|");
 
   return (
     <section
@@ -982,81 +971,67 @@ function NriRentTdsSituationCheck({
                 ))}
               </div>
 
-              {/* Result dock — always present, reserved height */}
-              <div
-                role="status"
-                aria-live="polite"
-                className="mt-6 pt-6 border-t border-[#EEF0F4] min-h-[150px] sm:min-h-[165px]"
-              >
-                {!allComplete ? (
-                  <p style={{ fontFamily: SANS, fontSize: 14, color: "#6B7280" }}>
-                    Answer all five questions to see what may be worth reviewing.
-                  </p>
-                ) : (
+              {/* Result dock — rendered only when all 5 answers are given */}
+              {allComplete && tdsResult && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="mt-6 pt-6 border-t border-[#EEF0F4]"
+                >
                   <div key={resultKey} className="nri-tds-result-reveal">
-                    {tags.length === 0 ? (
-                      <div className="sm:flex sm:items-start sm:gap-8">
-                        <div className="sm:flex-1">
-                          <p style={{ fontFamily: SANS, fontSize: 17, fontWeight: 700, color: "#0F172A" }}>
-                            Nothing obvious stands out from these five answers
-                          </p>
+                    <div className="sm:flex sm:items-start sm:gap-8">
+                      <div className="sm:flex-1">
+                        <p style={{ fontFamily: SANS, fontSize: 17, fontWeight: 700, color: "#0F172A" }}>
+                          {tdsResult.headline}
+                        </p>
+                        <p className="mt-2" style={{ fontFamily: SANS, fontSize: 13, color: "#6B7280", lineHeight: 1.5 }}>
+                          {tdsResult.support}
+                        </p>
+                        {tdsResult.secondary && (
                           <p className="mt-2" style={{ fontFamily: SANS, fontSize: 13, color: "#6B7280", lineHeight: 1.5 }}>
-                            This check has not surfaced a specific area to review. It is still a
-                            situation check, not professional tax advice.
+                            {tdsResult.secondary}
                           </p>
-                        </div>
-                        <div className="mt-4 sm:mt-0 sm:flex-shrink-0">
-                          <a
-                            href="#enquiry"
-                            className="inline-flex items-center justify-center rounded-[12px] px-5 font-[600] text-white bg-[#2563EB] hover:bg-[#1D4ED8] active:bg-[#1E40AF] transition-colors duration-[160ms] min-h-[48px] w-full sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
-                            style={{ fontFamily: SANS, fontSize: 14 }}
-                          >
-                            Discuss the setup with Reeve
-                          </a>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="sm:flex sm:items-start sm:gap-8">
-                        <div className="sm:flex-1">
-                          <p style={{ fontFamily: SANS, fontSize: 17, fontWeight: 700, color: "#0F172A" }}>
-                            {tags.length} thing{tags.length > 1 ? "s" : ""} may be worth checking
-                          </p>
-                          <p className="mt-2" style={{ fontFamily: SANS, fontSize: 13, color: "#6B7280", lineHeight: 1.5 }}>
-                            This does not mean something is wrong. These are simply the parts of
-                            the setup that may deserve a closer look.
-                          </p>
+                        )}
+                        {tdsResult.items.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-2">
-                            {tags.map(tag => {
-                              const c = CHIP_COLORS[tag];
+                            {tdsResult.items.map(item => {
+                              const c = REVIEW_CHIP_STYLE[item.tone];
                               return (
                                 <span
-                                  key={tag}
+                                  key={item.key}
                                   className="inline-flex items-center px-3 py-1 rounded-full text-[12px] font-[600]"
                                   style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}` }}
                                 >
-                                  {tag}
+                                  {item.label}
                                 </span>
                               );
                             })}
                           </div>
-                        </div>
-                        <div className="mt-4 sm:mt-0 sm:flex-shrink-0 flex flex-col items-start sm:items-end gap-2">
-                          <a
-                            href="#enquiry"
-                            className="inline-flex items-center justify-center rounded-[12px] px-5 font-[600] text-white bg-[#2563EB] hover:bg-[#1D4ED8] active:bg-[#1E40AF] transition-colors duration-[160ms] min-h-[48px] w-full sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
-                            style={{ fontFamily: SANS, fontSize: 14 }}
-                          >
-                            Discuss these with Reeve
-                          </a>
+                        )}
+                        {tdsResult.professionalContext && (
+                          <p className="mt-2" style={{ fontFamily: SANS, fontSize: 13, color: "#6B7280", lineHeight: 1.5 }}>
+                            {tdsResult.professionalContext}
+                          </p>
+                        )}
+                      </div>
+                      <div className={`mt-4 sm:mt-0 sm:flex-shrink-0 flex flex-col items-start sm:items-end gap-2`}>
+                        <a
+                          href="#enquiry"
+                          className="inline-flex items-center justify-center rounded-[12px] px-5 font-[600] text-white bg-[#2563EB] hover:bg-[#1D4ED8] active:bg-[#1E40AF] transition-colors duration-[160ms] min-h-[48px] w-full sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+                          style={{ fontFamily: SANS, fontSize: 14 }}
+                        >
+                          {tdsResult.mode === "review" ? "Discuss these with Reeve" : "Discuss the setup with Reeve"}
+                        </a>
+                        {(tdsResult.mode === "review" || tdsResult.mode === "clarify") && (
                           <p style={{ fontFamily: SANS, fontSize: 12, color: "#9CA3AF" }}>
                             Situation check only — not tax advice.
                           </p>
-                        </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
             </div>
           </div>
@@ -1380,7 +1355,7 @@ function NriRentTdsTenantComplianceSection() {
             }}
           >
             {/* Upper content */}
-            <div className="px-5 sm:px-8 lg:px-10 pt-8 lg:pt-10 pb-6 lg:pb-8 flex flex-col lg:flex-row lg:gap-8 lg:items-start">
+            <div className="px-5 sm:px-8 lg:px-10 pt-8 lg:pt-10 pb-6 lg:pb-8 flex flex-col lg:flex-row lg:gap-8 lg:items-stretch">
               {/* Left — intro */}
               <div className="lg:w-[38%] flex-shrink-0 lg:pr-8 lg:border-r lg:border-[rgba(249,115,22,.18)]">
                 <div
@@ -1411,9 +1386,9 @@ function NriRentTdsTenantComplianceSection() {
               </div>
 
               {/* Right — cleanup mini-flow */}
-              <div className="mt-6 lg:mt-0 lg:flex-1">
+              <div className="mt-6 lg:mt-0 lg:self-stretch lg:flex lg:flex-col lg:justify-center lg:flex-1">
                 {/* Desktop: 3-col grid. Phone: vertical */}
-                <div className="relative flex flex-col gap-6 lg:grid lg:grid-cols-3 lg:gap-4">
+                <div className="relative flex flex-col gap-6 lg:grid lg:grid-cols-3 lg:gap-4 lg:w-full">
                   {/* Desktop horizontal connector — centred in grid, behind dots */}
                   <div
                     aria-hidden="true"
@@ -2459,10 +2434,10 @@ function EnquirySection({
         }}
       >
         <div className="mx-auto max-w-[1240px] px-5 sm:px-8 lg:px-10 pt-16 pb-[72px] lg:pt-24 lg:pb-[104px]">
-          <div className="lg:grid lg:grid-cols-[38fr_62fr] lg:gap-[60px] lg:items-start">
+          <div className="lg:grid lg:grid-cols-[38fr_62fr] lg:grid-rows-[auto_1fr] lg:gap-x-[60px] lg:items-start">
 
-            {/* Left copy */}
-            <div className="lg:pt-8">
+            {/* Left copy — col 1, row 1 */}
+            <div className="lg:pt-8 lg:col-start-1 lg:row-start-1">
               <p
                 className="uppercase"
                 style={{ fontFamily: SANS, fontSize: 12, fontWeight: 700, letterSpacing: "0.10em", color: "#67E8F9", marginBottom: 12 }}
@@ -2514,8 +2489,8 @@ function EnquirySection({
               </ul>
             </div>
 
-            {/* Right column: form card + next-property decision */}
-            <div className="mt-8 lg:mt-0">
+            {/* Right column — col 2, rows 1–2 */}
+            <div className="mt-8 lg:mt-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
               {/* Form card */}
               <div
                 className="rounded-[18px] lg:rounded-[22px] border border-[#E8E6E1] shadow-[0_26px_70px_rgba(0,0,0,.22)]"
@@ -2530,16 +2505,18 @@ function EnquirySection({
                 </div>
               </div>
 
-              {/* Next-property decision */}
-              <div className="mt-[28px] lg:mt-[36px]">
-                <h3
-                  className="text-[26px] lg:text-[30px] font-normal leading-[1.10] text-[#F8FAFC] mb-[14px]"
-                  style={{ fontFamily: SERIF }}
-                >
-                  What happens with the property next?
-                </h3>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-[10px] sm:gap-[12px]">
+            {/* Next-property decision — col 1, row 2 on desktop */}
+            <div className="mt-[28px] lg:mt-0 lg:col-start-1 lg:row-start-2 lg:pt-[32px]">
+              <h3
+                className="text-[26px] lg:text-[30px] font-normal leading-[1.10] text-[#F8FAFC] mb-[14px]"
+                style={{ fontFamily: SERIF }}
+              >
+                What happens with the property next?
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-[10px] sm:gap-[12px] lg:gap-[10px]">
 
                   {/* REEVE MANAGED (2.5D slab) */}
                   <div className="relative overflow-visible">
@@ -2646,7 +2623,6 @@ function EnquirySection({
                   </a>
                 </div>
               </div>
-            </div>
 
           </div>
         </div>

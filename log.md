@@ -1,3 +1,13 @@
+## [2026-08-19] fix | Final Rent/TDS check logic and desktop layout polish [21:40 IST]
+
+`src/pages/NriRentTdsIndia.tsx`, `src/components/property-services/PropertyEnquiryForm.tsx`.
+
+- Exported `getRentTdsReview` pure resolver from PropertyEnquiryForm; Band 2 and form summary both use it
+- Band 2 result dock: removed `min-h` placeholder; conditional on `allComplete` only; `unsure ≠ no` throughout; contradiction branch added; correct headline copy; orange/purple tone chips
+- Band 1 hero grid: `xl:items-stretch`; right col `xl:justify-center xl:py-0`
+- Band 3 past-years section: `lg:items-stretch`; right wrapper vertically centered; inner grid `lg:w-full`
+- Band 6 enquiry: CSS grid rows (`lg:grid-rows-[auto_1fr]`); next-property decision block moved to left col row 2; cards `lg:grid-cols-1`; phone DOM order preserved
+
 ## [2026-08-19] feat | NRI Rent & TDS page — Band 5 Reeve coordination + sticky CTA
 
 `src/pages/NriRentTdsIndia.tsx` only.
