@@ -56,6 +56,127 @@ export interface RentTdsCheckContext {
   overOneYear:      "yes" | "no" | "unsure";
 }
 
+// ── Rent/TDS review resolver ──────────────────────────────────────────────────
+
+export type RentTdsReviewTone = "review" | "clarify";
+
+export interface RentTdsReviewItem {
+  key: "rental_status" | "rental_status_history" | "tenant_withholding"
+     | "deduction_records" | "past_years" | "rental_history";
+  label: string;
+  tone: RentTdsReviewTone;
+}
+
+export interface RentTdsReviewResult {
+  mode: "review" | "clarify" | "clear" | "not_active";
+  items: RentTdsReviewItem[];
+  headline: string;
+  support: string;
+  secondary?: string;
+  professionalContext?: string;
+}
+
+export function getRentTdsReview(ctx: RentTdsCheckContext): RentTdsReviewResult {
+  const definitelyNotRented = ctx.propertyRented === "no";
+
+  // Q4 — professional context only, calculated before any early return so it's available everywhere
+  const profCtx =
+    ctx.caHandling === "yes"  ? "You already have professional support in place; Reeve can coordinate with them."
+    : ctx.caHandling === "no" ? "If professional work is needed, Reeve can help coordinate with the appropriate professional."
+    : "Professional support can be clarified as part of the review.";
+
+  // 1. Contradiction: Q1=No but other answers imply rent has existed
+  const contradictsNoRental =
+    definitelyNotRented &&
+    (ctx.tenantDeducting === "yes" || ctx.deductionRecords === "yes" || ctx.overOneYear === "yes");
+
+  if (contradictsNoRental) {
+    return {
+      mode:                "clarify",
+      items:               [{ key: "rental_status_history", label: "Rental status / history", tone: "clarify" }],
+      headline:            "The rental history needs clarifying",
+      support:             "Some of these answers suggest rent may already have been paid or an earlier rental period may be relevant.",
+      professionalContext: profCtx,
+    };
+  }
+
+  // 2. Genuine Q1=No, no contradiction
+  if (definitelyNotRented) {
+    return {
+      mode:     "not_active",
+      items:    [],
+      headline: "No current rent/TDS issue is active from these answers",
+      support:  "If the property is rented later, withholding and record-keeping should be set up from the start.",
+    };
+  }
+
+  // 3. Build items (Q1 = yes or unsure)
+  const items: RentTdsReviewItem[] = [];
+
+  if (ctx.propertyRented === "unsure") {
+    items.push({ key: "rental_status", label: "Rental status", tone: "clarify" });
+  }
+
+  const withholdingGap     = ctx.tenantDeducting  === "no";
+  const withholdingUnclear = ctx.tenantDeducting  === "unsure";
+  const recordsGap         = ctx.deductionRecords === "no";
+  const recordsUnclear     = ctx.deductionRecords === "unsure";
+
+  if (withholdingGap)     items.push({ key: "tenant_withholding", label: "Tenant withholding", tone: "review"  });
+  if (withholdingUnclear) items.push({ key: "tenant_withholding", label: "Tenant withholding", tone: "clarify" });
+  if (recordsGap)         items.push({ key: "deduction_records",  label: "Deduction records",  tone: "review"  });
+  if (recordsUnclear)     items.push({ key: "deduction_records",  label: "Deduction records",  tone: "clarify" });
+
+  const underlyingIssue = withholdingGap || withholdingUnclear || recordsGap || recordsUnclear;
+  if (underlyingIssue) {
+    if (ctx.overOneYear === "yes") {
+      const tone = (withholdingGap || recordsGap) ? "review" : "clarify";
+      items.push({ key: "past_years",     label: "Past years",     tone });
+    } else if (ctx.overOneYear === "unsure") {
+      items.push({ key: "rental_history", label: "Rental history", tone: "clarify" });
+    }
+  }
+
+  // Annual reconciliation note — only when arrangement is multi-year and no underlying w/h or records issue
+  const annualContext =
+    ctx.overOneYear === "yes" && !underlyingIssue
+      ? "Because the arrangement has run for more than one year, annual reconciliation should still be kept current."
+      : undefined;
+
+  const reviewCount  = items.filter(i => i.tone === "review").length;
+  const totalCount   = items.length;
+
+  if (reviewCount > 0) {
+    return {
+      mode:                "review",
+      items,
+      headline:             totalCount === 1 ? "1 area may be worth checking" : `${totalCount} areas may be worth checking`,
+      support:             "This does not mean something is wrong. These are the parts of the setup that may deserve a closer look.",
+      professionalContext: profCtx,
+    };
+  }
+
+  if (totalCount > 0) {
+    return {
+      mode:                "clarify",
+      items,
+      headline:             totalCount === 1 ? "1 area needs clarification" : `${totalCount} areas need clarification`,
+      support:             "These answers leave parts of the rental setup unclear. Clarifying them will help determine what, if anything, needs attention.",
+      secondary:           annualContext,
+      professionalContext: profCtx,
+    };
+  }
+
+  return {
+    mode:                "clear",
+    items:               [],
+    headline:            "The core tenant-side setup looks broadly in place",
+    support:             "These answers haven't surfaced a specific withholding or records issue. This is still a situation check, not professional tax advice.",
+    secondary:           annualContext,
+    professionalContext: profCtx,
+  };
+}
+
 const READINESS_LABELS: Record<keyof SaleReadinessContext, string> = {
   titleDocuments:   "Title documents",
   ownershipRecords: "Ownership records",
@@ -861,15 +982,11 @@ export default function PropertyEnquiryForm({
 
           {/* Rent & TDS summary — shown only when check is complete + current service = nri_rent_tds */}
           {formData.serviceChoice === "nri_rent_tds" && rentTdsCheck && (() => {
-            const isRented = rentTdsCheck.propertyRented === "yes";
-            const tenantWithholding = isRented && rentTdsCheck.tenantDeducting !== "yes";
-            const deductionRecords  = isRented && rentTdsCheck.deductionRecords !== "yes";
-            const historicYears     = rentTdsCheck.overOneYear === "yes" && (tenantWithholding || deductionRecords);
-            const chips = [
-              ...(tenantWithholding ? [{ label: "Tenant withholding", bg: "#FFF7ED", color: "#B45309", border: "#FED7AA" }] : []),
-              ...(deductionRecords  ? [{ label: "Deduction records",  bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" }] : []),
-              ...(historicYears     ? [{ label: "Historic years",     bg: "#F5F3FF", color: "#6D28D9", border: "#DDD6FE" }] : []),
-            ];
+            const result = getRentTdsReview(rentTdsCheck);
+            const toneStyle = (tone: RentTdsReviewTone) =>
+              tone === "review"
+                ? { background: "#FFF7ED", color: "#B45309", border: "1px solid #FED7AA" }
+                : { background: "#F5F3FF", color: "#6D28D9", border: "1px solid #DDD6FE" };
             return (
               <div
                 className="p-[14px] sm:p-[16px]"
@@ -884,29 +1001,22 @@ export default function PropertyEnquiryForm({
                   textTransform: "uppercase", color: "#6D28D9" }}>
                   From your rent &amp; TDS check
                 </p>
-                {chips.length === 0 ? (
-                  <p className="mt-[6px] text-[13.5px] sm:text-[14px]"
-                     style={{ fontFamily: SANS, fontWeight: 600, color: "#243244" }}>
-                    No specific review area surfaced in your check.
-                  </p>
-                ) : (
-                  <>
-                    <p className="mt-[6px] text-[13.5px] sm:text-[14px]"
-                       style={{ fontFamily: SANS, fontWeight: 600, color: "#243244" }}>
-                      {chips.length} area{chips.length > 1 ? "s" : ""} worth a closer look
-                    </p>
-                    <div className="mt-[8px] flex flex-wrap gap-[6px]">
-                      {chips.map(c => (
-                        <span
-                          key={c.label}
-                          className="inline-flex items-center px-[9px] py-[3px] rounded-full text-[11px] font-[600]"
-                          style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}` }}
-                        >
-                          {c.label}
-                        </span>
-                      ))}
-                    </div>
-                  </>
+                <p className="mt-[6px] text-[13.5px] sm:text-[14px]"
+                   style={{ fontFamily: SANS, fontWeight: 600, color: "#243244" }}>
+                  {result.headline}
+                </p>
+                {result.items.length > 0 && (
+                  <div className="mt-[8px] flex flex-wrap gap-[6px]">
+                    {result.items.map(item => (
+                      <span
+                        key={item.key}
+                        className="inline-flex items-center px-[9px] py-[3px] rounded-full text-[11px] font-[600]"
+                        style={toneStyle(item.tone)}
+                      >
+                        {item.label}
+                      </span>
+                    ))}
+                  </div>
                 )}
                 <div className="mt-[10px] flex items-center gap-[12px]">
                   <a
