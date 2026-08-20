@@ -39,16 +39,6 @@ interface Inspection {
   properties: InspectionProperty | null;
 }
 
-interface PendingProperty {
-  id: string;
-  building_name: string;
-  locality: string | null;
-  bhk: string;
-  flat_number: string | null;
-  floor_number: number | null;
-  users: { full_name: string } | null;
-}
-
 type TabFilter = "all" | "scheduled" | "in_progress" | "completed";
 
 export default function InspectionsList() {
@@ -57,7 +47,6 @@ export default function InspectionsList() {
   const { toast } = useToast();
 
   const [inspections, setInspections] = useState<Inspection[]>([]);
-  const [pendingProperties, setPendingProperties] = useState<PendingProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [startingId, setStartingId] = useState<string | null>(null);
@@ -70,33 +59,18 @@ export default function InspectionsList() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [inspRes, propRes] = await Promise.all([
-        supabase
-          .from("property_inspections" as any)
-          .select(`
-            id, status, mode, scheduled_date, actual_date, property_id,
-            properties (
-              id, building_name, locality, bhk, flat_number, floor_number,
-              users!properties_owner_id_fkey ( full_name )
-            )
-          `)
-          .order("scheduled_date", { ascending: true }),
-        supabase
-          .from("properties")
-          .select(`
+      const inspRes = await supabase
+        .from("property_inspections" as any)
+        .select(`
+          id, status, mode, scheduled_date, actual_date, property_id,
+          properties (
             id, building_name, locality, bhk, flat_number, floor_number,
             users!properties_owner_id_fkey ( full_name )
-          `)
-          .eq("status", "inspection_scheduled"),
-      ]);
+          )
+        `)
+        .order("scheduled_date", { ascending: true });
 
-      const inspData = (inspRes.data ?? []) as unknown as Inspection[];
-      const propData = (propRes.data ?? []) as unknown as PendingProperty[];
-
-      setInspections(inspData);
-
-      const inspPropertyIds = new Set(inspData.map((i) => i.property_id));
-      setPendingProperties(propData.filter((p) => !inspPropertyIds.has(p.id)));
+      setInspections((inspRes.data ?? []) as unknown as Inspection[]);
     } catch {
       toast({ title: "Error loading inspections", variant: "destructive" });
     } finally {
@@ -156,7 +130,7 @@ export default function InspectionsList() {
     );
   }
 
-  const noData = inspections.length === 0 && pendingProperties.length === 0;
+  const noData = inspections.length === 0;
 
   return (
     <AdminLayout>
@@ -234,44 +208,6 @@ export default function InspectionsList() {
             </div>
           )}
 
-          {/* Pending section */}
-          {pendingProperties.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-lg font-semibold mb-3">Awaiting Inspection Setup</h2>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Property ID</TableHead>
-                      <TableHead>Building & Locality</TableHead>
-                      <TableHead>BHK</TableHead>
-                      <TableHead>Owner</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pendingProperties.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-mono text-xs">{shortId(p.id)}</TableCell>
-                        <TableCell>{p.building_name} · {p.locality ?? ""}</TableCell>
-                        <TableCell>{p.bhk}</TableCell>
-                        <TableCell>{p.users?.full_name ?? "—"}</TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            onClick={() => handleStartInspection(p.id)}
-                            disabled={startingId === p.id}
-                          >
-                            {startingId === p.id ? "Starting…" : "Start Inspection"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
         </>
       )}
     </AdminLayout>

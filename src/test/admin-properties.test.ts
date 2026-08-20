@@ -22,12 +22,13 @@ import {
 } from "@/pages/admin/adminPropertyHelpers";
 
 describe("STATUS_FILTER_OPTIONS (dropdown shape)", () => {
-  it("starts with All and includes Commons statuses + legacy bucket", () => {
+  it("starts with All and includes exactly the 7 Commons statuses", () => {
     const values = STATUS_FILTER_OPTIONS.map((o) => o.value);
     expect(values[0]).toBe("all");
-    for (const v of ["draft", "pending_review", "changes_requested", "listed", "edit_pending_review", "unlisted", "archived", "legacy_pm"]) {
+    for (const v of ["draft", "pending_review", "changes_requested", "listed", "edit_pending_review", "unlisted", "archived"]) {
       expect(values).toContain(v);
     }
+    expect(values).not.toContain("legacy_pm");
   });
 });
 
@@ -62,41 +63,32 @@ describe("resolveAdminPrice", () => {
   const base = { id: "p1", listed_rent: 30000, sale_price: 9000000 };
 
   it("sale listing uses sale_price, tagged Sale", () => {
-    const r = resolveAdminPrice({ ...base, status: "listed", listing_type: "sale" }, new Map());
+    const r = resolveAdminPrice({ ...base, status: "listed", listing_type: "sale" });
     expect(r.kind).toBe("Sale");
     expect(r.amount).toContain("90");
   });
 
   it("rent listing uses listed_rent, tagged Rent", () => {
-    const r = resolveAdminPrice({ ...base, status: "listed", listing_type: "rent" }, new Map());
+    const r = resolveAdminPrice({ ...base, status: "listed", listing_type: "rent" });
     expect(r.kind).toBe("Rent");
     expect(r.amount).toContain("30,000");
   });
 
   it("null listing_type falls back to rent", () => {
-    const r = resolveAdminPrice({ ...base, status: "listed", listing_type: null }, new Map());
+    const r = resolveAdminPrice({ ...base, status: "listed", listing_type: null });
     expect(r.kind).toBe("Rent");
     expect(r.amount).toContain("30,000");
   });
 
-  it("occupied rental listing uses final agreed rent override", () => {
-    const finalRent = new Map([["p1", 32000]]);
-    const r = resolveAdminPrice({ ...base, status: "occupied", listing_type: "rent" }, finalRent);
+  it("occupied rental listing shows listed_rent", () => {
+    const r = resolveAdminPrice({ ...base, status: "occupied", listing_type: "rent" });
     expect(r.kind).toBe("Rent");
-    expect(r.amount).toContain("32,000");
-  });
-
-  it("sale listing NEVER uses a final-rent override", () => {
-    const finalRent = new Map([["p1", 32000]]);
-    const r = resolveAdminPrice({ ...base, status: "occupied", listing_type: "sale" }, finalRent);
-    expect(r.kind).toBe("Sale");
-    expect(r.amount).not.toContain("32,000");
+    expect(r.amount).toContain("30,000");
   });
 
   it("missing/non-positive price shows an em dash", () => {
     const r = resolveAdminPrice(
       { id: "p2", status: "draft", listing_type: "rent", listed_rent: null, sale_price: null },
-      new Map(),
     );
     expect(r.amount).toBe("—");
   });

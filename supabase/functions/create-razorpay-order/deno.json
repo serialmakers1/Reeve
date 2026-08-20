@@ -1,5 +1,0 @@
-{
-  "imports": {
-    "npm:razorpay": "npm:razorpay@2.9.6"
-  }
-}

@@ -17,15 +17,9 @@ import PropertyCard from "@/components/owner-dashboard/PropertyCard";
 
 const DRAFT_LIMIT = 20;
 
-// Statuses eligible for the Active tab. Includes both Commons statuses and
-// legacy PM statuses so an owner who still has PM properties sees them here too.
 const ACTIVE_STATUSES = new Set([
   "draft", "pending_review", "changes_requested", "listed",
   "edit_pending_review", "unlisted",
-  // Legacy PM
-  "inspection_proposed", "inspection_accepted", "inspection_scheduled",
-  "inspected", "agreement_pending", "occupied", "off_market", "expiring",
-  "turnover", "inactive",
 ]);
 
 interface OwnerProperty {
