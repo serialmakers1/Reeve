@@ -1,3 +1,49 @@
+## [2026-08-20] add | Added Band 4 Resolve with Reeve section to /khata-transfer-bangalore
+
+`src/pages/KhataTransferBangalore.tsx`.
+
+- `KhataResolveWithReeveSection`: independent no-prop component inserted between Band 3 and Band 5 enquiry
+- 2.5D resolution pipeline: rear depth sheet + front surface; 22% input chips (5×44px grid, right-justified, SVG-aligned) + 8% convergence SVG + 70% four-stage area; desktop 220px/y=110 geometry shared across inputs, convergence dot and horizontal rail
+- Three responsive connector modes: desktop horizontal rail (coral→blue→violet→teal, stops at FOLLOW THROUGH, starts at 380ms after inputs finish), tablet stepped SVG (3 semantic gradient segments through outer gutter whitespace, 768–1199px, `vectorEffect="non-scaling-stroke"`), phone per-segment connectors (hidden ≥768px, staggered 120/220/320ms, ends exactly at FOLLOW THROUGH)
+- Dark integrity strip with coloured top accent
+- Boundary fact rail: plain border-y ruled facts, no card
+- Qualification line
+- 3-question FAQ: native `<details>`, border-y ruled list, hover wash (pointer-only), `+ → ×` toggle, NRI link on Q2
+- TS baseline: 393 (unchanged)
+
+## [2026-08-20] add | Added Band 3 official route, mismatch ledger and Case Desk to /khata-transfer-bangalore
+
+`src/pages/KhataTransferBangalore.tsx`.
+
+- 3A Official Ribbon: 2.5D teal panel, left accent rail, 3 check items, portal CTA with keyframe-animated ↗ arrow and wash overlay behind text, helpline link
+- 3B Mismatch Ledger: 5-item surface (2+3 grid ≥900px), explicit mobile border logic (no double separator), gradient numbered blocks
+- 3C Case Desk: 5 native `<details>` rows, CSS vars on `<details>` element, `<summary>` grid layout (mobile 3-row / desktop 4-col), gap-y spacing, keyframe connector draw-in, wash/selected state, `requestId` counter for repeated route clicks, direct hash on mount
+- Band 2 → Band 3 routing wired; `handleSituationSelect` counter pattern; `KhataPathCaseDeskSection` takes `{selected, requestId}` only (no onSelect)
+- TS baseline: 393 (unchanged)
+
+## [2026-08-20] add | Added Band 2 clarity board and situation router to /khata-transfer-bangalore [IST]
+
+`src/pages/KhataTransferBangalore.tsx`.
+
+- Part A: 2.5D Registry Board — 4 cells (2×2 mobile / 4-col ≥900px), index-aware borders, DM Sans concept answers, semantic cyan→blue→violet→amber icon/label progression
+- Part B: Situation Router — 5 routes in shared outer frame (2×2 + full-width Route 5 ≥800px; 5 stacked lanes mobile); semantic wash overlays, 3px accent rails, hover/focus/selected transitions, aria-live polite status
+- `#khata-situation-heading` anchor now resolves Band 1's primary CTA
+- Page-level `KhataSituation` state wired; five Band 3 destination anchors dormant until Band 3
+- TS baseline: 393 (unchanged)
+
+---
+
+## [2026-08-20] polish | KhataTransferBangalore Band 1 UI fixes
+
+`src/pages/KhataTransferBangalore.tsx`.
+
+- Fix 1: tightened mobile vertical spacing (proposition, supporting, trust, CTA row, CTA gap) with `min-[1100px]:` overrides keeping desktop unchanged
+- Fix 2: compact mobile artifact — `mx-auto` for centering, `min-h-[104px]` on surface + flex container (replacing inline `minHeight:104` + `h-full`), `text-center` on both halves, `pb-8→pb-5`
+- Fix 3: SVG connector path origins corrected to x=157 and plate-accurate y values (73 / 210 / 351)
+- TS baseline: 393 (unchanged)
+
+---
+
 ## [2026-08-19] fix | Final Rent/TDS check logic and desktop layout polish [21:40 IST]
 
 `src/pages/NriRentTdsIndia.tsx`, `src/components/property-services/PropertyEnquiryForm.tsx`.
@@ -1593,3 +1639,9 @@ New migration: `supabase/migrations/20260819120000_add_rent_tds_check_to_enquiri
 - Structured rentTdsCheck: removed buildRentTdsContextNote notes-prepend workaround; rentTdsCheck now sent as structured payload field for nri_rent_tds; notes restored to full 1000-char limit
 - API: rentTdsCheck added to Zod schema; stripped for non-nri_rent_tds services; rent_tds_check written to DB conditionally
 - Migration: adds nullable rent_tds_check jsonb column — PENDING manual deploy + type regen before code can write it
+
+## [2026-08-20] create | Added /khata-transfer-bangalore page shell with reused NRI enquiry section [ IST]
+
+## [2026-08-20] create | Added /khata-transfer-bangalore page shell with reused NRI enquiry section [IST]
+
+## [2026-08-20] add | Added Band 1 Record Alignment hero to /khata-transfer-bangalore [IST]
