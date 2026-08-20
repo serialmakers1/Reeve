@@ -11,16 +11,35 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, X, ChevronDown, User } from "lucide-react";
+import { Menu, X, ChevronDown, User, ArrowRight } from "lucide-react";
 
-const PROPERTY_SERVICES = [
-  { label: "All Property Services", helper: "Choose the right service for your property", to: "/property-services-bangalore" },
-  { label: "Reeve Managed",         helper: "Ongoing property management",                to: "/property-management-bangalore" },
-  { label: "Reeve Watch",           helper: "Care for vacant properties",                 to: "/vacant-property-care-bangalore" },
-  { label: "Reeve Let",             helper: "One-time tenant placement",                  to: "/find-tenant-bangalore" },
+// Do not keep adding detail-service rows to this dropdown.
+// Future niche services should route through the appropriate hub unless
+// the global navigation is deliberately redesigned.
+// Current capacity: 2 hub destinations + 6 detail-service destinations.
+
+const BANGALORE_SERVICES = [
+  { label: "Reeve Managed",    helper: "Ongoing property management",  to: "/property-management-bangalore" },
+  { label: "Reeve Watch",      helper: "Care for vacant properties",   to: "/vacant-property-care-bangalore" },
+  { label: "Reeve Let",        helper: "One-time tenant placement",    to: "/find-tenant-bangalore" },
+  { label: "Khata & Mutation", helper: "Property record transfers",    to: "/khata-transfer-bangalore" },
 ];
 
-const SERVICE_PATHS = PROPERTY_SERVICES.map(s => s.to);
+const NRI_SERVICES = [
+  { label: "NRI Property Sale", helper: "Documents, tax & sale coordination", to: "/nri-property-sale-india" },
+  { label: "NRI Rent & TDS",    helper: "Withholding on Indian rent",          to: "/nri-rent-tds-india" },
+];
+
+const SERVICE_PATHS = [
+  "/property-services-bangalore",
+  "/property-management-bangalore",
+  "/vacant-property-care-bangalore",
+  "/find-tenant-bangalore",
+  "/khata-transfer-bangalore",
+  "/nri-property-services-india",
+  "/nri-property-sale-india",
+  "/nri-rent-tds-india",
+];
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -109,7 +128,7 @@ const Header = () => {
           </Link>
 
           {/* Desktop nav — centre */}
-          <div className="hidden md:flex items-center gap-8">
+          <nav aria-label="Primary navigation" className="hidden md:flex items-center gap-8">
 
             {/* Browse Properties */}
             <Link
@@ -124,101 +143,183 @@ const Header = () => {
               Browse Properties
             </Link>
 
-            {/* Property Services — split Link + chevron */}
+            {/* Property Services — single unified trigger */}
             <div
-              className="relative flex items-center gap-0.5"
+              className="relative"
               onMouseEnter={handleServicesEnter}
               onMouseLeave={handleServicesLeave}
             >
-              <Link
-                to="/property-services-bangalore"
-                onClick={() => setServicesOpen(false)}
-                aria-current={location.pathname === "/property-services-bangalore" ? "page" : undefined}
-                className={`text-sm font-medium transition-colors duration-150 ${
-                  isServiceActive ? "text-[#0057F2]" : "text-gray-600 hover:text-[#0A1628]"
-                }`}
-              >
-                Property Services
-              </Link>
-
-              {isServiceActive && (
-                <span className="absolute -bottom-[18px] left-0 right-5 h-0.5 bg-[#0057F2] rounded-full" />
-              )}
-
               <DropdownMenu modal={false} open={servicesOpen} onOpenChange={handleServicesOpenChange}>
                 <DropdownMenuTrigger asChild>
                   <button
-                    aria-label="Open Property Services menu"
+                    aria-label="Property Services menu"
+                    aria-haspopup="menu"
                     aria-expanded={servicesOpen}
-                    aria-haspopup="true"
-                    className={`p-0.5 rounded transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0057F2] ${
-                      isServiceActive ? "text-[#0057F2]" : "text-gray-500 hover:text-[#0A1628]"
-                    }`}
+                    className={`flex items-center gap-1 text-sm font-medium transition-colors duration-150
+                      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0057F2]
+                      ${isServiceActive ? "text-[#0057F2]" : "text-gray-600 hover:text-[#0A1628]"}`}
                   >
+                    Property Services
                     <ChevronDown
                       className={`h-3.5 w-3.5 transition-transform duration-150 motion-reduce:transition-none ${servicesOpen ? "rotate-180" : ""}`}
+                      aria-hidden="true"
                     />
                   </button>
                 </DropdownMenuTrigger>
 
+                {/* Active underline spans full trigger width */}
+                {isServiceActive && (
+                  <span className="absolute -bottom-[18px] left-0 right-0 h-0.5 bg-[#0057F2] rounded-full" />
+                )}
+
                 <DropdownMenuContent
                   align="start"
-                  sideOffset={8}
-                  className="w-[320px] rounded-[13px] border border-[#E8E6E1] bg-[#FFFDFC] p-2 shadow-[0_14px_36px_rgba(10,22,40,0.14)]
+                  sideOffset={10}
+                  avoidCollisions
+                  collisionPadding={16}
+                  className="w-[680px] max-w-[calc(100vw-32px)] rounded-[13px] border border-[#E8E6E1] bg-[#FFFDFC] p-0
+                             shadow-[0_14px_36px_rgba(10,22,40,0.14)] max-h-[80vh] overflow-y-auto
                              data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1
                              data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1
                              motion-reduce:animate-none"
                   onMouseEnter={handleServicesEnter}
                   onMouseLeave={handleServicesLeave}
                 >
-                  {/* Hub — All Property Services */}
-                  <DropdownMenuItem asChild>
-                    <Link
-                      to={PROPERTY_SERVICES[0].to}
-                      onClick={() => setServicesOpen(false)}
-                      className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 cursor-pointer select-none
-                        hover:bg-[#F7F9FC] transition-colors duration-150 focus-visible:outline-none focus-visible:bg-[#F7F9FC]
-                        ${location.pathname === PROPERTY_SERVICES[0].to ? "bg-[#F2F6FF]" : ""}`}
-                    >
-                      <span className={`text-sm font-semibold leading-snug transition-colors duration-150
-                        group-hover:text-[#0057F2]
-                        ${location.pathname === PROPERTY_SERVICES[0].to ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
-                        {PROPERTY_SERVICES[0].label}
-                      </span>
-                      <span className="text-[12px] font-normal leading-[1.35] text-[#69758B]">
-                        {PROPERTY_SERVICES[0].helper}
-                      </span>
-                    </Link>
-                  </DropdownMenuItem>
+                  <div className="flex">
 
-                  <DropdownMenuSeparator className="my-1 h-px bg-[#E8E6E1]" />
+                    {/* Left column: IN BANGALORE */}
+                    <div className="flex-1 p-3 flex flex-col gap-0.5">
+                      <div className="px-3 pt-1 pb-3">
+                        <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#0A1628]">IN BANGALORE</p>
+                        <p className="text-[12px] leading-[1.35] text-[#69758B] mt-[3px]">We come to the property</p>
+                      </div>
 
-                  {/* Managed · Watch · Let */}
-                  {PROPERTY_SERVICES.slice(1).map(svc => (
-                    <DropdownMenuItem key={svc.to} asChild>
-                      <Link
-                        to={svc.to}
-                        onClick={() => setServicesOpen(false)}
-                        className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 cursor-pointer select-none
-                          hover:bg-[#F7F9FC] transition-colors duration-150 focus-visible:outline-none focus-visible:bg-[#F7F9FC]
-                          ${location.pathname === svc.to ? "bg-[#F2F6FF]" : ""}`}
-                      >
-                        <span className={`text-sm font-semibold leading-snug transition-colors duration-150
-                          group-hover:text-[#0057F2]
-                          ${location.pathname === svc.to ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
-                          {svc.label}
-                        </span>
-                        <span className="text-[12px] font-normal leading-[1.35] text-[#69758B]">
-                          {svc.helper}
-                        </span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
+                      {/* Bangalore hub */}
+                      <DropdownMenuItem asChild>
+                        <Link
+                          to="/property-services-bangalore"
+                          onClick={() => setServicesOpen(false)}
+                          aria-current={location.pathname === "/property-services-bangalore" ? "page" : undefined}
+                          className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 cursor-pointer select-none
+                            border border-[#E8E6E1] transition-colors duration-150 focus-visible:outline-none
+                            data-[highlighted]:bg-[#F7F9FC]
+                            ${location.pathname === "/property-services-bangalore" ? "bg-[#F2F6FF]" : "bg-[#F7F9FC]"}`}
+                        >
+                          <span className="flex items-center justify-between gap-1">
+                            <span className={`text-sm font-semibold leading-snug transition-colors duration-150
+                              group-hover:text-[#0057F2] group-data-[highlighted]:text-[#0057F2]
+                              ${location.pathname === "/property-services-bangalore" ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
+                              All Bangalore property services
+                            </span>
+                            <ArrowRight
+                              className="h-3.5 w-3.5 text-[#0057F2] flex-shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:group-hover:translate-x-0"
+                              aria-hidden="true"
+                            />
+                          </span>
+                          <span className="text-[12px] text-[#69758B] leading-[1.35]">
+                            Compare Managed, Watch, Let &amp; Khata
+                          </span>
+                        </Link>
+                      </DropdownMenuItem>
+
+                      <div className="h-px bg-[#E8E6E1] my-2" />
+
+                      {/* Bangalore service rows */}
+                      {BANGALORE_SERVICES.map(svc => (
+                        <DropdownMenuItem key={svc.to} asChild>
+                          <Link
+                            to={svc.to}
+                            onClick={() => setServicesOpen(false)}
+                            aria-current={location.pathname === svc.to ? "page" : undefined}
+                            className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 cursor-pointer select-none
+                              transition-colors duration-150 focus-visible:outline-none
+                              hover:bg-[#F7F9FC] data-[highlighted]:bg-[#F7F9FC]
+                              ${location.pathname === svc.to ? "bg-[#F2F6FF]" : ""}`}
+                          >
+                            <span className={`text-sm font-semibold leading-snug transition-colors duration-150
+                              group-hover:text-[#0057F2] group-data-[highlighted]:text-[#0057F2]
+                              ${location.pathname === svc.to ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
+                              {svc.label}
+                            </span>
+                            <span className="text-[12px] text-[#69758B] leading-[1.35] mt-0.5">
+                              {svc.helper}
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+
+                    {/* 1px vertical divider */}
+                    <div className="w-px bg-[#E8E6E1] my-3 self-stretch flex-shrink-0" />
+
+                    {/* Right column: ANYWHERE IN INDIA */}
+                    <div className="flex-1 p-3 flex flex-col gap-0.5">
+                      <div className="px-3 pt-1 pb-3">
+                        <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#0A1628]">ANYWHERE IN INDIA</p>
+                        <p className="text-[12px] leading-[1.35] text-[#69758B] mt-[3px]">Coordinated remotely</p>
+                      </div>
+
+                      {/* NRI hub */}
+                      <DropdownMenuItem asChild>
+                        <Link
+                          to="/nri-property-services-india"
+                          onClick={() => setServicesOpen(false)}
+                          aria-current={location.pathname === "/nri-property-services-india" ? "page" : undefined}
+                          className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 cursor-pointer select-none
+                            border border-[#E8E6E1] transition-colors duration-150 focus-visible:outline-none
+                            data-[highlighted]:bg-[#F7F9FC]
+                            ${location.pathname === "/nri-property-services-india" ? "bg-[#F2F6FF]" : "bg-[#F7F9FC]"}`}
+                        >
+                          <span className="flex items-center justify-between gap-1">
+                            <span className={`text-sm font-semibold leading-snug transition-colors duration-150
+                              group-hover:text-[#0057F2] group-data-[highlighted]:text-[#0057F2]
+                              ${location.pathname === "/nri-property-services-india" ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
+                              All NRI property services
+                            </span>
+                            <ArrowRight
+                              className="h-3.5 w-3.5 text-[#0057F2] flex-shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:group-hover:translate-x-0"
+                              aria-hidden="true"
+                            />
+                          </span>
+                          <span className="text-[12px] text-[#69758B] leading-[1.35]">
+                            Help me find the right NRI route
+                          </span>
+                        </Link>
+                      </DropdownMenuItem>
+
+                      <div className="h-px bg-[#E8E6E1] my-2" />
+
+                      {/* NRI service rows */}
+                      {NRI_SERVICES.map(svc => (
+                        <DropdownMenuItem key={svc.to} asChild>
+                          <Link
+                            to={svc.to}
+                            onClick={() => setServicesOpen(false)}
+                            aria-current={location.pathname === svc.to ? "page" : undefined}
+                            className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 cursor-pointer select-none
+                              transition-colors duration-150 focus-visible:outline-none
+                              hover:bg-[#F7F9FC] data-[highlighted]:bg-[#F7F9FC]
+                              ${location.pathname === svc.to ? "bg-[#F2F6FF]" : ""}`}
+                          >
+                            <span className={`text-sm font-semibold leading-snug transition-colors duration-150
+                              group-hover:text-[#0057F2] group-data-[highlighted]:text-[#0057F2]
+                              ${location.pathname === svc.to ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
+                              {svc.label}
+                            </span>
+                            <span className="text-[12px] text-[#69758B] leading-[1.35] mt-0.5">
+                              {svc.helper}
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
 
-          </div>
+          </nav>
 
           {/* Desktop right side — auth aware */}
           <div className="hidden md:flex items-center gap-3">
@@ -314,7 +415,7 @@ const Header = () => {
       <div className={`md:hidden bg-white border-t border-gray-100 shadow-lg max-h-[calc(100dvh-64px)] overflow-y-auto overscroll-contain ${isMobileMenuOpen ? "block" : "hidden"}`}>
         <div className="px-4 py-4 space-y-1">
 
-          {/* Public nav — shared for all auth states */}
+          {/* Browse Properties */}
           <Link
             to="/search"
             aria-current={location.pathname === "/search" ? "page" : undefined}
@@ -326,46 +427,127 @@ const Header = () => {
             Browse Properties
           </Link>
 
-          {/* Property Services — separate link + expand button */}
+          {/* Property Services — one accordion button, no navigation on tap */}
           <div className="border-b border-gray-50">
-            <div className="flex items-center justify-between">
-              <Link
-                to="/property-services-bangalore"
-                onClick={closeMobileMenu}
-                className={`text-sm font-medium py-3 transition-colors ${isServiceActive ? "text-[#0057F2]" : "text-gray-600 hover:text-[#0A1628]"}`}
-              >
-                Property Services
-              </Link>
-              <button
-                onClick={() => setIsMobileServicesOpen(v => !v)}
-                aria-expanded={isMobileServicesOpen}
-                aria-controls="mobile-services-submenu"
-                aria-label={isMobileServicesOpen ? "Collapse Property Services" : "Expand Property Services"}
-                className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 rounded"
-              >
-                <ChevronDown className={`h-4 w-4 transition-transform duration-150 motion-reduce:transition-none ${isMobileServicesOpen ? "rotate-180" : ""}`} />
-              </button>
-            </div>
+            <button
+              onClick={() => setIsMobileServicesOpen(v => !v)}
+              aria-expanded={isMobileServicesOpen}
+              aria-controls="mobile-services-submenu"
+              className={`w-full min-h-[44px] flex items-center justify-between py-3 text-sm font-medium transition-colors duration-150
+                ${isServiceActive ? "text-[#0057F2]" : "text-gray-600 hover:text-[#0A1628]"}`}
+            >
+              Property Services
+              <ChevronDown
+                className={`h-4 w-4 transition-transform duration-150 motion-reduce:transition-none ${isMobileServicesOpen ? "rotate-180" : ""}`}
+                aria-hidden="true"
+              />
+            </button>
 
-            {isMobileServicesOpen && (
-              <div
-                id="mobile-services-submenu"
-                className="ml-4 pl-4 border-l border-gray-200 pb-2 pt-0.5 space-y-0.5
-                           animate-in fade-in-0 slide-in-from-top-1 duration-150 motion-reduce:animate-none"
-              >
-                {PROPERTY_SERVICES.map(svc => (
-                  <Link
-                    key={svc.to}
-                    to={svc.to}
-                    onClick={closeMobileMenu}
-                    className={`block py-2 min-h-[44px] ${location.pathname === svc.to ? "text-[#0057F2]" : "text-gray-700 hover:text-[#0A1628]"}`}
-                  >
-                    <span className="block text-sm font-semibold leading-snug">{svc.label}</span>
-                    <span className="block text-xs text-[#69758B] leading-[1.35] mt-0.5">{svc.helper}</span>
-                  </Link>
-                ))}
+            {/* CSS grid animation: always mounted for smooth open+close */}
+            <div
+              id="mobile-services-submenu"
+              aria-hidden={!isMobileServicesOpen}
+              className={`grid transition-[grid-template-rows] duration-150 ease-out motion-reduce:transition-none
+                ${isMobileServicesOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+            >
+              {/* Fade + vertical reveal */}
+              <div className={`overflow-hidden transition-[opacity,transform] duration-150 ease-out
+                motion-reduce:transition-none motion-reduce:transform-none
+                ${isMobileServicesOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"}`}>
+                <div className="ml-4 border-l border-[#E8E6E1] pl-4 pb-3 pt-1">
+
+                  {/* ── ANYWHERE IN INDIA first on mobile ── */}
+                  <div className="pb-1">
+                    <div className="pt-1 pb-2.5">
+                      <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#0A1628]">ANYWHERE IN INDIA</p>
+                      <p className="text-[12px] text-[#69758B] leading-[1.35] mt-[3px]">Coordinated remotely</p>
+                    </div>
+
+                    {/* NRI hub */}
+                    <Link
+                      to="/nri-property-services-india"
+                      onClick={closeMobileMenu}
+                      tabIndex={isMobileServicesOpen ? 0 : -1}
+                      aria-current={location.pathname === "/nri-property-services-india" ? "page" : undefined}
+                      className={`flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 mb-1 border border-[#E8E6E1]
+                        transition-colors duration-150
+                        ${location.pathname === "/nri-property-services-india" ? "bg-[#F2F6FF]" : "bg-[#F7F9FC]"}`}
+                    >
+                      <span className="flex items-center justify-between gap-1">
+                        <span className={`text-sm font-semibold leading-snug ${location.pathname === "/nri-property-services-india" ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
+                          All NRI property services
+                        </span>
+                        <ArrowRight className="h-3.5 w-3.5 text-[#0057F2] flex-shrink-0" aria-hidden="true" />
+                      </span>
+                      <span className="text-[12px] text-[#69758B] leading-[1.35]">Help me find the right NRI route</span>
+                    </Link>
+
+                    {/* NRI services */}
+                    {NRI_SERVICES.map(svc => (
+                      <Link
+                        key={svc.to}
+                        to={svc.to}
+                        onClick={closeMobileMenu}
+                        tabIndex={isMobileServicesOpen ? 0 : -1}
+                        aria-current={location.pathname === svc.to ? "page" : undefined}
+                        className={`flex flex-col gap-0.5 py-2.5 min-h-[44px] transition-colors duration-150
+                          ${location.pathname === svc.to ? "text-[#0057F2]" : "text-gray-700 hover:text-[#0A1628]"}`}
+                      >
+                        <span className="text-sm font-semibold leading-snug">{svc.label}</span>
+                        <span className="text-[12px] text-[#69758B] leading-[1.35]">{svc.helper}</span>
+                      </Link>
+                    ))}
+                  </div>
+
+                  {/* Divider between geographic groups */}
+                  <div className="h-px bg-[#E8E6E1] my-3" />
+
+                  {/* ── IN BANGALORE second on mobile ── */}
+                  <div>
+                    <div className="pt-1 pb-2.5">
+                      <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#0A1628]">IN BANGALORE</p>
+                      <p className="text-[12px] text-[#69758B] leading-[1.35] mt-[3px]">We come to the property</p>
+                    </div>
+
+                    {/* Bangalore hub */}
+                    <Link
+                      to="/property-services-bangalore"
+                      onClick={closeMobileMenu}
+                      tabIndex={isMobileServicesOpen ? 0 : -1}
+                      aria-current={location.pathname === "/property-services-bangalore" ? "page" : undefined}
+                      className={`flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 mb-1 border border-[#E8E6E1]
+                        transition-colors duration-150
+                        ${location.pathname === "/property-services-bangalore" ? "bg-[#F2F6FF]" : "bg-[#F7F9FC]"}`}
+                    >
+                      <span className="flex items-center justify-between gap-1">
+                        <span className={`text-sm font-semibold leading-snug ${location.pathname === "/property-services-bangalore" ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
+                          All Bangalore property services
+                        </span>
+                        <ArrowRight className="h-3.5 w-3.5 text-[#0057F2] flex-shrink-0" aria-hidden="true" />
+                      </span>
+                      <span className="text-[12px] text-[#69758B] leading-[1.35]">Compare Managed, Watch, Let &amp; Khata</span>
+                    </Link>
+
+                    {/* Bangalore services */}
+                    {BANGALORE_SERVICES.map(svc => (
+                      <Link
+                        key={svc.to}
+                        to={svc.to}
+                        onClick={closeMobileMenu}
+                        tabIndex={isMobileServicesOpen ? 0 : -1}
+                        aria-current={location.pathname === svc.to ? "page" : undefined}
+                        className={`flex flex-col gap-0.5 py-2.5 min-h-[44px] transition-colors duration-150
+                          ${location.pathname === svc.to ? "text-[#0057F2]" : "text-gray-700 hover:text-[#0A1628]"}`}
+                      >
+                        <span className="text-sm font-semibold leading-snug">{svc.label}</span>
+                        <span className="text-[12px] text-[#69758B] leading-[1.35]">{svc.helper}</span>
+                      </Link>
+                    ))}
+                  </div>
+
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* List Your Property — single CTA */}

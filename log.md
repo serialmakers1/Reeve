@@ -1,3 +1,5 @@
+## [2026-08-20] ui | Updated Header/Footer property-service navigation [IST]
+
 ## [2026-08-20] add | Added Band 4 Resolve with Reeve section to /khata-transfer-bangalore
 
 `src/pages/KhataTransferBangalore.tsx`.
