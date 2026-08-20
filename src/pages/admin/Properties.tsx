@@ -34,8 +34,6 @@ import {
   ADMIN_SORT_OPTIONS, LISTING_TYPE_OPTIONS,
 } from "@/pages/admin/adminPropertyHelpers";
 
-// Status filter options for the dropdown. Commons statuses shown individually;
-// legacy PM statuses collapse to a single "Legacy PM" value the RPC expands.
 const STATUS_FILTER_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "all", label: "All" },
   { value: "draft", label: getStatusDisplay("draft").label },
@@ -45,7 +43,6 @@ const STATUS_FILTER_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "edit_pending_review", label: getStatusDisplay("edit_pending_review").label },
   { value: "unlisted", label: getStatusDisplay("unlisted").label },
   { value: "archived", label: getStatusDisplay("archived").label },
-  { value: "legacy_pm", label: "Legacy PM" },
 ];
 
 export { STATUS_FILTER_OPTIONS };
@@ -73,13 +70,6 @@ interface PropertyRow {
   view_count: number;
   comment_count: number;
   total_count: number;
-}
-
-interface FinalRent {
-  property_id: string;
-  proposed_rent: number | null;
-  final_agreed_rent: number | null;
-  owner_counter_rent: number | null;
 }
 
 type EmptyPageFallback = "first" | "previous";
@@ -149,7 +139,6 @@ export default function AdminProperties() {
   const [rows, setRows] = useState<PropertyRow[]>([]);
   const [total, setTotal] = useState(0);
   const [cities, setCities] = useState<string[]>([]);
-  const [finalRentMap, setFinalRentMap] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const seqRef = useRef(0);
 
@@ -246,34 +235,6 @@ export default function AdminProperties() {
 
       setRows(resultRows);
       setTotal(resultRows[0]?.total_count ?? 0);
-
-      // Final agreed rent override — occupied rentals only, scoped to this page's ids.
-      const rentIds = resultRows
-        .filter((r) => r.status === "occupied" && r.listing_type !== "sale")
-        .map((r) => r.property_id);
-
-      if (rentIds.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: fr, error: frErr } = await (supabase as any)
-          .from("applications")
-          .select("property_id, proposed_rent, final_agreed_rent, owner_counter_rent")
-          .eq("status", "lease_active")
-          .in("property_id", rentIds);
-        if (seq !== seqRef.current) return;
-        if (frErr) {
-          toast({ title: "Failed to load rent data", description: frErr.message, variant: "destructive" });
-          setFinalRentMap(new Map());
-        } else {
-          const rMap = new Map<string, number>();
-          for (const a of (fr as FinalRent[]) ?? []) {
-            const rent = a.final_agreed_rent ?? a.owner_counter_rent ?? a.proposed_rent;
-            if (rent != null) rMap.set(a.property_id, rent);
-          }
-          setFinalRentMap(rMap);
-        }
-      } else {
-        setFinalRentMap(new Map());
-      }
 
       setLoading(false);
     },
@@ -566,7 +527,6 @@ export default function AdminProperties() {
             {rows.map((p) => {
               const price = resolveAdminPrice(
                 { id: p.property_id, status: p.status, listing_type: p.listing_type, listed_rent: p.listed_rent, sale_price: p.sale_price },
-                finalRentMap,
               );
               const location = formatLocalityCity(p.locality, p.city);
 

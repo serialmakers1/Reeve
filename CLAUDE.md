@@ -2,8 +2,6 @@
 
 Property management platform connecting owners and tenants in India. Owners list properties, tenants apply and sign leases — Reeve manages inspections, agreements, and the full rental lifecycle.
 
-Full decision + implementation history: `commons-decisions.md` D-001–D-177 + D-P3-000–D-P3-019 + D-GM-001–D-GM-005. This file holds only load-bearing invariants.
-
 ## Tech Stack
 React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (Postgres + Auth + Storage) · React Router v6 · Sentry · PostHog.
 
@@ -98,7 +96,7 @@ Roles: `user | tenant | owner | admin | super_admin`. Post-login redirect via `a
 Public/tenant pages: `<Layout>` (`src/components/Layout.tsx`) — Header + Footer. Admin pages: `<AdminLayout>` (`src/components/admin/AdminLayout.tsx`). Never hardcode nav or footer inside pages. BottomNav fixed `bottom-0 z-50`, renders only when isAuthenticated. Mobile CTA bars in PropertyDetail use `bottom-16` (logged in) or `bottom-0` (logged out).
 
 ## Property Status
-Legacy PM: `draft → inspection_proposed → inspection_scheduled → inspected → listed → occupied → off_market`. Commons added: `pending_review`, `changes_requested`, `edit_pending_review`, `unlisted`, `archived`. Full 14-transition matrix: `commons-status-flow.md`. Display via `getStatusDisplay()` (`src/lib/propertyStatus.ts`).
+Active enum values (7): `draft`, `pending_review`, `changes_requested`, `listed`, `edit_pending_review`, `unlisted`, `archived`. Display via `getStatusDisplay()` (`src/lib/propertyStatus.ts`).
 - `enforce_property_owner_transitions` validates owner transitions; admin bypasses via `is_admin()`.
 - `handle_property_status_change` auto-manages `is_active`.
 - `property_activity_log_writer` emits one log row per status change; curated events (`listed` from pending_review/unlisted, `unlisted`) are `is_public=true`.
@@ -122,7 +120,7 @@ Skip email if no email (`skipped_no_email`); fall back to `get_phone_fallback` i
 
 ## Database Tables (26 total)
 `agreements, applications, application_notes, application_residents, contact_requests, documents, eligibility, email_send_log, favourites, inspection_callbacks, keys_tracking, leads, leases, maintenance_requests, owner_action_log, owner_bank_details, payments, profiles, properties, property_condition_reports, property_images, rental_preferences, users, visit_events, visits`. View: `properties_with_flat_number`, `public_profiles`.
-`contact_requests` + `email_send_log` added Phase 3 Prompt 1 (D-P3-000–D-P3-010; commons-schema.md "Phase 3 Schema"). All mutations respect trigger-set attempt_number + event timestamps — never set from client.
+`contact_requests` + `email_send_log` added Phase 3. All mutations respect trigger-set attempt_number + event timestamps — never set from client.
 Also present but not yet in active frontend use: `external_queries`, `property_inspections`, `inspection_appliances`, `inspection_rooms`.
 
 ## Property activity log + edit requests

@@ -356,7 +356,7 @@ const Header = () => {
                       onMouseLeave={handleAccountLeave}
                     >
                       {isAdmin && (
-                        <DropdownMenuItem onClick={() => { setAccountOpen(false); navigate("/admin/owners"); }}>
+                        <DropdownMenuItem onClick={() => { setAccountOpen(false); navigate("/admin/properties"); }}>
                           Admin Dashboard
                         </DropdownMenuItem>
                       )}
@@ -569,7 +569,7 @@ const Header = () => {
             <>
               {isAdmin && (
                 <Link
-                  to="/admin/owners"
+                  to="/admin/properties"
                   className="block text-sm text-gray-600 hover:text-[#0A1628] transition-colors py-3 border-b border-gray-50"
                   onClick={closeMobileMenu}
                 >

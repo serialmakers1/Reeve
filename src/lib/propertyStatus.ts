@@ -22,31 +22,6 @@ const STATUS_CONFIG: Record<string, StatusDisplay> = {
       body: "You've started a listing. Continue filling the sections above. We auto-save your progress as you type. When all required sections are complete, click 'Submit for review'.",
     },
   },
-  inspection_proposed: {
-    label: "Under Review",
-    color: "border-blue-500 text-blue-600 bg-blue-50",
-    nextAction: "Waiting for Reeve to schedule inspection",
-  },
-  inspection_scheduled: {
-    label: "Under Review",
-    color: "border-blue-500 text-blue-600 bg-blue-50",
-    nextAction: "Inspection scheduled — no action needed",
-  },
-  inspected: {
-    label: "Under Review",
-    color: "border-blue-500 text-blue-600 bg-blue-50",
-    nextAction: "Waiting for Reeve review",
-  },
-  occupied: {
-    label: "Occupied",
-    color: "border-green-600 text-green-700 bg-green-50",
-    nextAction: "No action needed",
-  },
-  off_market: {
-    label: "Off Market",
-    color: "border-gray-400 text-gray-500 bg-gray-50",
-    nextAction: "Contact Reeve to re-list",
-  },
   // ── Commons Phase 1 statuses ──────────────────────────────────────────────
   pending_review: {
     label: "Under Review",

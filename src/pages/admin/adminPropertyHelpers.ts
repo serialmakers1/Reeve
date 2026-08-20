@@ -64,19 +64,14 @@ const EM_DASH = "—";
 /**
  * Resolve the display price + kind tag for a row.
  * - sale               → sale_price via shared formatSalePrice; never final-rent.
- * - rent / null type   → listed_rent, or occupied final agreed rent when available.
+ * - rent / null type   → listed_rent.
  * Missing / non-positive → "—".
  */
-export function resolveAdminPrice(
-  p: AdminPriceInput,
-  finalRentMap: Map<string, number>,
-): AdminPrice {
+export function resolveAdminPrice(p: AdminPriceInput): AdminPrice {
   if (p.listing_type === "sale") {
     return { amount: formatSalePrice(p.sale_price) ?? EM_DASH, kind: "Sale" };
   }
-  // rent or legacy null → rent
-  const occupiedRent = p.status === "occupied" ? finalRentMap.get(p.id) : undefined;
-  const rent = occupiedRent ?? p.listed_rent;
+  const rent = p.listed_rent;
   const amount = rent != null && rent > 0 ? formatIndianRupee(rent) : EM_DASH;
   return { amount, kind: "Rent" };
 }

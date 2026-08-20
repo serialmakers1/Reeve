@@ -767,12 +767,12 @@ export default function ListProperty() {
         .maybeSingle();
       if (!prop) {
         toast({ title: "Property not found", variant: "destructive" });
-        navigate("/my-properties", { replace: true });
+        navigate("/owner-dashboard", { replace: true });
         return;
       }
       if (prop.owner_id !== user.id) {
         toast({ title: "You can only edit your own properties.", variant: "destructive" });
-        navigate("/my-properties", { replace: true });
+        navigate("/owner-dashboard", { replace: true });
         return;
       }
       const status = prop.status as string;
@@ -784,7 +784,7 @@ export default function ListProperty() {
           archived: "Property archived. Contact support to restore.",
         };
         toast({ title: msg[status] ?? "This property cannot be edited right now.", variant: "destructive" });
-        navigate("/my-properties", { replace: true });
+        navigate("/owner-dashboard", { replace: true });
         setEntryStatus("blocked");
         return;
       }
@@ -1588,7 +1588,7 @@ export default function ListProperty() {
         if (cancelErr) { toast({ title: "Could not update review", description: cancelErr.message, variant: "destructive" }); return; }
         try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId!)); } catch { /* ignore */ }
         toast({ title: "Pending review cancelled", description: "Your listing keeps its current details." });
-        navigate("/my-properties", { replace: true });
+        navigate("/owner-dashboard", { replace: true });
         return;
       }
 
@@ -1606,7 +1606,7 @@ export default function ListProperty() {
       });
       try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId!)); } catch { /* ignore */ }
       toast({ title: "Edit submitted for review", description: "We'll review your changes within 48 hours." });
-      navigate("/my-properties", { replace: true });
+      navigate("/owner-dashboard", { replace: true });
       return;
     }
 
@@ -1636,7 +1636,7 @@ export default function ListProperty() {
       has_optional_sections_filled: !!(form.building_notes || form.building_rules),
     });
     toast({ title: "Submitted for review!", description: "We'll review your listing within 48 hours." });
-    navigate("/my-properties", { replace: true });
+    navigate("/owner-dashboard", { replace: true });
   }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, isLiveListing, isInitialEditable, editRequestPayload, stagedPhotos, pendingBaseline, saveState, hasPendingChanges, lastError, poisonedKeys, furnishingDraftInvalid, amenitiesDraftInvalid, locationDirty]);
 
   // ─── Preview data ────────────────────────────────────────────────────────
@@ -1851,7 +1851,7 @@ export default function ListProperty() {
     try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId)); } catch { /* ignore */ }
     posthog?.capture("commons_edit_cancelled", { property_id: propertyId, edit_request_id: pendingEdit.id });
     toast({ title: "Pending edit cancelled" });
-    navigate("/my-properties", { replace: true });
+    navigate("/owner-dashboard", { replace: true });
   }, [propertyId, pendingEdit, cancelling, toast, navigate, pendingBaseline, stagedPhotos, stagedDeleteUrls]);
 
   // Prompt 11: acknowledgeBanner removed — RejectionPanel owns the upsert with activity_log_id (D-141).
@@ -2559,7 +2559,7 @@ export default function ListProperty() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => navigate("/my-properties")}>Go to my properties</Button>
+            <Button onClick={() => navigate("/owner-dashboard")}>Go to my properties</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

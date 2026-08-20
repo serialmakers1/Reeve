@@ -4,11 +4,11 @@
 
 /** Prevents open redirect attacks on returnTo param */
 export function getSafeReturnTo(returnTo: string | null | undefined): string {
-  if (!returnTo) return '/dashboard';
+  if (!returnTo) return '/tenant-dashboard';
   if (returnTo.startsWith('/') && !returnTo.startsWith('//')) {
     return returnTo;
   }
-  return '/dashboard';
+  return '/tenant-dashboard';
 }
 
 /** Redirect based on user role after login */
@@ -16,12 +16,12 @@ export function getDefaultRouteForRole(role: string | null | undefined): string 
   switch (role) {
     case 'admin':
     case 'super_admin':
-      return '/admin/owners';
+      return '/admin/properties';
     case 'owner':
-      return '/my-properties';
+      return '/owner-dashboard';
     case 'user':
     case 'tenant':
     default:
-      return '/dashboard';
+      return '/tenant-dashboard';
   }
 }

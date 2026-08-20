@@ -15,7 +15,7 @@ export default function ManageListingCard({ propertyId }: Props) {
         <div className="space-y-1">
           <p className="text-lg font-semibold text-foreground">Manage your listing</p>
           <p className="text-sm text-muted-foreground">
-            View applications, manage visits, and update your listing details.
+            Manage contact requests and update your listing details.
           </p>
         </div>
         <Button asChild size="sm">

@@ -14,433 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      agreements: {
-        Row: {
-          agency_signed_at: string | null
-          agency_user_id: string
-          agreement_type: Database["public"]["Enums"]["agreement_type"]
-          created_at: string
-          document_id: string | null
-          end_date: string | null
-          esign_provider: string | null
-          esign_reference: string | null
-          estamp_amount: number | null
-          estamp_procured_at: string | null
-          estamp_reference: string | null
-          id: string
-          lock_in_months: number | null
-          monthly_rent: number | null
-          notice_period_months: number | null
-          owner_id: string
-          owner_signed_at: string | null
-          property_id: string
-          requires_witnesses: boolean
-          service_fee_pct: number | null
-          start_date: string | null
-          status: Database["public"]["Enums"]["agreement_status"]
-          tenant_id: string | null
-          tenant_signed_at: string | null
-          updated_at: string
-          witness1_name: string | null
-          witness1_signed_at: string | null
-          witness2_name: string | null
-          witness2_signed_at: string | null
-        }
-        Insert: {
-          agency_signed_at?: string | null
-          agency_user_id: string
-          agreement_type: Database["public"]["Enums"]["agreement_type"]
-          created_at?: string
-          document_id?: string | null
-          end_date?: string | null
-          esign_provider?: string | null
-          esign_reference?: string | null
-          estamp_amount?: number | null
-          estamp_procured_at?: string | null
-          estamp_reference?: string | null
-          id?: string
-          lock_in_months?: number | null
-          monthly_rent?: number | null
-          notice_period_months?: number | null
-          owner_id: string
-          owner_signed_at?: string | null
-          property_id: string
-          requires_witnesses?: boolean
-          service_fee_pct?: number | null
-          start_date?: string | null
-          status?: Database["public"]["Enums"]["agreement_status"]
-          tenant_id?: string | null
-          tenant_signed_at?: string | null
-          updated_at?: string
-          witness1_name?: string | null
-          witness1_signed_at?: string | null
-          witness2_name?: string | null
-          witness2_signed_at?: string | null
-        }
-        Update: {
-          agency_signed_at?: string | null
-          agency_user_id?: string
-          agreement_type?: Database["public"]["Enums"]["agreement_type"]
-          created_at?: string
-          document_id?: string | null
-          end_date?: string | null
-          esign_provider?: string | null
-          esign_reference?: string | null
-          estamp_amount?: number | null
-          estamp_procured_at?: string | null
-          estamp_reference?: string | null
-          id?: string
-          lock_in_months?: number | null
-          monthly_rent?: number | null
-          notice_period_months?: number | null
-          owner_id?: string
-          owner_signed_at?: string | null
-          property_id?: string
-          requires_witnesses?: boolean
-          service_fee_pct?: number | null
-          start_date?: string | null
-          status?: Database["public"]["Enums"]["agreement_status"]
-          tenant_id?: string | null
-          tenant_signed_at?: string | null
-          updated_at?: string
-          witness1_name?: string | null
-          witness1_signed_at?: string | null
-          witness2_name?: string | null
-          witness2_signed_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agreements_agency_user_id_fkey"
-            columns: ["agency_user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "agreements_agency_user_id_fkey"
-            columns: ["agency_user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agreements_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agreements_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "agreements_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agreements_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agreements_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agreements_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "agreements_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      application_notes: {
-        Row: {
-          application_id: string
-          created_at: string
-          description: string
-          id: string
-          note_type: string
-          photo_url: string | null
-          resolved: boolean
-        }
-        Insert: {
-          application_id: string
-          created_at?: string
-          description: string
-          id?: string
-          note_type: string
-          photo_url?: string | null
-          resolved?: boolean
-        }
-        Update: {
-          application_id?: string
-          created_at?: string
-          description?: string
-          id?: string
-          note_type?: string
-          photo_url?: string | null
-          resolved?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "application_notes_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      application_residents: {
-        Row: {
-          age: number
-          application_id: string
-          created_at: string
-          full_name: string
-          gender: Database["public"]["Enums"]["gender_type"] | null
-          id: string
-          marital_status: Database["public"]["Enums"]["marital_status"] | null
-          occupation: Database["public"]["Enums"]["occupation_type"] | null
-          relationship: string
-        }
-        Insert: {
-          age: number
-          application_id: string
-          created_at?: string
-          full_name: string
-          gender?: Database["public"]["Enums"]["gender_type"] | null
-          id?: string
-          marital_status?: Database["public"]["Enums"]["marital_status"] | null
-          occupation?: Database["public"]["Enums"]["occupation_type"] | null
-          relationship: string
-        }
-        Update: {
-          age?: number
-          application_id?: string
-          created_at?: string
-          full_name?: string
-          gender?: Database["public"]["Enums"]["gender_type"] | null
-          id?: string
-          marital_status?: Database["public"]["Enums"]["marital_status"] | null
-          occupation?: Database["public"]["Enums"]["occupation_type"] | null
-          relationship?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "application_residents_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      applications: {
-        Row: {
-          attempt_number: number
-          cibil_range: Database["public"]["Enums"]["cibil_range_type"] | null
-          created_at: string
-          crime_record_self_attest: boolean
-          eligibility_id: string | null
-          employer_name: string | null
-          expired_at: string | null
-          final_agreed_rent: number | null
-          id: string
-          id_verification_done: boolean
-          income_check_passed: boolean | null
-          kyc_completed_at: string | null
-          linkedin_url: string | null
-          monthly_income: number | null
-          move_in_asap: boolean | null
-          owner_action_by_admin: boolean | null
-          owner_actioned_at: string | null
-          owner_counter_rent: number | null
-          platform_approved: boolean | null
-          platform_rejected_at: string | null
-          platform_rejection_reason: string | null
-          platform_review_notes: string | null
-          pre_hold_status:
-            | Database["public"]["Enums"]["application_status"]
-            | null
-          preferred_move_in_date: string | null
-          previous_application_id: string | null
-          property_id: string
-          property_notes_text: string | null
-          proposed_rent: number
-          reapplication_eligible_from: string | null
-          rejection_reason: string | null
-          service_fee_terms_confirmed: boolean
-          status: Database["public"]["Enums"]["application_status"]
-          submitted_at: string | null
-          tds_applicable: boolean
-          tenant_id: string
-          updated_at: string
-          visit_id: string | null
-          withdrawal_reason: string | null
-          withdrawn_at: string | null
-          work_email: string | null
-        }
-        Insert: {
-          attempt_number?: number
-          cibil_range?: Database["public"]["Enums"]["cibil_range_type"] | null
-          created_at?: string
-          crime_record_self_attest?: boolean
-          eligibility_id?: string | null
-          employer_name?: string | null
-          expired_at?: string | null
-          final_agreed_rent?: number | null
-          id?: string
-          id_verification_done?: boolean
-          income_check_passed?: boolean | null
-          kyc_completed_at?: string | null
-          linkedin_url?: string | null
-          monthly_income?: number | null
-          move_in_asap?: boolean | null
-          owner_action_by_admin?: boolean | null
-          owner_actioned_at?: string | null
-          owner_counter_rent?: number | null
-          platform_approved?: boolean | null
-          platform_rejected_at?: string | null
-          platform_rejection_reason?: string | null
-          platform_review_notes?: string | null
-          pre_hold_status?:
-            | Database["public"]["Enums"]["application_status"]
-            | null
-          preferred_move_in_date?: string | null
-          previous_application_id?: string | null
-          property_id: string
-          property_notes_text?: string | null
-          proposed_rent: number
-          reapplication_eligible_from?: string | null
-          rejection_reason?: string | null
-          service_fee_terms_confirmed?: boolean
-          status?: Database["public"]["Enums"]["application_status"]
-          submitted_at?: string | null
-          tds_applicable?: boolean
-          tenant_id: string
-          updated_at?: string
-          visit_id?: string | null
-          withdrawal_reason?: string | null
-          withdrawn_at?: string | null
-          work_email?: string | null
-        }
-        Update: {
-          attempt_number?: number
-          cibil_range?: Database["public"]["Enums"]["cibil_range_type"] | null
-          created_at?: string
-          crime_record_self_attest?: boolean
-          eligibility_id?: string | null
-          employer_name?: string | null
-          expired_at?: string | null
-          final_agreed_rent?: number | null
-          id?: string
-          id_verification_done?: boolean
-          income_check_passed?: boolean | null
-          kyc_completed_at?: string | null
-          linkedin_url?: string | null
-          monthly_income?: number | null
-          move_in_asap?: boolean | null
-          owner_action_by_admin?: boolean | null
-          owner_actioned_at?: string | null
-          owner_counter_rent?: number | null
-          platform_approved?: boolean | null
-          platform_rejected_at?: string | null
-          platform_rejection_reason?: string | null
-          platform_review_notes?: string | null
-          pre_hold_status?:
-            | Database["public"]["Enums"]["application_status"]
-            | null
-          preferred_move_in_date?: string | null
-          previous_application_id?: string | null
-          property_id?: string
-          property_notes_text?: string | null
-          proposed_rent?: number
-          reapplication_eligible_from?: string | null
-          rejection_reason?: string | null
-          service_fee_terms_confirmed?: boolean
-          status?: Database["public"]["Enums"]["application_status"]
-          submitted_at?: string | null
-          tds_applicable?: boolean
-          tenant_id?: string
-          updated_at?: string
-          visit_id?: string | null
-          withdrawal_reason?: string | null
-          withdrawn_at?: string | null
-          work_email?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "applications_eligibility_id_fkey"
-            columns: ["eligibility_id"]
-            isOneToOne: false
-            referencedRelation: "eligibility"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "applications_previous_application_id_fkey"
-            columns: ["previous_application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "applications_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "applications_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "applications_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "applications_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "applications_visit_id_fkey"
-            columns: ["visit_id"]
-            isOneToOne: false
-            referencedRelation: "visits"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       callback_requests: {
         Row: {
           admin_notes: string | null
@@ -511,13 +84,6 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "callback_requests_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
           {
@@ -817,13 +383,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "contact_requests_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "contact_requests_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -833,230 +392,6 @@ export type Database = {
           {
             foreignKeyName: "contact_requests_tenant_id_fkey"
             columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      documents: {
-        Row: {
-          application_id: string | null
-          category: Database["public"]["Enums"]["document_category"]
-          created_at: string
-          document_type: Database["public"]["Enums"]["document_type"]
-          expiry_date: string | null
-          file_name: string
-          file_size_bytes: number | null
-          file_url: string
-          id: string
-          is_mandatory: boolean
-          is_verified: boolean
-          lease_id: string | null
-          mime_type: string | null
-          owner_user_id: string
-          property_id: string | null
-          submitted_at: string | null
-          updated_at: string
-          uploaded_by: string
-          verification_notes: string | null
-          verified_at: string | null
-          verified_by: string | null
-        }
-        Insert: {
-          application_id?: string | null
-          category: Database["public"]["Enums"]["document_category"]
-          created_at?: string
-          document_type: Database["public"]["Enums"]["document_type"]
-          expiry_date?: string | null
-          file_name: string
-          file_size_bytes?: number | null
-          file_url: string
-          id?: string
-          is_mandatory?: boolean
-          is_verified?: boolean
-          lease_id?: string | null
-          mime_type?: string | null
-          owner_user_id: string
-          property_id?: string | null
-          submitted_at?: string | null
-          updated_at?: string
-          uploaded_by: string
-          verification_notes?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Update: {
-          application_id?: string | null
-          category?: Database["public"]["Enums"]["document_category"]
-          created_at?: string
-          document_type?: Database["public"]["Enums"]["document_type"]
-          expiry_date?: string | null
-          file_name?: string
-          file_size_bytes?: number | null
-          file_url?: string
-          id?: string
-          is_mandatory?: boolean
-          is_verified?: boolean
-          lease_id?: string | null
-          mime_type?: string | null
-          owner_user_id?: string
-          property_id?: string | null
-          submitted_at?: string | null
-          updated_at?: string
-          uploaded_by?: string
-          verification_notes?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "documents_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_lease_id_fkey"
-            columns: ["lease_id"]
-            isOneToOne: false
-            referencedRelation: "leases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_owner_user_id_fkey"
-            columns: ["owner_user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "documents_owner_user_id_fkey"
-            columns: ["owner_user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "documents_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_verified_by_fkey"
-            columns: ["verified_by"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "documents_verified_by_fkey"
-            columns: ["verified_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      eligibility: {
-        Row: {
-          age: number
-          created_at: string
-          diet: Database["public"]["Enums"]["diet_type"] | null
-          disqualification_reason: string | null
-          expected_stay: Database["public"]["Enums"]["stay_duration_type"]
-          full_name: string
-          gender: Database["public"]["Enums"]["gender_type"]
-          has_pets: boolean
-          id: string
-          is_foreign_citizen: boolean
-          marital_status: Database["public"]["Enums"]["marital_status"]
-          occupation: Database["public"]["Enums"]["occupation_type"]
-          pet_description: string | null
-          pet_type: Database["public"]["Enums"]["pet_type"] | null
-          resident_count: number
-          reviewed_at: string | null
-          status: Database["public"]["Enums"]["eligibility_status"]
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          age: number
-          created_at?: string
-          diet?: Database["public"]["Enums"]["diet_type"] | null
-          disqualification_reason?: string | null
-          expected_stay: Database["public"]["Enums"]["stay_duration_type"]
-          full_name: string
-          gender: Database["public"]["Enums"]["gender_type"]
-          has_pets?: boolean
-          id?: string
-          is_foreign_citizen?: boolean
-          marital_status: Database["public"]["Enums"]["marital_status"]
-          occupation: Database["public"]["Enums"]["occupation_type"]
-          pet_description?: string | null
-          pet_type?: Database["public"]["Enums"]["pet_type"] | null
-          resident_count: number
-          reviewed_at?: string | null
-          status?: Database["public"]["Enums"]["eligibility_status"]
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          age?: number
-          created_at?: string
-          diet?: Database["public"]["Enums"]["diet_type"] | null
-          disqualification_reason?: string | null
-          expected_stay?: Database["public"]["Enums"]["stay_duration_type"]
-          full_name?: string
-          gender?: Database["public"]["Enums"]["gender_type"]
-          has_pets?: boolean
-          id?: string
-          is_foreign_citizen?: boolean
-          marital_status?: Database["public"]["Enums"]["marital_status"]
-          occupation?: Database["public"]["Enums"]["occupation_type"]
-          pet_description?: string | null
-          pet_type?: Database["public"]["Enums"]["pet_type"] | null
-          resident_count?: number
-          reviewed_at?: string | null
-          status?: Database["public"]["Enums"]["eligibility_status"]
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "eligibility_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "eligibility_user_id_fkey"
-            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1207,13 +542,6 @@ export type Database = {
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "external_queries_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
         ]
       }
       favourites: {
@@ -1241,13 +569,6 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "favourites_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
           {
@@ -1550,13 +871,6 @@ export type Database = {
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "inspection_callbacks_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
         ]
       }
       inspection_reports: {
@@ -1854,13 +1168,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "interaction_ratings_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "interaction_ratings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1870,573 +1177,6 @@ export type Database = {
           {
             foreignKeyName: "interaction_ratings_tenant_id_fkey"
             columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      keys_tracking: {
-        Row: {
-          created_at: string
-          created_by: string
-          event: Database["public"]["Enums"]["key_event_type"]
-          from_holder: Database["public"]["Enums"]["key_holder_type"] | null
-          held_by_user_id: string | null
-          id: string
-          keys_transferred: number
-          keys_with_owner: number
-          keys_with_platform: number
-          keys_with_tenant: number
-          keys_with_vendor: number
-          lease_id: string | null
-          maintenance_id: string | null
-          notes: string | null
-          property_id: string
-          purpose: string | null
-          replacement_cost: number | null
-          sign_off_at: string | null
-          signed_off_by: string | null
-          to_holder: Database["public"]["Enums"]["key_holder_type"] | null
-          total_keys: number
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          event: Database["public"]["Enums"]["key_event_type"]
-          from_holder?: Database["public"]["Enums"]["key_holder_type"] | null
-          held_by_user_id?: string | null
-          id?: string
-          keys_transferred?: number
-          keys_with_owner?: number
-          keys_with_platform?: number
-          keys_with_tenant?: number
-          keys_with_vendor?: number
-          lease_id?: string | null
-          maintenance_id?: string | null
-          notes?: string | null
-          property_id: string
-          purpose?: string | null
-          replacement_cost?: number | null
-          sign_off_at?: string | null
-          signed_off_by?: string | null
-          to_holder?: Database["public"]["Enums"]["key_holder_type"] | null
-          total_keys?: number
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          event?: Database["public"]["Enums"]["key_event_type"]
-          from_holder?: Database["public"]["Enums"]["key_holder_type"] | null
-          held_by_user_id?: string | null
-          id?: string
-          keys_transferred?: number
-          keys_with_owner?: number
-          keys_with_platform?: number
-          keys_with_tenant?: number
-          keys_with_vendor?: number
-          lease_id?: string | null
-          maintenance_id?: string | null
-          notes?: string | null
-          property_id?: string
-          purpose?: string | null
-          replacement_cost?: number | null
-          sign_off_at?: string | null
-          signed_off_by?: string | null
-          to_holder?: Database["public"]["Enums"]["key_holder_type"] | null
-          total_keys?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "keys_tracking_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "keys_tracking_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "keys_tracking_held_by_user_id_fkey"
-            columns: ["held_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "keys_tracking_held_by_user_id_fkey"
-            columns: ["held_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "keys_tracking_lease_id_fkey"
-            columns: ["lease_id"]
-            isOneToOne: false
-            referencedRelation: "leases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "keys_tracking_maintenance_id_fkey"
-            columns: ["maintenance_id"]
-            isOneToOne: false
-            referencedRelation: "maintenance_requests"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "keys_tracking_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "keys_tracking_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "keys_tracking_signed_off_by_fkey"
-            columns: ["signed_off_by"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "keys_tracking_signed_off_by_fkey"
-            columns: ["signed_off_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      leads: {
-        Row: {
-          assigned_to: string | null
-          bhk: Database["public"]["Enums"]["bhk_type"] | null
-          building_name: string | null
-          city: string | null
-          contact_attempts: number
-          contacted_at: string | null
-          converted_property_id: string | null
-          created_at: string
-          dropped_reason: string | null
-          expected_rent: number | null
-          flat_number: string | null
-          follow_up_at: string | null
-          follow_up_date: string | null
-          id: string
-          last_contacted_at: string | null
-          locality: string | null
-          notes: string | null
-          owner_email: string | null
-          owner_name: string | null
-          owner_phone: string
-          property_address: string | null
-          referred_by_tenant_id: string | null
-          referrer_name: string | null
-          referrer_phone: string | null
-          source: string | null
-          status: Database["public"]["Enums"]["lead_status"]
-          tenant_notified_on_listing: boolean
-          updated_at: string
-        }
-        Insert: {
-          assigned_to?: string | null
-          bhk?: Database["public"]["Enums"]["bhk_type"] | null
-          building_name?: string | null
-          city?: string | null
-          contact_attempts?: number
-          contacted_at?: string | null
-          converted_property_id?: string | null
-          created_at?: string
-          dropped_reason?: string | null
-          expected_rent?: number | null
-          flat_number?: string | null
-          follow_up_at?: string | null
-          follow_up_date?: string | null
-          id?: string
-          last_contacted_at?: string | null
-          locality?: string | null
-          notes?: string | null
-          owner_email?: string | null
-          owner_name?: string | null
-          owner_phone: string
-          property_address?: string | null
-          referred_by_tenant_id?: string | null
-          referrer_name?: string | null
-          referrer_phone?: string | null
-          source?: string | null
-          status?: Database["public"]["Enums"]["lead_status"]
-          tenant_notified_on_listing?: boolean
-          updated_at?: string
-        }
-        Update: {
-          assigned_to?: string | null
-          bhk?: Database["public"]["Enums"]["bhk_type"] | null
-          building_name?: string | null
-          city?: string | null
-          contact_attempts?: number
-          contacted_at?: string | null
-          converted_property_id?: string | null
-          created_at?: string
-          dropped_reason?: string | null
-          expected_rent?: number | null
-          flat_number?: string | null
-          follow_up_at?: string | null
-          follow_up_date?: string | null
-          id?: string
-          last_contacted_at?: string | null
-          locality?: string | null
-          notes?: string | null
-          owner_email?: string | null
-          owner_name?: string | null
-          owner_phone?: string
-          property_address?: string | null
-          referred_by_tenant_id?: string | null
-          referrer_name?: string | null
-          referrer_phone?: string | null
-          source?: string | null
-          status?: Database["public"]["Enums"]["lead_status"]
-          tenant_notified_on_listing?: boolean
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "leads_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "leads_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_converted_property_id_fkey"
-            columns: ["converted_property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_converted_property_id_fkey"
-            columns: ["converted_property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_referred_by_tenant_id_fkey"
-            columns: ["referred_by_tenant_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "leads_referred_by_tenant_id_fkey"
-            columns: ["referred_by_tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      leases: {
-        Row: {
-          agreement_id: string | null
-          application_id: string
-          created_at: string
-          electricity_compliance: Database["public"]["Enums"]["bill_compliance_status"]
-          enach_activated_at: string | null
-          enach_active: boolean
-          enach_mandate_id: string | null
-          end_date: string
-          gas_compliance: Database["public"]["Enums"]["bill_compliance_status"]
-          gst_pct: number
-          id: string
-          last_bill_check_at: string | null
-          lock_in_end_date: string
-          monthly_rent: number
-          move_in_date: string | null
-          move_out_date: string | null
-          move_out_initiated_at: string | null
-          next_bill_check_at: string | null
-          notice_period_months: number
-          notice_served_at: string | null
-          owner_id: string
-          parent_lease_id: string | null
-          property_id: string
-          renewal_count: number
-          security_deposit_amount: number
-          service_fee_pct: number
-          society_maintenance_compliance: Database["public"]["Enums"]["bill_compliance_status"]
-          start_date: string
-          status: Database["public"]["Enums"]["lease_status"]
-          tds_applicable: boolean
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          agreement_id?: string | null
-          application_id: string
-          created_at?: string
-          electricity_compliance?: Database["public"]["Enums"]["bill_compliance_status"]
-          enach_activated_at?: string | null
-          enach_active?: boolean
-          enach_mandate_id?: string | null
-          end_date: string
-          gas_compliance?: Database["public"]["Enums"]["bill_compliance_status"]
-          gst_pct?: number
-          id?: string
-          last_bill_check_at?: string | null
-          lock_in_end_date: string
-          monthly_rent: number
-          move_in_date?: string | null
-          move_out_date?: string | null
-          move_out_initiated_at?: string | null
-          next_bill_check_at?: string | null
-          notice_period_months?: number
-          notice_served_at?: string | null
-          owner_id: string
-          parent_lease_id?: string | null
-          property_id: string
-          renewal_count?: number
-          security_deposit_amount: number
-          service_fee_pct?: number
-          society_maintenance_compliance?: Database["public"]["Enums"]["bill_compliance_status"]
-          start_date: string
-          status?: Database["public"]["Enums"]["lease_status"]
-          tds_applicable?: boolean
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          agreement_id?: string | null
-          application_id?: string
-          created_at?: string
-          electricity_compliance?: Database["public"]["Enums"]["bill_compliance_status"]
-          enach_activated_at?: string | null
-          enach_active?: boolean
-          enach_mandate_id?: string | null
-          end_date?: string
-          gas_compliance?: Database["public"]["Enums"]["bill_compliance_status"]
-          gst_pct?: number
-          id?: string
-          last_bill_check_at?: string | null
-          lock_in_end_date?: string
-          monthly_rent?: number
-          move_in_date?: string | null
-          move_out_date?: string | null
-          move_out_initiated_at?: string | null
-          next_bill_check_at?: string | null
-          notice_period_months?: number
-          notice_served_at?: string | null
-          owner_id?: string
-          parent_lease_id?: string | null
-          property_id?: string
-          renewal_count?: number
-          security_deposit_amount?: number
-          service_fee_pct?: number
-          society_maintenance_compliance?: Database["public"]["Enums"]["bill_compliance_status"]
-          start_date?: string
-          status?: Database["public"]["Enums"]["lease_status"]
-          tds_applicable?: boolean
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_leases_agreement_id"
-            columns: ["agreement_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leases_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leases_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "leases_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leases_parent_lease_id_fkey"
-            columns: ["parent_lease_id"]
-            isOneToOne: false
-            referencedRelation: "leases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leases_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leases_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leases_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "leases_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      maintenance_requests: {
-        Row: {
-          assigned_at: string | null
-          assigned_to: string | null
-          category: Database["public"]["Enums"]["maintenance_category"]
-          closed_at: string | null
-          created_at: string
-          damage_cost: number | null
-          description: string
-          id: string
-          is_emergency: boolean
-          lease_id: string
-          photo_urls: string[] | null
-          property_id: string
-          raised_by: string
-          resolution_notes: string | null
-          resolved_at: string | null
-          status: Database["public"]["Enums"]["maintenance_status"]
-          submitted_at: string
-          tenant_disputed: boolean
-          updated_at: string
-          wear_vs_damage: string | null
-        }
-        Insert: {
-          assigned_at?: string | null
-          assigned_to?: string | null
-          category: Database["public"]["Enums"]["maintenance_category"]
-          closed_at?: string | null
-          created_at?: string
-          damage_cost?: number | null
-          description: string
-          id?: string
-          is_emergency?: boolean
-          lease_id: string
-          photo_urls?: string[] | null
-          property_id: string
-          raised_by: string
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          status?: Database["public"]["Enums"]["maintenance_status"]
-          submitted_at?: string
-          tenant_disputed?: boolean
-          updated_at?: string
-          wear_vs_damage?: string | null
-        }
-        Update: {
-          assigned_at?: string | null
-          assigned_to?: string | null
-          category?: Database["public"]["Enums"]["maintenance_category"]
-          closed_at?: string | null
-          created_at?: string
-          damage_cost?: number | null
-          description?: string
-          id?: string
-          is_emergency?: boolean
-          lease_id?: string
-          photo_urls?: string[] | null
-          property_id?: string
-          raised_by?: string
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          status?: Database["public"]["Enums"]["maintenance_status"]
-          submitted_at?: string
-          tenant_disputed?: boolean
-          updated_at?: string
-          wear_vs_damage?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "maintenance_requests_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "maintenance_requests_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "maintenance_requests_lease_id_fkey"
-            columns: ["lease_id"]
-            isOneToOne: false
-            referencedRelation: "leases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "maintenance_requests_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "maintenance_requests_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "maintenance_requests_raised_by_fkey"
-            columns: ["raised_by"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "maintenance_requests_raised_by_fkey"
-            columns: ["raised_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -2492,67 +1232,6 @@ export type Database = {
           },
         ]
       }
-      owner_action_log: {
-        Row: {
-          action_taken: string
-          application_id: string
-          confirmed_via: string
-          conversation_at: string
-          counter_rent: number | null
-          created_at: string
-          id: string
-          rejection_reason: string | null
-          summary: string
-          team_member_id: string
-        }
-        Insert: {
-          action_taken: string
-          application_id: string
-          confirmed_via: string
-          conversation_at: string
-          counter_rent?: number | null
-          created_at?: string
-          id?: string
-          rejection_reason?: string | null
-          summary: string
-          team_member_id: string
-        }
-        Update: {
-          action_taken?: string
-          application_id?: string
-          confirmed_via?: string
-          conversation_at?: string
-          counter_rent?: number | null
-          created_at?: string
-          id?: string
-          rejection_reason?: string | null
-          summary?: string
-          team_member_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "owner_action_log_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "owner_action_log_team_member_id_fkey"
-            columns: ["team_member_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "owner_action_log_team_member_id_fkey"
-            columns: ["team_member_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       owner_bank_details: {
         Row: {
           account_number: string
@@ -2599,133 +1278,6 @@ export type Database = {
             foreignKeyName: "owner_bank_details_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payments: {
-        Row: {
-          amount: number
-          application_id: string | null
-          billing_month: string | null
-          created_at: string
-          currency: string
-          enach_debit_date: string | null
-          failure_reason: string | null
-          gateway_reference: string | null
-          gateway_response: Json | null
-          gst_component: number | null
-          id: string
-          lease_id: string | null
-          method: Database["public"]["Enums"]["payment_method"]
-          paid_at: string | null
-          payee_id: string | null
-          payer_id: string
-          payment_type: Database["public"]["Enums"]["payment_type"]
-          refund_reason: string | null
-          refunded_at: string | null
-          rent_component: number | null
-          retry_count: number
-          service_fee_component: number | null
-          status: Database["public"]["Enums"]["payment_status"]
-          tds_deducted: number | null
-          updated_at: string
-        }
-        Insert: {
-          amount: number
-          application_id?: string | null
-          billing_month?: string | null
-          created_at?: string
-          currency?: string
-          enach_debit_date?: string | null
-          failure_reason?: string | null
-          gateway_reference?: string | null
-          gateway_response?: Json | null
-          gst_component?: number | null
-          id?: string
-          lease_id?: string | null
-          method: Database["public"]["Enums"]["payment_method"]
-          paid_at?: string | null
-          payee_id?: string | null
-          payer_id: string
-          payment_type: Database["public"]["Enums"]["payment_type"]
-          refund_reason?: string | null
-          refunded_at?: string | null
-          rent_component?: number | null
-          retry_count?: number
-          service_fee_component?: number | null
-          status?: Database["public"]["Enums"]["payment_status"]
-          tds_deducted?: number | null
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          application_id?: string | null
-          billing_month?: string | null
-          created_at?: string
-          currency?: string
-          enach_debit_date?: string | null
-          failure_reason?: string | null
-          gateway_reference?: string | null
-          gateway_response?: Json | null
-          gst_component?: number | null
-          id?: string
-          lease_id?: string | null
-          method?: Database["public"]["Enums"]["payment_method"]
-          paid_at?: string | null
-          payee_id?: string | null
-          payer_id?: string
-          payment_type?: Database["public"]["Enums"]["payment_type"]
-          refund_reason?: string | null
-          refunded_at?: string | null
-          rent_component?: number | null
-          retry_count?: number
-          service_fee_component?: number | null
-          status?: Database["public"]["Enums"]["payment_status"]
-          tds_deducted?: number | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payments_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_lease_id_fkey"
-            columns: ["lease_id"]
-            isOneToOne: false
-            referencedRelation: "leases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_payee_id_fkey"
-            columns: ["payee_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "payments_payee_id_fkey"
-            columns: ["payee_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_payer_id_fkey"
-            columns: ["payer_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "payments_payer_id_fkey"
-            columns: ["payer_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2857,7 +1409,6 @@ export type Database = {
       properties: {
         Row: {
           address_mode: string | null
-          agreement_pending_at: string | null
           amenities: Json | null
           annual_rent_increase_pct: number | null
           auto_accept_enabled: boolean
@@ -2890,7 +1441,6 @@ export type Database = {
           flat_number: string | null
           flat_number_revealed: boolean
           floor_number: number | null
-          floor_plan_url: string | null
           formatted_address: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail: Json | null
@@ -2898,18 +1448,9 @@ export type Database = {
           geom_exact: unknown
           google_maps_url: string | null
           id: string
-          inspected_at: string | null
-          inspection_accepted_at: string | null
-          inspection_date: string | null
-          inspection_end_time: string | null
-          inspection_notes: string | null
-          inspection_proposed_at: string | null
-          inspection_scheduled_at: string | null
-          inspection_start_time: string | null
           is_active: boolean
           khata_type: string | null
           landmark: string | null
-          last_leased_at: string | null
           last_public_listed_rent: number | null
           last_public_sale_price: number | null
           latitude: number | null
@@ -2927,13 +1468,10 @@ export type Database = {
           longitude: number | null
           main_door_lock_type: string | null
           maintenance_included_in_rent: boolean
-          map_pin_url: string | null
           move_in_charges_amount: number | null
           neighborhood: string | null
           notice_period_days: number | null
           notice_period_months: number | null
-          occupied_at: string | null
-          off_market_at: string | null
           owner_committed_12_months: boolean | null
           owner_diet_preference: string | null
           owner_has_local_rep: boolean | null
@@ -2972,7 +1510,6 @@ export type Database = {
           sale_price: number | null
           security_deposit_amount: number | null
           security_deposit_months: number
-          service_agreement_id: string | null
           society_maintenance_approx: number | null
           square_footage: number | null
           state: string | null
@@ -3004,7 +1541,6 @@ export type Database = {
         }
         Insert: {
           address_mode?: string | null
-          agreement_pending_at?: string | null
           amenities?: Json | null
           annual_rent_increase_pct?: number | null
           auto_accept_enabled?: boolean
@@ -3037,7 +1573,6 @@ export type Database = {
           flat_number?: string | null
           flat_number_revealed?: boolean
           floor_number?: number | null
-          floor_plan_url?: string | null
           formatted_address?: string | null
           furnishing?: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail?: Json | null
@@ -3045,18 +1580,9 @@ export type Database = {
           geom_exact?: unknown
           google_maps_url?: string | null
           id?: string
-          inspected_at?: string | null
-          inspection_accepted_at?: string | null
-          inspection_date?: string | null
-          inspection_end_time?: string | null
-          inspection_notes?: string | null
-          inspection_proposed_at?: string | null
-          inspection_scheduled_at?: string | null
-          inspection_start_time?: string | null
           is_active?: boolean
           khata_type?: string | null
           landmark?: string | null
-          last_leased_at?: string | null
           last_public_listed_rent?: number | null
           last_public_sale_price?: number | null
           latitude?: number | null
@@ -3074,13 +1600,10 @@ export type Database = {
           longitude?: number | null
           main_door_lock_type?: string | null
           maintenance_included_in_rent?: boolean
-          map_pin_url?: string | null
           move_in_charges_amount?: number | null
           neighborhood?: string | null
           notice_period_days?: number | null
           notice_period_months?: number | null
-          occupied_at?: string | null
-          off_market_at?: string | null
           owner_committed_12_months?: boolean | null
           owner_diet_preference?: string | null
           owner_has_local_rep?: boolean | null
@@ -3119,7 +1642,6 @@ export type Database = {
           sale_price?: number | null
           security_deposit_amount?: number | null
           security_deposit_months?: number
-          service_agreement_id?: string | null
           society_maintenance_approx?: number | null
           square_footage?: number | null
           state?: string | null
@@ -3151,7 +1673,6 @@ export type Database = {
         }
         Update: {
           address_mode?: string | null
-          agreement_pending_at?: string | null
           amenities?: Json | null
           annual_rent_increase_pct?: number | null
           auto_accept_enabled?: boolean
@@ -3184,7 +1705,6 @@ export type Database = {
           flat_number?: string | null
           flat_number_revealed?: boolean
           floor_number?: number | null
-          floor_plan_url?: string | null
           formatted_address?: string | null
           furnishing?: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail?: Json | null
@@ -3192,18 +1712,9 @@ export type Database = {
           geom_exact?: unknown
           google_maps_url?: string | null
           id?: string
-          inspected_at?: string | null
-          inspection_accepted_at?: string | null
-          inspection_date?: string | null
-          inspection_end_time?: string | null
-          inspection_notes?: string | null
-          inspection_proposed_at?: string | null
-          inspection_scheduled_at?: string | null
-          inspection_start_time?: string | null
           is_active?: boolean
           khata_type?: string | null
           landmark?: string | null
-          last_leased_at?: string | null
           last_public_listed_rent?: number | null
           last_public_sale_price?: number | null
           latitude?: number | null
@@ -3221,13 +1732,10 @@ export type Database = {
           longitude?: number | null
           main_door_lock_type?: string | null
           maintenance_included_in_rent?: boolean
-          map_pin_url?: string | null
           move_in_charges_amount?: number | null
           neighborhood?: string | null
           notice_period_days?: number | null
           notice_period_months?: number | null
-          occupied_at?: string | null
-          off_market_at?: string | null
           owner_committed_12_months?: boolean | null
           owner_diet_preference?: string | null
           owner_has_local_rep?: boolean | null
@@ -3266,7 +1774,6 @@ export type Database = {
           sale_price?: number | null
           security_deposit_amount?: number | null
           security_deposit_months?: number
-          service_agreement_id?: string | null
           society_maintenance_approx?: number | null
           square_footage?: number | null
           state?: string | null
@@ -3297,13 +1804,6 @@ export type Database = {
           youtube_walkthrough_url?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_properties_service_agreement"
-            columns: ["service_agreement_id"]
-            isOneToOne: false
-            referencedRelation: "agreements"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "properties_owner_id_fkey"
             columns: ["owner_id"]
@@ -3373,13 +1873,6 @@ export type Database = {
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "property_activity_log_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
         ]
       }
       property_comments: {
@@ -3438,13 +1931,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "property_comments_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "property_comments_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -3456,93 +1942,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      property_condition_reports: {
-        Row: {
-          conducted_by: string
-          created_at: string
-          damage_items: Json | null
-          id: string
-          inspection_date: string
-          lease_id: string
-          notes: string | null
-          photo_urls: string[] | null
-          property_id: string
-          report_type: Database["public"]["Enums"]["condition_report_type"]
-          tenant_sign_off_at: string | null
-          tenant_signed_off: boolean
-          total_damage_cost: number
-          updated_at: string
-        }
-        Insert: {
-          conducted_by: string
-          created_at?: string
-          damage_items?: Json | null
-          id?: string
-          inspection_date: string
-          lease_id: string
-          notes?: string | null
-          photo_urls?: string[] | null
-          property_id: string
-          report_type: Database["public"]["Enums"]["condition_report_type"]
-          tenant_sign_off_at?: string | null
-          tenant_signed_off?: boolean
-          total_damage_cost?: number
-          updated_at?: string
-        }
-        Update: {
-          conducted_by?: string
-          created_at?: string
-          damage_items?: Json | null
-          id?: string
-          inspection_date?: string
-          lease_id?: string
-          notes?: string | null
-          photo_urls?: string[] | null
-          property_id?: string
-          report_type?: Database["public"]["Enums"]["condition_report_type"]
-          tenant_sign_off_at?: string | null
-          tenant_signed_off?: boolean
-          total_damage_cost?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "property_condition_reports_conducted_by_fkey"
-            columns: ["conducted_by"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "property_condition_reports_conducted_by_fkey"
-            columns: ["conducted_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "property_condition_reports_lease_id_fkey"
-            columns: ["lease_id"]
-            isOneToOne: false
-            referencedRelation: "leases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "property_condition_reports_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "property_condition_reports_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
         ]
@@ -3607,13 +2006,6 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "property_edit_requests_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
           {
@@ -3684,13 +2076,6 @@ export type Database = {
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "property_geo_associations_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
         ]
       }
       property_images: {
@@ -3739,13 +2124,6 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "property_images_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
           {
@@ -3848,13 +2226,6 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "property_inspections_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
         ]
@@ -3971,13 +2342,6 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "property_views_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
             referencedColumns: ["id"]
           },
           {
@@ -4179,218 +2543,8 @@ export type Database = {
         }
         Relationships: []
       }
-      visit_events: {
-        Row: {
-          created_at: string | null
-          event_type: string
-          id: string
-          initiated_by: string
-          note_type: string | null
-          notes: string | null
-          property_id: string
-          rescheduled_to_visit_id: string | null
-          scheduled_at: string | null
-          tenant_id: string
-          visit_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          event_type: string
-          id?: string
-          initiated_by?: string
-          note_type?: string | null
-          notes?: string | null
-          property_id: string
-          rescheduled_to_visit_id?: string | null
-          scheduled_at?: string | null
-          tenant_id: string
-          visit_id: string
-        }
-        Update: {
-          created_at?: string | null
-          event_type?: string
-          id?: string
-          initiated_by?: string
-          note_type?: string | null
-          notes?: string | null
-          property_id?: string
-          rescheduled_to_visit_id?: string | null
-          scheduled_at?: string | null
-          tenant_id?: string
-          visit_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "visit_events_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "visit_events_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "visit_events_rescheduled_to_visit_id_fkey"
-            columns: ["rescheduled_to_visit_id"]
-            isOneToOne: false
-            referencedRelation: "visits"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "visit_events_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "visit_events_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "visit_events_visit_id_fkey"
-            columns: ["visit_id"]
-            isOneToOne: false
-            referencedRelation: "visits"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      visits: {
-        Row: {
-          cancellation_reason: string | null
-          cancelled_at: string | null
-          cancelled_by: string | null
-          completed_at: string | null
-          confirmed_at: string | null
-          created_at: string
-          full_address_sent: boolean
-          id: string
-          no_show_at: string | null
-          notes: string | null
-          platform_rep_name: string | null
-          platform_rep_phone: string | null
-          previous_scheduled_at: string | null
-          property_id: string
-          reminder_sent_24h: boolean
-          reminder_sent_2h: boolean
-          rescheduled_by: string | null
-          scheduled_at: string
-          status: Database["public"]["Enums"]["visit_status"]
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          cancellation_reason?: string | null
-          cancelled_at?: string | null
-          cancelled_by?: string | null
-          completed_at?: string | null
-          confirmed_at?: string | null
-          created_at?: string
-          full_address_sent?: boolean
-          id?: string
-          no_show_at?: string | null
-          notes?: string | null
-          platform_rep_name?: string | null
-          platform_rep_phone?: string | null
-          previous_scheduled_at?: string | null
-          property_id: string
-          reminder_sent_24h?: boolean
-          reminder_sent_2h?: boolean
-          rescheduled_by?: string | null
-          scheduled_at: string
-          status?: Database["public"]["Enums"]["visit_status"]
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          cancellation_reason?: string | null
-          cancelled_at?: string | null
-          cancelled_by?: string | null
-          completed_at?: string | null
-          confirmed_at?: string | null
-          created_at?: string
-          full_address_sent?: boolean
-          id?: string
-          no_show_at?: string | null
-          notes?: string | null
-          platform_rep_name?: string | null
-          platform_rep_phone?: string | null
-          previous_scheduled_at?: string | null
-          property_id?: string
-          reminder_sent_24h?: boolean
-          reminder_sent_2h?: boolean
-          rescheduled_by?: string | null
-          scheduled_at?: string
-          status?: Database["public"]["Enums"]["visit_status"]
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "visits_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "visits_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties_with_flat_number"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "visits_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "visits_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
-      properties_with_flat_number: {
-        Row: {
-          building_name: string | null
-          flat_number: string | null
-          flat_number_revealed: boolean | null
-          floor_number: number | null
-          id: string | null
-        }
-        Insert: {
-          building_name?: string | null
-          flat_number?: string | null
-          flat_number_revealed?: boolean | null
-          floor_number?: number | null
-          id?: string | null
-        }
-        Update: {
-          building_name?: string | null
-          flat_number?: string | null
-          flat_number_revealed?: boolean | null
-          floor_number?: number | null
-          id?: string | null
-        }
-        Relationships: []
-      }
       public_profiles: {
         Row: {
           bio: string | null
@@ -4451,14 +2605,6 @@ export type Database = {
       }
       cancel_pending_edit_request: {
         Args: { p_property_id: string }
-        Returns: undefined
-      }
-      complete_visit: {
-        Args: {
-          p_admin_note?: string
-          p_property_feedback?: string
-          p_visit_id: string
-        }
         Returns: undefined
       }
       confirm_availability_of_rental: {
@@ -4870,14 +3016,6 @@ export type Database = {
         Args: { p_comment_id: string; p_notes?: string; p_reason: string }
         Returns: Json
       }
-      reschedule_visit: {
-        Args: {
-          p_actor: string
-          p_new_scheduled_at: string
-          p_visit_id: string
-        }
-        Returns: string
-      }
       resolve_canonical_geo_place: {
         Args: {
           p_aliases?: string[]
@@ -5079,15 +3217,6 @@ export type Database = {
       }
     }
     Enums: {
-      agreement_status:
-        | "draft"
-        | "pending_owner_sign"
-        | "pending_tenant_sign"
-        | "pending_agency_sign"
-        | "fully_signed"
-        | "expired"
-        | "terminated"
-      agreement_type: "service_agreement" | "tripartite_lease"
       appliance_condition:
         | "fully_functional"
         | "minor_issues"
@@ -5108,46 +3237,13 @@ export type Database = {
         | "tv"
         | "fire_extinguisher"
         | "other"
-      application_status:
-        | "draft"
-        | "submitted"
-        | "platform_review"
-        | "platform_rejected"
-        | "sent_to_owner"
-        | "owner_accepted"
-        | "owner_rejected"
-        | "owner_countered"
-        | "tenant_countered"
-        | "payment_pending"
-        | "payment_received"
-        | "kyc_pending"
-        | "kyc_passed"
-        | "kyc_failed"
-        | "agreement_pending"
-        | "lease_active"
-        | "withdrawn"
-        | "expired"
-        | "on_hold"
       auth_provider: "phone_otp" | "google" | "apple" | "email_otp"
       bhk_type: "1BHK" | "2BHK" | "3BHK" | "4BHK" | "5BHK_plus" | "studio"
-      bill_compliance_status:
-        | "undisclosed"
-        | "self_declared_paid"
-        | "platform_verified"
-        | "overdue_flagged"
       board_status:
         | "not_installed"
         | "installed"
         | "needs_replacement"
         | "removed"
-      cibil_range_type:
-        | "below_550"
-        | "550_to_649"
-        | "650_to_749"
-        | "750_to_900"
-        | "no_credit_history"
-        | "not_sure"
-      condition_report_type: "move_in" | "move_out" | "periodic_inspection"
       contact_request_decline_reason:
         | "preferences_dont_fit"
         | "property_currently_unavailable"
@@ -5162,35 +3258,6 @@ export type Database = {
         | "auto_cancelled"
       damage_severity: "low" | "medium" | "high"
       diet_type: "vegetarian" | "non_vegetarian"
-      document_category:
-        | "tenant_kyc"
-        | "owner_kyc"
-        | "agreement"
-        | "inspection"
-        | "condition_report"
-        | "payment_receipt"
-        | "maintenance"
-        | "lead"
-      document_type:
-        | "aadhaar"
-        | "pan"
-        | "salary_slip"
-        | "employment_letter"
-        | "itr"
-        | "bank_statement"
-        | "passport"
-        | "visa"
-        | "frro_registration"
-        | "sale_deed"
-        | "property_papers"
-        | "society_noc"
-        | "condition_report"
-        | "agreement"
-        | "receipt"
-        | "inspection_report"
-        | "other"
-        | "electricity_bill"
-      eligibility_status: "pending" | "passed" | "disqualified"
       external_query_category:
         | "noise"
         | "water_leak"
@@ -5203,48 +3270,6 @@ export type Database = {
       gender_type: "male" | "female" | "other" | "prefer_not_to_say"
       inspection_mode: "in_person" | "virtual"
       inspection_status: "scheduled" | "in_progress" | "completed"
-      key_event_type:
-        | "collected_from_owner"
-        | "handed_to_tenant"
-        | "returned_by_tenant"
-        | "handed_to_vendor"
-        | "returned_by_vendor"
-        | "replaced"
-        | "lost"
-      key_holder_type: "platform" | "tenant" | "owner" | "vendor"
-      lead_status:
-        | "new"
-        | "contacted"
-        | "interested"
-        | "inspection_scheduled"
-        | "converted"
-        | "dropped"
-      lease_status:
-        | "active"
-        | "lock_in"
-        | "notice_period"
-        | "expiring"
-        | "expired"
-        | "terminated_early"
-        | "renewed"
-      maintenance_category:
-        | "plumbing"
-        | "electrical"
-        | "carpentry"
-        | "appliances"
-        | "cleaning"
-        | "painting"
-        | "pest_control"
-        | "internet"
-        | "security"
-        | "other"
-      maintenance_status:
-        | "submitted"
-        | "assigned"
-        | "in_progress"
-        | "resolved"
-        | "closed"
-        | "escalated"
       marital_status: "single" | "married" | "live_in"
       occupation_type:
         | "salaried"
@@ -5253,42 +3278,12 @@ export type Database = {
         | "student"
         | "retired"
       parking_availability: "none" | "covered" | "uncovered" | "both"
-      payment_method: "upi" | "net_banking" | "e_nach"
-      payment_status:
-        | "pending"
-        | "processing"
-        | "success"
-        | "failed"
-        | "refunded"
-        | "disputed"
-      payment_type:
-        | "confirmation_first_month_rent"
-        | "token_deposit"
-        | "security_deposit"
-        | "monthly_rent"
-        | "service_fee"
-        | "gst"
-        | "kyc_service_charge"
-        | "refund"
-        | "damage_recovery"
-        | "early_exit_fee"
-      pet_type: "none" | "dog" | "cat" | "bird" | "other"
       property_listing_type: "rent" | "sale"
       property_status:
         | "draft"
-        | "inspection_proposed"
-        | "inspection_accepted"
-        | "inspection_scheduled"
-        | "inspected"
-        | "agreement_pending"
-        | "listed"
-        | "off_market"
-        | "occupied"
-        | "expiring"
-        | "turnover"
-        | "inactive"
         | "pending_review"
         | "changes_requested"
+        | "listed"
         | "edit_pending_review"
         | "unlisted"
         | "archived"
@@ -5313,12 +3308,6 @@ export type Database = {
         | "servant_quarter"
         | "store_room"
         | "dining_room"
-      stay_duration_type:
-        | "less_than_10_months"
-        | "10_to_12_months"
-        | "1_to_2_years"
-        | "2_to_3_years"
-        | "3_plus_years"
       user_role:
         | "tenant"
         | "owner"
@@ -5329,13 +3318,6 @@ export type Database = {
         | "customer_care"
         | "field_team"
         | "user"
-      visit_status:
-        | "scheduled"
-        | "confirmed"
-        | "completed"
-        | "cancelled"
-        | "no_show"
-        | "rescheduled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5463,16 +3445,6 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      agreement_status: [
-        "draft",
-        "pending_owner_sign",
-        "pending_tenant_sign",
-        "pending_agency_sign",
-        "fully_signed",
-        "expired",
-        "terminated",
-      ],
-      agreement_type: ["service_agreement", "tripartite_lease"],
       appliance_condition: [
         "fully_functional",
         "minor_issues",
@@ -5495,50 +3467,14 @@ export const Constants = {
         "fire_extinguisher",
         "other",
       ],
-      application_status: [
-        "draft",
-        "submitted",
-        "platform_review",
-        "platform_rejected",
-        "sent_to_owner",
-        "owner_accepted",
-        "owner_rejected",
-        "owner_countered",
-        "tenant_countered",
-        "payment_pending",
-        "payment_received",
-        "kyc_pending",
-        "kyc_passed",
-        "kyc_failed",
-        "agreement_pending",
-        "lease_active",
-        "withdrawn",
-        "expired",
-        "on_hold",
-      ],
       auth_provider: ["phone_otp", "google", "apple", "email_otp"],
       bhk_type: ["1BHK", "2BHK", "3BHK", "4BHK", "5BHK_plus", "studio"],
-      bill_compliance_status: [
-        "undisclosed",
-        "self_declared_paid",
-        "platform_verified",
-        "overdue_flagged",
-      ],
       board_status: [
         "not_installed",
         "installed",
         "needs_replacement",
         "removed",
       ],
-      cibil_range_type: [
-        "below_550",
-        "550_to_649",
-        "650_to_749",
-        "750_to_900",
-        "no_credit_history",
-        "not_sure",
-      ],
-      condition_report_type: ["move_in", "move_out", "periodic_inspection"],
       contact_request_decline_reason: [
         "preferences_dont_fit",
         "property_currently_unavailable",
@@ -5555,37 +3491,6 @@ export const Constants = {
       ],
       damage_severity: ["low", "medium", "high"],
       diet_type: ["vegetarian", "non_vegetarian"],
-      document_category: [
-        "tenant_kyc",
-        "owner_kyc",
-        "agreement",
-        "inspection",
-        "condition_report",
-        "payment_receipt",
-        "maintenance",
-        "lead",
-      ],
-      document_type: [
-        "aadhaar",
-        "pan",
-        "salary_slip",
-        "employment_letter",
-        "itr",
-        "bank_statement",
-        "passport",
-        "visa",
-        "frro_registration",
-        "sale_deed",
-        "property_papers",
-        "society_noc",
-        "condition_report",
-        "agreement",
-        "receipt",
-        "inspection_report",
-        "other",
-        "electricity_bill",
-      ],
-      eligibility_status: ["pending", "passed", "disqualified"],
       external_query_category: [
         "noise",
         "water_leak",
@@ -5599,53 +3504,6 @@ export const Constants = {
       gender_type: ["male", "female", "other", "prefer_not_to_say"],
       inspection_mode: ["in_person", "virtual"],
       inspection_status: ["scheduled", "in_progress", "completed"],
-      key_event_type: [
-        "collected_from_owner",
-        "handed_to_tenant",
-        "returned_by_tenant",
-        "handed_to_vendor",
-        "returned_by_vendor",
-        "replaced",
-        "lost",
-      ],
-      key_holder_type: ["platform", "tenant", "owner", "vendor"],
-      lead_status: [
-        "new",
-        "contacted",
-        "interested",
-        "inspection_scheduled",
-        "converted",
-        "dropped",
-      ],
-      lease_status: [
-        "active",
-        "lock_in",
-        "notice_period",
-        "expiring",
-        "expired",
-        "terminated_early",
-        "renewed",
-      ],
-      maintenance_category: [
-        "plumbing",
-        "electrical",
-        "carpentry",
-        "appliances",
-        "cleaning",
-        "painting",
-        "pest_control",
-        "internet",
-        "security",
-        "other",
-      ],
-      maintenance_status: [
-        "submitted",
-        "assigned",
-        "in_progress",
-        "resolved",
-        "closed",
-        "escalated",
-      ],
       marital_status: ["single", "married", "live_in"],
       occupation_type: [
         "salaried",
@@ -5655,44 +3513,12 @@ export const Constants = {
         "retired",
       ],
       parking_availability: ["none", "covered", "uncovered", "both"],
-      payment_method: ["upi", "net_banking", "e_nach"],
-      payment_status: [
-        "pending",
-        "processing",
-        "success",
-        "failed",
-        "refunded",
-        "disputed",
-      ],
-      payment_type: [
-        "confirmation_first_month_rent",
-        "token_deposit",
-        "security_deposit",
-        "monthly_rent",
-        "service_fee",
-        "gst",
-        "kyc_service_charge",
-        "refund",
-        "damage_recovery",
-        "early_exit_fee",
-      ],
-      pet_type: ["none", "dog", "cat", "bird", "other"],
       property_listing_type: ["rent", "sale"],
       property_status: [
         "draft",
-        "inspection_proposed",
-        "inspection_accepted",
-        "inspection_scheduled",
-        "inspected",
-        "agreement_pending",
-        "listed",
-        "off_market",
-        "occupied",
-        "expiring",
-        "turnover",
-        "inactive",
         "pending_review",
         "changes_requested",
+        "listed",
         "edit_pending_review",
         "unlisted",
         "archived",
@@ -5720,13 +3546,6 @@ export const Constants = {
         "store_room",
         "dining_room",
       ],
-      stay_duration_type: [
-        "less_than_10_months",
-        "10_to_12_months",
-        "1_to_2_years",
-        "2_to_3_years",
-        "3_plus_years",
-      ],
       user_role: [
         "tenant",
         "owner",
@@ -5737,14 +3556,6 @@ export const Constants = {
         "customer_care",
         "field_team",
         "user",
-      ],
-      visit_status: [
-        "scheduled",
-        "confirmed",
-        "completed",
-        "cancelled",
-        "no_show",
-        "rescheduled",
       ],
     },
   },

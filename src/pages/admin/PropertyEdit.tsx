@@ -289,7 +289,7 @@ export default function PropertyEdit() {
 
       if (error || !data) {
         toast({ title: "Property not found", variant: "destructive" });
-        navigate("/admin/owners", { replace: true });
+        navigate("/admin/properties", { replace: true });
         return;
       }
 
@@ -1077,7 +1077,7 @@ export default function PropertyEdit() {
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => navigate("/admin/owners")}>
+            <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => navigate("/admin/properties")}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>

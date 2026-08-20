@@ -1,3 +1,33 @@
+## [2026-08-21] cleanup | Step 5C — property status + codebase cleanup: removed 10 legacy PM-era property_status values from all frontend code (OwnerDashboard ACTIVE_STATUSES, propertyStatus.ts STATUS_CONFIG, Properties.tsx STATUS_FILTER_OPTIONS + test); removed properties.status = "inspected" write from InspectionForm.executeCompletion; removed pendingProperties (inspection_scheduled filter) query + UI from Inspections.tsx; removed Inspections nav entry (AdminLayout) + routes (App.tsx); updated ManageListingCard copy; created migration 20260821120000_step5c_property_status_enum_cleanup.sql (safety gate, handle_property_status_change rewrite, get_admin_properties_page rewrite, enum recreate with 7 values); deleted 12 files (commons-*.md, ADMIN_SETUP.md, docs/search-analytics.md, TokenRefundPolicy.tsx, hero-owner.png, SessionExpired.tsx, NavLink.tsx); updated CLAUDE.md; build clean; 889/894 tests (5 known); TS 163 errors (3 fewer than 166 baseline) [IST]
+
+## [2026-08-21] finalize | Step 4 post-migration finalization: types regenerated (deleted tables/view/enums absent, property_views + property_inspections present); build clean; tests 889/894 (5 known ContactRequestsPage failures only); TS 166 errors (baseline unchanged); zero stale DB references in src; Razorpay edge function dirs confirmed absent; migration file untracked (applied live) [IST]
+
+## [2026-08-21] fix | Step 4A migration hotfix — deployment rolled back (applications drop blocked by 2 RLS policies referencing it); added Section I-PRE to migration: DROP POLICY eligibility_owner_read ON eligibility + DROP POLICY users_owner_read_tenant_name ON users; neither recreated; no CASCADE; no other migration content changed [IST]
+
+## [2026-08-20] fix | Step 4A verification — updated admin-properties.test.ts: replaced stale "final agreed rent override" test with "shows listed_rent", removed obsolete "sale listing NEVER uses a final-rent override" test, stripped dead Map() second args; build clean, 889/894 pass (5 known ContactRequestsPage failures only), TS back to 166-error baseline [IST]
+
+## [2026-08-20] cleanup | Step 4A — Legacy backend cleanup: removed applications-based final-rent overlay from AdminProperties frontend; created migration 20260820120000_step4a_legacy_backend_cleanup.sql (rewrites 3 retained functions, drops properties_with_flat_number view, 13 triggers, 13 functions, 14+1 dead properties columns, 15 tables, 21 enum types); edge function dirs require manual deletion; migration not yet applied remotely [IST]
+
+## [2026-08-21] audit | Step 3F — properties_with_flat_number: zero live callers in src/functions/tests; decision DROP; must be dropped BEFORE applications/payments/visits (new blocker, first step in migration sequence) [23:55 IST]
+
+## [2026-08-21] audit | Step 3E — corrected Step 3D: confirmed FK cycle (documents↔leases, constraint fk_leases_agreement_id must drop first), confirmed all 8 properties.inspection_* columns dead, confirmed 7 other dead properties columns, property_views protected, safe 17-step drop sequence produced [23:45 IST]
+
+## [2026-08-21] audit | Step 3D — final column + schema cleanup audit; Properties.tsx removal bundle, admin_delete_draft_property blocker, 15 dead properties columns identified, users table clean, Razorpay delete boundary, FK drop order, 6 blockers for Step 4 [23:30 IST]
+
+## [2026-08-21] audit | Step 3C — reconciled Step 3B findings; confirmed applications still live in Properties.tsx; classified Razorpay keep/delete boundary; agreements unblocked by dropping service_agreement_id; n8n-applications/visits triggers confirmed for retirement [23:00 IST]
+
+## [2026-08-21] audit | Legacy backend dependency audit — table/RPC/edge-function/n8n decision matrices produced [22:30 IST]
+
+## [2026-08-21] refactor | Removed orphaned supporting code and cleaned PropertyDetail COMMONS_HIDE blocks [22:00 IST]
+
+## [2026-08-21] refactor | Removed approved legacy pages and rewired surviving routes [21:20 IST]
+
+## [2026-08-20] audit | Resolved /owners routing and deep-audited admin OwnerPipeline removal [23:59 IST]
+
+## [2026-08-20] audit | Completed targeted pre-deletion dependency sanity check [23:55 IST]
+
+## [2026-08-20] audit | Completed read-only page and feature cleanup inventory [23:15 IST]
+
 ## [2026-08-20] ui | Updated Header/Footer property-service navigation [IST]
 
 ## [2026-08-20] add | Added Band 4 Resolve with Reeve section to /khata-transfer-bangalore

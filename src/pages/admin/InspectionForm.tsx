@@ -607,19 +607,12 @@ export default function InspectionForm() {
     if (!inspection || !propertyId) return;
     setSubmittingCompletion(true);
     try {
-      const [inspectionUpdate, propertyUpdate] = await Promise.all([
-        supabase
-          .from("property_inspections")
-          .update({ status: "completed" })
-          .eq("id", inspection.id),
-        supabase
-          .from("properties")
-          .update({ status: "inspected" })
-          .eq("id", propertyId),
-      ]);
+      const inspectionUpdate = await supabase
+        .from("property_inspections")
+        .update({ status: "completed" })
+        .eq("id", inspection.id);
 
       if (inspectionUpdate.error) throw inspectionUpdate.error;
-      if (propertyUpdate.error) throw propertyUpdate.error;
 
       toast({ title: "Inspection marked as completed" });
       await loadData();
