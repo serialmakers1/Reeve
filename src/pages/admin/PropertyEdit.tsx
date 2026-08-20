@@ -72,13 +72,12 @@ const PARKING_OPTIONS = [
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   draft: { label: "Draft", variant: "outline" },
-  inspection_proposed: { label: "Inspection Requested", variant: "secondary" },
-  inspection_scheduled: { label: "Inspection Scheduled", variant: "secondary" },
-  inspected: { label: "Inspected", variant: "default" },
-  agreement_pending: { label: "Agreement Pending", variant: "secondary" },
+  pending_review: { label: "Pending Review", variant: "secondary" },
+  changes_requested: { label: "Changes Requested", variant: "destructive" },
   listed: { label: "Listed", variant: "default" },
-  occupied: { label: "Occupied", variant: "destructive" },
-  off_market: { label: "Off Market", variant: "outline" },
+  edit_pending_review: { label: "Edit Pending Review", variant: "secondary" },
+  unlisted: { label: "Unlisted", variant: "outline" },
+  archived: { label: "Archived", variant: "outline" },
 };
 
 type PropertyData = Record<string, unknown>;

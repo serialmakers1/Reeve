@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 const CommentSection = React.lazy(() => import("@/components/comments/CommentSection"));
-import { WhyReeveFeeLink } from "@/components/WhyReeveFeeModal";
 import PublicTimeline, { type PublicTimelineRow } from "@/components/property-detail/PublicTimeline";
 import { formatBuildingLine } from "@/lib/location/formatBuildingLine";
 import RequestContactPanel from "@/components/property-detail/RequestContactPanel";
@@ -305,30 +304,6 @@ function amenityLabel(a: string): string {
   return a.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function getFriendlyStatus(status: string): string {
-  const map: Record<string, string> = {
-    draft: 'Draft',
-    submitted: 'Submitted',
-    platform_review: 'Under Review',
-    platform_rejected: 'Rejected by Platform',
-    sent_to_owner: 'Sent to Owner',
-    owner_accepted: 'Owner Accepted',
-    owner_rejected: 'Owner Rejected',
-    owner_countered: 'Owner Countered',
-    tenant_countered: 'Tenant Countered',
-    payment_pending: 'Payment Pending',
-    payment_received: 'Payment Received',
-    kyc_pending: 'KYC Pending',
-    kyc_passed: 'KYC Passed',
-    kyc_failed: 'KYC Failed',
-    agreement_pending: 'Agreement Pending',
-    lease_active: 'Lease Active',
-    withdrawn: 'Withdrawn',
-    expired: 'Expired',
-    on_hold: 'On Hold',
-  };
-  return map[status] ?? status;
-}
 
 // ─── Placeholder images ─────────────────────────────────────────────────────
 
