@@ -8,10 +8,10 @@ const Footer = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Zone 1: Navigation */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-x-6 gap-y-8 items-start text-left">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-x-6 gap-y-8 items-start text-left">
 
           {/* Column 1 — Brand */}
-          <div className="col-span-2 lg:col-span-1">
+          <div className="col-span-2 md:col-span-3 xl:col-span-1">
             <span className="font-bold text-xl text-white tracking-wide">REEVE</span>
           </div>
 
@@ -20,93 +20,124 @@ const Footer = () => {
             <h3 className="text-white font-semibold text-sm mb-3">Marketplace</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   Home
                 </Link>
               </li>
               <li>
-                <Link to="/search" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/search" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   Browse Properties
                 </Link>
               </li>
               <li>
-                <Link to="/list" className="text-gray-400 text-sm hover:text-white transition-colors" onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "footer" })}>
+                <Link
+                  to="/list"
+                  className="text-gray-400 text-sm hover:text-white transition-colors duration-150"
+                  onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "footer" })}
+                >
                   List Your Property
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 3 — Property Services */}
+          {/* Column 3 — In Bangalore */}
           <div>
-            <h3 className="text-white font-semibold text-sm mb-3">Property Services</h3>
+            <h3 className="text-white font-semibold text-sm mb-3">In Bangalore</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/property-services-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  All Property Services
+                <Link to="/property-services-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
+                  All Bangalore property services
                 </Link>
               </li>
               <li>
-                <Link to="/property-management-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/property-management-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   Reeve Managed
                 </Link>
               </li>
               <li>
-                <Link to="/vacant-property-care-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/vacant-property-care-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   Reeve Watch
                 </Link>
               </li>
               <li>
-                <Link to="/find-tenant-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/find-tenant-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   Reeve Let
+                </Link>
+              </li>
+              <li>
+                <Link to="/khata-transfer-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
+                  Khata &amp; Mutation
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 4 — Account */}
+          {/* Column 4 — Anywhere in India */}
+          <div>
+            <h3 className="text-white font-semibold text-sm mb-3">Anywhere in India</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link to="/nri-property-services-india" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
+                  All NRI property services
+                </Link>
+              </li>
+              <li>
+                <Link to="/nri-property-sale-india" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
+                  NRI Property Sale
+                </Link>
+              </li>
+              <li>
+                <Link to="/nri-rent-tds-india" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
+                  NRI Rent &amp; TDS
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Column 5 — Account */}
           <div>
             <h3 className="text-white font-semibold text-sm mb-3">Account</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/tenant-dashboard" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/tenant-dashboard" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   My Dashboard
                 </Link>
               </li>
               <li>
-                <Link to="/owner-dashboard" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/owner-dashboard" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   Manage My Properties
                 </Link>
               </li>
               <li>
-                <Link to="/me" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/me" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   My Profile
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 5 — Company & Legal */}
+          {/* Column 6 — Company & Legal */}
           <div>
             <h3 className="text-white font-semibold text-sm mb-3">Company &amp; Legal</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/contact" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/contact" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   Contact Us
                 </Link>
               </li>
               <li>
-                <Link to="/privacy" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/privacy" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link to="/terms" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/terms" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   Terms of Service
                 </Link>
               </li>
               <li>
-                <Link to="/refund" className="text-gray-400 text-sm hover:text-white transition-colors">
+                <Link to="/refund" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   Refund Policy
                 </Link>
               </li>
