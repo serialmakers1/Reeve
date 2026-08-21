@@ -57,7 +57,7 @@ describe("buildGoogleMapsLink", () => {
 
   it("returns null when no usable location data exists", () => {
     expect(buildGoogleMapsLink({})).toBeNull();
-    expect(buildGoogleMapsLink({ formatted_address: "   ", place_id: "  " })).toBeNull();
+    expect(buildGoogleMapsLink({ formatted_address: "   " })).toBeNull();
     expect(buildGoogleMapsLink({ latitude: NaN, longitude: 5 })).toBeNull();
   });
 

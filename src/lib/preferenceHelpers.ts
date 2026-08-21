@@ -140,7 +140,7 @@ export function isBuyModeActive(mode: PreferenceMode | null | undefined): boolea
 }
 
 export interface RentCompletenessFields {
-  age?: string | null;
+  age?: number | null;
   occupation?: string | null;
   is_foreign_citizen?: boolean | null;
   gender?: string | null;
@@ -149,7 +149,7 @@ export interface RentCompletenessFields {
 }
 
 export interface BuyCompletenessFields {
-  age?: string | null;
+  age?: number | null;
   occupation?: string | null;
   is_foreign_citizen?: boolean | null;
   buying_purpose?: string | null;

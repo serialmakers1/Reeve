@@ -13,13 +13,13 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // additional token refresh operations that hold the lock longer, causing DB
 // calls in onAuthStateChange to queue behind an unreleased lock and hang.
 // Trade-off: disables cross-tab session sync — acceptable for this single-tab app.
-const noOpLock = async (
+const noOpLock = async <R>(
   _name: string,
   _acquireTimeout: number,
-  fn: () => Promise<unknown>
-): Promise<unknown> => fn();
+  fn: () => Promise<R>,
+): Promise<R> => fn();
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database, "public">(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

@@ -1244,8 +1244,8 @@ function GuideIconTile({
   plateBg,
   accent,
 }: {
-  primary: React.ComponentType<{ size?: number; color?: string; className?: string }>;
-  secondary?: React.ComponentType<{ size?: number; color?: string; className?: string }>;
+  primary: React.ComponentType<{ size?: number | string; color?: string; className?: string }>;
+  secondary?: React.ComponentType<{ size?: number | string; color?: string; className?: string }>;
   plateFg: string;
   plateBg: string;
   accent: string;
