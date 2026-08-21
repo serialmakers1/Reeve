@@ -1,3 +1,15 @@
+## [2026-08-21] cleanup | Removed verified orphan shared components and stale component API surface [21:55 IST]
+
+## [2026-08-21] audit | Audited shared component reachability, stale props, exports, and replaced implementations [21:30 IST]
+
+## [2026-08-21] cleanup | Removed replaced active-page UI and verified remaining page dependencies [20:45 IST]
+
+## [2026-08-21] audit | Closed remaining replacement and test dependencies for active-page cleanup [20:15 IST]
+
+## [2026-08-21] audit | Deep-audited remaining complex active pages for stale code and connected data-flow [19:45 IST]
+
+## [2026-08-21] cleanup | Removed verified PropertyEdit dead state and synchronized property-field metadata [18:32 IST]
+
 ## [2026-08-21] audit | Final connected dependency diagnosis for PropertyEdit cleanup [17:52 IST]
 
 ## [2026-08-21] audit | Deep-audited admin PropertyEdit for stale code and field-flow mismatches [17:10 IST]
@@ -1857,3 +1869,11 @@ Files changed:
 - TypeScript baseline: 358 (unchanged)
 
 ## [2026-08-21] refactor | Completed Step 5G dead-code/package cleanup and consolidated the duplicate project log [04:20 IST]
+
+## [2026-08-21] cleanup | Removed duplicate response-rate fetch/state from RequestContactPanel (feature live via useOwnerCard) [22:20 IST]
+
+## [2026-08-21] audit | Step 6E — hooks/helpers/services/data-flow deep audit; 2 dead config entries found, 1 duplicate hook pattern identified [23:10 IST]
+
+## [2026-08-21] cleanup | Removed final stale notice_period_months frontend mappings [23:20 IST]
+
+## [2026-08-21] audit | Audited assets, configuration, environment references, and package hygiene [23:55 IST]

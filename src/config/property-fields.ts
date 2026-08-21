@@ -512,8 +512,7 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     display: (v) => (typeof v === "number" ? `${v} month${v === 1 ? "" : "s"}` : "—"),
     visibleWhen: (v) => v.listing_type !== "sale",
   },
-  // P3: notice period in days. Rent-only. Replaces notice_period_months on
-  // owner-facing surfaces. `notice_period_months` retained admin-only for legacy.
+  // P3: notice period in days. Rent-only. Replaces the legacy notice_period_months field.
   {
     key: "notice_period_days",
     label: "Notice period",
@@ -530,19 +529,6 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     editableBy: ["owner", "admin"],
     ownerSection: "rent_deposit",
     display: (v) => (typeof v === "number" ? `${v} days` : "—"),
-    visibleWhen: (v) => v.listing_type !== "sale",
-  },
-  // Legacy months field — retained admin-only. Owner-facing input replaced by
-  // `notice_period_days`. Column kept in DB per D-P3-*; not dropped.
-  {
-    key: "notice_period_months",
-    label: "Notice period (months, legacy)",
-    input: "number",
-    min: 0,
-    // Legacy column retained for correctness; admin-only, not enumerated by any form loop.
-    audiences: ["admin_form"],
-    editableBy: ["admin"],
-    display: (v) => (typeof v === "number" ? `${v} month${v === 1 ? "" : "s"}` : "—"),
     visibleWhen: (v) => v.listing_type !== "sale",
   },
   // Added in Prompt 8 (D-159). Always public per D-136 (no owner opt-out on
@@ -963,8 +949,8 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
       { value: "2", label: "2 months" },
       { value: "3", label: "3 months" },
     ],
-    audiences: ["owner_form", "admin_form", "public_detail"],
-    editableBy: ["owner", "admin"],
+    audiences: ["owner_form", "public_detail"],
+    editableBy: ["owner"],
     ownerSection: "rent_deposit",
   },
   // Added in Prompt 4 — admin-captured legal owner name (never shown to tenants).
@@ -1103,7 +1089,6 @@ export const PUBLIC_DETAILS_GRID_KEYS: readonly string[] = [
   // by a compound bespoke display in PropertyDetail that combines enum + count
   // ("Covered · 2 slots"). See renderParkingRow() in PropertyDetail.tsx.
   "water_storage",
-  "notice_period_months",
   "annual_rent_increase_pct",
   "main_door_lock_type",
   "pet_policy",
@@ -1232,7 +1217,7 @@ const OWNER_LIVE_COLUMNS: readonly string[] = [
   "listed_rent", "sale_price", "price_negotiable", "expected_price_per_sqft",
   "security_deposit_amount", "security_deposit_months", "society_maintenance_approx",
   "maintenance_included_in_rent", "move_in_charges_amount", "annual_rent_increase_pct",
-  "lock_in_months", "notice_period_days", "notice_period_months", "sale_brokerage_pct",
+  "lock_in_months", "notice_period_days", "sale_brokerage_pct",
   "rent_brokerage_fixed_amount", "rent_brokerage_months", "rent_brokerage_type",
   // availability / possession
   "available_from", "possession_status", "possession_date",

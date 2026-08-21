@@ -27,7 +27,6 @@ interface Property {
   available_from: string | null;
   bathrooms: number | null;
   building_age_years: number | null;
-  possession_status: string | null;
   listing_type: string | null;
 }
 

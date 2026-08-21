@@ -135,18 +135,6 @@ interface EditRequestRow {
 }
 
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
-const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? "";
-
-/** Canonical property↔geo_place association row (admin-readable via RLS). */
-export interface GeoAssociation {
-  relationship: "primary_city" | "secondary_city" | "area_road";
-  source: "google" | "owner" | "admin";
-  geo_place: { display_name: string; kind: string } | null;
-}
-
-const BUILDING_SOURCE_LABEL: Record<string, string> = {
-  google: "Google", owner: "Owner entered", admin: "Admin",
-};
 
 const bhkLabel = (v: string | null): string =>
   v ? BHK_OPTIONS.find((o) => o.value === v)?.label ?? v : "";
@@ -323,7 +311,6 @@ export default function ListingReviewDetail() {
   const [expandedRev, setExpandedRev] = useState<string | null>(null);
   const [images, setImages] = useState<Array<{ id: string; url: string; is_primary: boolean; section: string | null }>>([]);
   const [imagesError, setImagesError] = useState(false);
-  const [associations, setAssociations] = useState<GeoAssociation[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [showReject, setShowReject] = useState(false);
@@ -378,15 +365,6 @@ export default function ListingReviewDetail() {
     }
     setProperty(prop as PropertyRow);
     setOwnerName((prop as PropertyRow).owner?.full_name ?? "Owner");
-
-    // Canonical geo associations (admin-readable via RLS). Non-fatal on failure —
-    // the rest of the review still renders; the panel just shows "none".
-    setAssociations([]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: assoc } = await (supabase as any).from("property_geo_associations")
-      .select("relationship, source, geo_place:geo_places(display_name, kind)")
-      .eq("property_id", propertyId);
-    setAssociations((assoc ?? []) as GeoAssociation[]);
 
     // Photos — reset stale state before the query so a route change never shows
     // the previous property's photos, and a prior error never persists.
@@ -1083,94 +1061,6 @@ export default function ListingReviewDetail() {
         busy={busy}
       />
     </AdminLayout>
-  );
-}
-
-/**
- * Read-only canonical-location panel for admin review (Prompt 4): the Google-resolved
- * address, a static map pin at the canonical coords, the building name + provenance, and
- * the canonical City/Area associations. Public/anon can't read associations (owner/admin
- * RLS only) — this is admin-only. No raw Place IDs are exposed.
- */
-export function CanonicalLocationPanel({
-  property, associations,
-}: {
-  property: Pick<PropertyRow, "building_name" | "building_name_source" | "formatted_address" | "latitude" | "longitude">;
-  associations: GeoAssociation[];
-}) {
-  const primaryCity = associations.find((a) => a.relationship === "primary_city")?.geo_place?.display_name ?? null;
-  const secondaryCities = associations
-    .filter((a) => a.relationship === "secondary_city")
-    .map((a) => a.geo_place?.display_name).filter(Boolean) as string[];
-  const areas = associations
-    .filter((a) => a.relationship === "area_road")
-    .map((a) => ({ name: a.geo_place?.display_name, source: a.source }))
-    .filter((a) => a.name) as { name: string; source: string }[];
-  const hasCoords = property.latitude != null && property.longitude != null;
-  const buildingSource = property.building_name_source
-    ? BUILDING_SOURCE_LABEL[property.building_name_source] ?? property.building_name_source
-    : null;
-
-  return (
-    <div className="rounded border border-border/60 bg-muted/20 p-3 space-y-3">
-      <p className="text-xs font-semibold text-muted-foreground uppercase">Canonical location</p>
-
-      {/* Google-resolved address */}
-      <div>
-        <p className="text-xs text-muted-foreground">Google location</p>
-        <p className="text-sm [overflow-wrap:anywhere] break-words">{property.formatted_address ?? "—"}</p>
-      </div>
-
-      {/* Read-only map pin at the canonical coordinates */}
-      {hasCoords && MAPS_KEY && (
-        <img
-          src={`https://maps.googleapis.com/maps/api/staticmap?center=${property.latitude},${property.longitude}&zoom=16&size=640x220&scale=2&markers=color:0x0A6EEF%7C${property.latitude},${property.longitude}&key=${MAPS_KEY}`}
-          alt={`Map pin at ${property.latitude}, ${property.longitude}`}
-          className="h-[180px] w-full rounded object-cover"
-          loading="lazy"
-        />
-      )}
-
-      {/* Building name + provenance */}
-      <div>
-        <p className="text-xs text-muted-foreground">Building</p>
-        <p className="flex flex-wrap items-center gap-1.5 text-sm [overflow-wrap:anywhere] break-words">
-          {property.building_name ?? <span className="text-muted-foreground">—</span>}
-          {buildingSource && (
-            <span className="rounded-full border border-border/60 bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-              {buildingSource}
-            </span>
-          )}
-        </p>
-      </div>
-
-      {/* Canonical City / Area associations */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-        <div>
-          <p className="text-xs text-muted-foreground">Primary City</p>
-          <p className="text-sm">{primaryCity ?? <span className="text-muted-foreground">Not resolved</span>}</p>
-        </div>
-        {secondaryCities.length > 0 && (
-          <div>
-            <p className="text-xs text-muted-foreground">Secondary {secondaryCities.length === 1 ? "City" : "Cities"}</p>
-            <p className="text-sm [overflow-wrap:anywhere]">{secondaryCities.join(", ")}</p>
-          </div>
-        )}
-      </div>
-      {areas.length > 0 && (
-        <div>
-          <p className="text-xs text-muted-foreground">Areas / Roads</p>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {areas.map((a, i) => (
-              <span key={i} className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground [overflow-wrap:anywhere]">
-                {a.name}
-                {a.source === "owner" && <span className="text-[9px] text-amber-700">owner</span>}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 

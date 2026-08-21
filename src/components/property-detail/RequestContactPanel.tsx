@@ -57,13 +57,6 @@ interface CrRow {
   approved_at: string | null;
 }
 
-interface ResponseRate {
-  all_time_handled: number;
-  all_time_responded: number;
-  last_7d_handled: number;
-  last_7d_responded: number;
-}
-
 function formatCountdown(ms: number): string {
   if (ms <= 0) return "";
   const totalMin = Math.ceil(ms / 60_000);
@@ -86,7 +79,6 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
   const [cr, setCr] = useState<CrRow | null>(null);
   const [prefsIncomplete, setPrefsIncomplete] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
-  const [rate, setRate] = useState<ResponseRate | null>(null);
 
   // Panel form state
   const [message, setMessage] = useState("");
@@ -101,23 +93,6 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
   // Live cooldown tick
   const [nowMs, setNowMs] = useState(() => Date.now());
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // ── Fetch owner response rate (public — always) ────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await (supabase as unknown as { rpc: (n: string, args?: unknown) => any })
-        .rpc("get_owner_response_rate", { p_owner_id: ownerId });
-      if (cancelled) return;
-      if (error) {
-        console.warn("get_owner_response_rate failed", error);
-        return;
-      }
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row) setRate(row as ResponseRate);
-    })();
-    return () => { cancelled = true; };
-  }, [ownerId]);
 
   // ── Fetch tenant-scoped data (cr row + prefs + remaining) ──────────────────
   const refetchTenantData = useCallback(async () => {
@@ -218,7 +193,6 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
   }, [cooldownUntilMs]);
 
   // ── Derived state ──────────────────────────────────────────────────────────
-  const declinedCount = 0; // handled server-side; UI derives 3/3 via attempt_number of latest declined row
   const isMaxedOut =
     cr?.status === "declined" && cr.attempt_number >= 3;
 
@@ -366,7 +340,6 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
     return (
       <Card className="my-6 border-primary/20">
         <CardContent className="p-4 sm:p-5 space-y-3">
-          {/* P6-H1: OwnerRateBlock removed — OwnerCard/PropertySidebar own this on the page. */}
           <div>
             <h3 className="text-base font-semibold">Request owner's contact</h3>
             <p className="text-sm text-muted-foreground mt-1">
@@ -396,7 +369,6 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
       <>
         <Card className="my-6 border-amber-300/60 bg-amber-50/40">
           <CardContent className="p-4 sm:p-5 space-y-3">
-            {/* P6-H1: OwnerRateBlock removed — OwnerCard/PropertySidebar own this on the page. */}
             <div className="flex items-start gap-3">
               <Clock className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <div>
@@ -432,7 +404,6 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
     return (
       <Card className="my-6 border-emerald-300/60 bg-emerald-50/40">
         <CardContent className="p-4 sm:p-5 space-y-3">
-          {/* P6-H1: OwnerRateBlock removed — OwnerCard/PropertySidebar own this on the page. */}
           <div className="flex items-start gap-3">
             <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
             <div>
@@ -454,7 +425,6 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
     return (
       <Card className="my-6">
         <CardContent className="p-4 sm:p-5 space-y-2">
-          {/* P6-H1: OwnerRateBlock removed — OwnerCard/PropertySidebar own this on the page. */}
           <div className="flex items-start gap-3">
             <XCircle className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
             <p className="text-sm text-muted-foreground">
@@ -492,7 +462,6 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
     <TooltipProvider>
       <Card className="my-6">
         <CardContent className="p-4 sm:p-5 space-y-4">
-          {/* P6-H1: OwnerRateBlock removed — OwnerCard/PropertySidebar own this on the page. */}
 
           <div>
             <h3 className="text-base font-semibold">Request owner's contact</h3>
@@ -610,5 +579,3 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
   );
 }
 
-// P6-H1: OwnerRateBlock component removed — logic lives in OwnerCard /
-// PropertySidebar / OwnerCard header via the useOwnerCard hook.

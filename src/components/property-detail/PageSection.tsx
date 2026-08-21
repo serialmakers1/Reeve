@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface PageSectionProps {
   title: string;
   icon?: LucideIcon;
-  background?: "default" | "muted" | "accent";
+  background?: "default" | "muted";
   className?: string;
   children: React.ReactNode;
 }
@@ -30,7 +30,6 @@ export default function PageSection({
         // padding to zero for muted cards, making rows touch the edge).
         rounded ? "px-5 py-5" : "px-4 py-5 lg:px-0",
         background === "muted" && "bg-muted/40",
-        background === "accent" && "bg-primary/5 border border-primary/20",
         rounded && "rounded-2xl mx-4 lg:mx-0",
         className,
       )}

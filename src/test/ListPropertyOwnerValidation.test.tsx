@@ -53,9 +53,6 @@ vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: toastMock }) }))
 // Avoids pulling the optional `browser-image-compression` dep into the test graph.
 vi.mock("@/lib/photo", () => ({ processPhotoForUpload: vi.fn() }));
 vi.mock("posthog-js", () => ({ default: { capture: vi.fn() } }));
-vi.mock("@/components/property-address", () => ({
-  PropertyAddressInput: () => <div data-testid="address-input" />,
-}));
 // Owner is already verified in these flows; bypass the gate's auth dependency.
 vi.mock("@/components/VerificationGate", () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,

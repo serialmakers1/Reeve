@@ -20,16 +20,15 @@ interface Props {
   proposedValue: React.ReactNode;
   /** Current live value on the property row. */
   liveValue: React.ReactNode;
-  className?: string;
 }
 
 const isEmpty = (v: React.ReactNode) =>
   v == null || v === "" || v === "—";
 
-export default function EditRequestDiff({ label, proposedValue, liveValue, className }: Props) {
+export default function EditRequestDiff({ label, proposedValue, liveValue }: Props) {
   const emptyProposed = isEmpty(proposedValue);
   return (
-    <div className={cn("flex items-start justify-between gap-3 text-sm", className)}>
+    <div className="flex items-start justify-between gap-3 text-sm">
       <span className="text-muted-foreground shrink-0">{label}</span>
       <div className="text-right min-w-0">
         <span className={cn("text-foreground", "text-blue-700 font-medium")}>
