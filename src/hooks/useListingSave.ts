@@ -45,7 +45,7 @@
  * this is how future column mismatches get diagnosed.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 // PostgREST error shape (the client returns a plain object with these fields).
@@ -89,14 +89,12 @@ export function useListingSave(propertyId: string | null) {
   const propertyIdRef = useRef<string | null>(propertyId);
   useEffect(() => {
     propertyIdRef.current = propertyId;
-    // eslint-disable-next-line no-console
-    console.debug("[useListingSave] propertyId set →", propertyId);
+
   }, [propertyId]);
 
   const flushNow = useCallback(async (): Promise<void> => {
     const id = propertyIdRef.current;
-    // eslint-disable-next-line no-console
-    console.debug("[useListingSave] flushNow entry", { id, inFlight: inFlightRef.current, pending: pendingChangesRef.current });
+
     if (!id) return;
     if (inFlightRef.current) return;
 
@@ -192,8 +190,7 @@ export function useListingSave(propertyId: string | null) {
    */
   const patch = useCallback(
     (partial: Record<string, unknown>) => {
-      // eslint-disable-next-line no-console
-      console.debug("[useListingSave] patch()", { propertyId: propertyIdRef.current, partial });
+
       // BUFFER even when propertyId is null (pre-draft). Dropping pre-draft
       // patches was the root cause of the "required fields missing" submit
       // failure: Section 3 fields (deposit, available_from) are typed BEFORE
@@ -255,9 +252,6 @@ export function useListingSave(propertyId: string | null) {
     [],
   );
 
-  // Stable identity for consumers that put poisonedKeys in a useEffect dep array.
-  const poisonedKeysStable = useMemo(() => poisonedKeys, [poisonedKeys]);
-
   return {
     saveState,
     patch,
@@ -265,6 +259,6 @@ export function useListingSave(propertyId: string | null) {
     lastError,
     failureTick,
     hasPendingChanges,
-    poisonedKeys: poisonedKeysStable,
+    poisonedKeys,
   };
 }

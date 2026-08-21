@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Check, ChevronDown, Building2, Car, ReceiptText, ShieldCheck, type LucideIcon } from "lucide-react";
+import { Check, ChevronDown, Building2, Car, ReceiptText, ShieldCheck, type LucideIcon } from "lucide-react";
 import { Sheet, SheetContent, SheetClose, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { format, formatDistanceToNowStrict } from "date-fns";
+import { format } from "date-fns";
 import { CheckCircle2, Clock, Loader2, Mail, MessageSquare, RotateCw, XCircle } from "lucide-react";
 
 import Layout from "@/components/Layout";

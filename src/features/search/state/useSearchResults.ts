@@ -7,7 +7,6 @@ import type { SearchCursor } from "../domain/searchTypes";
 import {
   searchProperties,
   overlayPropertyCounts,
-  overlayFavourites,
 } from "../data/searchDataClient";
 import type { SearchPropertiesResult } from "../data/searchDataClient";
 import { useSearchState } from "./useSearchState";
@@ -131,12 +130,10 @@ export function useSearchResults(): UseSearchResultsReturn {
   const input = useMemo(() => buildSearchInput(state), [state]);
   // Key on the canonical geo_place UUIDs so a change to the selection refetches.
   const geoPlaceIdsKey = useMemo(() => JSON.stringify(input?.geoPlaceIds ?? []), [input]);
-  const gatingAreas = false;
   // Gate only when the selection carries geo IDs (a bare/nationwide URL runs at once).
   const hasGeoSelection =
     state.context.cities.length > 0 || state.context.locations.length > 0;
   const locationGateOpen = !hasGeoSelection || locationReady;
-  void gatingAreas;
   const [distanceNotice, setDistanceNotice] = useState<string | null>(null);
 
   // Accumulated pages across load-more calls for the same searchKey
