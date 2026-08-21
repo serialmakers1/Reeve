@@ -1877,3 +1877,5 @@ Files changed:
 ## [2026-08-21] cleanup | Removed final stale notice_period_months frontend mappings [23:20 IST]
 
 ## [2026-08-21] audit | Audited assets, configuration, environment references, and package hygiene [23:55 IST]
+
+## [2026-08-22] docs | Reconciled CLAUDE.md with post-cleanup repository state [00:55 IST]

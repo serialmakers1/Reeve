@@ -1,234 +1,142 @@
 # Reeve
-
-Property management platform connecting owners and tenants in India. Owners list properties, tenants apply and sign leases — Reeve manages inspections, agreements, and the full rental lifecycle.
+Free property marketplace connecting sellers to buyers and owners to tenants in India. Users can list properties, visitors can request contact from listers. Separate Property Management Business.
 
 ## Tech Stack
 React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (Postgres + Auth + Storage) · React Router v6 · Sentry · PostHog.
 
 ## Key Commands
 - `npm run build` — production build (postbuild: sitemap + SSG prerender)
-- `npm run lint` · `npm run test` (vitest)
+- `npm run lint`
+- `npm run test` — Vitest
+- `npx tsc -p tsconfig.app.json --noEmit` — canonical typecheck; `npx tsc --noEmit` checks zero files because the root tsconfig uses project references.
 
-## Typecheck (IMPORTANT)
-- Correct: `npx tsc -p tsconfig.app.json --noEmit`. `npx tsc --noEmit` checks ZERO files (root tsconfig has `"files": []` + project references).
-- Baseline: **358 pre-existing errors** (post-Phase 3 auth-hardening, 2026-07-19). Supabase generated-types noise. Diff against baseline, not zero. New TS2304/TS2552 in touched files = runtime crashes vite won't catch.
+## Verification
+- Baseline: build succeeds, all tests pass, TypeScript has zero diagnostics.
+- Any TypeScript diagnostic or persistent test/build failure is a regression unless independently proven unrelated.
+- When diagnosing regressions, compare exact failing test identities and exact TypeScript diagnostic identities; never rely on counts alone.
+- For normal implementation prompts, verify with build, tests, TypeScript, and relevant static/targeted checks. Do not require manual browser/UI verification between implementation steps unless explicitly requested.
 
 ## TypeScript Config
-`strictNullChecks: false`, `noImplicitAny: false` — intentional, do not tighten.
+`strictNullChecks: false`, `noImplicitAny: false` — intentional; do not tighten as unrelated cleanup.
 
 ## Path Aliases
-`@/` maps to `./src/` — always use this, never relative imports.
+`@/` maps to `./src/` — use it for application imports.
 
-## SSG (Static Site Generation)
-`scripts/prerender.mjs` runs after `vite build` via `postbuild`. Writes per-route HTML with route-specific `<title>`, `<meta>`, and static body injected into `<div id="root">`. Vercel serves static files before rewrites; `main.tsx` uses `createRoot` (not `hydrateRoot`) so React replaces static HTML on mount.
-- **Public / pre-rendered**: `/`, `/owners`, `/search`, `/savings/tenant`, `/contact`
-- **Public, not pre-rendered**: `/privacy`, `/terms`, `/refund`, `/login`
-- **Protected / CSR-only**: everything under `/dashboard`, `/admin`, `/owner`, `/my-properties`, `/eligibility`, `/profile`, `/refer-property`
-- **Adding public route**: entry in `routes` array in `scripts/prerender.mjs` (`outFile`, `title`, `description`, `ogTitle`, `ogDescription`, `canonical`, `bodyHtml`, optional `jsonLd`) + `ACTIVE_ROUTES` in `scripts/generate-sitemap.mjs`.
-
-### JSON-LD schema
-All schema in `scripts/prerender.mjs`. Do not add to JSX. `safeJsonLd()` Unicode-escapes `<`, `>`, `&` — never raw `JSON.stringify`. `aggregateRating` MUST NOT be added until 5+ Google reviews. BreadcrumbList on every non-homepage route; homepage does NOT get one. `areaServed` uses structured City objects via `AREA_SERVED` const.
-
-### Do NOT
-Use SSG frameworks (vite-ssg / vite-plugin-ssr — Node.js tree render breaks Supabase/PostHog/Sentry browser-only modules); pre-render any auth/protected route; modify `src/integrations/supabase/client.ts` (the `noOpLock` must remain — Web Locks API deadlock fix for multi-provider auth).
+## SSG / SEO Runtime
+`scripts/prerender.mjs` runs after `vite build` via `postbuild`, writes route-specific static HTML, and React replaces it on mount via `createRoot`.
+- Public/pre-rendered: `/`, `/search`, `/contact`.
+- Public/not pre-rendered: `/privacy`, `/terms`, `/refund`, `/login`.
+- Protected/CSR-only: `/admin`, `/profile`.
+- Adding a public route requires both the `scripts/prerender.mjs` route entry and `ACTIVE_ROUTES` in `scripts/generate-sitemap.mjs`.
+- JSON-LD lives in `scripts/prerender.mjs`, not JSX. Use `safeJsonLd()`; never raw `JSON.stringify` for injected schema. Do not add `aggregateRating` until 5+ Google reviews.
+- Do not introduce vite-ssg/vite-plugin-ssr or pre-render auth/protected routes without dedicated investigation.
 
 ## Supabase
-- Project ref: `tfutuqqcxqqbirnsdpvz` (`https://tfutuqqcxqqbirnsdpvz.supabase.co`)
-- Client: `import { supabase } from "@/integrations/supabase/client"`
-- Types: `src/integrations/supabase/types.ts` — auto-generated, do not edit. Regen: `supabase gen types typescript --project-id tfutuqqcxqqbirnsdpvz --schema public 2>/dev/null > src/integrations/supabase/types.ts` (must suppress stderr — CLI update-notice will otherwise leak into the file and break parsing).
-- Auth storage key: `reeve-auth`
-- Always use `apply_migration` for DDL. Never raw SQL for schema changes.
-- Always use `.maybeSingle()` not `.single()` — `single()` throws on no rows.
+- Project ref: `tfutuqqcxqqbirnsdpvz`.
+- Client: `import { supabase } from "@/integrations/supabase/client"`.
+- `src/integrations/supabase/types.ts` is generated. Never manually patch generated types to silence frontend errors; fix frontend typing or regenerate from the verified schema.
+- Preserve the `noOpLock` workaround in `src/integrations/supabase/client.ts` and its runtime behavior. Type-only maintenance is allowed when verified against the installed Supabase version; do not remove/replace the workaround without dedicated investigation.
+- Auth storage key: `reeve-auth`.
+- Schema changes must be represented by migration files. Live SQL/CLI deployment and verification are handled separately; do not make destructive schema conclusions from repository state alone.
+- Do not assume migrations or generated types prove current live Supabase state when a task depends on live DB objects. Verify live state first. Avoid `CASCADE` for cleanup unless specifically investigated and justified.
+- Prefer `.maybeSingle()` when zero rows is valid; do not use it on unfiltered multi-row queries.
 
 ## Auth Architecture
-Phone OTP (MSG91) + Google OAuth. Email OTP removed. After verify success: `navigate(returnTo || '/')` — no onboarding check.
-Phase 4A (D-P4-001..004): `public.users.pseudonym` (UNIQUE, permanent, system-assigned via `generate_pseudonym()` + `trg_assign_pseudonym` BEFORE INSERT) shown on `/me` only, never on `/u/:userId`. Display Name edit UI removed from `/me`; `profiles.display_name` column retained. Listing submission gate enforced by `<VerificationGate>` wrapping ListProperty — `isFullyVerified` (phone+email) required; Google-linked email_verified guarantees non-empty `full_name` via `handle_user_updated` Block 2.
-Profile Name field is read-only; sourced from public.users.full_name populated by handle_user_updated Block 2 from auth.identities.identity_data on Google link. No client write to full_name (D-P3-019).
-last_login_at written via touch_last_login() RPC on SIGNED_IN transitions only — never direct client update. Login isNewUser = `|created_at − last_sign_in_at| < 2s`, not `user_metadata.full_name` (D-P3-018).
-**Auth trigger danger zone (D-P3-015):** never add triggers inside GoTrue's auth transaction to sync `public.*` — use post-login RPCs. MCP SQL runs as `postgres` and doesn't surface `supabase_auth_admin` search_path failures; only real login attempts do. All functions touching `public.*` must have `search_path = public` pinned. Trigger guards check `current_user` (NOT JWT claims role) — `current_user` changes under SECURITY DEFINER, JWT does not.
-**Privilege guard (D-P3-014):** `prevent_user_privilege_escalation` BEFORE UPDATE trigger on `public.users` blocks `authenticated`/`anon` from changing `role`/`email_verified`/`phone_verified`/`auth_provider`/`is_active`. Uses `IS DISTINCT FROM` (no-op writes pass silently). Admin + service_role bypass.
-**Phone source (D-P3-016):** `public.users.phone` may be null for Google-first users. Call `get_phone_fallback(user_id)` via service_role only (reads `auth.users.phone`, then `identity_data`). n8n never queries `auth.*` — always via scoped SECURITY DEFINER RPC.
-
-### Gas fields — supply vs billing
-`gas_type` (pipeline / cylinder) describes the property's infrastructure and renders in the "All details" grid whenever set. `utility_gas_included` describes whether the gas bill is bundled into society maintenance and drives the Monthly-Costs "Gas" chip (icon-only, no supply-type suffix). Never gate `gas_type` on `utility_gas_included` — they are independent facts.
-
-### building_notes = "About the Property"
-`properties.building_notes` is the canonical owner-authored public description of the property; it renders in the "About the Property" `PageSection`. `properties.description` (legacy) is retained in the DB + writable via `mapFieldToDb` but no longer shown to tenants and no longer collected in the owner or admin forms. `properties.title` is likewise retained but not surfaced.
-
-### PropertyDetail outer layout
-`/property/:id` uses a two-column grid on desktop only: `max-w-6xl mx-auto px-4 lg:px-6` container → gallery (full-width, outside grid) → `lg:grid lg:grid-cols-[1fr_360px] lg:gap-10 lg:items-start` → left col (`min-w-0`, all sections) / right col (`hidden lg:block` sticky `PropertySidebar`). Mobile CTA is `PropertyCTABar` (`lg:hidden`); the two together cover all viewport widths with no gap.
-
-### PropertyDetail sections
-Every non-gallery/CTA content block on `/property/:id` renders through `<PageSection title icon background>` from `src/components/property-detail/PageSection.tsx` — no bespoke section wrappers. Sections themselves live one-per-file under `src/components/property-detail/` and receive `property` (or scoped fields) as props, never lift state. Bespoke Tailwind grays or hex values are forbidden inside; only shadcn tokens + `bg-muted/*`, `bg-primary/5`, and the fixed green/amber/red pair for status indicators.
-
-### Shared-state read pattern
-When a heavier component owns state via realtime/mutations (e.g. `RequestContactPanel` and `cr`) and another component needs read access, do NOT lift state — write a small read-only TanStack Query hook keyed the same way and let both consumers share the cache (`useContactRequestStatus` is the canonical example). Cheaper than prop-drilling, safer than mid-file refactors.
+Phone OTP (MSG91) + Google OAuth. After verify success: `navigate(returnTo || '/')`.
+- `public.users.pseudonym` is UNIQUE, permanent, system-assigned, shown on `/me` only, never `/u/:userId`.
+- Profile Name is read-only and sourced from `public.users.full_name`; no client write to `full_name`.
+- `last_login_at` is written through `touch_last_login()` on `SIGNED_IN`, never by direct client update.
+- Never add auth-transaction triggers that sync `public.*`; use post-login RPCs. Functions touching `public.*` must pin `search_path = public`.
+- `prevent_user_privilege_escalation` protects role/verification/provider/active fields from authenticated/anon escalation.
+- `public.users.phone` may be null for Google-first users; use scoped `get_phone_fallback(user_id)` where required. n8n never queries `auth.*` directly.
 
 ### useAuth — single source of truth
-Returns `{ session, user, isLoading, isAuthenticated, isFullyVerified, signOut, refreshUser }`. `isFullyVerified = !!(user?.phone_verified && user?.email_verified)` (D-176). Critical patterns (do NOT remove):
-- `onAuthStateChange` returns early on `INITIAL_SESSION` — `getSession()` handles bootstrap; both racing hangs isLoading.
-- `onAuthStateChange` deferred via `setTimeout(100ms)` — Supabase holds internal lock; DB calls deadlock without deferral.
-- `loadUser` sets session + isAuthenticated: true BEFORE DB query — ensures safety timeout can't trigger `/login` redirect.
-- 5s safety timeout forces `isLoading: false` if DB fetch stalls — preserves session/isAuthenticated, never redirects.
-
-### Auth rules
-- `useRequireAuth({ requireAdmin? })` on all protected pages. Returns `loading` (not `isLoading`) — use `loading: authLoading` when aliasing.
-- Never call `supabase.auth.getSession()` in rendering logic or useEffect data gates — use `useAuth()`. Event handlers may call it directly.
-- Never reference `session.user.id` in component render logic or Supabase queries — use `user.id` from `useRequireAuth()` / `useAuth()`.
-- Loading guards must cover BOTH auth loading and data loading: `if (authLoading || dataLoading) return null`.
-- When destructuring `useAuth()` in a component that fetches data, include `isLoading` (alias `authLoading`) in every loading guard + useEffect dep array.
-- After signup, users row has ~1s trigger lag — `fetchUserWithRetry` handles this, do not remove.
+Returns `{ session, user, isLoading, isAuthenticated, isFullyVerified, signOut, refreshUser }`.
+- `onAuthStateChange` returns early on `INITIAL_SESSION`; `getSession()` owns bootstrap.
+- Auth-state DB work is deferred with `setTimeout(100ms)` to avoid Supabase lock deadlocks.
+- `loadUser` sets session/authenticated before its DB query; the 5s safety timeout may end loading but must not redirect a valid session.
+- Use `useRequireAuth({ requireAdmin? })` on protected pages. Use `user.id`, not `session.user.id`, in render/data logic.
+- Rendering/data gates must include both auth and data loading.
+- Do not call `supabase.auth.getSession()` from render/useEffect data gates; event handlers may call it directly.
+- `fetchUserWithRetry` handles the post-signup trigger lag; do not remove casually.
 
 ### Auth infrastructure
-- `handle_new_user` fires for phone OTP users (phone_confirmed_at IS NOT NULL). `handle_user_updated` handles both phone_confirmed_at and email_confirmed_at. `ensure_user_exists` DB function MUST NOT be called from frontend.
-- AppUser fields: `phone_verified`, `email_verified`, `auth_provider`. `onboarding_completed` removed.
-- `send-sms-otp` edge function → MSG91 (TEMPLATE_ID: 1207177503631409147, sender: REEVPM). Secrets: `MSG91_AUTH_KEY`, `MSG91_TEMPLATE_ID`. `verify_jwt=false`.
-- `public.users.phone` stored as `91XXXXXXXXXX`. Display: `.replace(/^(\+91|91)/, "")` → `+91 {digits}`.
-- Profile phone verify: capture Google token in `googleTokenRef` BEFORE `signInWithOtp` (it replaces the session). Pass via Authorization header to `verify-phone-otp` using raw fetch (not `functions.invoke`).
-- After linkIdentity: `session.user.email` is "" — read from `identities[].identity_data.email`; full_name from `identity_data.full_name ?? identity_data.name`.
-- returnTo — Phone OTP: `?returnTo=` query param via `useSearchParams` at render top level. Google link: sessionStorage key `reeve-link-returnTo` written before `linkIdentity`, read+cleared in `onAuthStateChange` after `USER_UPDATED`. Do NOT put `?returnTo` in `linkIdentity redirectTo` — Supabase whitelist strips query params.
-- `verify-phone-otp`: validate JWT → POST /auth/v1/verify → age-check phoneUserId (`created_at > 60s` → 409 "already registered") → DELETE auth.users + public.users → PUT admin user with phone. `SPURIOUS_ROW_MAX_AGE_MS = 60_000`; older rows are legit and must never be deleted.
+- `handle_new_user` handles phone OTP users; `handle_user_updated` handles phone/email verification updates.
+- AppUser verification fields: `phone_verified`, `email_verified`, `auth_provider`; `onboarding_completed` is removed.
+- `send-sms-otp` uses MSG91 and `verify_jwt=false`.
+- Profile phone verification captures the Google token before `signInWithOtp` and sends it to `verify-phone-otp` via Authorization header.
+- Google link returnTo uses sessionStorage key `reeve-link-returnTo`; do not put query params in `linkIdentity redirectTo`.
+- `verify-phone-otp` protects legitimate existing users with `SPURIOUS_ROW_MAX_AGE_MS = 60_000`.
 
 ## User Roles + Route Guards
-Roles: `user | tenant | owner | admin | super_admin`. Post-login redirect via `authUtils.getDefaultRouteForRole(role)`. All protection via `useRequireAuth()` inside the page component — no wrapper in App.tsx. `OnboardingGuard` removed; do not add back. `onboarding_completed` column dropped.
+Roles: `user | admin`. Route protection is page-internal through `useRequireAuth()`; `OnboardingGuard` is removed and must not be reintroduced casually.
 
 ## Layout Rules
-Public/tenant pages: `<Layout>` (`src/components/Layout.tsx`) — Header + Footer. Admin pages: `<AdminLayout>` (`src/components/admin/AdminLayout.tsx`). Never hardcode nav or footer inside pages. BottomNav fixed `bottom-0 z-50`, renders only when isAuthenticated. Mobile CTA bars in PropertyDetail use `bottom-16` (logged in) or `bottom-0` (logged out).
+Public pages use `<Layout>`; admin pages use `<AdminLayout>`. Do not hardcode shared nav/footer inside pages
+
+## Property Detail Invariants
+- Non-gallery/CTA PropertyDetail sections render through `PageSection`; avoid bespoke section wrappers/styles.
+- For shared realtime/mutation state, prefer a read-only TanStack Query hook sharing the same cache key instead of lifting heavy state.
 
 ## Property Status
-Active enum values (7): `draft`, `pending_review`, `changes_requested`, `listed`, `edit_pending_review`, `unlisted`, `archived`. Display via `getStatusDisplay()` (`src/lib/propertyStatus.ts`).
-- `enforce_property_owner_transitions` validates owner transitions; admin bypasses via `is_admin()`.
-- `handle_property_status_change` auto-manages `is_active`.
-- `property_activity_log_writer` emits one log row per status change; curated events (`listed` from pending_review/unlisted, `unlisted`) are `is_public=true`.
+Active enum values: `draft`, `pending_review`, `changes_requested`, `listed`, `edit_pending_review`, `unlisted`, `archived`.
+- `enforce_property_owner_transitions` validates owner transitions; admins bypass through `is_admin()`.
+- `handle_property_status_change` manages `is_active`.
+- `property_activity_log_writer` records status changes; curated listed/unlisted events may be public.
 
-## RLS Policy Patterns
-- Admin SELECT/UPDATE: single policy `USING (is_admin())` — no role binding, no WITH CHECK
-- User SELECT: `USING (user_id = auth.uid())`
-- User INSERT: `WITH CHECK (auth.uid() IS NOT NULL AND user_id = auth.uid())`
-- User UPDATE (restricted): `USING (user_id = auth.uid() AND status = '<allowed_status>')`
-- `is_admin()` covers admin + super_admin (no ops role)
-- Multiple SELECT policies OR-ed by Postgres — separate user+admin SELECT policies are valid.
+## RLS / Migration Conventions
+- New tables require RLS at creation.
+- Admin/user policies should follow the established `is_admin()` / `auth.uid()` patterns; separate SELECT policies are OR-ed by Postgres.
+- Single-purpose migrations; use idempotent guards where appropriate. Enum values must be committed before later use. BEFORE triggers fire alphabetically by name.
+- Property images use Cloudflare R2, not Supabase Storage.
 
-## Phase 3 Edge Functions
-Phase 3 complete (2026-07-17). Functions: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`. All `verify_jwt=false` + manual JWT. **Phone never in response body** (D-P3-001). `tenant_id` from JWT only. service_role for all DB writes. `resend-contact-webhook` returns 200 on valid Svix signature.
-Skip email if no email (`skipped_no_email`); fall back to `get_phone_fallback` if phone null (`skipped_no_phone`). Approval: 2 emails in parallel; stands if either fails.
+## Contact Request Edge Functions
+Functions: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`.
+- `verify_jwt=false` with manual JWT where designed; phone must never be returned in response bodies; `tenant_id` comes from JWT only.
+- Approve invokes `reveal-contact`; do not replace with direct client UPDATE. Decline applies to `status=pending`.
+- n8n → Supabase uses scoped SECURITY DEFINER RPCs + anon key; never service_role in n8n.
+- `N8N_WEBHOOK_SECRET` authenticates n8n; `RESEND_WEBHOOK_SECRET` verifies Resend/Svix webhooks.
 
-## Phase 3 UI wiring — See D-P3-001–D-P3-019. **Key**: Approve → `functions.invoke('reveal-contact')` (never direct UPDATE); Decline on `status=pending`; Re-request delegates to RequestContactPanel. OwnerRateBlock: `< 5` → "New owner · Verified"; `>= 5` → "Responds to X%".
+## Property Activity + Post-publication Edits
+`property_activity_log` and `property_edit_requests` are not written directly from frontend; use established RPC/trigger paths.
+- Listed/edit-pending owner edits are DB-partitioned into LIVE, REVIEW, and ADMIN-ONLY fields. Do not bypass `enforce_owner_edit_partition` / image policy with frontend assumptions.
+- Reviewable edits use `submit_property_edit_request`; approval stale-checks submitted base values before applying changes.
+- Live-listing photos are staged in R2 until approval. Cover/delete/reorder use their established server/RPC paths and primary-photo constraints.
+- `ListProperty` routes writes by canonical DB key; do not route by FormState aliases. `edit_pending_review` remains per-field editable; `pending_review`/`unlisted`/`archived` remain blocked.
 
-## Phase 3 conventions
-- `N8N_WEBHOOK_SECRET`: n8n auth. `RESEND_WEBHOOK_SECRET`: Svix sig verification. n8n → Supabase: SECURITY DEFINER RPC + anon key only; never service_role in n8n (D-P3-012). OwnerRateBlock columns: `all_time_handled/responded`, `last_7d_handled/responded` — not `_total` or `_rate`.
+## Property Form Architecture
+- `property-fields.ts` + `<SpecField>` are the core field-definition surface.
+- Adding a property field requires tracing FormState, initialization, prefill, DB mapping, JSX, PropertyEdit, and relevant approval/RPC behavior.
+- JSONB furnishing/amenity editing uses the existing shared editors; do not create parallel field systems casually.
 
-## Database Tables (26 total)
-`agreements, applications, application_notes, application_residents, contact_requests, documents, eligibility, email_send_log, favourites, inspection_callbacks, keys_tracking, leads, leases, maintenance_requests, owner_action_log, owner_bank_details, payments, profiles, properties, property_condition_reports, property_images, rental_preferences, users, visit_events, visits`. View: `properties_with_flat_number`, `public_profiles`.
-`contact_requests` + `email_send_log` added Phase 3. All mutations respect trigger-set attempt_number + event timestamps — never set from client.
-Also present but not yet in active frontend use: `external_queries`, `property_inspections`, `inspection_appliances`, `inspection_rooms`.
-
-## Property activity log + edit requests
-`property_activity_log` and `property_edit_requests` are NEVER written directly from frontend — service_role via RPCs and triggers only.
-
-## Risk-Based Listing Edits (post-publication, DB-enforced 2026-08-08)
-Owner edits on `listed`/`edit_pending_review` are partitioned by the DB, not React. Enforced by `enforce_owner_edit_partition` (BEFORE UPDATE on properties) + `enforce_property_image_policy` (BEFORE INS/UPD/DEL on property_images). Admin (`is_admin()`) and trusted RPCs (transaction-local `reeve.system_action` GUC) are exempt.
-- **LIVE (direct owner write)**: prices/commercial terms, availability/possession, structured facts (floor/area/bath/balcony/facing/age/khata/tax), parking/utilities/gas/water, `furnishing`, `pet_policy`, `streetview_show_in_listing`, predefined amenity/furnishing toggles.
-- **REVIEW (via `submit_property_edit_request` only)**: `building_notes,building_rules,parking_notes,rera_registration_number,youtube_walkthrough_url` (add/replace → review; **clearing is instant**), `bhk`,`property_type` (corrections), and NEW **custom** amenity/furnishing names. Custom-ness derived from canonical sets in `src/config/property-form.ts` (BUILDING_AMENITIES / FURNISHING_ITEM_OPTIONS), NEVER the client `custom` flag — kept in sync inside `reeve_custom_*` SQL helpers.
-- **ADMIN-ONLY (owner blocked post-publication)**: all identity/location, `listing_type`,`lister_role`,`lister_flat_number`,`google_maps_url`, legacy `title`/`description`. System columns stay under `prevent_owner_updating_admin_fields`.
-- **Status semantics**: instant edits keep status; only reviewable edits create a `property_edit_requests` row + flip `listed→edit_pending_review`. `pending_review`/`unlisted`/`archived` = content frozen. `edit_pending_review` = live listing with a pending review, NOT frozen.
-- **Edit-request RPCs**: `submit_property_edit_request` rejects LIVE/ADMIN/unknown/no-op keys, validates bhk/property_type enums, stores custom **additions delta** (not full JSONB) + `base_values` (submitted scalar keys only). `approve_edit_request` stale-checks base_values (aborts if an admin changed a reviewed field), applies review scalars, **merges** custom deltas into current-live JSON (dedupe by normalized name, never replace), server-constructs photo inserts (`is_primary=false`), logs `edit_approved` **private** (`is_public=false`). Only `price_changed` stays public.
-- **Photos**: new photos on a live listing are **staged** (R2-only via `upload-property-image`; no row, no status change) and become public rows only on approval. Cover via `set_primary_property_photo`; delete via `delete_property_photo` (owner min-3, admin unrestricted, atomic cover promotion); reorder = direct `sort_order`-only UPDATE. Partial unique index `uniq_property_images_one_primary` = ≤1 primary; exactly-one-primary required on →pending_review. Staged cleanup = `delete-property-image` staged mode (checks R2 path + not referenced by a pending request). Edge fns do DB writes with the **caller JWT** (service_role only for lookups/R2).
-- **Owner frontend routing (`ListProperty`)**: routes by **canonical DB key** via `getOwnerEditPolicyForPayload` (never the FormState alias) — `live`→`useListingSave.patch()`, `review`→`reviewDraft` buffer (submitted via `submit_property_edit_request`), `admin_only`→locked. Amenities/furnishing use `splitAmenitiesChange`/`splitFurnishingChange` against a mutable `safeLiveRef` (advanced on patch-queue): safe-live→direct patch, new customs→review buffer. `normalizeReviewPayload`/`toSubmitArgs` (`src/lib/ownerReviewPayload.ts`) are the single dirty-detection + RPC-serialization surface (custom-additions-only; internal `*_add` names never sent as RPC keys). Staged photos live in a `staged` state (amber, no cover/reorder). `edit_pending_review` has NO whole-form freeze — per-field editable; `pending_review`/`unlisted`/`archived` stay blocked. Location confirmation (`location_verified_by_owner`) gates initial submit (`create`/draft/changes_requested); `PropertyAddressInput` uses `isBuildingResult` (building-only Path A) + `useApiLoadingStatus` (failure→reload retry, manual fallback). `SpecField` stays surface-agnostic; ListProperty owns owner `readOnly`.
-
-## Migration Conventions
-- Single-purpose files. Idempotent: `IF NOT EXISTS` on ADD VALUE/COLUMN, `DROP … IF EXISTS` before CREATE POLICY/TRIGGER/FUNCTION.
-- BEFORE triggers fire alphabetically by name — name accordingly when ordering matters (e.g. `enforce_property_owner_transitions_trigger` sorts before `handle_property_status_change`).
-- Enum ADD VALUE requires COMMIT before use — one BEGIN/COMMIT per ADD VALUE, or separate files.
-- All new tables get RLS at creation. Index: `idx_<table>_<column>`. Storage buckets: kebab-case. Property images go to Cloudflare R2, not Supabase Storage.
-
-## Visits — RPC-only mutations (enforced 2026-04-22)
-- `reschedule_visit(p_visit_id, p_new_scheduled_at, p_actor)` → new visit UUID. Atomic. Tenant (own) or admin.
-- `complete_visit(p_visit_id, p_property_feedback?, p_admin_note?)` → void. Admin-only. Writes one 'completed' event + sibling note events.
-- Cancel + no_show: direct `.update()` + manual `visit_events` insert.
-- **event_type**: status `scheduled | rescheduled | cancelled | completed | no_show`; notes `property_feedback_note | admin_note`. CHECK-enforced.
-- **Status machine**: `scheduled | confirmed | rescheduled → rescheduled | cancelled | completed | no_show`. Terminals have no further transitions; non-status field updates on terminals allowed.
-- `visit_events`: append-only. Admin may UPDATE/DELETE (RLS); tenants INSERT-only.
-- `profiles.visit_scheduling_blocked` set true by trigger when `no_show_count >= 3`.
-- `visits.rescheduled_by` / `.cancelled_by`: 'tenant' | 'admin'.
-- `visit_events.rescheduled_to_visit_id` (FK → visits): set ONLY by `reschedule_visit` RPC on the `cancelled` event of the old visit. VisitsList tenant timeline skips `cancelled` events where non-null; admin Visit Logs shows both.
-- `complete_visit` writes sibling note events; VisitLogs derives `notesMap` via `useMemo`; note events excluded from main table.
-
-### Shared scheduler
-`VisitSchedulerModal` — single tenant component. Used on PropertyDetail, Eligibility, VisitsList, FieldCalendar. `mode?: 'tenant' | 'admin'` (default 'tenant'). Auto-advances to Step 2 on date pick. `onConfirm` receives UTC Date. All scheduling routes through `useScheduleVisit` / `useRescheduleVisit` / `useCancelVisit` in `useVisits.ts`. Tenant mode: slot cards, max=+7days, today disabled after 4PM IST. Admin mode: `<input type="time">` 5-min step, max=+30days, no cutoff. Old `VisitSchedulingModal` deleted — do not recreate.
-
-## Application Flow Guards (NewApplication.tsx)
-Render guard order — strict, must never change:
-1. `if (pageLoading)` — skeleton
-2. `if (alreadySubmittedBlock)` — block screen (MUST be top-level)
-3. `if (!property || !eligibility)` — null return
-4. `if (submitted)` — success screen
-5. Full form
-
-`REAPPLICATION_ALLOWED_STATUSES` must always match the `NOT IN (...)` list inside the `check_application_limits` DB trigger. Current: `owner_rejected, platform_rejected, withdrawn, expired`. Update both atomically.
-Every Supabase query in `initPage()` gating a critical flow must destructure `error` and handle explicitly.
-Never use `.maybeSingle()` on unfiltered multi-row application queries — always use targeted single-status or `.in()`-list queries.
-
-### PropertyDetail CTA states (priority): 1=draft→"Continue Draft" (/apply?resume=<id>)  2=ACTIVE_STATUSES→"in progress"  3=on_hold→"secured"  4=maxReached(≥3)→"maximum"  5=withinCooldown→date  6=non-draft history→"Apply Again"  7=no history→"Apply Now"
-Derive via `.find()` on full applicationHistory — attempt_number ties are non-deterministic.
-
-## Commons Phase 1 + 1.5 (D-001–D-171)
-- `property-fields.ts` + `<SpecField>` = single source of truth. `flat_number` never public (D-091). **Adding a new properties column**: spec → `FormState` → `INITIAL_STATE` → `prefillFormFromRow` → `mapFieldToDb` → JSX → mirror on `PropertyEdit.tsx` → `approve_edit_request` COALESCE migration.
-- ListProperty: 9-section accordion, draft cap 20/user, submit → `pending_review`. Path A (draft/changes_requested direct-patch), Path B (`submit_property_edit_request` RPC for listed/edit_pending_review).
-- DO NOT re-apply rent/sale trigger (D-160 — via MCP). `useListingSave.patch()` buffers pre-draft (D-153/154). JSONB: `<FurnishingEditor>` + `<AmenitiesEditor>` in `src/components/property/`.
-
-## Commons Phase 2 — Tenant Dashboard (D-172–D-177)
-- `<VerificationGate />` on `/list` + `/tenant-dashboard/preferences` (D-172). `rental_preferences` table: one-row-per-user, upsert-only, no DELETE. Routing: `/dashboard` → `/tenant-dashboard`. `isFullyVerified = !!(phone_verified && email_verified)` on `useAuth` (D-176).
+## Tenant Dashboard
+`<VerificationGate />` protects `/list` and `/tenant-dashboard/preferences`. `rental_preferences` is one-row-per-user and upsert-oriented. 
 
 ## Payments / Razorpay
-- RLS on `payments`. Idempotency: UNIQUE(gateway_reference) + `x-razorpay-event-id` on `gateway_response`. Edge Functions `create-razorpay-order` + `verify-razorpay-payment` use `verify_jwt=false` + manual JWT + `EdgeRuntime.waitUntil()`.
-- Status guard: `['owner_accepted','payment_pending']`. Token: fixed ₹5,000 (500000 paise), never from rent. `payment.captured` → success + competing apps→on_hold; `payment.failed` → retry allowed. Webhook is source of truth; handler polls 3s×5.
+Razorpay configuration is intentionally retained. Payment writes are RLS-protected; webhook processing is the source of truth. Do not remove during unrelated cleanup.
 
-## Callback Requests
-`RequestCallbackButton` → /login if unauthed, else opens `RequestCallbackModal` (4-step, iOS keyboard: `repositionInputs={false}` + visualViewport + onFocus scrollToInput). `(supabase as any).from('callback_requests')` (not in generated types).
+## Google Maps / Location Architecture
+- `@vis.gl/react-google-maps` v1.x; `APIProvider` is provided at app level.
+- Preserve Places session-token handling, India-only restrictions, `address_mode`, `lister_flat_number`, `location_verified_by_owner`, Street View preference, and draft/changes-requested owner location-edit lock.
+- `isBuildingResult` / `useApiLoadingStatus` behavior should only be removed if current active usage is first traced and replaced.
+- `VITE_GOOGLE_MAPS_MAP_ID` is required for the map experience.
 
-## Ratings & Reputation v2
-Structured 5-question reputation on `interaction_ratings` (one symmetric row per approved contact request; `o_*` = owner/lister's answers about the seeker, `t_*` = seeker's answers about the lister). Questions (shared both directions, all mandatory, no stars, no free text): `reach` (easily/difficult/no_response), `accuracy` (matched/minor/major), `progress` (next_step/discussed/no_progress/mutual_stop), `respect` (yes/mostly/no), `trust` (yes/maybe/no). Single config: `src/components/ratings/ratingQuestions.ts`.
-- **v2 columns coexist with legacy**: `{o,t}_reach/accuracy/progress/respect/trust` + separate `{o,t}_v2_submitted_at`. Legacy `{o,t}_q1/q2/q3/review_text` + `{o,t}_submitted_at` remain physically present but are dead (no reads/writes). v2 completeness CHECKs, dedup guard, aggregates and `my_submitted` key off `*_v2_submitted_at` ONLY — never legacy timestamps. No answer-versioning framework, no backfill.
-- **RPCs (all `*_v2`, SECURITY DEFINER, `search_path=public`)**: `submit_rating_v2(p_contact_request_id, p_reach, p_accuracy, p_progress, p_respect, p_trust)` — requires linked request WAS approved (`approved_at IS NOT NULL`, not current status), all 5 non-null+enum-valid, atomic guarded UPDATE on `*_v2_submitted_at IS NULL` (ROW_COUNT=0 → `ALREADY_SUBMITTED`); permanent, no edit. `get_user_rating_summary_v2(p_user_id)` → `{as_lister, as_seeker}` each null|`{total, metrics}`; `metrics=null` below 3 ratings (count-only, no denominators leaked); per-metric numeric division `ROUND(100.0*pos/NULLIF(den,0))::int`. `get_my_rateable_interactions_v2()` — one batched participant read built FROM `interaction_ratings` JOIN approved `contact_requests`, returns only rows that have a rating row (never a non-submittable card), incl. unlisted/archived property, with `property_viewable`+`counterparty_user_id`. Old `submit_rating`/`get_user_rating_summary`/`get_pending_ratings_for_me` kept until a later cleanup migration; approval trigger window (+3d/+10d) untouched and ignored by v2.
-- **Aggregation**: easy_to_reach=`easily`, details_matched=`matched`, respectful=`yes`, deal_again=`yes` (denom=total); moved_forward=`next_step` over denom EXCLUDING `mutual_stop`, with its own applicable-denom gate → `{status:'none'|'insufficient'|'ok'{pct,denom}}` (never expose a 1–2 denom). Middle answers stay in denominators.
-- **Security**: ALL direct table `SELECT/INSERT/UPDATE/DELETE` revoked from `authenticated`+`anon` — RPC-only surface (app has no direct `.from('interaction_ratings')`). Rows created only by `trg_create_rating_on_approval`. Never re-grant direct writes on rollback.
-- **UI**: one shared `<InteractionRatingAccordion>` (collapsed `Rate experience`, single-open per list, in-flight guard, permanent submitted state) + `<RatingChoiceGroup>` (radiogroup, segmented colour cards, indigo primary / emerald-teal positive / amber intermediate / coral-rose negative / slate `mutual_stop`, ≥44px, info Popover on Q2/Q3). Placement: owner in `RequestsTab` ApprovedCard; tenant in `ContactRequestsPage` ApprovedContent (fetch uses unfiltered LEFT `properties` join + client-side filter — approved rows persist even when property unlisted/archived). Full `<ReputationSummary>` on `/me` + `/u/:id` (per-question rows; "As a lister"/"As a property seeker" only when each has data; one "No ratings yet" when both empty); compact on property detail via `useOwnerCard.ratingSide`. Reads share TanStack caches: `useRateableInteractions` (batched, invalidates counterparty summary+ownerCard on submit) + `useRatingSummary`.
-- **"New on Reeve" fully removed** (badges on OwnerCard/PropertySidebar/PublicProfile + summary `status:'new'` + search `isNewOnReeve`). Response-rate stats (`get_owner_response_rate`, `allTimeHandled/Rate`) preserved — the response line now simply shows only when `allTimeHandled > 0`.
+## Search Feature
+- `src/features/search/` owns the current search domain. Public modes are `rent`/`buy`; DB mapping uses `rent`/`sale`. Never emit `sale` in public search URLs.
+- URL/search params are the source of truth. `SearchPropertyResult` is the card contract; `SearchMapMarker` is the separate map payload.
+- `SearchBrowsePage` is wired to `/search`; pagination is cursor-based and `locations_data` uses the versioned `{ v: 1, items: [...] }` envelope.
+- `search_compact_properties` is a STABLE SECURITY DEFINER search RPC; preserve its return-type casting requirements.
+- `confirm_availability_of_rental(uuid)` is authenticated-only; explicitly revoke anon execution when defining/redefining it.
+- `searchDataClient.ts` owns search fetch/overlay/cursor helpers. `SearchMapView` is hidden/shown with CSS rather than repeatedly unmounted.
+- Current map-RPC limitation: only BHK + price filters are passed to `get_map_markers`.
+- `zeroRentBrokerage` serializes as `zero_brok`.
 
 ## Skills — Always Check Before Acting
-Skills in `.claude/skills/`. Read `using-superpowers` for the workflow. React → `react-best-practices`; Supabase/RLS → `supabase-postgres-best-practices`; auth → `security-best-practices`; bug → `systematic-debugging`; UI → `frontend-design` / `ui-ux-pro-max`; new feature → `brainstorming`.
+Check `.claude/skills/` before work. Use the relevant workflow and domain skills, especially React, Supabase/Postgres, security/auth, debugging, and frontend-design skills.
 
 ## Critical Gotchas
-`/eligibility` orphaned (Phase 2, no nav links, keep route). Tenant KYC docs → `tenant-documents` bucket `{userId}/{applicationId}/{type}_{ts}.ext`. `posthog?.capture(...)` optional-chain mandatory. LCP images MUST NOT have entry animations (`animate-fade-up`) — tanks PageSpeed.
+- `posthog?.capture(...)` must remain optional-chained.
+- Do not put entry animations on LCP images.
 
-## Inspection Form + PostHog
-Condition labels (DB unchanged) good/minor_wear/moderate_damage/severe_damage. `useAutoPopulateApplianceDamages` emits `cosmetic` entries; `EntryList.customTextOnValue` → `<key>_custom`. Owner funnel: `list_property_cta_clicked → signup_completed(intent:'owner') → property_form_started → property_submitted → owner_clarity_guide_read`; scroll-depth via `useRef<boolean>` fire-once.
-
-## Google Maps Phase 1 (2026-07-26)
-- `@vis.gl/react-google-maps` v1.x; `APIProvider` in `App.tsx` inside `QueryClientProvider`, outside `BrowserRouter`.
-- `PropertyAddressInput` at `src/components/property-address/` — `mode='owner'|'admin'`; Path A (building autocomplete) + Path B (area geocode).
-- Session tokens: one per session, terminated by Place Details call (zero billing for Place Details).
-- India-only: `componentRestrictions: { country: 'in' }` on all calls.
-- `lister_flat_number`: new column (10 char, CHECK). Old `flat_number` (admin-only, never public) untouched.
-- `address_mode`: `'google_place'` (Path A) | `'manual'` (Path B).
-- `location_verified_by_owner`: DB boolean, `<Checkbox>` in PropertyAddressInput, required for submission.
-- `streetview_show_in_listing`: defaults true when SV available.
-- Owner can edit address only in `draft` / `changes_requested` (Tier 1 lock).
-
-## Search Feature (src/features/search/)
-`src/features/search/` is the isolated namespace for the new search experience. All search domain types, URL state, and utilities live here. `listingTypeBySearchMode` maps public URL modes (`rent`/`buy`) to DB enum values (`rent`/`sale`). Never let `"sale"` appear in a public URL. URL is the single source of truth for search state — no `useState` for search params, only `useSearchParams`.
-`SearchPropertyResult` in `src/features/search/data/searchResultContract.ts` is the frozen contract for all card surfaces. Phase 2's compact search RPC must return exactly these fields. `SearchMapMarker` in `searchMarkerContract.ts` is the separate minimal Map payload — it does not reuse `SearchPropertyResult`.
-`SearchBrowsePage` in `src/features/search/SearchBrowsePage.tsx` is the new search experience shell. Unrouted in Phase 1; wired to `/search` only at cutover (Phase 15). Must never import from `src/pages/Search.tsx`.
-Phase 2 URL decisions: `city` is a plain normalized lowercase string. Locations use Option C (`locations` + `locations_data` base64 JSON). Budget (`minPrice`/`maxPrice`) clears on mode switch. `listedWithin` is preserved on mode switch. `noticePeriodDays` is the correct spelling (result contract field).
-Phase 2 complete. Pagination is cursor-based (`SearchCursor`). `isFavourited` is frontend overlay. View/comment counts from `get_property_counts` batch. Response rate and experience feedback are inline subqueries in the search RPC. `SearchPropertyRpcRow` and `SearchMapMarkerRpcRow` are the raw DB shapes — `SearchPropertyResult` and `SearchMapMarker` are the normalized frontend shapes. `mapRpcRowToResult` is a stub until Phase 3.
-Phase 3 P1 (TS-only): `SearchCursor` is a sort-keyed discriminated union (`sort: "newest"|"availability_confirmed"|"price_asc"|"price_desc"`); `validateCursor` enforces sort/cursor compatibility at parse time. `locations_data` uses `{ v: 1, items: [...] }` versioned envelope with field-level validation and injection guards. `SerializedLocationsPayloadV1` exported from `parseSearchUrl.ts`; imported by `serializeSearchState.ts`.
-Phase 3 P4/P5: Migration `20260727174340_search_compact_properties_rpc.sql` filed. `search_compact_properties` is STABLE SECURITY DEFINER, 36 params, 44 output columns. varchar columns (property_type, building_name, locality, city) must be cast ::text in RETURNS TABLE functions. Function body applied via SQL editor when MCP size limit hit — migration file contains full SQL.
-Phase 3 P2/P3: Migration `20260727145548_search_availability_confirmation.sql` filed. `availability_confirmed_at` added to `properties`. `confirm_availability_of_rental(uuid)` is SECURITY DEFINER, authenticated-only. Backfill applied to 2 active rent listings. In Supabase, always add explicit `REVOKE EXECUTE FROM anon` after `REVOKE ALL FROM PUBLIC` — Supabase auto-grants anon.
-Phase 3 P6/P7: Migration `20260727181718_search_indexes.sql` filed (4 partial indexes). Supabase types regenerated. `mapRpcRowToResult` implemented in `searchResultContract.ts`. `searchDataClient.ts` has 4 exports: `searchProperties`, `overlayPropertyCounts`, `overlayFavourites` (pure), `buildSearchCursor`. `SearchPropertiesResult` interface in `searchDataClient.ts`. Tests: 235 passing (28 new in `searchMapper.test.ts` + `searchDataClient.test.ts`).
-Phase 3 complete. 3 migrations filed (3A availability, 3B search RPC, 3D indexes). mapRpcRowToResult complete. searchDataClient: searchProperties, overlayPropertyCounts, overlayFavourites, buildSearchCursor. SearchBrowsePage unrouted — Phase 4 wires it up.
-Phase 4 P1: `useSearchResults` orchestration hook in `state/useSearchResults.ts`. `buildSearchInput` pure fn in `state/buildSearchInput.ts`. `mergeSearchPages` pure fn (dedup by ID, server order preserved). Manual page accumulation keyed by `searchKey` (mode+city+locations+filters+sort — excludes cursor). Favourites overlaid at render time. `SearchBrowsePage` now consumes `useSearchResults` (diagnostic output). Tests: 281 passing.
-Phase 5 P1: `SearchSetupPanel` (controlled Dialog, draft isolation, city-change AlertDialog), `RentBuySelector`, `CitySearchInput` (Places + geolocation + manual fallback), `LocationSearchInput` (Places + "Search all of [city]" escape), `PropertyTypeSelector` (all 5 types, no mode restriction), `usePlacesSearch` (session token, stale-guard, debounce), `useReverseGeocode`. `SearchBrowsePage` owns `isPanelOpen` state, auto-opens when `!hasValidContext`. Manual location tokens not created — RPC needs `place_id`. Tests: 297 passing.
-Phase 6 complete. Mobile list MVP: `SearchControlRow` (sticky top-16, context chip + disabled quick-control chips + sort), `SearchMapPlaceholder` (disabled FAB), `SearchCardSkeleton`, `SearchPropertyCard` (favourite sibling of Link, image h-36, price bottom-left, photo count top-left, max-3 comparison facts, contextual signal, lister row additive, auth-interruption via writePendingIntent), `SearchResultsList`. Pure resolvers: `priceResolver`, `comparisonFactsResolver` (area dedup by raw numeric value), `contextualSignalResolver` (intent: "warning"|"neutral" only). Tests: 345 passing.
-Phase 7 complete. Mode-aware filter panels: `SearchFilterPanel` (Sheet side=bottom h-[90dvh], draft state, Apply/Reset, rent + buy sections), `FilterSection` (disabled+disabledReason), `filterUtils/countActiveFilters` (mode-gated, sort excluded). `zeroRentBrokerage` added to `RentFilters` + URL_PARAMS (`zero_brok`) + parse/serialize/buildSearchInput. `rentBrokerageMaxFixed` and `buyBrokerageMaxPct` wired from `maxBrokerage` (removed null stubs). `AMENITY_OPTIONS` added to `searchConstants.ts`. `SearchControlRow` updated: chips functional (all call `onOpenFilters`), sort Popover replaces stub button, active-filter indicators (dot/count badges). `SearchBrowsePage` adds `isFilterPanelOpen` state. Tests: 369 passing (24 new).
-Phase 10 complete (mobile map). `SearchBrowsePage` CSS `display:none/block` hides/shows map panel — never unmounts once created. `hasOpenedMap` gate for lazy mount; `prevViewRef` for PostHog per-transition tracking. `SearchMapView` (`src/features/search/components/SearchMapView.tsx`): `fixed inset-x-0 top-16 bottom-0 z-30`; `useApiLoadingStatus()` failure guard; `defaultBounds` when `state.mapBounds` set, else `defaultCenter={lat:20.5937,lng:78.9629} defaultZoom=5` (India-wide neutral, no auto-commit); `pendingBounds` local state tracks idle viewport; `hasPendingAreaSearch = pendingBounds !== null && !boundsEqual(pendingBounds, committedBounds)` shows "Search this area"; `setMapBounds` called only on explicit tap. `MarkerGroup` exported from SearchMapView (imported by MapPropertyPreview). Client-side building grouping: lat/lng rounded to 4dp. `@googlemaps/markerclusterer` for visual clustering. Markers built via `buildMarkerElement` (DOM APIs, no innerHTML); `AdvancedMarkerElement` with `title` + `gmpClickable:true` + `gmp-click` listener. `state.selectedPropertyId` is single source of truth — no local selected state. `VITE_GOOGLE_MAPS_MAP_ID` required env var. Filter parity gap: `get_map_markers` accepts only bhk+price; other filters not passed — backend follow-up needed. Analytics: `search_map_opened` per List→Map transition; `search_map_property_opened` on property navigate.
+## Repository Log
+Root `/log.md` is the canonical engineering log. Append new entries to the END only. Never prepend, reorder, or rewrite existing history. Do not recreate `.claude/log.md`.
