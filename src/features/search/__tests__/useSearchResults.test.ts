@@ -340,6 +340,7 @@ describe("useSearchResults — anonymous favourites", () => {
 const haralurLocality = {
   id: "geo-haralur",
   geoPlaceId: "geo-haralur",
+  scopeRootId: "test-city-uuid",
   label: "Haralur",
   kind: "locality" as const,
 };

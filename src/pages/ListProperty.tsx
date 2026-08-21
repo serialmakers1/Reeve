@@ -1076,7 +1076,7 @@ export default function ListProperty() {
     if (formRef.current[field] !== validated) return; // superseded by a newer edit
     if (res.ok) {
       setTextErrors((e) => ({ ...e, [field]: null }));
-    } else if (res.error) {
+    } else if (res.ok === false && res.error !== null) {
       setTextErrors((e) => ({ ...e, [field]: res.error }));
     } else {
       // Network / unknown failure — toast, keep field un-errored inline.
@@ -1094,7 +1094,8 @@ export default function ListProperty() {
     const res = validateYoutubeUrl(formRef.current.youtube_walkthrough_url);
     setTextErrors((e) => ({
       ...e,
-      youtube_walkthrough_url: res.ok ? null : YOUTUBE_MESSAGE[res.reason],
+      youtube_walkthrough_url:
+        res.ok === false ? YOUTUBE_MESSAGE[res.reason] : null,
     }));
     return res.ok;
   }, []);
@@ -1442,14 +1443,14 @@ export default function ListProperty() {
       const res = await validatePropertyFieldText(f, form[f] as string);
       if (res.ok) {
         nextTextErrors[f] = null;
-      } else if (res.error) {
+      } else if (res.ok === false && res.error !== null) {
         nextTextErrors[f] = res.error;
       } else {
         hadFailure = true;
       }
     }
     const yt = validateYoutubeUrl(form.youtube_walkthrough_url);
-    if (!yt.ok) nextTextErrors.youtube_walkthrough_url = YOUTUBE_MESSAGE[yt.reason];
+    if (yt.ok === false) nextTextErrors.youtube_walkthrough_url = YOUTUBE_MESSAGE[yt.reason];
 
     // Flat / Unit validation (client-side, synchronous). Uses the pre-computed
     // normalizedFlatNumber so the result is consistent with what was patched above.

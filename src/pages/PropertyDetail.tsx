@@ -359,7 +359,7 @@ const PropertyDetail: React.FC = () => {
         listing_mode: parsed.context.mode ?? null,
         city_id: null,
         selected_location_count: parsed.context.locations.length,
-        property_type: parsed.context.propertyType ?? null,
+        property_type: parsed.context.propertyTypes?.[0] ?? null,
         filter_groups: getActiveFilterGroups(parsed.filters, mode),
         result_count_bucket: "unknown",
         view_mode: "list",

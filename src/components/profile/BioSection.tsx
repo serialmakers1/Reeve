@@ -33,7 +33,7 @@ export function BioSection({ bio, onSave }: BioSectionProps) {
     setInlineError(null);
     try {
       const result = await onSave(draft);
-      if (!result.ok) {
+      if (result.ok === false) {
         if (result.error) setInlineError(result.error);
         return;
       }

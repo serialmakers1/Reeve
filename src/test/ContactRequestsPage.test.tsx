@@ -137,6 +137,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   channelMock.on.mockReturnThis();
   channelMock.subscribe.mockReturnThis();
+  vi.spyOn(Date, "now").mockReturnValue(NOW);
 });
 
 afterEach(() => {

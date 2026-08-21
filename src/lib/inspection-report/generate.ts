@@ -1,4 +1,5 @@
 import { createElement } from 'react';
+import type { DocumentProps } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { registerFonts } from './styles';
@@ -49,7 +50,7 @@ export async function generateReportPdf(
 
   // 6. Render PDF blob.
   const element = createElement(ReportDocument, { payload });
-  const blob = await pdf(element).toBlob();
+  const blob = await pdf(element as React.ReactElement<DocumentProps>).toBlob();
 
   // 7. Trigger download.
   const date = formatFilenameDate(payload.generatedAt);
