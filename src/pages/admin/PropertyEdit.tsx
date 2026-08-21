@@ -9,18 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ArrowLeft, ExternalLink, RefreshCw } from "lucide-react";
@@ -39,36 +31,8 @@ import { AmenitiesEditor } from "@/components/property/AmenitiesEditor";
 import { extractPendingConflictKeys } from "@/lib/pendingEditConflicts";
 import { deriveConflictFieldResets } from "@/lib/adminConflictReset";
 
-const BHK_OPTIONS = [
-  { value: "studio", label: "Studio" },
-  { value: "1BHK", label: "1 BHK" },
-  { value: "2BHK", label: "2 BHK" },
-  { value: "3BHK", label: "3 BHK" },
-  { value: "4BHK", label: "4 BHK" },
-  { value: "5BHK_plus", label: "5 BHK+" },
-];
-
-const PROPERTY_TYPE_OPTIONS = [
-  { value: "apartment", label: "Apartment" },
-  { value: "villa", label: "Villa" },
-  { value: "independent_house", label: "Independent House" },
-];
-
-const FURNISHING_OPTIONS = [
-  { value: "unfurnished", label: "Unfurnished" },
-  { value: "semi_furnished", label: "Semi Furnished" },
-  { value: "fully_furnished", label: "Fully Furnished" },
-];
-
 // D-170: FURNISHING_ITEMS + BUILDING_AMENITIES admin-local copies removed —
 // shared editors import from @/config/property-form directly.
-
-const PARKING_OPTIONS = [
-  { value: "none", label: "None" },
-  { value: "covered", label: "Covered" },
-  { value: "uncovered", label: "Uncovered" },
-  { value: "both", label: "Both" },
-];
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   draft: { label: "Draft", variant: "outline" },
@@ -124,10 +88,7 @@ export default function PropertyEdit() {
   const [buildingName, setBuildingName] = useState("");
   const [bnSaving, setBnSaving] = useState(false);
   const [legalOwnerName, setLegalOwnerName] = useState("");
-  const [streetAddress, setStreetAddress] = useState("");
   const [locality, setLocality] = useState("");
-  const [city, setCity] = useState("");
-  const [pincode, setPincode] = useState("");
   const [bhk, setBhk] = useState("");
   const [propertyType, setPropertyType] = useState("");
   const [floorNumber, setFloorNumber] = useState<string>("");
@@ -138,7 +99,6 @@ export default function PropertyEdit() {
   const [flatNumber, setFlatNumber] = useState("");
   const [listedRent, setListedRent] = useState<string>("");
   const [societyMaintenance, setSocietyMaintenance] = useState<string>("");
-  const [securityDepositMonths, setSecurityDepositMonths] = useState("1");
   const [availableFrom, setAvailableFrom] = useState<Date | undefined>();
 
   // Section 3: Furnishing
@@ -169,15 +129,10 @@ export default function PropertyEdit() {
   const [petPolicy, setPetPolicy] = useState("");
   const [buildingRules, setBuildingRules] = useState("");
 
-  // Section 6: Description
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-
   // Publish toggle
   const [isActive, setIsActive] = useState(false);
 
   // Added in Prompt 4 — spec fields previously missing from admin form.
-  const [stateVal, setStateVal] = useState("");
   const [buildingNotes, setBuildingNotes] = useState("");
   const [flatNumberRevealed, setFlatNumberRevealed] = useState(false);
   const [securityDepositAmount, setSecurityDepositAmount] = useState<string>("");
@@ -185,7 +140,6 @@ export default function PropertyEdit() {
 
   // Prompt 8 — India fields (D-159).
   const [landmark, setLandmark] = useState<string>("");
-  const [noticePeriodMonths, setNoticePeriodMonths] = useState<string>("");
   const [annualRentIncreasePct, setAnnualRentIncreasePct] = useState<string>("");
   const [waterStorage, setWaterStorage] = useState<string>("");
   // F3-C15: lister_role — admin always editable (no lock).
@@ -299,10 +253,7 @@ export default function PropertyEdit() {
       // Pre-fill form
       setBuildingName((data as unknown as Record<string, unknown>).building_name as string || "");
       setLegalOwnerName((data as unknown as Record<string, unknown>).legal_owner_name as string || "");
-      setStreetAddress((data as unknown as Record<string, unknown>).street_address as string || "");
       setLocality((data as unknown as Record<string, unknown>).locality as string || "");
-      setCity((data as unknown as Record<string, unknown>).city as string || "");
-      setPincode((data as unknown as Record<string, unknown>).pincode as string || "");
       setBhk((data as unknown as Record<string, unknown>).bhk as string || "");
       setPropertyType((data as unknown as Record<string, unknown>).property_type as string || "apartment");
       setFloorNumber((data as unknown as Record<string, unknown>).floor_number != null ? String((data as unknown as Record<string, unknown>).floor_number) : "");
@@ -311,7 +262,6 @@ export default function PropertyEdit() {
       setFlatNumber((data as unknown as Record<string, unknown>).flat_number as string || "");
       setListedRent((data as unknown as Record<string, unknown>).listed_rent != null ? String((data as unknown as Record<string, unknown>).listed_rent) : "");
       setSocietyMaintenance((data as unknown as Record<string, unknown>).society_maintenance_approx != null ? String((data as unknown as Record<string, unknown>).society_maintenance_approx) : "");
-      setSecurityDepositMonths(String((data as unknown as Record<string, unknown>).security_deposit_months ?? 1));
       if ((data as unknown as Record<string, unknown>).available_from) {
         setAvailableFrom(new Date(((data as unknown as Record<string, unknown>).available_from as string) + "T00:00:00"));
       }
@@ -325,19 +275,15 @@ export default function PropertyEdit() {
       setParking4w((data as unknown as Record<string, unknown>).parking_4w as string || "none");
       setPetPolicy((data as unknown as Record<string, unknown>).pet_policy as string || "");
       setBuildingRules((data as unknown as Record<string, unknown>).building_rules as string || "");
-      setTitle((data as unknown as Record<string, unknown>).title as string || "");
-      setDescription((data as unknown as Record<string, unknown>).description as string || "");
       setIsActive(!!(data as unknown as Record<string, unknown>).is_active);
       setYoutubeWalkthroughUrl((data as unknown as Record<string, unknown>).youtube_walkthrough_url as string || "");
       // Prompt 4 — hydrate spec fields previously missing from admin form.
-      setStateVal((data as unknown as Record<string, unknown>).state as string || "");
       setBuildingNotes((data as unknown as Record<string, unknown>).building_notes as string || "");
       setFlatNumberRevealed(!!(data as unknown as Record<string, unknown>).flat_number_revealed);
       setSecurityDepositAmount((data as unknown as Record<string, unknown>).security_deposit_amount != null ? String((data as unknown as Record<string, unknown>).security_deposit_amount) : "");
       setBoardStatus((data as unknown as Record<string, unknown>).board_status as string || "");
       // Prompt 8 — India fields.
       setLandmark((data as unknown as Record<string, unknown>).landmark as string || "");
-      setNoticePeriodMonths((data as unknown as Record<string, unknown>).notice_period_months != null ? String((data as unknown as Record<string, unknown>).notice_period_months) : "");
       setAnnualRentIncreasePct((data as unknown as Record<string, unknown>).annual_rent_increase_pct != null ? String((data as unknown as Record<string, unknown>).annual_rent_increase_pct) : "");
       setWaterStorage((data as unknown as Record<string, unknown>).water_storage as string || "");
       setListerRole((data as unknown as Record<string, unknown>).lister_role as string || "owner");
@@ -478,10 +424,6 @@ export default function PropertyEdit() {
 
   useEffect(() => { void loadImages(); }, [loadImages]);
 
-  const toggleItem = (list: string[], setList: (v: string[]) => void, value: string) => {
-    setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
-  };
-
   // Admin building-name-only correction — trusted update_building_name path. Changes
   // ONLY building_name/source; never touches coords, place_id, associations, owner
   // verification, or Street View geography.
@@ -597,10 +539,7 @@ export default function PropertyEdit() {
     const updatePayload: Record<string, unknown> = {
         building_name: buildingName,
         legal_owner_name: legalOwnerName || null,
-        street_address: streetAddress,
         locality: locality || null,
-        city,
-        pincode: pincode || null,
         bhk: bhk as "studio" | "1BHK" | "2BHK" | "3BHK" | "4BHK" | "5BHK_plus",
         property_type: propertyType || null,
         floor_number: floorNumber ? parseInt(floorNumber) : null,
@@ -609,7 +548,6 @@ export default function PropertyEdit() {
         flat_number: flatNumber || null,
         listed_rent: listedRent ? parseFloat(listedRent) : 0,
         society_maintenance_approx: societyMaintenance ? parseFloat(societyMaintenance) : null,
-        security_deposit_months: parseInt(securityDepositMonths),
         available_from: availableFrom ? format(availableFrom, "yyyy-MM-dd") : null,
         furnishing: furnishing as "unfurnished" | "semi_furnished" | "fully_furnished",
         amenities: amenities as unknown as typeof amenities & Record<string, never>,
@@ -627,8 +565,6 @@ export default function PropertyEdit() {
         parking_4w: parking4w as "none" | "covered" | "uncovered" | "both",
         pet_policy: petPolicy || null,
         building_rules: buildingRules || null,
-        title: title || null,
-        description: description || null,
         is_active: isActive,
         owner_only_rental_property: ownerOnlyRental,
         owner_income_dependent: ownerIncomeDependent,
@@ -644,7 +580,6 @@ export default function PropertyEdit() {
         owner_tenant_type_preference: ownerTenantTypePreference,
         youtube_walkthrough_url: youtubeWalkthroughUrl.trim() || null,
         // Prompt 4 — spec fields newly surfaced on admin form.
-        state: stateVal || null,
         building_notes: buildingNotes || null,
         flat_number_revealed: flatNumberRevealed,
         security_deposit_amount: securityDepositAmount ? parseFloat(securityDepositAmount) : null,
@@ -1283,8 +1218,6 @@ export default function PropertyEdit() {
                 helperOverride='When on, tenants see "Included in Rent" instead of a separate maintenance amount'
               />
             </div>
-            {/* P3: security_deposit_months input removed from admin UI. State + payload write retained
-                so column stays populated for legacy consumers; value taken from prior hydrated state. */}
             {/* D-168: spec-driven date field. Now shows amber past-date warning + 90-day future cap (parity with owner form). */}
             <SpecField
               fieldKey="available_from"
@@ -1432,10 +1365,6 @@ export default function PropertyEdit() {
             <SpecField fieldKey="building_notes" surface="admin_form" value={buildingNotes} onChange={(v: string) => setBuildingNotes(v)} readOnly={conflictKeys.has("building_notes")}>{conflictKeys.has("building_notes") && <ConflictNote editId={pendingEditId} />}</SpecField>
           </div>
         </Section>
-
-        {/* Section 6 — Description — scalar rendering driven by PROPERTY_FIELDS (D-128, D-155, D-156). */}
-        {/* F1-B2a: Description section (title + description inputs) removed from
-            admin. State + payload writes retained so column data isn't dropped. */}
 
         {/* Added in Prompt 4 — read-only admin metadata (audit trail). */}
         {property && (

@@ -5,7 +5,6 @@ const ZERO_IS_VALID = new Set([
   "balconies",
   "building_age_years",
   "notice_period_days",
-  "notice_period_months",
   "annual_rent_increase_pct",
   "lock_in_months",
   "security_deposit_months",

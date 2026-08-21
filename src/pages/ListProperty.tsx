@@ -105,7 +105,7 @@ const DB_COLUMN_TO_SECTION: Record<string, SectionNum> = {
   bhk: 2, property_type: 2, floor_number: 2, total_floors: 2, square_footage: 2, facing: 2, building_age_years: 2,
   listed_rent: 3, security_deposit_amount: 3, security_deposit_months: 3, society_maintenance_approx: 3,
   maintenance_included_in_rent: 3, available_from: 3,
-  notice_period_months: 3, annual_rent_increase_pct: 3,
+  annual_rent_increase_pct: 3,
   // Prompt 10a (D-161) — sale fields share the Section-3 slot (Rent & Deposit ↔ Sale toggle).
   listing_type: 3, sale_price: 3, price_negotiable: 3, expected_price_per_sqft: 3,
   possession_status: 3, possession_date: 3, rera_registration_number: 3, khata_type: 3, property_tax_paid_upto: 3,
@@ -1919,7 +1919,6 @@ export default function ListProperty() {
             setOpenedSections((prev) => (prev.has(sec) ? prev : new Set(prev).add(sec)));
           }
         }} className="w-full">
-          {/* Section 1 — address via PropertyAddressInput (Google Maps Phase 1). */}
           <SectionShell num={1} title="Where is your property?" status={sectionStatuses[1]} summary={sectionSummary(1, form, images)} required>
             <div className="space-y-4">
               {addressEditable ? (

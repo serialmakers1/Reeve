@@ -142,7 +142,7 @@ describe("property-fields spec", () => {
   });
 
   it("rent-only fields hide on sale listings", () => {
-    for (const key of ["notice_period_months", "annual_rent_increase_pct"]) {
+    for (const key of ["annual_rent_increase_pct"]) {
       const f = PROPERTY_FIELDS.find((x) => x.key === key)!;
       expect(f.visibleWhen, `${key} missing visibleWhen`).toBeDefined();
       expect(isFieldVisible(f, { listing_type: "sale" })).toBe(false);
@@ -262,8 +262,8 @@ describe("property-fields spec", () => {
   it("security_deposit_months audiences include owner_form + public_detail (matches actual usage)", () => {
     const f = PROPERTY_FIELDS.find((x) => x.key === "security_deposit_months")!;
     expect(f).toBeDefined();
-    expect(f.audiences).toEqual(expect.arrayContaining(["owner_form", "admin_form", "public_detail"]));
-    expect(f.editableBy).toEqual(expect.arrayContaining(["owner", "admin"]));
+    expect(f.audiences).toEqual(expect.arrayContaining(["owner_form", "public_detail"]));
+    expect(f.editableBy).toEqual(expect.arrayContaining(["owner"]));
   });
 
   // Sync Prompt 2 (D-168) — datePickerOptions on all 3 date fields.

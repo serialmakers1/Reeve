@@ -58,7 +58,6 @@ interface PropertyRow {
   square_footage: number | null; facing: string | null;
   building_age_years: number | null; bathrooms: number | null; balconies: number | null;
   listed_rent: number | null; security_deposit_amount: number | null;
-  security_deposit_months: number | null;
   society_maintenance_approx: number | null; maintenance_included_in_rent: boolean | null;
   available_from: string | null;
   furnishing: string | null; furnishing_detail: FurnishingDetailItem[] | null;

@@ -12,7 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-import TopRequestsStrip from "@/components/owner-dashboard/TopRequestsStrip";
 import PropertyCard from "@/components/owner-dashboard/PropertyCard";
 
 const DRAFT_LIMIT = 20;
@@ -239,11 +238,6 @@ export default function OwnerDashboard() {
           <Button onClick={handleAddProperty} className="min-h-[40px]">
             <Plus className="mr-1.5 h-4 w-4" /> Add Property
           </Button>
-        </div>
-
-        {/* Top requests strip (reserved for Phase 3 contact requests) */}
-        <div className="mb-4">
-          <TopRequestsStrip count={0} />
         </div>
 
         {/* Pending actions row */}

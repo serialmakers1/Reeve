@@ -48,7 +48,7 @@ type ContactChannel = "whatsapp" | "telegram" | "botim";
 
 // ─── Slot constants (exported for reuse) ─────────────────────────────────────
 
-export const CALLBACK_SLOT_KEYS = [
+const CALLBACK_SLOT_KEYS = [
   "asap",
   "09_10",
   "10_11",
@@ -109,7 +109,7 @@ const COMMON_TIMEZONES: { label: string; value: string }[] = [
  * Returns the current hour in IST (Asia/Kolkata), 0–23.
  * Exported for use by RequestCallbackButton and pages.
  */
-export function getISTHour(): number {
+function getISTHour(): number {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
@@ -197,7 +197,7 @@ function localTimeToIST(
  * The range covers istHour:00 IST to (istHour+1):00 IST, both converted to local time.
  * Uses only the native Intl API.
  */
-export function convertISTSlotToLocal(istHour: number, timezone: string): string {
+function convertISTSlotToLocal(istHour: number, timezone: string): string {
   // Build reference UTC dates: IST = UTC+5:30, so istHour:00 IST = (istHour-5):-30 UTC
   // Use today's date in IST as the reference day
   const now = new Date();
@@ -230,7 +230,7 @@ export function convertISTSlotToLocal(istHour: number, timezone: string): string
  * International: converts both slot start and end hours to local time.
  * e.g. formatSlotRange("09_10", "America/New_York") → "11:30 PM – 12:30 AM"
  */
-export function formatSlotRange(slotKey: string, timezone: string | null): string {
+function formatSlotRange(slotKey: string, timezone: string | null): string {
   if (!timezone) return CALLBACK_SLOT_LABELS[slotKey] ?? slotKey;
   if (timezone === "Asia/Kolkata") return CALLBACK_SLOT_LABELS[slotKey] ?? slotKey;
   const parts = slotKey.split("_");
