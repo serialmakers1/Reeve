@@ -70,7 +70,6 @@ export interface PropertyPreviewData {
   building_age_years?: string;
   lock_in_months?: string;
   notice_period_days?: string;
-  notice_period_months?: string;
   annual_rent_increase_pct?: string;
   move_in_charges_amount?: string;
   rent_brokerage_fixed_amount?: string;

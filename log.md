@@ -1,3 +1,71 @@
+## [2026-08-21] audit | Final connected dependency diagnosis for PropertyEdit cleanup [17:52 IST]
+
+## [2026-08-21] audit | Deep-audited admin PropertyEdit for stale code and field-flow mismatches [17:10 IST]
+
+## [2026-08-21] cleanup | Removed verified dead code from ListProperty owner flow [16:05 IST]
+
+## [2026-08-21] audit | Final dependency audit of ListProperty cleanup candidates [15:19 IST]
+
+19 items traced to final verdict. SAFE REMOVE (all): 6 dead imports (X, Trash2, PROPERTY_TYPE_OPTIONS, FACING_OPTIONS, GAS_TYPE_OPTIONS, INDIAN_STATES); full createDraft cluster (createDraft useCallback + canInsertDraft constant + insertingDraft useState + dead useEffect) — ensureDraft is confirmed sole active draft creator, no test references the cluster; section 8 case blocks in isSectionComplete/sectionSummary — openedSections.has(8) can never be true, PostHog event can never fire, submit only checks REQUIRED_SECTIONS; const readOnly=false + 2 dead JSX branches — hardcoded false, child SpecField readOnly props use tierOneLocked/ownerFieldReadOnly not this const. SAFE REMOVE FROM OWNER FLOW: full notice_period_months chain in ListProperty.tsx + PropertyPreviewData interface — PropertyPreview never reads data.notice_period_months, save is patch-only so removing from FormState/prefill cannot overwrite DB, mapFieldToDb case unreachable from owner and admin. DB column, types.ts, property-fields.ts config, GRID_FIELDS, tests all remain untouched. Files to modify: ListProperty.tsx + PropertyPreview.tsx (PropertyPreviewData interface only). No runtime files modified this session.
+
+## [2026-08-21] audit | Deep-audited ListProperty for stale and dead code [15:09 IST]
+
+15 findings across ListProperty.tsx. SAFE REMOVE: 2 lucide imports (X, Trash2), 4 property-form imports (PROPERTY_TYPE_OPTIONS, FACING_OPTIONS, GAS_TYPE_OPTIONS, INDIAN_STATES), the coherent createDraft cluster (createDraft useCallback + canInsertDraft constant + insertingDraft useState + permanently-disabled useEffect with `if (true) return`), section 8 dead switch cases in isSectionComplete/sectionSummary. KEEP: Lock (3 JSX sites), AlertCircle (StatusIcon). DEFER: notice_period_months full chain (legacy DB passthrough, still in prefill/previewData), const readOnly=false + dead JSX branches (requires multiline JSX edit, INVESTIGATE). No runtime files modified.
+
+## [2026-08-21] cleanup | Removed verified scattered page and hook dead code [14:53 IST]
+
+Login.tsx: removed dead `user` from useAuth() destructure. ContactRequestsPage.tsx: removed dead `formatDistanceToNowStrict` import (format still present, formatCountdown local). useListingSave.ts: removed no-op `poisonedKeysStable` useMemo + comment (return now uses `poisonedKeys` directly), removed `useMemo` from React import (was sole caller), removed 3 trace-level console.debug calls + their eslint-disable comments (console.error PATCH diagnostic preserved).
+Verification: build EXIT 0, TS 1 error (pre-existing google.maps typedef), tests 4 files/5 tests failing — identical to pre-edit baseline. Zero new regressions.
+
+## [2026-08-21] cleanup | Removed verified dead code from PropertyDetail and Search pages [14:36 IST]
+
+6C.1 — PropertyDetail.tsx: trimmed 27 dead Lucide imports (kept 11), deleted 8 dead helpers/constants/interface (furnishingLabel, parkingLabel, formatAvailableFrom, FURNISHING_LABELS, FurnishingDetailItem, FURNISHING_DETAIL_LABELS, BUILDING_AMENITY_LABELS, amenityLabel + adjacent comment block), removed `session` from useAuth destructure, deleted handleVerificationGate function, deleted UtilityPill component.
+6C.2 — 5 search files: removed `cn` import + dead loadedCount/hasNextPage props from SearchBrowsePage; removed same props from SearchControlRow and DesktopSearchToolbar interfaces; removed `overlayFavourites` dead import + gatingAreas dead constant from useSearchResults; removed `X` from SearchFilterPanel import.
+Verification: build EXIT 0, TS 1 error (pre-existing google.maps typedef), tests 4 files/5 tests failing (pre-existing module errors + ContactRequestsPage — all unrelated to edited files). Zero new regressions.
+
+## [2026-08-21] audit | Audited active routes and pages for stale/dead code [IST]
+
+34 active routes. 4 parallel agents. 30 SAFE REMOVE findings, 8 INVESTIGATE, 2 DEFER. 2 unrouted admin page files (InspectionForm + Inspections). PropertyDetail.tsx is the highest-debt file: ~20 dead lucide imports, 4 dead helper functions, 1 dead component, 1 dead function, dead constants (FURNISHING_LABELS etc). Search: gatingAreas dead constant, overlayFavourites dead import, SearchControlRow dead props. 3 inspection hooks (useAutoPopulateDamages, useConditionSnapshot, useInspectionSave) + inspection admin sub-components are runtime-dead because InspectionForm.tsx is unrouted. No runtime files were modified.
+
+## [2026-08-21] audit | Audited Ratings V1/V2 dependencies for cleanup [IST]
+
+Decision matrix across all rating columns, RPCs, triggers, and search wiring:
+
+**KEEP (active V2 path):**
+- Columns: o_reach, o_accuracy, o_progress, o_respect, o_trust, o_v2_submitted_at, t_reach, t_accuracy, t_progress, t_respect, t_trust, t_v2_submitted_at, plus structural cols (id, contact_request_id, owner_id, tenant_id, property_id, created_at, updated_at)
+- RPCs: submit_rating_v2 (called from useRateableInteractions.ts:50), get_user_rating_summary_v2 (useRatingSummary.ts:18, useOwnerCard.ts:44), get_my_rateable_interactions_v2 (useRateableInteractions.ts:41), _build_rating_side_v2 (helper)
+- Trigger: trg_create_rating_on_approval — creates row on contact_request approval; NO migration file (applied direct to DB); needs pg_get_functiondef before any cleanup
+
+**SAFE TO REMOVE (zero runtime callers anywhere in src/ api/ supabase/functions/):**
+- RPCs: submit_rating (V1), get_user_rating_summary (V1), get_pending_ratings_for_me (V1) — all in types.ts but never called
+- Columns not in search subquery: o_q1_communication, o_q2_visit, o_review_text, t_q1_communication, t_q2_visit, window_opens_at
+
+**BLOCKED BY DEPENDENCY — search_compact_properties_v3:**
+- Columns: t_q3_deal_again, t_review_text, t_submitted_at, o_submitted_at, window_closes_at
+- All 5 used verbatim by the experience_feedback lateral subquery in search_compact_properties_v3 (migration 20260814230000). p_has_experience_feedback filter is wired end-to-end: buildSearchInput.ts → searchDataClient.ts → RPC param. Dropping any of these 5 columns breaks the live search function.
+
+**NEEDS PRODUCT DECISION (gate for full V1 removal):**
+- experience_feedback feature uses V1 columns exclusively — there is no V2 equivalent. To remove V1: either (a) rewrite experience_feedback subquery in search_compact_properties_v3 to derive from V2 columns (define V2 "deal-again" proxy — e.g. t_trust='yes' or t_progress='next_step') and migrate the frontend ExperienceFeedbackAggregate contract, or (b) drop experience_feedback and p_has_experience_feedback from search entirely.
+
+**NEEDS LIVE CHECK (before any cleanup migration):**
+- V1 RLS: original policies had no migration file; V2 migration issued REVOKE ALL but no explicit DROP POLICY; need live pg_policies query to confirm no residual V1 policies remain.
+- trg_create_rating_on_approval body: no migration file; must capture via pg_get_functiondef before writing cleanup migration.
+
+**Cleanup sequence (when product decision on experience_feedback is made):**
+1. Decide: rewrite or drop experience_feedback
+2. Deploy new search_compact_properties_v3 (or v4) without V1 column references
+3. Drop V1 RPCs (submit_rating, get_user_rating_summary, get_pending_ratings_for_me)
+4. Drop pure-V1 columns: o_q1_communication, o_q2_visit, o_review_text, t_q1_communication, t_q2_visit, window_opens_at
+5. Drop remaining V1 columns: t_q3_deal_again, t_review_text, t_submitted_at, o_submitted_at, window_closes_at
+
+## [2026-08-21] migrate | Completed and verified Step 6B.2 Supabase hygiene cleanup [08:09 IST]
+
+## [2026-08-21] debug | Step 6B.1 corrected audit complete [19:30 IST] — 33-col profiles matrix: 12 KEEP / 21 HIGH-CONFIDENCE DROP / 0 UNCERTAIN; leads+keys_tracking not in live DB; get_map_markers_v2 confirmed dropped (migration 20260815080427); auth trigger rewrite scoped to 4 columns only; trg_no_show_limit trigger name confirmed; tenant-documents policies on storage.objects only; 4-item independent cleanup set ready; all V1/V2 rating cleanup deferred; no blockers; READY FOR STEP 6B.2 IMPLEMENTATION PLAN
+
+## [2026-08-21] debug | Completed Step 6B codebase reachability audit [18:45 IST] — 11 sections A–K: 25 active tables, 4 legacy-candidate (owner_bank_details, external_queries, keys_tracking, leads) deferred pending n8n audit, tenant-documents bucket confirmed dead, expire-stale-applications cron dead, ensure_user_exists live-vs-migration contradiction noted, check_no_show_limit dead loop confirmed, 5 dead profiles columns require trigger rewrite before drop, V1 interaction_ratings columns blocked by 2 live RLS policies + search_compact_properties_v3 + get_map_markers_v2 (all V1-dependent), experience_feedback search filter is fully active (Path A or B product decision required before V1 column drop), 11-step ordered drop sequence produced
+
+## [2026-08-21] debug | Completed Step 6A Supabase residual hygiene diagnosis [17:30 IST]
+
 ## [2026-08-21] cleanup | Step 5C — property status + codebase cleanup: removed 10 legacy PM-era property_status values from all frontend code (OwnerDashboard ACTIVE_STATUSES, propertyStatus.ts STATUS_CONFIG, Properties.tsx STATUS_FILTER_OPTIONS + test); removed properties.status = "inspected" write from InspectionForm.executeCompletion; removed pendingProperties (inspection_scheduled filter) query + UI from Inspections.tsx; removed Inspections nav entry (AdminLayout) + routes (App.tsx); updated ManageListingCard copy; created migration 20260821120000_step5c_property_status_enum_cleanup.sql (safety gate, handle_property_status_change rewrite, get_admin_properties_page rewrite, enum recreate with 7 values); deleted 12 files (commons-*.md, ADMIN_SETUP.md, docs/search-analytics.md, TokenRefundPolicy.tsx, hero-owner.png, SessionExpired.tsx, NavLink.tsx); updated CLAUDE.md; build clean; 889/894 tests (5 known); TS 163 errors (3 fewer than 166 baseline) [IST]
 
 ## [2026-08-21] finalize | Step 4 post-migration finalization: types regenerated (deleted tables/view/enums absent, property_views + property_inspections present); build clean; tests 889/894 (5 known ContactRequestsPage failures only); TS 166 errors (baseline unchanged); zero stale DB references in src; Razorpay edge function dirs confirmed absent; migration file untracked (applied live) [IST]

@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import posthog from "posthog-js";
 import { format } from "date-fns";
-import { CheckCircle2, Circle, AlertCircle, X, Eye, Trash2, Lock } from "lucide-react";
+import { CheckCircle2, Circle, AlertCircle, Eye, Lock } from "lucide-react";
 import { getStatusDisplay } from "@/lib/propertyStatus";
 
 import Layout from "@/components/Layout";
@@ -39,9 +39,9 @@ import { useListingSave } from "@/hooks/useListingSave";
 import { processPhotoForUpload } from "@/lib/photo";
 import { PHOTO_CONFIG } from "@/config/photo";
 import {
-  BHK_OPTIONS, PROPERTY_TYPE_OPTIONS, FURNISHING_OPTIONS,
-  BUILDING_AMENITIES, PARKING_OPTIONS, WATER_SOURCE_OPTIONS, FACING_OPTIONS, GAS_TYPE_OPTIONS,
-  PET_POLICY_OPTIONS, INDIAN_STATES,
+  BHK_OPTIONS, FURNISHING_OPTIONS,
+  BUILDING_AMENITIES, PARKING_OPTIONS, WATER_SOURCE_OPTIONS,
+  PET_POLICY_OPTIONS,
 } from "@/config/property-form";
 import { type FurnishingDetailItem, buildAmenitiesJson } from "@/types/property";
 import { computeDepositMonths } from "@/utils/property/financialConversions";
@@ -174,7 +174,6 @@ interface FormState {
   society_maintenance_approx: string;
   maintenance_included_in_rent: boolean;
   available_from: Date | undefined;
-  notice_period_months: string;               // Prompt 8 — India field (legacy, admin-only from P3)
   notice_period_days: string;                 // P3 — replaces months on owner form
   lock_in_months: string;                     // P3
   annual_rent_increase_pct: string;           // Prompt 8 — India field
@@ -245,7 +244,7 @@ const INITIAL_STATE: FormState = {
   facing: "", building_age_years: "",
   listed_rent: "", security_deposit_amount: "", security_deposit_months: "", society_maintenance_approx: "",
   maintenance_included_in_rent: false, available_from: undefined,
-  notice_period_months: "", notice_period_days: "", lock_in_months: "",
+  notice_period_days: "", lock_in_months: "",
   annual_rent_increase_pct: "",
   move_in_charges_amount: "", rent_brokerage_fixed_amount: "",
   furnishing: "", furnishing_detail: [], bathrooms: "", balconies: "",
@@ -336,7 +335,6 @@ function prefillFormFromRow(d: Record<string, unknown>, setForm: React.Dispatch<
     society_maintenance_approx: d.society_maintenance_approx != null ? String(d.society_maintenance_approx) : "",
     maintenance_included_in_rent: !!d.maintenance_included_in_rent,
     available_from: d.available_from ? new Date((d.available_from as string) + "T00:00:00") : undefined,
-    notice_period_months: d.notice_period_months != null ? String(d.notice_period_months) : "",
     notice_period_days: d.notice_period_days != null ? String(d.notice_period_days) : "",
     lock_in_months: d.lock_in_months != null ? String(d.lock_in_months) : "",
     annual_rent_increase_pct: d.annual_rent_increase_pct != null ? String(d.annual_rent_increase_pct) : "",
@@ -438,7 +436,6 @@ function isSectionComplete(
     case 5: return openedSections.has(5) || isSectionTouched(5, f, imageCount);
     case 6: return openedSections.has(6) || isSectionTouched(6, f, imageCount);
     case 7: return imageCount >= PHOTO_CONFIG.upload.minCount;
-    case 8: return openedSections.has(8) || isSectionTouched(8, f, imageCount);
     case 9: return f.consent && f.terms_privacy_consent;
   }
 }
@@ -500,7 +497,6 @@ function sectionSummary(section: SectionNum, f: FormState, images: PropertyImage
     }
     case 6: return "";
     case 7: return images.length ? `${images.length} photo${images.length === 1 ? "" : "s"}` : "";
-    case 8: return "";
     case 9: return "";
   }
 }
@@ -572,7 +568,6 @@ export default function ListProperty() {
   const [showPreview, setShowPreview] = useState(false);
   const [showDraftLimit, setShowDraftLimit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [insertingDraft, setInsertingDraft] = useState(false);
   // Owner-limited custom-item editors report a genuine invalid edit still on screen;
   // submission is blocked while either is true (the invalid draft is buffered locally
   // and never reaches saveNow/patch, so the pending-changes gate can't catch it).
@@ -625,7 +620,6 @@ export default function ListProperty() {
   const isInitialEditable = entryStatus === "create" || entryStatus === "draft" || entryStatus === "changes_requested";
   // Whole-form freeze REMOVED for edit_pending_review — live listings edit per-field by policy.
   // pending_review/unlisted/archived never reach the form (blocked at load).
-  const readOnly = false;
   const tierOneLocked = !isInitialEditable; // identity/address/listing_type/lister_role stay locked post-draft
   const addressEditable = isInitialEditable;
   // Per-field owner lock: only admin_only DB columns are read-only on a live listing.
@@ -936,9 +930,6 @@ export default function ListProperty() {
     }
   }, [sectionStatuses, erroredSections]);
 
-  // ─── Minimum required INSERT fields ──────────────────────────────────────
-  const canInsertDraft = !!(form.building_name.trim() && form.city.trim() && user?.id);
-
   // ─── Field patcher (Prompt 2a: risk-based routing) ───────────────────────
   const markSavedLive = useCallback((dbKeys: string[]) => {
     setSavedLiveKeys((prev) => { const n = new Set(prev); for (const k of dbKeys) n.add(k); return n; });
@@ -1184,56 +1175,6 @@ export default function ListProperty() {
     posthog?.capture('commons_listing_draft_created', { property_id: data.id });
     return data.id;
   }, [propertyId, user?.id, form.lister_role, form.property_type, setSearchParams, toast]);
-
-  // ─── First-save (create draft) ───────────────────────────────────────────
-  const createDraft = useCallback(async () => {
-    if (!canInsertDraft || !user?.id || insertingDraft) return;
-    setInsertingDraft(true);
-    // Prompt 2: canonical location columns are written ONLY via the trusted flow
-    // (the location-lock guard blocks them here). Draft creation carries no location.
-    const insertPayload = {
-      owner_id: user.id,
-      status: "draft" as const,
-      is_active: false,
-      bhk: form.bhk || null,
-      furnishing: form.furnishing || null,
-      lister_role: form.lister_role || 'owner',
-      property_type: form.property_type || null,
-      listed_rent: parseNum(form.listed_rent) ?? 0,
-      draft_at: new Date().toISOString(),
-    };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
-      .from("properties")
-      .insert(insertPayload)
-      .select("id")
-      .maybeSingle();
-    setInsertingDraft(false);
-    if (error || !data) {
-      const msg = error?.message ?? "Could not save. Please try again.";
-      // Draft limit error from trigger
-      if (/Draft limit/.test(msg)) {
-        setShowDraftLimit(true);
-        return;
-      }
-      toast({ title: "Save failed", description: msg, variant: "destructive" });
-      return;
-    }
-    setPropertyId(data.id);
-    setSearchParams({ draft: data.id }, { replace: true });
-    posthog?.capture("commons_listing_draft_created", { property_id: data.id });
-    toast({ title: "Draft saved" });
-  }, [canInsertDraft, form, insertingDraft, setSearchParams, toast, user?.id]);
-
-  // Prompt 2: draft creation is owned by `ensureDraft` (invoked from the trusted location
-  // flow). The old auto-create-on-threshold effect is disabled — `createDraft` is retained
-  // only as a fallback (guard-safe, no location columns).
-  useEffect(() => {
-    if (true) return; // eslint-disable-line no-constant-condition
-    if (isEditMode || propertyId || !canInsertDraft || insertingDraft || showDraftLimit) return;
-    const t = setTimeout(() => { void createDraft(); }, 800);
-    return () => clearTimeout(t);
-  }, [isEditMode, canInsertDraft, propertyId, insertingDraft, showDraftLimit, createDraft]);
 
   // ─── Photos (Prompt 2a) ──────────────────────────────────────────────────
   // Refetch authoritative rows after any DB-authoritative live mutation (S6/R6).
@@ -1675,7 +1616,6 @@ export default function ListProperty() {
     building_age_years: form.building_age_years || undefined,
     lock_in_months: form.lock_in_months || undefined,
     notice_period_days: form.notice_period_days || undefined,
-    notice_period_months: form.notice_period_months || undefined,
     annual_rent_increase_pct: form.annual_rent_increase_pct || undefined,
     move_in_charges_amount: form.move_in_charges_amount || undefined,
     rent_brokerage_fixed_amount: form.rent_brokerage_fixed_amount || undefined,
@@ -1978,7 +1918,7 @@ export default function ListProperty() {
             const sec = Number(match[1]) as SectionNum;
             setOpenedSections((prev) => (prev.has(sec) ? prev : new Set(prev).add(sec)));
           }
-        }} className={cn("w-full", readOnly && "opacity-70 pointer-events-none select-none")}>
+        }} className="w-full">
           {/* Section 1 — address via PropertyAddressInput (Google Maps Phase 1). */}
           <SectionShell num={1} title="Where is your property?" status={sectionStatuses[1]} summary={sectionSummary(1, form, images)} required>
             <div className="space-y-4">
@@ -2526,15 +2466,13 @@ export default function ListProperty() {
               {propertyId && path === "A" && (
                 <Button variant="outline" onClick={() => saveNow()}>Save</Button>
               )}
-              {!readOnly && (
-                <Button
-                  onClick={submit}
-                  disabled={submitting || !propertyId || (isLiveListing && !reviewDirty)}
-                  className={cn(!isLiveListing && (requiredComplete < 5 || !form.consent || !form.terms_privacy_consent || images.length < 3) ? "opacity-70" : "")}
-                >
-                  {submitting ? "Submitting..." : isLiveListing ? "Submit changes for review" : "Submit for review"}
-                </Button>
-              )}
+              <Button
+                onClick={submit}
+                disabled={submitting || !propertyId || (isLiveListing && !reviewDirty)}
+                className={cn(!isLiveListing && (requiredComplete < 5 || !form.consent || !form.terms_privacy_consent || images.length < 3) ? "opacity-70" : "")}
+              >
+                {submitting ? "Submitting..." : isLiveListing ? "Submit changes for review" : "Submit for review"}
+              </Button>
             </div>
           </div>
           </div>
@@ -2696,7 +2634,6 @@ function mapFieldToDb<K extends keyof FormState>(key: K, value: FormState[K]): R
     case "state": return strVal ? { state: strVal } : {};
     case "pincode": return { pincode: strVal.trim() || null };
     case "landmark": return { landmark: strVal.trim() || null };
-    case "notice_period_months": return { notice_period_months: parseNum(strVal) };
     case "notice_period_days": return { notice_period_days: parseNum(strVal) };
     case "lock_in_months": return { lock_in_months: parseNum(strVal) };
     case "annual_rent_increase_pct": {

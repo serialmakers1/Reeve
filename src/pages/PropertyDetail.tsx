@@ -65,36 +65,9 @@ import Layout from "@/components/Layout";
 import { PROPERTY_TYPE_OPTIONS } from "@/config/property-form";
 import {
   ArrowLeft,
-  Shield,
-  Droplets,
-  Zap,
-  Flame,
-  Home,
-  Maximize2,
-  Building2,
-  Layers,
-  Armchair,
-  Car,
-  Bike,
-  KeyRound,
-  PawPrint,
   X,
   ChevronLeft,
   ChevronRight,
-  Dumbbell,
-  Waves,
-  ArrowUpDown,
-  BatteryCharging,
-  ShieldCheck,
-  Cctv,
-  Phone,
-  TreePine,
-  Users,
-  CircleDot,
-  Wind,
-  Compass,
-  CalendarDays,
-  Youtube,
   MapPin,
   Share2,
   AlignLeft,
@@ -235,75 +208,6 @@ function bhkLabel(bhk: string): string {
   };
   return map[bhk] ?? bhk;
 }
-
-function furnishingLabel(f: string): string {
-  const map: Record<string, string> = {
-    unfurnished: "Unfurnished",
-    semi_furnished: "Semi-Furnished",
-    fully_furnished: "Fully Furnished",
-  };
-  return map[f] ?? f;
-}
-
-function parkingLabel(p: string): string {
-  const map: Record<string, string> = {
-    none: "None",
-    open: "Open",
-    covered: "Covered",
-    both: "Both",
-  };
-  return map[p] ?? p;
-}
-
-function formatAvailableFrom(date: string | null): string {
-  if (!date) return "Available Now";
-  const d = new Date(date);
-  if (d <= new Date()) return "Available Now";
-  return `Available from ${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
-}
-
-// P7B Fix B: AMENITY_ICONS removed — dead since P5 replaced the hard-coded
-// building amenities grid with <BuildingAmenities>. Icons now live in
-// src/components/property-detail/BuildingAmenities.tsx via ICON_MAP.
-
-const FURNISHING_LABELS: Record<string, string> = {
-  ac: 'AC', bed: 'Bed', wardrobe: 'Wardrobe', sofa: 'Sofa',
-  dining_table: 'Dining Table', tv: 'TV', fridge: 'Fridge',
-  washing_machine: 'Washing Machine', geyser: 'Geyser',
-  microwave: 'Microwave', modular_kitchen: 'Modular Kitchen',
-  curtains: 'Curtains', water_purifier: 'Water Purifier'
-};
-
-interface FurnishingDetailItem {
-  item: string
-  count?: number
-  size?: string
-  rooms?: string
-}
-
-const FURNISHING_DETAIL_LABELS: Record<string, string> = {
-  bed: 'Bed', mattress: 'Mattress', ac: 'AC', wardrobe: 'Wardrobe',
-  geyser: 'Geyser', fridge: 'Fridge', washing_machine: 'Washing Machine',
-  tv: 'TV', sofa: 'Sofa', dining_table: 'Dining Table', microwave: 'Microwave',
-  modular_kitchen: 'Modular Kitchen', water_purifier: 'Water Purifier',
-  curtain_rod: 'Curtain Rod', curtains: 'Curtains',
-  stove: 'Stove', chimney: 'Chimney', fan: 'Fan', exhaust_fan: 'Exhaust Fan'
-};
-
-const BUILDING_AMENITY_LABELS: Record<string, string> = {
-  lift: 'Lift', security_24hr: '24hr Security', power_backup: 'Power Backup',
-  gym: 'Gym', swimming_pool: 'Swimming Pool', clubhouse: 'Clubhouse',
-  visitor_parking: 'Visitor Parking', cctv: 'CCTV',
-  children_play_area: "Children's Play Area", intercom: 'Intercom',
-  park: 'Park', maintenance_staff: 'Maintenance Staff', gated_access: 'Gated Access',
-  garden: 'Garden', sports_facility: 'Sports Facility',
-  community_hall: 'Community Hall', water_supply_24hr: '24hr Water Supply'
-};
-
-function amenityLabel(a: string): string {
-  return a.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 
 // ─── Placeholder images ─────────────────────────────────────────────────────
 
@@ -465,7 +369,7 @@ const PropertyDetail: React.FC = () => {
       return null;
     }
   }, [fromSearch]);
-  const { user, session, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -702,26 +606,6 @@ const PropertyDetail: React.FC = () => {
   const lightboxNext = useCallback(() => {
     setLightboxIndex((i) => (i < lightboxImages.length - 1 ? i + 1 : 0));
   }, [lightboxImages.length]);
-
-  // CTA handlers
-  const handleVerificationGate = (destination: string): boolean => {
-    if (!isAuthenticated) {
-      setLoginDrawerOpen(true);
-      return false;
-    }
-    if (!user?.phone_verified || !user?.email_verified) {
-      const profileUrl = `/profile?returnTo=${encodeURIComponent(destination)}`;
-      posthog?.capture("verification_gate_shown", { trigger: "cta" });
-      if (isMobile) {
-        navigate(profileUrl);
-      } else {
-        window.open(profileUrl, "_blank");
-      }
-      return false;
-    }
-    return true;
-  };
-
 
   const sections = useMemo(() => {
     const names = images
@@ -1242,30 +1126,5 @@ const PropertyDetail: React.FC = () => {
     </Layout>
   );
 };
-
-// ─── Utility Pill ────────────────────────────────────────────────────────────
-
-function UtilityPill({
-  icon,
-  label,
-  included,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  included: boolean;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${
-        included
-          ? "border border-green-200 bg-green-50 text-green-700"
-          : "border border-border bg-muted text-muted-foreground"
-      }`}
-    >
-      {icon}
-      {label} — {included ? "Included in maintenance" : "Separate bill"}
-    </span>
-  );
-}
 
 export default PropertyDetail;

@@ -456,94 +456,6 @@ export type Database = {
           },
         ]
       }
-      external_queries: {
-        Row: {
-          assigned_to: string | null
-          category: Database["public"]["Enums"]["external_query_category"]
-          created_at: string
-          description: string
-          id: string
-          phone_otp_verified: boolean
-          photo_urls: string[] | null
-          property_id: string
-          reporter_email: string | null
-          reporter_name: string
-          reporter_org_flat: string | null
-          reporter_phone: string
-          resolution_notes: string | null
-          resolved_at: string | null
-          status: Database["public"]["Enums"]["external_query_status"]
-          submitted_at: string
-          tenant_looped_in: boolean
-          updated_at: string
-          whatsapp_initiated: boolean
-        }
-        Insert: {
-          assigned_to?: string | null
-          category: Database["public"]["Enums"]["external_query_category"]
-          created_at?: string
-          description: string
-          id?: string
-          phone_otp_verified?: boolean
-          photo_urls?: string[] | null
-          property_id: string
-          reporter_email?: string | null
-          reporter_name: string
-          reporter_org_flat?: string | null
-          reporter_phone: string
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          status?: Database["public"]["Enums"]["external_query_status"]
-          submitted_at?: string
-          tenant_looped_in?: boolean
-          updated_at?: string
-          whatsapp_initiated?: boolean
-        }
-        Update: {
-          assigned_to?: string | null
-          category?: Database["public"]["Enums"]["external_query_category"]
-          created_at?: string
-          description?: string
-          id?: string
-          phone_otp_verified?: boolean
-          photo_urls?: string[] | null
-          property_id?: string
-          reporter_email?: string | null
-          reporter_name?: string
-          reporter_org_flat?: string | null
-          reporter_phone?: string
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          status?: Database["public"]["Enums"]["external_query_status"]
-          submitted_at?: string
-          tenant_looped_in?: boolean
-          updated_at?: string
-          whatsapp_initiated?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "external_queries_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "external_queries_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "external_queries_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       favourites: {
         Row: {
           created_at: string
@@ -1232,162 +1144,48 @@ export type Database = {
           },
         ]
       }
-      owner_bank_details: {
-        Row: {
-          account_number: string
-          account_type: string
-          bank_name: string
-          created_at: string
-          id: string
-          ifsc_code: string
-          is_verified: boolean
-          owner_id: string
-          updated_at: string
-        }
-        Insert: {
-          account_number: string
-          account_type: string
-          bank_name: string
-          created_at?: string
-          id?: string
-          ifsc_code: string
-          is_verified?: boolean
-          owner_id: string
-          updated_at?: string
-        }
-        Update: {
-          account_number?: string
-          account_type?: string
-          bank_name?: string
-          created_at?: string
-          id?: string
-          ifsc_code?: string
-          is_verified?: boolean
-          owner_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "owner_bank_details_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: true
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "owner_bank_details_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
-          aadhaar_last4: string | null
-          aadhaar_number: string | null
-          admin_notes: string | null
-          bank_account_name: string | null
-          bank_account_number: string | null
-          bank_ifsc: string | null
           bio: string | null
           created_at: string
-          date_of_birth: string | null
-          diet: Database["public"]["Enums"]["diet_type"] | null
           display_name: string | null
           emergency_contact_email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
           emergency_contact_relationship: string | null
-          gender: Database["public"]["Enums"]["gender_type"] | null
-          has_pets: boolean | null
           id: string
-          is_foreign_citizen: boolean
           is_public: boolean
-          kyc_verified: boolean
-          kyc_verified_at: string | null
-          marital_status: Database["public"]["Enums"]["marital_status"] | null
-          no_show_count: number
-          occupation: Database["public"]["Enums"]["occupation_type"] | null
-          pan_number: string | null
-          pet_details: string | null
           profile_photo_url: string | null
-          screening_opt_out: boolean
           updated_at: string
           user_id: string
-          visit_priority_low: boolean
-          visit_scheduling_blocked: boolean
         }
         Insert: {
-          aadhaar_last4?: string | null
-          aadhaar_number?: string | null
-          admin_notes?: string | null
-          bank_account_name?: string | null
-          bank_account_number?: string | null
-          bank_ifsc?: string | null
           bio?: string | null
           created_at?: string
-          date_of_birth?: string | null
-          diet?: Database["public"]["Enums"]["diet_type"] | null
           display_name?: string | null
           emergency_contact_email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
-          gender?: Database["public"]["Enums"]["gender_type"] | null
-          has_pets?: boolean | null
           id?: string
-          is_foreign_citizen?: boolean
           is_public?: boolean
-          kyc_verified?: boolean
-          kyc_verified_at?: string | null
-          marital_status?: Database["public"]["Enums"]["marital_status"] | null
-          no_show_count?: number
-          occupation?: Database["public"]["Enums"]["occupation_type"] | null
-          pan_number?: string | null
-          pet_details?: string | null
           profile_photo_url?: string | null
-          screening_opt_out?: boolean
           updated_at?: string
           user_id: string
-          visit_priority_low?: boolean
-          visit_scheduling_blocked?: boolean
         }
         Update: {
-          aadhaar_last4?: string | null
-          aadhaar_number?: string | null
-          admin_notes?: string | null
-          bank_account_name?: string | null
-          bank_account_number?: string | null
-          bank_ifsc?: string | null
           bio?: string | null
           created_at?: string
-          date_of_birth?: string | null
-          diet?: Database["public"]["Enums"]["diet_type"] | null
           display_name?: string | null
           emergency_contact_email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
-          gender?: Database["public"]["Enums"]["gender_type"] | null
-          has_pets?: boolean | null
           id?: string
-          is_foreign_citizen?: boolean
           is_public?: boolean
-          kyc_verified?: boolean
-          kyc_verified_at?: string | null
-          marital_status?: Database["public"]["Enums"]["marital_status"] | null
-          no_show_count?: number
-          occupation?: Database["public"]["Enums"]["occupation_type"] | null
-          pan_number?: string | null
-          pet_details?: string | null
           profile_photo_url?: string | null
-          screening_opt_out?: boolean
           updated_at?: string
           user_id?: string
-          visit_priority_low?: boolean
-          visit_scheduling_blocked?: boolean
         }
         Relationships: [
           {
@@ -2632,7 +2430,6 @@ export type Database = {
         Args: { p_image_id: string }
         Returns: undefined
       }
-      ensure_user_exists: { Args: never; Returns: undefined }
       finalize_property_discovery_geography: {
         Args: { p_property_id: string }
         Returns: undefined
@@ -3256,27 +3053,9 @@ export type Database = {
         | "declined"
         | "withdrawn"
         | "auto_cancelled"
-      damage_severity: "low" | "medium" | "high"
-      diet_type: "vegetarian" | "non_vegetarian"
-      external_query_category:
-        | "noise"
-        | "water_leak"
-        | "society_matter"
-        | "maintenance"
-        | "emergency"
-        | "other"
-      external_query_status: "open" | "in_progress" | "resolved" | "closed"
       furnishing_type: "unfurnished" | "semi_furnished" | "fully_furnished"
-      gender_type: "male" | "female" | "other" | "prefer_not_to_say"
       inspection_mode: "in_person" | "virtual"
       inspection_status: "scheduled" | "in_progress" | "completed"
-      marital_status: "single" | "married" | "live_in"
-      occupation_type:
-        | "salaried"
-        | "self_employed"
-        | "freelancer"
-        | "student"
-        | "retired"
       parking_availability: "none" | "covered" | "uncovered" | "both"
       property_listing_type: "rent" | "sale"
       property_status:
@@ -3489,29 +3268,9 @@ export const Constants = {
         "withdrawn",
         "auto_cancelled",
       ],
-      damage_severity: ["low", "medium", "high"],
-      diet_type: ["vegetarian", "non_vegetarian"],
-      external_query_category: [
-        "noise",
-        "water_leak",
-        "society_matter",
-        "maintenance",
-        "emergency",
-        "other",
-      ],
-      external_query_status: ["open", "in_progress", "resolved", "closed"],
       furnishing_type: ["unfurnished", "semi_furnished", "fully_furnished"],
-      gender_type: ["male", "female", "other", "prefer_not_to_say"],
       inspection_mode: ["in_person", "virtual"],
       inspection_status: ["scheduled", "in_progress", "completed"],
-      marital_status: ["single", "married", "live_in"],
-      occupation_type: [
-        "salaried",
-        "self_employed",
-        "freelancer",
-        "student",
-        "retired",
-      ],
       parking_availability: ["none", "covered", "uncovered", "both"],
       property_listing_type: ["rent", "sale"],
       property_status: [

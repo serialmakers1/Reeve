@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
   const isOwnerIntent = returnTo === "/owner/add";
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [step, setStep] = useState<LoginStep>("phone");
   const [phone, setPhone] = useState("");

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import posthog from "posthog-js";
 import { useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useSearchState } from "@/features/search";
 import { useSearchResults } from "@/features/search/state/useSearchResults";
@@ -246,8 +245,6 @@ export default function SearchBrowsePage() {
           <SearchControlRow
             onOpenSetup={openSetup}
             onOpenFilters={() => setIsFilterPanelOpen(true)}
-            loadedCount={search.results.length}
-            hasNextPage={search.hasNextPage}
           />
         </div>
       )}
@@ -258,8 +255,6 @@ export default function SearchBrowsePage() {
           onOpenSetup={openSetup}
           onOpenFilters={() => setIsFilterPanelOpen(true)}
           onModeChange={handleModeChange}
-          loadedCount={search.results.length}
-          hasNextPage={search.hasNextPage}
         />
       )}
 

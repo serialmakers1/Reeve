@@ -19,8 +19,6 @@ interface DesktopSearchToolbarProps {
   onOpenFilters: () => void;
   /** Explicit Rent/Buy change — when provided, persists memory in addition to setMode. */
   onModeChange?: (mode: "rent" | "buy") => void;
-  loadedCount: number;
-  hasNextPage: boolean;
 }
 
 function titleCase(s: string): string {

@@ -11,8 +11,6 @@ import { DistanceControl } from "./DistanceControl";
 interface SearchControlRowProps {
   onOpenSetup: () => void;
   onOpenFilters: () => void;
-  loadedCount: number;
-  hasNextPage: boolean;
 }
 
 const CHIP =
