@@ -90,13 +90,6 @@ export type Database = {
             foreignKeyName: "callback_requests_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "callback_requests_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -166,13 +159,6 @@ export type Database = {
             foreignKeyName: "comment_likes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "comment_likes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -201,13 +187,6 @@ export type Database = {
           id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "comment_moderation_actions_admin_id_fkey"
-            columns: ["admin_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
           {
             foreignKeyName: "comment_moderation_actions_admin_id_fkey"
             columns: ["admin_id"]
@@ -270,22 +249,8 @@ export type Database = {
             foreignKeyName: "comment_reports_reporter_id_fkey"
             columns: ["reporter_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "comment_reports_reporter_id_fkey"
-            columns: ["reporter_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "comment_reports_resolved_by_fkey"
-            columns: ["resolved_by"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "comment_reports_resolved_by_fkey"
@@ -365,13 +330,6 @@ export type Database = {
             foreignKeyName: "contact_requests_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "contact_requests_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -381,13 +339,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "properties"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contact_requests_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "contact_requests_tenant_id_fkey"
@@ -444,13 +395,6 @@ export type Database = {
             foreignKeyName: "email_send_log_recipient_user_id_fkey"
             columns: ["recipient_user_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "email_send_log_recipient_user_id_fkey"
-            columns: ["recipient_user_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -482,13 +426,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "properties"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "favourites_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "favourites_user_id_fkey"
@@ -766,13 +703,6 @@ export type Database = {
             foreignKeyName: "inspection_callbacks_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "inspection_callbacks_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -811,13 +741,6 @@ export type Database = {
           report_type?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "inspection_reports_generated_by_fkey"
-            columns: ["generated_by"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
           {
             foreignKeyName: "inspection_reports_generated_by_fkey"
             columns: ["generated_by"]
@@ -1062,13 +985,6 @@ export type Database = {
             foreignKeyName: "interaction_ratings_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "interaction_ratings_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1078,13 +994,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "properties"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interaction_ratings_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "interaction_ratings_tenant_id_fkey"
@@ -1127,13 +1036,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "property_activity_log"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "owner_action_acknowledgments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "owner_action_acknowledgments_user_id_fkey"
@@ -1188,13 +1090,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
           {
             foreignKeyName: "profiles_user_id_fkey"
             columns: ["user_id"]
@@ -1606,13 +1501,6 @@ export type Database = {
             foreignKeyName: "properties_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "properties_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1650,13 +1538,6 @@ export type Database = {
           property_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "property_activity_log_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
           {
             foreignKeyName: "property_activity_log_actor_id_fkey"
             columns: ["actor_id"]
@@ -1732,13 +1613,6 @@ export type Database = {
             foreignKeyName: "property_comments_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "property_comments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1789,13 +1663,6 @@ export type Database = {
             foreignKeyName: "property_edit_requests_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "property_edit_requests_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1805,13 +1672,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "properties"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "property_edit_requests_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "property_edit_requests_reviewed_by_fkey"
@@ -1928,13 +1788,6 @@ export type Database = {
             foreignKeyName: "property_images_uploaded_by_fkey"
             columns: ["uploaded_by"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "property_images_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2005,13 +1858,6 @@ export type Database = {
           utilities_overview?: Json | null
         }
         Relationships: [
-          {
-            foreignKeyName: "property_inspections_inspector_user_id_fkey"
-            columns: ["inspector_user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
           {
             foreignKeyName: "property_inspections_inspector_user_id_fkey"
             columns: ["inspector_user_id"]
@@ -2146,13 +1992,6 @@ export type Database = {
             foreignKeyName: "property_views_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "property_views_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2260,13 +2099,6 @@ export type Database = {
             foreignKeyName: "rental_preferences_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
-            referencedRelation: "public_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "rental_preferences_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2343,17 +2175,7 @@ export type Database = {
       }
     }
     Views: {
-      public_profiles: {
-        Row: {
-          bio: string | null
-          display_name: string | null
-          full_name: string | null
-          is_public: boolean | null
-          profile_photo_url: string | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       _assert_final_discovery_valid: {

@@ -6,7 +6,7 @@
 // Security invariants (D-P3-001/002):
 // - tenant_id is derived ONLY from the verified JWT — never from the request body
 // - contact details (voice/text channels) are NEVER read into this function or returned in any response
-// - tenant_profile_snapshot is built at INSERT time from public_profiles + profiles + rental_preferences
+// - tenant_profile_snapshot is built at INSERT time from users + profiles + rental_preferences
 
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 
