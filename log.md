@@ -1900,3 +1900,22 @@ n8n (live production workflows, manual + MCP):
 - Historical n8n executions and version history containing the old raw credentials were manually deleted.
 
 **Group-1 advisor finding cleared:** `anon_security_definer_function_executable` for `get_pending_requests_for_digest()` — confirmed false for anon and authenticated, true for service_role.
+
+## [2026-08-23] security | Group 2 — Public Profile Architecture: public_profiles removed, CLOSED [IST]
+
+**Context:** `public.public_profiles` was a SECURITY DEFINER view (owner `postgres`) granting `anon` SELECT on every user's `full_name`, `profile_photo_url`, `bio`, `display_name`, `is_public` — bypassing the RLS on `users`/`profiles` (which restrict anon to zero rows). Supabase advisor flagged it ERROR-level `security_definer_view`. Any anonymous caller could enumerate any user's identity by user_id.
+
+**Replacement (Phase 2A):** Added `public.get_owner_card(p_property_id uuid)` — a **property-scoped** STABLE SECURITY DEFINER RPC (`search_path = ''`, fully-qualified relations, EXECUTE granted to `anon` + `authenticated` only). It exposes identity **only** for publicly-visible properties, using the canonical rule `status IN ('listed','edit_pending_review') AND is_active = true`, and returns the **minimal anonymous identity contract**: `name` (server-resolved `COALESCE(profiles.display_name, users.full_name)`) + `profile_photo_url`. It accepts property_id only — never user_id — so it cannot be used as a user directory.
+
+**Migrations (Phase 2A/2B):**
+- `submit-contact-request` snapshot moved off the view to trusted service-role reads of `public.users` (full_name) + `public.profiles` (display_name, profile_photo_url, bio, created_at); degrade-to-null, non-aborting semantics preserved.
+- Property Detail (`useOwnerCard`, `OwnerCard`, `PropertySidebar`) migrated to `get_owner_card` (property-scoped identity; response-rate and reputation stay owner-scoped via `get_owner_response_rate`/`get_user_rating_summary_v2`). Cache key is owner-first so the existing rating-invalidation still prefix-matches.
+- `ListingReviewQueue` migrated to a single batched, admin-RLS `public.users` read (`full_name || "Owner"`), dropping its view query and the unused `getUserDisplayName` import.
+
+**Drop (Phase 2C):** Migration `20260823000000_drop_public_profiles.sql` — plain `DROP VIEW public.public_profiles` (no CASCADE; verified zero DB dependents beforehand). Applied and verified locally (view absent, `get_owner_card`/`get_public_profile` intact), then deployed to production. Generated `src/integrations/supabase/types.ts` regenerated (public_profiles type block + FK `referencedRelation` entries removed, `get_owner_card` retained, no unrelated churn).
+
+**Production verification (2026-08-23):** `public.public_profiles` no longer exists; `get_owner_card` and `get_public_profile` present; Supabase advisor no longer reports the `security_definer_view` ERROR for `public_profiles`. Build, tests (900/900), and TypeScript all clean.
+
+**Unchanged / deferred:** `/u/:userId` full-profile gate (`get_public_profile`: login + phone_verified + email_verified) is untouched. `profiles.display_name` and `profiles.is_public` intentionally retained (deferred to a later group). The intentional `get_owner_card` SECURITY DEFINER executable advisor WARNs (`anon`/`authenticated`, 0028/0029) remain by design — consistent with the existing anon SECURITY DEFINER RPC pattern (e.g. `get_owner_response_rate`, `get_user_rating_summary_v2`).
+
+**Group 2 CLOSED.**
