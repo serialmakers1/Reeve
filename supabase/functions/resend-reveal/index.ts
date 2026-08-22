@@ -185,7 +185,7 @@ Deno.serve(async (req: Request) => {
       event: "contact_resend_reveal",
       contact_request_id: crId,
       caller_role: callerRole,
-      caller: { user_id: callerId, email: callerEmail },
+      recipient: { user_id: callerId, email: callerEmail },
       other_party: otherParty,
       property: {
         building_name: property.building_name ?? null,
