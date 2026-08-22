@@ -9,6 +9,7 @@ import { Loader2, CheckCircle2, Circle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import posthog from "posthog-js";
+import { getSafeReturnTo } from "@/lib/authUtils";
 
 // D-172: reason-banner copy shown when /profile is reached via VerificationGate.
 const REASON_COPY: Record<string, { headline: string; body: string[]; hint: string }> = {
@@ -47,7 +48,9 @@ export default function Profile() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get('returnTo');
+  // Sanitize once at the source. Fallback "" so an absent/hostile value
+  // yields "no navigation" (callers gate on truthiness) rather than a redirect.
+  const returnTo = getSafeReturnTo(searchParams.get('returnTo'), "");
   const reason = searchParams.get('reason');
   const reasonCopy = reason ? REASON_COPY[reason] : null;
 
@@ -153,7 +156,10 @@ export default function Profile() {
         await refreshUser();
         // Single navigate — no /profile flash.
         // Priority: sessionStorage (Google link returnTo) > localStorage (legacy) > /profile
-        const linkReturnTo = sessionStorage.getItem('reeve-link-returnTo');
+        const linkReturnTo = getSafeReturnTo(
+          sessionStorage.getItem('reeve-link-returnTo'),
+          "",
+        );
         if (linkReturnTo) {
           sessionStorage.removeItem('reeve-link-returnTo');
           // D-172: gate redirect — toast then delayed navigate.
@@ -165,8 +171,9 @@ export default function Profile() {
             try {
               const { url, ts } = JSON.parse(raw);
               localStorage.removeItem("pendingReturnTo");
-              if (Date.now() - ts < PENDING_RETURN_TTL && url && url !== "/profile") {
-                navigate(url, { replace: true });
+              const safeUrl = getSafeReturnTo(url, "");
+              if (Date.now() - ts < PENDING_RETURN_TTL && safeUrl && safeUrl !== "/profile") {
+                navigate(safeUrl, { replace: true });
               } else {
                 navigate('/profile', { replace: true });
               }
