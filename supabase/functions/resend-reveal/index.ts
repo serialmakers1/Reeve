@@ -193,22 +193,44 @@ Deno.serve(async (req: Request) => {
       },
     };
 
-    // 8. Log dispatch — MUST happen regardless of n8n outcome. The cooldown check
-    //    above reads this row, so failing to insert would let the caller retry
-    //    infinitely without cooldown.
-    await fetch(`${supabaseUrl}/rest/v1/email_send_log`, {
-      method: "POST",
-      headers: { ...srHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contact_request_id: crId,
-        resend_message_id: null,
-        event_type: "n8n_resend_webhook_dispatched",
-        recipient_user_id: callerId,
-        recipient_email: callerEmail,
-        error_reason: null,
-        raw_payload: n8nPayload,
-      }),
-    }).catch((err) => console.error("LOG_INSERT_ERROR", { error: String(err) }));
+    // 8. Log dispatch — MUST happen before n8n dispatch. The cooldown check above
+    //    reads this row, and the returned UUID is the idempotency key for Resend.
+    //    If the insert fails or returns no ID, abort — do NOT dispatch to n8n with
+    //    a null dispatch_log_id (resend:null would collapse all resend attempts into
+    //    one Resend deduplication key, silently suppressing legitimate later sends).
+    let dispatchLogId: string | null = null;
+    try {
+      const logRes = await fetch(`${supabaseUrl}/rest/v1/email_send_log`, {
+        method: "POST",
+        headers: { ...srHeaders, "Content-Type": "application/json", "Prefer": "return=representation" },
+        body: JSON.stringify({
+          contact_request_id: crId,
+          resend_message_id: null,
+          event_type: "n8n_resend_webhook_dispatched",
+          recipient_user_id: callerId,
+          recipient_email: callerEmail,
+          error_reason: null,
+          raw_payload: n8nPayload,
+        }),
+      });
+      if (logRes.ok) {
+        const rows: Array<{ id: string }> = await logRes.json();
+        dispatchLogId = rows?.[0]?.id ?? null;
+      } else {
+        console.error("LOG_INSERT_ERROR", { status: logRes.status });
+      }
+    } catch (err) {
+      console.error("LOG_INSERT_ERROR", { error: String(err) });
+    }
+
+    if (!dispatchLogId) {
+      console.error("LOG_INSERT_FAILED_NO_ID — aborting dispatch to preserve idempotency");
+      return json({ error: "Internal server error" }, 500);
+    }
+
+    // Add dispatch_log_id to the payload sent to n8n so it can use it as
+    // the Resend idempotency key (unique UUID per user resend action).
+    (n8nPayload as Record<string, unknown>).dispatch_log_id = dispatchLogId;
 
     // 8a. Additive log for missing phone — does NOT replace the dispatch row
     //     (cooldown reads that row) and does NOT affect the cooldown gate.
