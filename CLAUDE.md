@@ -159,6 +159,17 @@ Razorpay configuration is intentionally retained. Payment writes are RLS-protect
 ## Skills — Always Check Before Acting
 Check `.claude/skills/` before work. Use the relevant workflow and domain skills, especially React, Supabase/Postgres, security/auth, debugging, and frontend-design skills.
 
+## n8n / External Automation Security
+
+- Never store Supabase `service_role`, secret keys, or other elevated DB credentials anywhere in n8n — not in workflow node parameters and not in the n8n credential store. Elevated Supabase access belongs only in trusted Supabase Edge Function environments (Deno.env secrets).
+- n8n→privileged Supabase operations go through a purpose-scoped Edge Function authenticated with the established integration-secret pattern (`Authorization: Bearer <N8N_WEBHOOK_SECRET>`).
+- Supabase→n8n contact webhooks use `N8N_WEBHOOK_SECRET` in the outbound Authorization header; n8n validates it via a credential-backed `headerAuth` on the Webhook trigger.
+- Third-party credentials used by n8n (e.g. Resend) belong in the n8n credential store, never as raw workflow node parameters.
+- Backend-only SECURITY DEFINER RPCs require explicit least-privilege EXECUTE grants; do not rely on the Supabase PUBLIC default (`REVOKE FROM PUBLIC, anon, authenticated` then grant to the required role only).
+- Notification retries require idempotency protection: Reveal uses fixed keys per contact_request + recipient role; Resend Reveal uses the email_send_log dispatch row UUID. Idempotency keys on explicit user "Resend" actions must be unique per action — do not reuse a prior action's key.
+- Notification/provider orchestration (Resend, WhatsApp, etc.) belongs in n8n. Supabase provides authentication, business rules, state management, and trusted data access only.
+- Never log or export secrets or JWTs. Do not put phone numbers, email addresses, or contact-detail payloads in console logs, generic operational logs, or error-alert emails. Sensitive workflow data may only be persisted in deliberately designed database or audit records where required by the product (e.g. `email_send_log.raw_payload`).
+
 ## Critical Gotchas
 - `posthog?.capture(...)` must remain optional-chained.
 - Do not put entry animations on LCP images.
