@@ -1879,3 +1879,24 @@ Files changed:
 ## [2026-08-21] audit | Audited assets, configuration, environment references, and package hygiene [23:55 IST]
 
 ## [2026-08-22] docs | Reconciled CLAUDE.md with post-cleanup repository state [00:55 IST]
+
+## [2026-08-22] security | Group 1 — n8n + Supabase integration hardening complete (Phases A–C) [IST]
+
+**Context:** Supabase security advisor flagged `get_pending_requests_for_digest()` as callable by anon/authenticated roles (`anon_security_definer_function_executable`). Separately, three live n8n contact workflows stored raw credentials (Supabase service_role JWT and Resend API key) as plaintext node parameters.
+
+**What was done:**
+
+Supabase (repo changes, migrated and deployed via GitHub integration):
+- Added `supabase/functions/digest-pending-requests/index.ts` — new Edge Function that validates inbound `N8N_WEBHOOK_SECRET` (timing-safe comparison), then calls `get_pending_requests_for_digest()` with service_role internally. Returns 503 if secret not configured, 401 on bad auth, 502 on RPC error. `verify_jwt = false` in `supabase/config.toml`.
+- Applied migration `20260822000000_lock_digest_rpc.sql`: revoked EXECUTE on `get_pending_requests_for_digest()` from PUBLIC, anon, authenticated; granted to service_role only. Verified live: anon=false, authenticated=false, service_role=true.
+- Edited `supabase/functions/resend-reveal/index.ts`: added `Prefer: return=representation` to the `email_send_log` INSERT, captures returned UUID as `dispatchLogId`, aborts if null (preserves idempotency), appends `dispatch_log_id` to n8n payload. Also renamed n8n payload key `caller` → `recipient` (n8n expression sandbox blocks the property name "caller" with a security error).
+
+n8n (live production workflows, manual + MCP):
+- **Contact Daily Digest** (`vstLNGU4OnS3nwnQ`): `Fetch pending requests` node now POSTs to `digest-pending-requests` Edge Function using `Reeve Edge Function Secret` credential (HTTP Header Auth); raw service_role JWT removed. Retry: ON, 2 tries, 5000ms wait. `Send digest email` uses `Resend API` credential; raw Resend key removed; idempotency key `digest:<IST-date>:<owner_user_id>`; timeout 15000ms; retry off.
+- **Contact Reveal** (`JhNASsJ70zM5akPE`): both email nodes (`Email Tenant`, `Email Owner`) use `Resend API` credential; raw Resend keys removed; idempotency keys `reveal:<contact_request_id>:tenant` and `reveal:<contact_request_id>:owner`; timeout 15000ms; retry off.
+- **Contact Resend Reveal** (`9NwhdJWy2lltUEoQ`): both Resend nodes use `Resend API` credential; raw Resend keys removed; idempotency key `resend:<dispatch_log_id>` on both; `$json.body.recipient.email` expressions (formerly `caller.email`); timeout 15000ms; retry off. Webhook auth and `caller_role` branching unchanged.
+- **Reeve Ops Alert** (`uK8HqbNuYR3bJtzz`): new error workflow; Error Trigger → HTTP Request to Resend; body contains only workflow name/id, failed node name, execution id, timestamp, execution URL — no `error.message`, no contact data, no secrets; `Resend API` credential; timeout 15000ms; retry off; no self-errorWorkflow.
+- Reeve Ops Alert wired as `settings.errorWorkflow` on all three contact workflows.
+- Historical n8n executions and version history containing the old raw credentials were manually deleted.
+
+**Group-1 advisor finding cleared:** `anon_security_definer_function_executable` for `get_pending_requests_for_digest()` — confirmed false for anon and authenticated, true for service_role.

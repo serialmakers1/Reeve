@@ -244,20 +244,24 @@ Deno.serve(async (req: Request) => {
       }, 422);
     }
 
-    // ── 7. Snapshot: public_profiles + profiles.created_at + mode-scoped prefs ─
-    const [pubRes, profRes] = await Promise.all([
+    // ── 7. Snapshot: users + profiles + mode-scoped prefs ─────────────────────
+    // Reads directly from users (full_name) and profiles (all other identity
+    // fields + created_at). Service-role bypasses RLS. Degrade-to-null on any
+    // missing row — contact request is never aborted by missing profile data.
+    const [profileUserRes, profRes] = await Promise.all([
       fetch(
-        `${supabaseUrl}/rest/v1/public_profiles?user_id=eq.${tenantId}&select=display_name,full_name,profile_photo_url,bio`,
+        `${supabaseUrl}/rest/v1/users?id=eq.${tenantId}&select=full_name`,
         { headers: srHeaders },
       ),
       fetch(
-        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${tenantId}&select=created_at`,
+        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${tenantId}&select=display_name,profile_photo_url,bio,created_at`,
         { headers: srHeaders },
       ),
     ]);
-    const pubRow: { display_name?: string | null; full_name?: string | null; profile_photo_url?: string | null; bio?: string | null } =
-      (await pubRes.json())?.[0] ?? {};
-    const profRow: { created_at?: string | null } = (await profRes.json())?.[0] ?? {};
+    const profileUserRow: { full_name?: string | null } =
+      (await profileUserRes.json())?.[0] ?? {};
+    const profRow: { display_name?: string | null; profile_photo_url?: string | null; bio?: string | null; created_at?: string | null } =
+      (await profRes.json())?.[0] ?? {};
 
     const preferenceType = listingType === "sale" ? "buy" : "rent";
     const prefSnapshot = listingType === "sale"
@@ -266,10 +270,10 @@ Deno.serve(async (req: Request) => {
 
     const tenant_profile_snapshot: Record<string, unknown> = {
       preference_type: preferenceType,
-      display_name: pubRow.display_name ?? null,
-      full_name: pubRow.full_name ?? null,
-      profile_photo_url: pubRow.profile_photo_url ?? null,
-      bio: pubRow.bio ?? null,
+      display_name: profRow.display_name ?? null,
+      full_name: profileUserRow.full_name ?? null,
+      profile_photo_url: profRow.profile_photo_url ?? null,
+      bio: profRow.bio ?? null,
       member_since: profRow.created_at ?? null,
     };
 
