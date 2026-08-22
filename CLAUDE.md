@@ -2,7 +2,7 @@
 Free property marketplace connecting sellers to buyers and owners to tenants in India. Users can list properties, visitors can request contact from listers. Separate Property Management Business.
 
 ## Tech Stack
-React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (Postgres + Auth + Storage) · React Router v6 · Sentry · PostHog.
+React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supabase (Postgres + Auth + Storage) · React Router v7 (Declarative BrowserRouter/Routes mode) · Sentry · PostHog.
 
 ## Key Commands
 - `npm run build` — production build (postbuild: sitemap + SSG prerender)
@@ -15,12 +15,28 @@ React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (
 - Any TypeScript diagnostic or persistent test/build failure is a regression unless independently proven unrelated.
 - When diagnosing regressions, compare exact failing test identities and exact TypeScript diagnostic identities; never rely on counts alone.
 - For normal implementation prompts, verify with build, tests, TypeScript, and relevant static/targeted checks. Do not require manual browser/UI verification between implementation steps unless explicitly requested.
+- For dependency/security changes, also run `npm audit` and relevant `npm ls` / `npm explain` checks; after merge, verify from clean `main` with `npm ci` and recheck Dependabot when GitHub access is available.
+
+## Dependency Maintenance
+- Read `package.json` and the resolved `package-lock.json` before recommending dependency versions; do not rely on remembered versions.
+- Prefer the smallest safe direct/parent upgrade or an in-range transitive refresh.
+- Do not use `npm audit fix --force`, broad `npm update`, `--force`, `--legacy-peer-deps`, or package overrides as routine security fixes.
+- Do not add a transitive package as a direct dependency merely to force its version unless that architecture is specifically justified.
+- Before major upgrades, inspect actual repo usage and peer compatibility, and isolate dependency families where practical; do not infer breakage from the major-version number alone.
+- After dependency changes run TypeScript, the full test suite, production build/SSG, `npm audit`, and relevant dependency-tree checks.
 
 ## TypeScript Config
 `strictNullChecks: false`, `noImplicitAny: false` — intentional; do not tighten as unrelated cleanup.
 
 ## Path Aliases
 `@/` maps to `./src/` — use it for application imports.
+
+## Vite / Build Security
+- Vite uses port `8080` with `hmr.overlay: false`.
+- Keep the Vite dev server loopback-only. Do not add wildcard `server.host` binding unless LAN/network exposure is deliberately required and investigated.
+- Production source maps are conditional on `SENTRY_AUTH_TOKEN`: absent → `build.sourcemap=false`; present → generate/upload to Sentry and delete `./dist/**/*.js.map` via `filesToDeleteAfterUpload`.
+- Production artifacts must not expose application source maps. Do not disable Sentry/source-map symbolication as unrelated cleanup. 
+- There is currently no explicit `build.target`/Browserslist contract; Vite 7's normal browser target is intentional unless a product requirement for older-browser support is established.
 
 ## SSG / SEO Runtime
 `scripts/prerender.mjs` runs after `vite build` via `postbuild`, writes route-specific static HTML, and React replaces it on mount via `createRoot`.
@@ -35,14 +51,18 @@ React 18 + TypeScript (Vite + SWC) · Tailwind + shadcn/ui (Radix) · Supabase (
 - Project ref: `tfutuqqcxqqbirnsdpvz`.
 - Client: `import { supabase } from "@/integrations/supabase/client"`.
 - `src/integrations/supabase/types.ts` is generated. Never manually patch generated types to silence frontend errors; fix frontend typing or regenerate from the verified schema.
-- Preserve the `noOpLock` workaround in `src/integrations/supabase/client.ts` and its runtime behavior. Type-only maintenance is allowed when verified against the installed Supabase version; do not remove/replace the workaround without dedicated investigation.
+- When Supabase/PostgREST rejects a broad `Record<string, unknown>` update because of generated excess-property typing, prefer typing patch accumulators/helpers with the generated table `Update` types at the source/boundary. Do not silence the error by casting the final `.update(...)` call, using `any`, or editing generated types.
+- Preserve the `noOpLock` workaround in `src/integrations/supabase/client.ts` and its runtime behavior. It was deliberately retained after the Supabase JS v2 upgrade; do not assume newer Supabase defaults make it removable. Type-only maintenance is allowed when verified against the installed Supabase version; removal/replacement requires dedicated investigation.
 - Auth storage key: `reeve-auth`.
 - Schema changes must be represented by migration files. Live SQL/CLI deployment and verification are handled separately; do not make destructive schema conclusions from repository state alone.
 - Do not assume migrations or generated types prove current live Supabase state when a task depends on live DB objects. Verify live state first. Avoid `CASCADE` for cleanup unless specifically investigated and justified.
 - Prefer `.maybeSingle()` when zero rows is valid; do not use it on unfiltered multi-row queries.
 
 ## Auth Architecture
-Phone OTP (MSG91) + Google OAuth. After verify success: `navigate(returnTo || '/')`.
+Phone OTP (MSG91) + Google OAuth.
+- All attacker-controlled `returnTo` values must pass through canonical `getSafeReturnTo()` in `src/lib/authUtils.ts` before navigation, OAuth redirect, or persisted navigation state. Do not create duplicate/ad-hoc validators.
+- The helper permits same-origin internal routes only. Login falls back to `/`; flows where invalid returnTo means no navigation may use an empty-string fallback.
+- Stored return paths must be sanitized before storage where applicable and again before navigation, including legacy stored values.
 - `public.users.pseudonym` is UNIQUE, permanent, system-assigned, shown on `/me` only, never `/u/:userId`.
 - Profile Name is read-only and sourced from `public.users.full_name`; no client write to `full_name`.
 - `last_login_at` is written through `touch_last_login()` on `SIGNED_IN`, never by direct client update.
@@ -70,6 +90,11 @@ Returns `{ session, user, isLoading, isAuthenticated, isFullyVerified, signOut, 
 
 ## User Roles + Route Guards
 Roles: `user | admin`. Route protection is page-internal through `useRequireAuth()`; `OnboardingGuard` is removed and must not be reintroduced casually.
+
+### React Router
+- Routing uses React Router v7 Declarative Mode (`BrowserRouter` / `Routes` / `Route`); keep existing application imports from `react-router-dom`.
+- The app does not use Data/Framework Mode (`createBrowserRouter`, loaders, actions, fetchers, RouterProvider); do not introduce it as unrelated cleanup.
+- Important navigation uses absolute paths; user-controlled destinations must use the canonical returnTo sanitizer.
 
 ## Layout Rules
 Public pages use `<Layout>`; admin pages use `<AdminLayout>`. Do not hardcode shared nav/footer inside pages
