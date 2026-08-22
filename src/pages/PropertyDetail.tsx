@@ -374,7 +374,7 @@ const PropertyDetail: React.FC = () => {
   const isMobile = useIsMobile();
 
   const [property, setProperty] = useState<PropertyData | null>(null);
-  const ownerCard = useOwnerCard(property?.owner_id ?? null);
+  const ownerCard = useOwnerCard(property?.id ?? null, property?.owner_id ?? null);
   const ownerDisplayName = ownerCard.displayName;
   const [rawAmenities, setRawAmenities] = useState<{ furnishing_items?: string[]; building?: string[] } | null>(null);
   const [images, setImages] = useState<PropertyImage[]>([]);
@@ -1049,7 +1049,7 @@ const PropertyDetail: React.FC = () => {
                   commentCount={propertyStats?.comment_count ?? 0}
                 />
               ) : (
-                <OwnerCard ownerId={property.owner_id} isOwnProperty={isOwnProperty} listerRole={property.lister_role} />
+                <OwnerCard propertyId={property.id} ownerId={property.owner_id} isOwnProperty={isOwnProperty} listerRole={property.lister_role} />
               )
             )}
 

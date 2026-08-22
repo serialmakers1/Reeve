@@ -12,15 +12,16 @@ import ReputationSummaryCompact from "@/components/ratings/ReputationSummaryComp
 import { LISTER_ROLE_BADGE } from "./listerRoleBadge";
 
 interface Props {
+  propertyId: string;
   ownerId: string;
   isOwnProperty: boolean;
   // F3-C18: colour-coded role badge alongside the display name.
   listerRole?: string | null;
 }
 
-export default function OwnerCard({ ownerId, isOwnProperty, listerRole }: Props) {
+export default function OwnerCard({ propertyId, ownerId, isOwnProperty, listerRole }: Props) {
   const { displayName, profilePhotoUrl, allTimeHandled, allTimeRate, ratingSide, isLoading } =
-    useOwnerCard(ownerId);
+    useOwnerCard(propertyId, ownerId);
 
   if (isOwnProperty) return null;
 

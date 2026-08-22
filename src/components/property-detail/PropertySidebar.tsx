@@ -94,7 +94,7 @@ export default function PropertySidebar({
 }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
-  const owner = useOwnerCard(ownerId);
+  const owner = useOwnerCard(property.id, ownerId);
   const { status, attemptCount, isLoading: statusLoading } = useContactRequestStatus(
     property.id,
     isAuthenticated && !isOwnProperty,
