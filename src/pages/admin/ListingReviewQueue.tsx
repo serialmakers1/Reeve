@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { BHK_OPTIONS } from "@/config/property-form";
-import { getUserDisplayName } from "@/lib/user";
 
 type TabValue = "new" | "edit" | "decisions";
 type SortKey = "oldest" | "newest" | "owner";
@@ -132,8 +131,8 @@ export default function ListingReviewQueue() {
         : Promise.resolve({ data: [] }),
       ownerIds.size
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? (supabase as any).from("public_profiles")
-            .select("user_id, full_name, display_name").in("user_id", Array.from(ownerIds))
+        ? (supabase as any).from("users")
+            .select("id, full_name").in("id", Array.from(ownerIds))
         : Promise.resolve({ data: [] }),
       editRows.length
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -165,8 +164,10 @@ export default function ListingReviewQueue() {
       photoMap[p.property_id] = p.url;
     }
     const ownerMap: Record<string, string> = {};
-    for (const o of (ownersRes.data ?? []) as { user_id: string; full_name: string | null; display_name: string | null }[]) {
-      ownerMap[o.user_id] = getUserDisplayName({ full_name: o.full_name }, o) || "Owner";
+    for (const o of (ownersRes.data ?? []) as { id: string; full_name: string | null }[]) {
+      // users.full_name is the canonical name source; || keeps empty strings
+      // falling back to "Owner" (matching prior getUserDisplayName(...) || "Owner").
+      ownerMap[o.id] = o.full_name || "Owner";
     }
     const propMap: Record<string, EditRequestRow["property"]> = {};
     for (const p of (propertiesForEditsRes.data ?? []) as Array<NonNullable<EditRequestRow["property"]> & { id: string }>) {

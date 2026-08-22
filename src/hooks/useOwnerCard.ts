@@ -13,7 +13,13 @@ export interface OwnerCardData {
 
 export const ownerCardKeys = {
   all: ["ownerCard"] as const,
+  // Kept for invalidation: useRateableInteractions invalidates byOwner(ownerId),
+  // which prefix-matches the owner-first byOwnerProperty key below.
   byOwner: (ownerId: string) => ["ownerCard", ownerId] as const,
+  // Actual query key. Owner-id first (so byOwner stays a valid prefix);
+  // propertyId included so one property's identity is never reused for another.
+  byOwnerProperty: (ownerId: string, propertyId: string) =>
+    ["ownerCard", ownerId, propertyId] as const,
 };
 
 interface ResponseRateRow {
@@ -25,34 +31,35 @@ interface ResponseRateRow {
   last_7d_rate: number | string | null;
 }
 
-export function useOwnerCard(ownerId: string | null | undefined) {
+export function useOwnerCard(
+  propertyId: string | null | undefined,
+  ownerId: string | null | undefined,
+) {
   const query = useQuery({
-    queryKey: ownerId ? ownerCardKeys.byOwner(ownerId) : ownerCardKeys.all,
-    enabled: !!ownerId,
+    queryKey:
+      ownerId && propertyId
+        ? ownerCardKeys.byOwnerProperty(ownerId, propertyId)
+        : ownerCardKeys.all,
+    enabled: !!propertyId && !!ownerId,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<OwnerCardData> => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any;
-      const [profileRes, rateRes, ratingRes] = await Promise.all([
-        sb
-          .from("public_profiles")
-          .select("display_name, full_name, profile_photo_url")
-          .eq("user_id", ownerId!)
-          .maybeSingle(),
+      const [identityRes, rateRes, ratingRes] = await Promise.all([
+        // Identity is property-scoped: get_owner_card returns { name,
+        // profile_photo_url } only for publicly-visible properties. No fallback
+        // to public_profiles — a non-public property simply yields no row.
+        supabase.rpc("get_owner_card", { p_property_id: propertyId! }),
         supabase.rpc("get_owner_response_rate", { p_owner_id: ownerId! }),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase as any).rpc("get_user_rating_summary_v2", { p_user_id: ownerId! }),
       ]);
 
-      if (profileRes.error) throw profileRes.error;
+      if (identityRes.error) throw identityRes.error;
       if (rateRes.error) throw rateRes.error;
       if (ratingRes.error) throw ratingRes.error;
 
-      const profile = profileRes.data as {
-        display_name: string | null;
-        full_name: string | null;
-        profile_photo_url: string | null;
-      } | null;
+      const identity =
+        (identityRes.data as unknown as { name: string | null; profile_photo_url: string | null }[] | null)?.[0] ??
+        null;
 
       const rateRow =
         (rateRes.data as unknown as ResponseRateRow[] | null)?.[0] ?? null;
@@ -63,8 +70,8 @@ export function useOwnerCard(ownerId: string | null | undefined) {
       const ratingSide = ratingJson?.as_lister ?? null;
 
       return {
-        displayName: profile?.display_name ?? profile?.full_name ?? null,
-        profilePhotoUrl: profile?.profile_photo_url ?? null,
+        displayName: identity?.name ?? null,
+        profilePhotoUrl: identity?.profile_photo_url ?? null,
         allTimeHandled,
         allTimeRate,
         ratingSide,
