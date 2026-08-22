@@ -2609,6 +2609,13 @@ export type Database = {
           property_viewable: boolean
         }[]
       }
+      get_owner_card: {
+        Args: { p_property_id: string }
+        Returns: {
+          name: string
+          profile_photo_url: string
+        }[]
+      }
       get_owner_response_rate: {
         Args: { p_owner_id: string }
         Returns: {
