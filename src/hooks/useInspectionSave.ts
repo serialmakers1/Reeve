@@ -32,6 +32,10 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { emptyToNull } from "@/types/inspection";
 import type { LocalAppliance, SaveState } from "@/types/inspection";
+import type { Database } from "@/integrations/supabase/types";
+
+type PropertyInspectionUpdate = Database["public"]["Tables"]["property_inspections"]["Update"];
+type InspectionRoomUpdate = Database["public"]["Tables"]["inspection_rooms"]["Update"];
 
 export function useInspectionSave(
   inspectionId: string | undefined,
@@ -42,8 +46,8 @@ export function useInspectionSave(
   const [saveState, setSaveState] = useState<SaveState>("saved");
 
   const debounceRef = useRef<number | null>(null);
-  const pendingInspectionPatchRef = useRef<Record<string, unknown>>({});
-  const pendingRoomPatchRef = useRef<Record<string, Record<string, unknown>>>({});
+  const pendingInspectionPatchRef = useRef<PropertyInspectionUpdate>({});
+  const pendingRoomPatchRef = useRef<Record<string, InspectionRoomUpdate>>({});
   const pendingApplianceRef = useRef<Record<string, LocalAppliance>>({});
 
   // Clear the debounce timer on unmount so a navigating-away render doesn't
@@ -191,7 +195,7 @@ export function useInspectionSave(
   const queueInspectionPatch = useCallback((patch: Record<string, unknown>) => {
     pendingInspectionPatchRef.current = {
       ...pendingInspectionPatchRef.current,
-      ...patch,
+      ...(patch as PropertyInspectionUpdate),
     };
     scheduleSave();
   }, [scheduleSave]);
@@ -205,7 +209,7 @@ export function useInspectionSave(
       ...pendingRoomPatchRef.current,
       [roomId]: {
         ...(pendingRoomPatchRef.current[roomId] ?? {}),
-        ...patch,
+        ...(patch as InspectionRoomUpdate),
       },
     };
     scheduleSave();

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, ArrowLeft, ShieldCheck, Eye, Lock, Activity } from "lucide-react";
+import { getSafeReturnTo } from "@/lib/authUtils";
 
 type LoginStep = "phone" | "otp";
 
@@ -15,7 +16,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
-  const isOwnerIntent = returnTo === "/owner/add";
+  const safeReturnTo = getSafeReturnTo(returnTo);
+  const isOwnerIntent = safeReturnTo === "/owner/add";
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [step, setStep] = useState<LoginStep>("phone");
@@ -44,8 +46,8 @@ export default function LoginPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) return;
-    navigate(returnTo || "/", { replace: true });
-  }, [authLoading, isAuthenticated, navigate, returnTo]);
+    navigate(safeReturnTo, { replace: true });
+  }, [authLoading, isAuthenticated, navigate, safeReturnTo]);
 
   // Fire sms_fallback_shown once when fallback becomes visible
   useEffect(() => {
@@ -152,9 +154,9 @@ export default function LoginPage() {
         const isNewUser = !!createdAt && !!lastSignInAt && Math.abs(lastSignInAt - createdAt) < 2000;
         posthog?.capture(isNewUser ? "signup_completed" : "login_completed", {
           method: "phone_otp",
-          ...(isOwnerIntent && { intent: "owner", return_to: returnTo }),
+          ...(isOwnerIntent && { intent: "owner", return_to: safeReturnTo }),
         });
-        navigate(returnTo || "/", { replace: true });
+        navigate(safeReturnTo, { replace: true });
       }
     } finally {
       setIsVerifying(false);
@@ -196,7 +198,7 @@ export default function LoginPage() {
         redirectTo:
           window.location.origin +
           "/login?returnTo=" +
-          encodeURIComponent(returnTo || "/"),
+          encodeURIComponent(safeReturnTo),
       },
     });
     if (oauthError) {

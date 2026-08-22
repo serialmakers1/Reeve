@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { getSafeReturnTo } from "@/lib/authUtils";
 import {
   PreferenceMode,
   BuyingPurpose,
@@ -117,10 +118,6 @@ function ToggleButton({
   );
 }
 
-function isValidReturnTo(v: string): boolean {
-  return v.startsWith("/") && !v.startsWith("//") && !v.includes("\\");
-}
-
 function TenantPreferencesInner() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -133,8 +130,8 @@ function TenantPreferencesInner() {
   const existingRowRef = useRef<boolean>(false);
   const modeParamAppliedRef = useRef<boolean>(false);
 
-  const rawReturnTo = searchParams.get("returnTo") ?? "";
-  const returnTo = rawReturnTo && isValidReturnTo(rawReturnTo) ? rawReturnTo : "";
+  // Fallback "" preserves the existing "no navigation on invalid value" semantics.
+  const returnTo = getSafeReturnTo(searchParams.get("returnTo"), "");
 
   useEffect(() => {
     if (authLoading || !user?.id) return;
