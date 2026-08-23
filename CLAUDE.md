@@ -36,6 +36,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 ## Supabase Core Rules
 - Project ref: `tfutuqqcxqqbirnsdpvz`; client import: `@/integrations/supabase/client`.
 - `src/integrations/supabase/types.ts` is generated. Never hand-edit it; regenerate from verified schema or fix frontend typing at the source/boundary.
+- On Windows, do not regenerate types via PowerShell `>` (writes UTF-16, corrupts the file); pipe to `Out-File -Encoding utf8` or a UTF-8 writer so it stays UTF-8/LF.
 - For PostgREST update typing, use generated table `Update` types; do not cast the final `.update(...)`, use `any`, or patch generated types.
 - Preserve the `noOpLock` workaround in `src/integrations/supabase/client.ts`; removal/replacement requires dedicated investigation.
 - Auth storage key: `reeve-auth`.
