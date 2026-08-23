@@ -61,12 +61,7 @@ export default function OwnerDashboard() {
   useEffect(() => {
     if (authLoading || !user?.id) return;
     (async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: props } = await (supabase as any)
-        .from("properties")
-        .select("id, building_name, locality, city, bhk, listed_rent, sale_price, status, is_active, created_at, listing_type, availability_confirmed_at, sale_listing_confirmed_at, current_listed_period_started_at, listed_at")
-        .eq("owner_id", user.id)
-        .order("created_at", { ascending: false });
+      const { data: props } = await supabase.rpc("get_owner_property_list");
       const rows = (props ?? []) as OwnerProperty[];
       setProperties(rows);
       setDraftCount(rows.filter((r) => r.status === "draft").length);
@@ -164,16 +159,14 @@ export default function OwnerDashboard() {
   }
 
   async function handleRelist(propertyId: string) {
-    // Relist via the existing owner flow, then re-read the trigger-generated
-    // freshness fields so the card shows the fresh deadline immediately.
+    // Relist via the existing owner flow, then re-read trigger-generated
+    // freshness fields via the owner RPC so the card shows the fresh deadline.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const { error } = await (supabase as any)
       .from("properties")
       .update({ status: "listed" })
-      .eq("id", propertyId)
-      .select("status, is_active, current_listed_period_started_at, availability_confirmed_at, sale_listing_confirmed_at, listed_at")
-      .maybeSingle();
-    if (error || !data) {
+      .eq("id", propertyId);
+    if (error) {
       const publishBlocked = /location_not_ready:publish_location_incomplete/.test(error?.message ?? "");
       toast({
         title: "Could not re-list",
@@ -182,14 +175,18 @@ export default function OwnerDashboard() {
       });
       return;
     }
-    patchProperty(propertyId, {
-      status: data.status,
-      is_active: data.is_active,
-      current_listed_period_started_at: data.current_listed_period_started_at,
-      availability_confirmed_at: data.availability_confirmed_at,
-      sale_listing_confirmed_at: data.sale_listing_confirmed_at,
-      listed_at: data.listed_at,
-    });
+    const { data: relistRows } = await supabase.rpc("get_owner_property", { p_property_id: propertyId });
+    const data = (relistRows ?? [])[0] ?? null;
+    if (data) {
+      patchProperty(propertyId, {
+        status: data.status,
+        is_active: data.is_active,
+        current_listed_period_started_at: data.current_listed_period_started_at,
+        availability_confirmed_at: data.availability_confirmed_at,
+        sale_listing_confirmed_at: data.sale_listing_confirmed_at,
+        listed_at: data.listed_at,
+      });
+    }
     posthog?.capture("commons_property_action", { action: "relist", property_id: propertyId, from_status: "unlisted", to_status: "listed" });
     toast({ title: "Re-listed", description: "Your listing is visible to tenants again." });
   }

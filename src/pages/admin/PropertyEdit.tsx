@@ -217,11 +217,8 @@ export default function PropertyEdit() {
     if (!id || authLoading) return;
     const fetchProperty = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("properties")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
+      const { data: _propRows, error } = await supabase.rpc("get_admin_property", { p_property_id: id });
+      const data = (_propRows ?? [])[0] ?? null;
 
       if (error || !data) {
         toast({ title: "Property not found", variant: "destructive" });
@@ -229,8 +226,6 @@ export default function PropertyEdit() {
         return;
       }
 
-      // Prompt 10b: cast around Supabase's SelectQueryError inference cascade
-      // that triggers when hydration reads many columns; runtime shape matches.
       setProperty(data as unknown as PropertyData);
 
       // Pre-fill form

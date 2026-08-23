@@ -1,3 +1,61 @@
+## [2026-08-24] security | Group 3 Phase 2 — migrations + application changes prepared [SEC-003]
+
+**SEC-003 Group 3 Phase 2 implementation PREPARED. Deploy in order: Migration A → regen types → app → Migration B.**
+
+### Problem
+`authenticated` held table-level SELECT on `public.properties`. Any signed-in user could query `lister_flat_number`, `street_address`, `street_number`, `route`, and all other private columns on any publicly listed property via PostgREST. RLS restricts rows, not columns.
+
+### Migrations prepared
+- `20260824000020_group3_phase2_owner_admin_property_rpcs.sql` — Migration A: 4 SECURITY DEFINER RPCs
+  - `get_owner_property(uuid)`: 94 columns for the calling owner's own property
+  - `get_owner_property_list()`: 15 dashboard columns for all caller's properties
+  - `get_admin_property(uuid)`: all admin-needed columns + flat owner fields (requires `is_admin()`)
+  - `get_admin_pending_review_properties()`: 9 queue columns including `created_at` (requires `is_admin()`)
+- `20260824000030_group3_phase2_restrict_authenticated_property_columns.sql` — Migration B: restricts `authenticated` to the same 65 public columns as `anon` (revokes table-level SELECT + 7 legacy column grants, regrants exact 65)
+
+### Application files updated
+All 8 direct `properties.select("*")` / private-column reads replaced with RPC calls:
+- `src/pages/ListProperty.tsx`: both edit-mode and resume-draft loads → `get_owner_property`
+- `src/pages/OwnerPropertyManagement.tsx`: load → `get_owner_property`; removed stale `title` field from interface and JSX
+- `src/pages/OwnerDashboard.tsx`: list query → `get_owner_property_list`; relist mutation returning removed, re-fetch via `get_owner_property`
+- `src/pages/admin/PropertyEdit.tsx`: initial load → `get_admin_property`
+- `src/pages/admin/ListingReviewDetail.tsx`: property fetch → `get_admin_property`; `property.owner.full_name/email/phone` → `property.owner_full_name/owner_email/owner_phone`
+- `src/pages/admin/ListingReviewQueue.tsx`: pending-review query → `get_admin_pending_review_properties`
+- `src/pages/admin/InspectionForm.tsx`: property fetch → `get_admin_property`; `property.users` → `property.owner_full_name`
+- `src/components/property-address/AdminLocationPanel.tsx`: 25-column select → `get_admin_property`
+- `src/types/inspection.ts`: `PropertyRecord.users: OwnerRelation` → `owner_full_name: string | null`
+
+### Deployment order (user-performed)
+1. Deploy Migration A (`20260824000020`)
+2. Regenerate types: `npx supabase gen types typescript --linked > src/integrations/supabase/types.ts`
+3. Run TypeScript + tests + build
+4. Deploy application code
+5. Deploy Migration B (`20260824000030`)
+6. Live PostgREST verification:
+   - Authenticated `?select=lister_flat_number` on listed property → permission denied
+   - Owner RPC returns correct private fields for own property
+   - Admin RPCs require admin role
+   - Public PropertyDetail, search, map, write flows intact
+
+### Invariants preserved
+- RLS (`properties_select`) unchanged
+- INSERT/UPDATE/DELETE authenticated privileges unchanged
+- anon privileges unchanged
+- `search_compact_properties_v3` unchanged (SECURITY DEFINER, bypasses grants)
+- All existing RPCs and Edge Functions unchanged
+
+### Phase 2 status
+```
+Migration A (RPCs):      PREPARED — deploy first
+Migration B (restrict):  PREPARED — deploy after app
+Application:             PREPARED — deploy between A and B
+Types:                   PENDING — regen after Migration A
+Local verification:      PENDING — after types regen
+Live verification:       PENDING — after Migration B
+```
+
+---
+
 ## [2026-08-24] security | Group 3 Phase 1 — post-deployment type regeneration + verification complete [01:09 IST]
 
 **Both migrations deployed to live Supabase. Types regenerated. Verification gates passed.**

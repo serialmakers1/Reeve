@@ -15,7 +15,6 @@ import {
   FURNITURE_ITEM_OPTIONS,
   ROOM_DEFAULTS,
   emptyToNull,
-  getOwnerName,
   shortId,
   getSuggestedRoomLabel,
   getConditionDotClass,
@@ -137,7 +136,7 @@ export default function InspectionForm() {
     queueApplianceSave,
   } = useInspectionSave(inspection?.id, setAppliances);
 
-  const ownerName = useMemo(() => getOwnerName(property?.users ?? null), [property]);
+  const ownerName = useMemo(() => property?.owner_full_name ?? "—", [property]);
 
   const { writeConditionSnapshot } = useConditionSnapshot(rooms, setRooms, queueRoomPatch);
   useAutoPopulateDamages(rooms, damages, setDamages, queueInspectionPatch, scheduleSave);
@@ -158,14 +157,8 @@ export default function InspectionForm() {
     setLoading(true);
     try {
       const [propertyRes, inspectionRes] = await Promise.all([
-        supabase
-          .from("properties")
-          .select(`
-          id, building_name, lister_flat_number, floor_number, locality, bhk, balconies,
-            users!properties_owner_id_fkey (full_name)
-          `)
-          .eq("id", propertyId)
-          .maybeSingle(),
+        supabase.rpc("get_admin_property", { p_property_id: propertyId })
+          .then(({ data: rows, error }) => ({ data: (rows ?? [])[0] ?? null, error })),
         supabase
           .from("property_inspections")
           .select("*")

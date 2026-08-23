@@ -66,7 +66,7 @@ interface PropertyRow {
   utility_water_included: boolean | null; utility_gas_included: boolean | null;
   utility_electricity_included: boolean | null; gas_type: string | null;
   pet_policy: string | null; building_rules: string | null; building_notes: string | null;
-  title: string | null; description: string | null;
+  description: string | null;
   // Phase 1 additions
   formatted_address: string | null;
   sublocality_1: string | null;
@@ -147,10 +147,10 @@ export default function OwnerPropertyManagement() {
   const load = useCallback(async () => {
     if (!id || !user?.id) return;
     setLoading(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const propRpcPromise = supabase.rpc("get_owner_property", { p_property_id: id })
+      .then(({ data: rows }) => ({ data: (rows ?? [])[0] ?? null }));
     const [{ data: propRow }, { data: imgRows }, { data: peRow }, { data: logRows }] = await Promise.all([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any).from("properties").select("*").eq("id", id).maybeSingle(),
+      propRpcPromise,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any).from("property_images")
         .select("id, url, is_primary, is_floor_plan, section, sort_order")
@@ -601,10 +601,9 @@ export default function OwnerPropertyManagement() {
               )}
             </DetailsSection>
 
-            {(view.title || view.description) && (
+            {view.description && (
               <DetailsSection title="Description">
-                {view.title && <p className="text-sm font-medium">{view.title}</p>}
-                {view.description && <p className="text-sm text-muted-foreground whitespace-pre-line">{view.description}</p>}
+                <p className="text-sm text-muted-foreground whitespace-pre-line">{view.description}</p>
               </DetailsSection>
             )}
 

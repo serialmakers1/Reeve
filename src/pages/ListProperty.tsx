@@ -753,12 +753,8 @@ export default function ListProperty() {
   useEffect(() => {
     if (!isEditMode || !idParam || !user?.id) return;
     (async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: prop } = await (supabase as any)
-        .from("properties")
-        .select("*")
-        .eq("id", idParam)
-        .maybeSingle();
+      const { data: _propRows } = await supabase.rpc("get_owner_property", { p_property_id: idParam });
+      const prop = (_propRows ?? [])[0] ?? null;
       if (!prop) {
         toast({ title: "Property not found", variant: "destructive" });
         navigate("/owner-dashboard", { replace: true });
@@ -867,13 +863,8 @@ export default function ListProperty() {
     }
     draftInitialResumeRef.current = draftIdFromQuery;
     (async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any)
-        .from("properties")
-        .select("*")
-        .eq("id", draftIdFromQuery)
-        .eq("owner_id", user.id)
-        .maybeSingle();
+      const { data: _resumeRows } = await supabase.rpc("get_owner_property", { p_property_id: draftIdFromQuery });
+      const data = (_resumeRows ?? [])[0] ?? null;
       if (!data) return;
       prefillFormFromRow(data as Record<string, unknown>, setForm);
       void loadLocationReadiness(data.id, data.building_name_source, data.discovery_confirmed_at, data.location_confirmed_at);
