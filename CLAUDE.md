@@ -63,6 +63,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - A policy is not optimized merely because one wrapped call exists; mixed wrapped/bare calls are possible. Audit raw live `pg_policies`, not only `auth_rls_initplan`.
 - Do not mechanically wrap helpers such as `is_admin()`; that optimization was reviewed and intentionally deferred absent a concrete need.
 - Reviewed intentional multi-permissive cases: `callback_requests` SELECT/UPDATE, `interaction_ratings` UPDATE, `property_activity_log` SELECT, `property_edit_requests` SELECT, `property_geo_associations` SELECT, `property_images` SELECT. Do not consolidate merely to silence the advisor.
+- Property-image deletion must bind the image to the requested property, delete the DB row with caller authorization and confirm exactly one row before deleting R2; preserve DB→R2 ordering and established listed/admin paths.
 - Intentional RLS-deny-all tables with no permissive policy: `comment_allowlist`, `comment_blocklist`, `pseudonym_adjectives`, `pseudonym_nouns`. Do not add fake `USING(false)` policies.
 - Function EXECUTE ACLs were comprehensively audited/hardened. Preserve per-function grants; new functions or ACL drift require fresh review.
 - Trigger/internal functions should not become callable for convenience. RLS helpers such as `is_admin()` / `is_property_owner(...)` have deliberate EXECUTE needs.
@@ -109,8 +110,11 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - PropertyDetail non-gallery/CTA sections use `PageSection`; shared realtime/mutation state should prefer read-only TanStack Query hooks sharing cache keys.
 - Statuses: `draft`, `pending_review`, `changes_requested`, `listed`, `edit_pending_review`, `unlisted`, `archived`.
 - `enforce_property_owner_transitions` validates owner transitions; `handle_property_status_change` manages `is_active`; `property_activity_log_writer` records status changes.
+- Public property visibility is `listed` + `edit_pending_review` with `is_active=true`; preserve this RLS invariant.
+- Direct `properties` SELECT for `anon`/`authenticated` is intentionally limited to the approved public-column allow-list (65 as of Aug 2026). Never restore broad table SELECT or expose private/internal columns; owner/admin private reads use scoped SECURITY DEFINER RPCs.
+- Browser `properties` queries must not use excluded columns in SELECT/filter/order/embed/RETURNING; use the public allow-list or the owner/admin RPC path instead.
 - `property_activity_log` / `property_edit_requests` are not written directly from frontend. Listed/edit-pending edits are partitioned into LIVE/REVIEW/ADMIN-ONLY; preserve `enforce_owner_edit_partition`.
-- Reviewable edits use `submit_property_edit_request`; approval stale-checks base values. Live-listing photos are staged in R2 until approval and use established cover/delete/reorder server/RPC paths.
+- Reviewable edits use `submit_property_edit_request`; approval stale-checks base values.  are staged in R2 until approval and use established cover/delete/reorder server/RPC paths.
 - `ListProperty` writes by canonical DB key; `edit_pending_review` remains per-field editable; `pending_review`/`unlisted`/`archived` remain blocked.
 - `property-fields.ts` + `<SpecField>` define property fields; trace FormState/init/prefill/DB mapping/JSX/PropertyEdit/approval behavior when adding fields.
 - JSONB furnishing/amenity editing uses shared editors; do not create parallel systems.
@@ -126,11 +130,11 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 ## Contact Requests + n8n Security
 - Edge Functions: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`.
 - `verify_jwt=false` is deliberate where manual JWT validation is designed; phone never returns in response bodies; `tenant_id` comes from JWT only.
-- Approve invokes `reveal-contact`; do not replace with direct client UPDATE. Decline applies to `status=pending`.
+- Contact-request state changes are server-controlled: Approve → `reveal-contact`; withdraw/decline use scoped server/RPC paths and only from `pending`. Do not restore direct client status mutation.
 - n8n never stores Supabase `service_role`/secret keys. Privileged operations go through purpose-scoped Edge Functions using `N8N_WEBHOOK_SECRET`; n8n→Supabase DB access uses scoped SECURITY DEFINER RPCs + anon key where designed.
 - Supabase→n8n contact webhooks send `N8N_WEBHOOK_SECRET`; n8n validates via credential-backed `headerAuth`. `RESEND_WEBHOOK_SECRET` verifies Resend/Svix webhooks.
 - Third-party credentials belong in n8n credential store, never raw node params. Never log/export secrets, JWTs, phone/email/contact payloads.
-- Notification retries require idempotency: Reveal fixed keys per contact_request+role; Resend Reveal uses `email_send_log` dispatch UUID; explicit user Resend actions need unique keys.
+- Reveal/resend retries require idempotency; `resend-reveal` rate limiting is fail-closed. Reveal uses fixed keys per contact_request+role; Resend Reveal uses `email_send_log` dispatch UUID; explicit user Resend actions need unique keys.
 - Provider orchestration (Resend/WhatsApp/etc.) belongs in n8n; Supabase owns auth, business rules, state, trusted data access.
 
 ## Skills / Gotchas / Log
