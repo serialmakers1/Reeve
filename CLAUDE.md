@@ -1,178 +1,138 @@
 # Reeve
-Free property marketplace connecting sellers to buyers and owners to tenants in India. Users can list properties, visitors can request contact from listers. Separate Property Management Business.
+Free property marketplace connecting sellers to buyers and owners to tenants in India, with a separate Property Management Business.
 
 ## Tech Stack
-React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supabase (Postgres + Auth + Storage) · React Router v7 (Declarative BrowserRouter/Routes mode) · Sentry · PostHog.
+React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supabase (Postgres/Auth/Storage) · React Router v7 Declarative Mode · Sentry · PostHog.
 
-## Key Commands
-- `npm run build` — production build (postbuild: sitemap + SSG prerender)
-- `npm run lint`
-- `npm run test` — Vitest
-- `npx tsc -p tsconfig.app.json --noEmit` — canonical typecheck; `npx tsc --noEmit` checks zero files because the root tsconfig uses project references.
-
-## Verification
+## Core Commands + Verification
+- Build: `npm run build` (postbuild runs sitemap + SSG prerender).
+- Tests: `npm run test`; lint: `npm run lint`.
+- Canonical typecheck: `npx tsc -p tsconfig.app.json --noEmit`; root `npx tsc --noEmit` checks zero files.
 - Baseline: build succeeds, all tests pass, TypeScript has zero diagnostics.
-- Any TypeScript diagnostic or persistent test/build failure is a regression unless independently proven unrelated.
-- When diagnosing regressions, compare exact failing test identities and exact TypeScript diagnostic identities; never rely on counts alone.
-- For normal implementation prompts, verify with build, tests, TypeScript, and relevant static/targeted checks. Do not require manual browser/UI verification between implementation steps unless explicitly requested.
-- For dependency/security changes, also run `npm audit` and relevant `npm ls` / `npm explain` checks; after merge, verify from clean `main` with `npm ci` and recheck Dependabot when GitHub access is available.
+- Treat persistent build/test/type failures as regressions unless independently proven unrelated; compare exact failing identities, not counts alone.
+- Normal changes: run build, tests, typecheck, plus targeted/static checks. Dependency/security work also runs `npm audit` and relevant `npm ls` / `npm explain`.
+- Database deploy verification is separate: repo tests do not prove production DB behavior. Verify migration ledger, exact live object/catalog state, relevant advisor finding, and one representative functional path when behavior could be affected.
+- Avoid redundant testing when a full catalog scan plus representative behavior gives stronger coverage.
 
-## Dependency Maintenance
-- Read `package.json` and the resolved `package-lock.json` before recommending dependency versions; do not rely on remembered versions.
-- Prefer the smallest safe direct/parent upgrade or an in-range transitive refresh.
-- Do not use `npm audit fix --force`, broad `npm update`, `--force`, `--legacy-peer-deps`, or package overrides as routine security fixes.
-- Do not add a transitive package as a direct dependency merely to force its version unless that architecture is specifically justified.
-- Before major upgrades, inspect actual repo usage and peer compatibility, and isolate dependency families where practical; do not infer breakage from the major-version number alone.
-- After dependency changes run TypeScript, the full test suite, production build/SSG, `npm audit`, and relevant dependency-tree checks.
+## Dependency + TypeScript Rules
+- Read `package.json` and resolved `package-lock.json` before recommending versions.
+- Prefer the smallest safe direct/parent upgrade or in-range transitive refresh.
+- Do not routinely use `npm audit fix --force`, broad `npm update`, `--force`, `--legacy-peer-deps`, or overrides.
+- Do not add a transitive package as a direct dependency merely to force its version without architectural justification.
+- Before major upgrades, inspect real usage and peer compatibility; after changes run typecheck, full tests, build/SSG, audit, and dependency-tree checks.
+- `strictNullChecks:false` and `noImplicitAny:false` are intentional; do not tighten as unrelated cleanup.
+- `@/` maps to `./src/`.
 
-## TypeScript Config
-`strictNullChecks: false`, `noImplicitAny: false` — intentional; do not tighten as unrelated cleanup.
+## Build / SSG / SEO
+- Vite dev server stays loopback-only; do not add wildcard `server.host` without deliberate investigation.
+- Production sourcemaps are conditional on `SENTRY_AUTH_TOKEN`; when generated they are uploaded to Sentry and deleted from `dist`. Never expose production source maps or disable Sentry symbolication as unrelated cleanup.
+- No explicit `build.target`/Browserslist contract; keep Vite 7 defaults unless product requirements change.
+- `scripts/prerender.mjs` runs after build and writes route-specific HTML; React replaces it on mount via `createRoot`.
+- Pre-rendered: `/`, `/search`, `/contact`. Public/not prerendered: `/privacy`, `/terms`, `/refund`, `/login`. Protected/CSR-only: `/admin`, `/profile`.
+- New public routes require both `scripts/prerender.mjs` and `ACTIVE_ROUTES` in `scripts/generate-sitemap.mjs`.
+- JSON-LD lives in `scripts/prerender.mjs`; use `safeJsonLd()`, never raw `JSON.stringify`; no `aggregateRating` until 5+ Google reviews.
+- Do not introduce alternate SSR/SSG frameworks or prerender auth/protected routes without dedicated investigation.
 
-## Path Aliases
-`@/` maps to `./src/` — use it for application imports.
-
-## Vite / Build Security
-- Vite uses port `8080` with `hmr.overlay: false`.
-- Keep the Vite dev server loopback-only. Do not add wildcard `server.host` binding unless LAN/network exposure is deliberately required and investigated.
-- Production source maps are conditional on `SENTRY_AUTH_TOKEN`: absent → `build.sourcemap=false`; present → generate/upload to Sentry and delete `./dist/**/*.js.map` via `filesToDeleteAfterUpload`.
-- Production artifacts must not expose application source maps. Do not disable Sentry/source-map symbolication as unrelated cleanup. 
-- There is currently no explicit `build.target`/Browserslist contract; Vite 7's normal browser target is intentional unless a product requirement for older-browser support is established.
-
-## SSG / SEO Runtime
-`scripts/prerender.mjs` runs after `vite build` via `postbuild`, writes route-specific static HTML, and React replaces it on mount via `createRoot`.
-- Public/pre-rendered: `/`, `/search`, `/contact`.
-- Public/not pre-rendered: `/privacy`, `/terms`, `/refund`, `/login`.
-- Protected/CSR-only: `/admin`, `/profile`.
-- Adding a public route requires both the `scripts/prerender.mjs` route entry and `ACTIVE_ROUTES` in `scripts/generate-sitemap.mjs`.
-- JSON-LD lives in `scripts/prerender.mjs`, not JSX. Use `safeJsonLd()`; never raw `JSON.stringify` for injected schema. Do not add `aggregateRating` until 5+ Google reviews.
-- Do not introduce vite-ssg/vite-plugin-ssr or pre-render auth/protected routes without dedicated investigation.
-
-## Supabase
-- Project ref: `tfutuqqcxqqbirnsdpvz`.
-- Client: `import { supabase } from "@/integrations/supabase/client"`.
-- `src/integrations/supabase/types.ts` is generated. Never manually patch generated types to silence frontend errors; fix frontend typing or regenerate from the verified schema.
-- When Supabase/PostgREST rejects a broad `Record<string, unknown>` update because of generated excess-property typing, prefer typing patch accumulators/helpers with the generated table `Update` types at the source/boundary. Do not silence the error by casting the final `.update(...)` call, using `any`, or editing generated types.
-- Preserve the `noOpLock` workaround in `src/integrations/supabase/client.ts` and its runtime behavior. It was deliberately retained after the Supabase JS v2 upgrade; do not assume newer Supabase defaults make it removable. Type-only maintenance is allowed when verified against the installed Supabase version; removal/replacement requires dedicated investigation.
+## Supabase Core Rules
+- Project ref: `tfutuqqcxqqbirnsdpvz`; client import: `@/integrations/supabase/client`.
+- `src/integrations/supabase/types.ts` is generated. Never hand-edit it; regenerate from verified schema or fix frontend typing at the source/boundary.
+- For PostgREST update typing, use generated table `Update` types; do not cast the final `.update(...)`, use `any`, or patch generated types.
+- Preserve the `noOpLock` workaround in `src/integrations/supabase/client.ts`; removal/replacement requires dedicated investigation.
 - Auth storage key: `reeve-auth`.
-- Schema changes must be represented by migration files. Live SQL/CLI deployment and verification are handled separately; do not make destructive schema conclusions from repository state alone.
-- Do not assume migrations or generated types prove current live Supabase state when a task depends on live DB objects. Verify live state first. Avoid `CASCADE` for cleanup unless specifically investigated and justified.
-- Prefer `.maybeSingle()` when zero rows is valid; do not use it on unfiltered multi-row queries.
+- Schema changes require migrations. The live linked DB is authoritative for security/RLS/function/index/advisor work; repo state does not prove production state.
+- Never assume GitHub merge/integration deployed a migration. Verify `supabase_migrations.schema_migrations` and the resulting live object.
+- Applied migrations are immutable. If production verification finds an omission, diagnose live state, create a later follow-up migration, deploy separately, then verify final state.
+- Before `supabase db push --linked`, run `supabase migration list --linked` and `supabase db push --linked --dry-run`; stop if unexpected pending migrations appear.
+- Avoid `CASCADE` unless specifically investigated and justified.
+- Prefer `.maybeSingle()` only when zero rows is valid; never on unfiltered multi-row queries.
 
-## Auth Architecture
-Phone OTP (MSG91) + Google OAuth.
-- All attacker-controlled `returnTo` values must pass through canonical `getSafeReturnTo()` in `src/lib/authUtils.ts` before navigation, OAuth redirect, or persisted navigation state. Do not create duplicate/ad-hoc validators.
-- The helper permits same-origin internal routes only. Login falls back to `/`; flows where invalid returnTo means no navigation may use an empty-string fallback.
-- Stored return paths must be sanitized before storage where applicable and again before navigation, including legacy stored values.
-- `public.users.pseudonym` is UNIQUE, permanent, system-assigned, shown on `/me` only, never `/u/:userId`.
-- Profile Name is read-only and sourced from `public.users.full_name`; no client write to `full_name`.
-- `last_login_at` is written through `touch_last_login()` on `SIGNED_IN`, never by direct client update.
-- Never add auth-transaction triggers that sync `public.*`; use post-login RPCs. Functions touching `public.*` must pin `search_path = public`.
-- `prevent_user_privilege_escalation` protects role/verification/provider/active fields from authenticated/anon escalation.
-- `public.users.phone` may be null for Google-first users; use scoped `get_phone_fallback(user_id)` where required. n8n never queries `auth.*` directly.
+## Supabase Advisor / Audit Baseline — Aug 2026
+- Full security/performance audit is closed. Advisor findings are investigation inputs, not instructions to make the dashboard zero.
+- Classify findings as actionable, accepted/intentional, deferred pending scale/evidence, or regression/new.
+- Closed categories that should remain zero: `auth_rls_initplan`, `function_search_path_mutable`. Any future finding here is a regression/new issue.
+- Accepted: reviewed authenticated/anon SECURITY DEFINER executable findings; intentional multi-permissive policy cases; `rls_enabled_no_policy` on the four documented deny-all tables; `auth_leaked_password_protection` while Email provider is disabled.
+- Deferred: remaining `unindexed_foreign_keys` until scale/query evidence justifies them; `unused_index` until meaningful production usage exists.
+- Never change working authorization, add dummy policies, revoke legitimate RPC access, add low-value indexes, drop indexes, or enable unused auth features merely to silence advisors.
+- Re-open accepted/deferred items only for new objects, ACL/policy/config drift, materially changed table size/query patterns, or changed product requirements.
+- Protected/retained during cleanup: `property_views`; ratings architecture is HOLD; inspection architecture is protected; Razorpay is intentionally retained.
 
-### useAuth — single source of truth
-Returns `{ session, user, isLoading, isAuthenticated, isFullyVerified, signOut, refreshUser }`.
-- `onAuthStateChange` returns early on `INITIAL_SESSION`; `getSession()` owns bootstrap.
-- Auth-state DB work is deferred with `setTimeout(100ms)` to avoid Supabase lock deadlocks.
-- `loadUser` sets session/authenticated before its DB query; the 5s safety timeout may end loading but must not redirect a valid session.
-- Use `useRequireAuth({ requireAdmin? })` on protected pages. Use `user.id`, not `session.user.id`, in render/data logic.
-- Rendering/data gates must include both auth and data loading.
-- Do not call `supabase.auth.getSession()` from render/useEffect data gates; event handlers may call it directly.
-- `fetchUserWithRetry` handles the post-signup trigger lag; do not remove casually.
-
-### Auth infrastructure
-- `handle_new_user` handles phone OTP users; `handle_user_updated` handles phone/email verification updates.
-- AppUser verification fields: `phone_verified`, `email_verified`, `auth_provider`; `onboarding_completed` is removed.
-- `send-sms-otp` uses MSG91 and `verify_jwt=false`.
-- Profile phone verification captures the Google token before `signInWithOtp` and sends it to `verify-phone-otp` via Authorization header.
-- Google link returnTo uses sessionStorage key `reeve-link-returnTo`; do not put query params in `linkIdentity redirectTo`.
-- `verify-phone-otp` protects legitimate existing users with `SPURIOUS_ROW_MAX_AGE_MS = 60_000`.
-
-## User Roles + Route Guards
-Roles: `user | admin`. Route protection is page-internal through `useRequireAuth()`; `OnboardingGuard` is removed and must not be reintroduced casually.
-
-### React Router
-- Routing uses React Router v7 Declarative Mode (`BrowserRouter` / `Routes` / `Route`); keep existing application imports from `react-router-dom`.
-- The app does not use Data/Framework Mode (`createBrowserRouter`, loaders, actions, fetchers, RouterProvider); do not introduce it as unrelated cleanup.
-- Important navigation uses absolute paths; user-controlled destinations must use the canonical returnTo sanitizer.
-
-## Layout Rules
-Public pages use `<Layout>`; admin pages use `<AdminLayout>`. Do not hardcode shared nav/footer inside pages
-
-## Property Detail Invariants
-- Non-gallery/CTA PropertyDetail sections render through `PageSection`; avoid bespoke section wrappers/styles.
-- For shared realtime/mutation state, prefer a read-only TanStack Query hook sharing the same cache key instead of lifting heavy state.
-
-## Property Status
-Active enum values: `draft`, `pending_review`, `changes_requested`, `listed`, `edit_pending_review`, `unlisted`, `archived`.
-- `enforce_property_owner_transitions` validates owner transitions; admins bypass through `is_admin()`.
-- `handle_property_status_change` manages `is_active`.
-- `property_activity_log_writer` records status changes; curated listed/unlisted events may be public.
-
-## RLS / Migration Conventions
-- New tables require RLS at creation.
-- Admin/user policies should follow the established `is_admin()` / `auth.uid()` patterns; separate SELECT policies are OR-ed by Postgres.
-- Single-purpose migrations; use idempotent guards where appropriate. Enum values must be committed before later use. BEFORE triggers fire alphabetically by name.
+## RLS / Function / Index Conventions
+- New tables require RLS at creation. Separate permissive SELECT policies are OR-combined by Postgres.
+- In RLS, statement-constant `auth.uid()` must use `(SELECT auth.uid())` everywhere: USING, WITH CHECK, EXISTS, NULL gates, nested subqueries.
+- A policy is not optimized merely because one wrapped call exists; mixed wrapped/bare calls are possible. Audit raw live `pg_policies`, not only `auth_rls_initplan`.
+- Do not mechanically wrap helpers such as `is_admin()`; that optimization was reviewed and intentionally deferred absent a concrete need.
+- Reviewed intentional multi-permissive cases: `callback_requests` SELECT/UPDATE, `interaction_ratings` UPDATE, `property_activity_log` SELECT, `property_edit_requests` SELECT, `property_geo_associations` SELECT, `property_images` SELECT. Do not consolidate merely to silence the advisor.
+- Intentional RLS-deny-all tables with no permissive policy: `comment_allowlist`, `comment_blocklist`, `pseudonym_adjectives`, `pseudonym_nouns`. Do not add fake `USING(false)` policies.
+- Function EXECUTE ACLs were comprehensively audited/hardened. Preserve per-function grants; new functions or ACL drift require fresh review.
+- Trigger/internal functions should not become callable for convenience. RLS helpers such as `is_admin()` / `is_property_owner(...)` have deliberate EXECUTE needs.
+- When defining/redefining SECURITY DEFINER functions, review owner, security mode, `search_path`, and EXECUTE ACLs together.
+- Functions need an explicit minimal `search_path` based on actual dependencies; never set `''`, `public`, or `pg_catalog` mechanically.
+- `trg_fn_bump_comments_updated_at()`, `trg_fn_bump_ratings_updated_at()`, and `update_updated_at_column()` are intentionally pinned to `pg_catalog`.
+- Before search-path changes inspect unqualified tables/types/enums/extensions/PostGIS/sequences/helpers/dynamic SQL.
+- `favourites.property_id` is intentionally indexed by `idx_favourites_property_id`; `(user_id, property_id)` does not cover property_id-leading lookups.
+- Do not add every FK advisor index or drop an index solely because it is reported unused; usage statistics are sparse and new indexes may initially show zero scans.
+- Migrations should be single-purpose; enum values must be committed before later use; BEFORE triggers fire alphabetically.
 - Property images use Cloudflare R2, not Supabase Storage.
 
-## Contact Request Edge Functions
-Functions: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`.
-- `verify_jwt=false` with manual JWT where designed; phone must never be returned in response bodies; `tenant_id` comes from JWT only.
+## Auth Architecture
+- Active providers: Phone ENABLED (MSG91 OTP), Google ENABLED (OAuth), Email DISABLED.
+- No supported password login/signup/reset/update flow exists. A legacy admin may still have an old encrypted password in `auth.users`; do not manually alter Supabase Auth internals.
+- `auth_leaked_password_protection` is intentionally accepted while Email stays disabled. If Email is ever enabled, re-audit password/magic-link/OTP behavior and leaked-password protection before release.
+- All attacker-controlled `returnTo` values must pass through `getSafeReturnTo()` in `src/lib/authUtils.ts`; same-origin internal routes only, sanitize before storage and again before navigation.
+- `public.users.pseudonym` is UNIQUE, permanent, system-assigned, shown on `/me` only, never `/u/:userId`.
+- Profile Name is read-only from `public.users.full_name`; no client write. `last_login_at` is written only through `touch_last_login()` on `SIGNED_IN`.
+- Never add auth-transaction triggers that sync `public.*`; use post-login RPCs. `prevent_user_privilege_escalation` protects role/verification/provider/active fields.
+- `public.users.phone` may be null for Google-first users; use scoped `get_phone_fallback(user_id)` where required. n8n never queries `auth.*` directly.
+
+### useAuth
+- Single source: `{ session, user, isLoading, isAuthenticated, isFullyVerified, signOut, refreshUser }`.
+- `INITIAL_SESSION` returns early; `getSession()` owns bootstrap. Auth-state DB work is deferred with `setTimeout(100ms)` to avoid lock deadlocks.
+- `loadUser` sets session/authenticated before DB query; 5s safety timeout must not redirect a valid session.
+- Protected pages use `useRequireAuth({ requireAdmin? })`; render/data logic uses `user.id`, not `session.user.id`, and gates on both auth and data loading.
+- Do not call `supabase.auth.getSession()` from render/useEffect data gates; event handlers may. Preserve `fetchUserWithRetry` for post-signup trigger lag.
+
+### Auth Infrastructure
+- `handle_new_user` handles phone OTP users; `handle_user_updated` handles phone/email verification updates.
+- AppUser verification fields: `phone_verified`, `email_verified`, `auth_provider`; `onboarding_completed` is removed.
+- `send-sms-otp` uses MSG91 with `verify_jwt=false`; profile phone verification preserves the Google token and sends it to `verify-phone-otp`.
+- Google-link return path uses sessionStorage key `reeve-link-returnTo`; do not put query params in `linkIdentity redirectTo`.
+- `verify-phone-otp` protects legitimate existing users with `SPURIOUS_ROW_MAX_AGE_MS = 60_000`.
+
+## Roles / Routing / Layout
+- Roles: `user | admin`; protected pages use `useRequireAuth()`. `OnboardingGuard` is removed and must not be casually reintroduced.
+- React Router v7 Declarative Mode only (`BrowserRouter`/`Routes`/`Route` via `react-router-dom`); do not introduce Data/Framework Mode as unrelated cleanup.
+- Important navigation uses absolute paths; user-controlled destinations use the canonical returnTo sanitizer.
+- Public pages use `<Layout>`; admin pages use `<AdminLayout>`; do not hardcode shared nav/footer inside pages.
+
+## Property + Search Invariants
+- PropertyDetail non-gallery/CTA sections use `PageSection`; shared realtime/mutation state should prefer read-only TanStack Query hooks sharing cache keys.
+- Statuses: `draft`, `pending_review`, `changes_requested`, `listed`, `edit_pending_review`, `unlisted`, `archived`.
+- `enforce_property_owner_transitions` validates owner transitions; `handle_property_status_change` manages `is_active`; `property_activity_log_writer` records status changes.
+- `property_activity_log` / `property_edit_requests` are not written directly from frontend. Listed/edit-pending edits are partitioned into LIVE/REVIEW/ADMIN-ONLY; preserve `enforce_owner_edit_partition`.
+- Reviewable edits use `submit_property_edit_request`; approval stale-checks base values. Live-listing photos are staged in R2 until approval and use established cover/delete/reorder server/RPC paths.
+- `ListProperty` writes by canonical DB key; `edit_pending_review` remains per-field editable; `pending_review`/`unlisted`/`archived` remain blocked.
+- `property-fields.ts` + `<SpecField>` define property fields; trace FormState/init/prefill/DB mapping/JSX/PropertyEdit/approval behavior when adding fields.
+- JSONB furnishing/amenity editing uses shared editors; do not create parallel systems.
+- `<VerificationGate />` protects `/list` and `/tenant-dashboard/preferences`; `rental_preferences` is one-row-per-user/upsert-oriented.
+- Razorpay is intentionally retained; payment writes are RLS-protected and webhook processing is source of truth.
+- Maps use `@vis.gl/react-google-maps` v1.x with app-level `APIProvider`; preserve Places session tokens, India-only restrictions, address/location invariants, Street View preference, and owner location-edit locks.
+- `VITE_GOOGLE_MAPS_MAP_ID` is required. Remove `isBuildingResult` / `useApiLoadingStatus` only after tracing/replacing active usage.
+- Search domain lives in `src/features/search/`; public modes are `rent`/`buy`, DB mapping is `rent`/`sale`, never emit `sale` in public URLs.
+- URL/search params are source of truth; `SearchPropertyResult` is card contract, `SearchMapMarker` separate map payload; pagination is cursor-based and `locations_data` uses `{ v:1, items:[...] }`.
+- `search_compact_properties` is a STABLE SECURITY DEFINER search RPC; preserve return-type casting. `confirm_availability_of_rental(uuid)` is authenticated-only and must explicitly revoke anon when redefined.
+- `searchDataClient.ts` owns fetch/overlay/cursor helpers; `SearchMapView` is CSS-hidden/shown, not repeatedly unmounted. Map RPC currently receives only BHK + price filters. `zeroRentBrokerage` serializes as `zero_brok`.
+
+## Contact Requests + n8n Security
+- Edge Functions: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`.
+- `verify_jwt=false` is deliberate where manual JWT validation is designed; phone never returns in response bodies; `tenant_id` comes from JWT only.
 - Approve invokes `reveal-contact`; do not replace with direct client UPDATE. Decline applies to `status=pending`.
-- n8n → Supabase uses scoped SECURITY DEFINER RPCs + anon key; never service_role in n8n.
-- `N8N_WEBHOOK_SECRET` authenticates n8n; `RESEND_WEBHOOK_SECRET` verifies Resend/Svix webhooks.
+- n8n never stores Supabase `service_role`/secret keys. Privileged operations go through purpose-scoped Edge Functions using `N8N_WEBHOOK_SECRET`; n8n→Supabase DB access uses scoped SECURITY DEFINER RPCs + anon key where designed.
+- Supabase→n8n contact webhooks send `N8N_WEBHOOK_SECRET`; n8n validates via credential-backed `headerAuth`. `RESEND_WEBHOOK_SECRET` verifies Resend/Svix webhooks.
+- Third-party credentials belong in n8n credential store, never raw node params. Never log/export secrets, JWTs, phone/email/contact payloads.
+- Notification retries require idempotency: Reveal fixed keys per contact_request+role; Resend Reveal uses `email_send_log` dispatch UUID; explicit user Resend actions need unique keys.
+- Provider orchestration (Resend/WhatsApp/etc.) belongs in n8n; Supabase owns auth, business rules, state, trusted data access.
 
-## Property Activity + Post-publication Edits
-`property_activity_log` and `property_edit_requests` are not written directly from frontend; use established RPC/trigger paths.
-- Listed/edit-pending owner edits are DB-partitioned into LIVE, REVIEW, and ADMIN-ONLY fields. Do not bypass `enforce_owner_edit_partition` / image policy with frontend assumptions.
-- Reviewable edits use `submit_property_edit_request`; approval stale-checks submitted base values before applying changes.
-- Live-listing photos are staged in R2 until approval. Cover/delete/reorder use their established server/RPC paths and primary-photo constraints.
-- `ListProperty` routes writes by canonical DB key; do not route by FormState aliases. `edit_pending_review` remains per-field editable; `pending_review`/`unlisted`/`archived` remain blocked.
-
-## Property Form Architecture
-- `property-fields.ts` + `<SpecField>` are the core field-definition surface.
-- Adding a property field requires tracing FormState, initialization, prefill, DB mapping, JSX, PropertyEdit, and relevant approval/RPC behavior.
-- JSONB furnishing/amenity editing uses the existing shared editors; do not create parallel field systems casually.
-
-## Tenant Dashboard
-`<VerificationGate />` protects `/list` and `/tenant-dashboard/preferences`. `rental_preferences` is one-row-per-user and upsert-oriented. 
-
-## Payments / Razorpay
-Razorpay configuration is intentionally retained. Payment writes are RLS-protected; webhook processing is the source of truth. Do not remove during unrelated cleanup.
-
-## Google Maps / Location Architecture
-- `@vis.gl/react-google-maps` v1.x; `APIProvider` is provided at app level.
-- Preserve Places session-token handling, India-only restrictions, `address_mode`, `lister_flat_number`, `location_verified_by_owner`, Street View preference, and draft/changes-requested owner location-edit lock.
-- `isBuildingResult` / `useApiLoadingStatus` behavior should only be removed if current active usage is first traced and replaced.
-- `VITE_GOOGLE_MAPS_MAP_ID` is required for the map experience.
-
-## Search Feature
-- `src/features/search/` owns the current search domain. Public modes are `rent`/`buy`; DB mapping uses `rent`/`sale`. Never emit `sale` in public search URLs.
-- URL/search params are the source of truth. `SearchPropertyResult` is the card contract; `SearchMapMarker` is the separate map payload.
-- `SearchBrowsePage` is wired to `/search`; pagination is cursor-based and `locations_data` uses the versioned `{ v: 1, items: [...] }` envelope.
-- `search_compact_properties` is a STABLE SECURITY DEFINER search RPC; preserve its return-type casting requirements.
-- `confirm_availability_of_rental(uuid)` is authenticated-only; explicitly revoke anon execution when defining/redefining it.
-- `searchDataClient.ts` owns search fetch/overlay/cursor helpers. `SearchMapView` is hidden/shown with CSS rather than repeatedly unmounted.
-- Current map-RPC limitation: only BHK + price filters are passed to `get_map_markers`.
-- `zeroRentBrokerage` serializes as `zero_brok`.
-
-## Skills — Always Check Before Acting
-Check `.claude/skills/` before work. Use the relevant workflow and domain skills, especially React, Supabase/Postgres, security/auth, debugging, and frontend-design skills.
-
-## n8n / External Automation Security
-
-- Never store Supabase `service_role`, secret keys, or other elevated DB credentials anywhere in n8n — not in workflow node parameters and not in the n8n credential store. Elevated Supabase access belongs only in trusted Supabase Edge Function environments (Deno.env secrets).
-- n8n→privileged Supabase operations go through a purpose-scoped Edge Function authenticated with the established integration-secret pattern (`Authorization: Bearer <N8N_WEBHOOK_SECRET>`).
-- Supabase→n8n contact webhooks use `N8N_WEBHOOK_SECRET` in the outbound Authorization header; n8n validates it via a credential-backed `headerAuth` on the Webhook trigger.
-- Third-party credentials used by n8n (e.g. Resend) belong in the n8n credential store, never as raw workflow node parameters.
-- Backend-only SECURITY DEFINER RPCs require explicit least-privilege EXECUTE grants; do not rely on the Supabase PUBLIC default (`REVOKE FROM PUBLIC, anon, authenticated` then grant to the required role only).
-- Notification retries require idempotency protection: Reveal uses fixed keys per contact_request + recipient role; Resend Reveal uses the email_send_log dispatch row UUID. Idempotency keys on explicit user "Resend" actions must be unique per action — do not reuse a prior action's key.
-- Notification/provider orchestration (Resend, WhatsApp, etc.) belongs in n8n. Supabase provides authentication, business rules, state management, and trusted data access only.
-- Never log or export secrets or JWTs. Do not put phone numbers, email addresses, or contact-detail payloads in console logs, generic operational logs, or error-alert emails. Sensitive workflow data may only be persisted in deliberately designed database or audit records where required by the product (e.g. `email_send_log.raw_payload`).
-
-## Critical Gotchas
-- `posthog?.capture(...)` must remain optional-chained.
-- Do not put entry animations on LCP images.
-
-## Repository Log
-Root `/log.md` is the canonical engineering log. Append new entries to the END only. Never prepend, reorder, or rewrite existing history. Do not recreate `.claude/log.md`.
+## Skills / Gotchas / Log
+- Check `.claude/skills/` before work; use relevant React, Supabase/Postgres, security/auth, debugging, and frontend-design skills.
+- `posthog?.capture(...)` must remain optional-chained. Do not put entry animations on LCP images.
+- Root `/log.md` is canonical and append-only. Never prepend/reorder/rewrite history or recreate `.claude/log.md`.
