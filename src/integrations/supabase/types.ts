@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       callback_requests: {
@@ -2247,6 +2272,13 @@ export type Database = {
           property_id: string
         }[]
       }
+      decline_contact_request: {
+        Args: {
+          p_id: string
+          p_reason: Database["public"]["Enums"]["contact_request_decline_reason"]
+        }
+        Returns: undefined
+      }
       delete_own_comment: { Args: { p_comment_id: string }; Returns: Json }
       delete_property_photo: {
         Args: { p_image_id: string }
@@ -2841,6 +2873,7 @@ export type Database = {
         Args: { p_max_length: number; p_text: string }
         Returns: string
       }
+      withdraw_contact_request: { Args: { p_id: string }; Returns: undefined }
     }
     Enums: {
       appliance_condition:
@@ -3051,6 +3084,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       appliance_condition: [
