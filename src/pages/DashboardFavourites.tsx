@@ -64,8 +64,10 @@ export default function DashboardFavourites() {
       .from("properties")
       .select("id, building_name, locality, city, bhk, listed_rent, sale_price, listing_type, property_type")
       .in("id", ids)
-      .in("status", ["listed", "edit_pending_review"])
-      .eq("is_active", true);
+      // Public-visibility gate: RLS enforces is_active=true for non-owner viewers of
+      // these statuses; the status trigger keeps them in lockstep. is_active is not in
+      // the authenticated 65-column grant, so it is not referenced client-side.
+      .in("status", ["listed", "edit_pending_review"]);
 
     if (propsError) {
       setQueryError(true);

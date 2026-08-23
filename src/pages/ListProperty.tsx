@@ -788,7 +788,7 @@ export default function ListProperty() {
         };
         safeLiveRef.current = {
           amenities: (prop.amenities ?? null) as unknown,
-          furnishing_detail: (prop.furnishing_detail as FurnishingDetailItem[]) ?? [],
+          furnishing_detail: (prop.furnishing_detail as unknown as FurnishingDetailItem[]) ?? [],
         };
       }
 

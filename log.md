@@ -1,3 +1,57 @@
+## [2026-08-24] security | Group 3 Phase 2 — corrective diagnosis + fixes, implementation-ready (NOT deployed) [SEC-003]
+
+**Fresh evidence-based re-review of the prepared Phase 2 (below) against the live linked DB (`tfutuqqcxqqbirnsdpvz`). Found + fixed one blocking migration bug and query-boundary breakages the first pass missed. Neither Phase 2 migration is applied live (`schema_migrations` = only `20260824000000` + `20260824000010`), so the pending migration files were fixed in place. No deployment performed — handed back for manual staged deploy.**
+
+### Live facts verified (authoritative)
+- `authenticated`: table-level SELECT/INSERT/UPDATE present; `anon`: no table-level, exactly **65** column SELECT grants.
+- `properties` = **105 live columns** (65 public + **40 excluded**). RLS `properties_select` = `(status IN ('listed','edit_pending_review') AND is_active=true) OR owner_id=(SELECT auth.uid()) OR is_admin()` — unchanged.
+- Standalone `authenticated` column-level SELECT grants on excluded columns = exactly **7**: `created_at, description, is_active, pincode, state, street_address, updated_at` (the other 33 excluded columns ride only the table grant). `pg_cast`: `varchar→text` is `castcontext=i, castmethod=b`.
+
+### Fix 1 — Migration A RPC return types (BLOCKING) — `20260824000020`
+RETURNS TABLE contracts declared types not binary-coercible to the live columns → every RPC would fail at runtime. Corrected declared types to exact live types (SELECT expressions unchanged):
+- → `numeric`: `listed_rent, sale_price, security_deposit_amount, society_maintenance_approx, move_in_charges_amount, rent_brokerage_fixed_amount` (in `get_owner_property`, `get_admin_property`, `get_owner_property_list`, `get_admin_pending_review_properties` as applicable)
+- → `smallint`: `floor_number, total_floors, bathrooms, balconies, building_age_years, security_deposit_months`
+- → `double precision`: `viewport_ne_lat/ne_lng/sw_lat/sw_lng`
+- Added explicit `::text` to every `varchar` output in the two PL/pgSQL RPCs (`get_admin_property`, `get_admin_pending_review_properties`), incl. owner fields `u.full_name/email/phone` (all `varchar`). Owner `LANGUAGE sql` RPCs left uncast (binary-coercible). No `SELECT *`/`p.*`/`u.*`; SECURITY DEFINER · STABLE · `search_path=public`; EXECUTE revoked PUBLIC+anon, granted authenticated; owner RPCs gate on `owner_id=(SELECT auth.uid())`, admin RPCs on `is_admin()`.
+
+### Fix 2 — Migration B verified correct, UNCHANGED — `20260824000030`
+Live ACL audit confirms `REVOKE table-level SELECT` + `REVOKE SELECT (the 7 standalone excluded grants)` + `GRANT SELECT (65)` yields exactly the 65-column authenticated boundary. INSERT/UPDATE/DELETE, RLS, anon, service_role unchanged.
+
+### Fix 3 — Five `is_active` query-boundary breakages (NEW)
+Migration B removes authenticated SELECT on `is_active`; PostgREST needs the privilege for filters/embeds too. Removed only the `is_active` reference, kept `status IN ('listed','edit_pending_review')` (RLS + status trigger enforce is_active server-side; 0 divergent rows live). No new grant, no new RPC:
+- `PublicProfile.tsx` (count), `components/profile/ListingsGrid.tsx`, `DashboardFavourites.tsx` — dropped `.eq("is_active", true)`.
+- `ContactRequestsPage.tsx` — removed `is_active` from the `properties(...)` embed, the `PropertyBrief` type, and both `propertyViewable`/`isPropertyListed` predicates.
+- `components/tenant-dashboard/ContactRequestsSummaryCard.tsx` — removed `is_active` from `properties!inner(...)` embed + dropped `.eq("properties.is_active", true)`.
+
+### Final boundary re-audit (whole query chain, not just `.select`)
+Every browser-side direct `properties` read/embed now references only the 65 public columns; writes carry no private RETURNING; owner/admin private reads go through the RPCs. Confirmed safe direct readers: `PropertyDetail.tsx` (63 public), `admin/Properties.tsx` (`get_admin_properties_page` RPC), `admin/Inspections.tsx`/`Callbacks.tsx`/`DecisionsTab.tsx` (public embed cols), `AdminLayout.tsx`/`ListProperty.tsx` counts (`id`/`owner_id`/`status`), `useListingSave.ts` + all status UPDATEs (no returning).
+
+### Local verification (actual)
+- `npx tsc -p tsconfig.app.json --noEmit`: **exactly 10 errors, all the four new RPC names not yet in generated types** (expected pending-type dependency — Migration A not deployed; NOT bypassed with `as any` or hand-edited `types.ts`). No other errors.
+- `npm run test`: **900/900** (one run showed the pre-existing flaky `searchLocationMemory.test.ts` timing race; passed clean on re-run). Updated `ListPropertyOwnerValidation.test.tsx` rpc mock to be name-aware (returns the property row for `get_owner_property`/`_list`).
+- `npm run build`: clean SSG (7 routes prerendered).
+- Static scans: no `properties.select("*")`, no `SELECT *`/`p.*`/`u.*` in RPCs, no stale `.title` on the property object, no `(supabase as any)` introduced by Group 3, `description` retained + rendered in OwnerPropertyManagement.
+
+### Status
+```
+Migration A (types + plpgsql ::text)   FIXED (file updated; not applied)
+Migration B                            VERIFIED correct; unchanged (not applied)
+is_active boundary fixes (5 sites)     DONE
+Full direct-query audit                DONE
+Owner/admin read rewiring (8 files)    DONE (from prior entry; re-verified)
+Local tsc/test/build                   PASS (10 expected RPC-name type errors only)
+Supabase deployment                    NOT PERFORMED (manual, later)
+Frontend deployment                    NOT PERFORMED (manual, later)
+Generated linked RPC types             AFTER manual Migration A deploy
+Live security verification             AFTER manual full deploy
+Group 3 final closure                  AFTER live verification
+```
+
+### Manual staged deploy (reference only — Claude executed none)
+Move B out of `supabase/migrations/` → `migration list` + `db push --dry-run` (must show only `20260824000020`) → `db push` (A) → restore B → regen types (`gen types ... | Out-File -Encoding utf8`) → tsc/tests/build → deploy frontend → `db push --dry-run` (must show only `20260824000030`) → `db push` (B) → one live verification round + Security Advisor (`auth_rls_initplan`, `function_search_path_mutable` stay zero) → append final closure.
+
+---
+
 ## [2026-08-24] security | Group 3 Phase 2 — migrations + application changes prepared [SEC-003]
 
 **SEC-003 Group 3 Phase 2 implementation PREPARED. Deploy in order: Migration A → regen types → app → Migration B.**

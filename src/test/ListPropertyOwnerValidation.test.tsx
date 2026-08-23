@@ -62,7 +62,15 @@ vi.mock("@/components/VerificationGate", () => ({
 let currentProp: Record<string, unknown> = {};
 // Observable status-write + edit-request spies (Part C submit-gate assertions).
 const updateMock = vi.fn();
-const rpcMock = vi.fn().mockResolvedValue({ data: "new-edit-id", error: null });
+// Name-aware: owner reader RPCs return the property row as a result set; every
+// other RPC (e.g. submit_property_edit_request) keeps the legacy id response.
+const rpcMock = vi.fn((...a: unknown[]) => {
+  const name = a[0] as string | undefined;
+  if (name === "get_owner_property" || name === "get_owner_property_list") {
+    return Promise.resolve({ data: [currentProp], error: null });
+  }
+  return Promise.resolve({ data: "new-edit-id", error: null });
+});
 function makeChain(result: unknown) {
   const chain: Record<string, unknown> = {};
   for (const m of ["select", "eq", "order", "in", "is", "limit"]) {

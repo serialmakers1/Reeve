@@ -172,7 +172,9 @@ export default function OwnerPropertyManagement() {
       navigate("/owner-dashboard", { replace: true });
       return;
     }
-    setProperty(propRow as PropertyRow);
+    // get_owner_property returns furnishing_detail/amenities as jsonb (generated as
+    // `Json`); the runtime shape matches PropertyRow, so bridge through `unknown`.
+    setProperty(propRow as unknown as PropertyRow);
     setImages((imgRows ?? []) as ImageRow[]);
     setPendingEdit((peRow ?? null) as PendingEditRow | null);
     setActivity((logRows ?? []) as TimelineRow[]);

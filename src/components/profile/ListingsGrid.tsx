@@ -38,8 +38,10 @@ export default function ListingsGrid({ userId, heading = "Listings" }: Props) {
         .select("id, building_name, locality, city, bhk, listed_rent")
         .eq("owner_id", userId)
         // Codebase convention: edit_pending_review is still a live public listing.
+        // RLS enforces is_active=true for non-owner viewers of these statuses; the
+        // status trigger keeps them in lockstep. is_active is not in the authenticated
+        // 65-column grant, so it is not referenced client-side.
         .in("status", ["listed", "edit_pending_review"])
-        .eq("is_active", true)
         .order("listed_at", { ascending: false });
       const rows = (props ?? []) as Omit<Listing, "primary_image_url">[];
       if (rows.length === 0) {
