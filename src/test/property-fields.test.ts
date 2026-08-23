@@ -63,10 +63,10 @@ describe("property-fields spec", () => {
   it("filters by surface", () => {
     const publicFields = getFieldsForSurface(PROPERTY_FIELDS, "public_detail");
     expect(publicFields.some((f) => f.key === "listed_rent")).toBe(true);
-    expect(publicFields.some((f) => f.key === "flat_number")).toBe(false);
+    expect(publicFields.some((f) => f.key === "lister_flat_number")).toBe(false);
 
     const adminFields = getFieldsForSurface(PROPERTY_FIELDS, "admin_form");
-    expect(adminFields.some((f) => f.key === "flat_number")).toBe(true);
+    expect(adminFields.some((f) => f.key === "lister_flat_number")).toBe(true);
   });
 
   it("resolves surface-specific labels", () => {

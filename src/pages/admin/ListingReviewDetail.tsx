@@ -85,9 +85,8 @@ interface PropertyRow {
   maintenance_included_in_rent: boolean | null;
   // Rules/notes
   building_rules: string | null; building_notes: string | null; pet_policy: string | null;
-  // Admin-only flat numbers
-  flat_number: string | null;           // D-091: never public
-  lister_flat_number: string | null;    // owner-submitted unit number
+  // Owner-submitted unit number (never public)
+  lister_flat_number: string | null;
   // Prompt 8 (D-159) — India fields
   landmark: string | null;
   notice_period_days: number | null;
@@ -693,20 +692,15 @@ export default function ListingReviewDetail() {
             </span>
           </div>
 
-          {/* Admin-only flat / owner unit numbers (D-091: flat_number never public).
-              Amber = admin-only + owner free-text requiring review. */}
-          <div className="rounded-md border border-amber-300 bg-amber-50/60 px-3 py-2 text-xs space-y-1">
-            <div className="[overflow-wrap:anywhere] break-words">
-              <span className="font-medium text-amber-900">Flat number (admin only):</span>{" "}
-              <span className="text-amber-800">{property.flat_number ?? "—"}</span>
-            </div>
-            {property.lister_flat_number && (
+          {/* Owner-submitted unit number — amber review indicator. */}
+          {property.lister_flat_number && (
+            <div className="rounded-md border border-amber-300 bg-amber-50/60 px-3 py-2 text-xs">
               <div className="[overflow-wrap:anywhere] break-words">
                 <span className="font-medium text-amber-900">Lister-submitted unit (review):</span>{" "}
                 <span className="text-amber-800">{property.lister_flat_number}</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Location provenance — distinguish genuine manual entry from a merely
               unlinked place. Never falsely call an unlinked listing "manual". */}

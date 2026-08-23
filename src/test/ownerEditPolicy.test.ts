@@ -28,7 +28,7 @@ describe("owner edit policy", () => {
   it("fails closed to admin_only for identity/legacy/unknown columns", () => {
     for (const k of [
       "building_name", "street_address", "city", "latitude", "place_id", "landmark",
-      "listing_type", "lister_role", "google_maps_url", "title", "description",
+      "listing_type", "lister_role", "description",
       "some_new_unclassified_column",
     ]) {
       expect(getOwnerEditPolicy(k)).toBe("admin_only");

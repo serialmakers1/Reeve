@@ -24,7 +24,6 @@ interface InspectionProperty {
   building_name: string;
   locality: string | null;
   bhk: string;
-  flat_number: string | null;
   floor_number: number | null;
   users: { full_name: string } | null;
 }
@@ -64,7 +63,7 @@ export default function InspectionsList() {
         .select(`
           id, status, mode, scheduled_date, actual_date, property_id,
           properties (
-            id, building_name, locality, bhk, flat_number, floor_number,
+            id, building_name, locality, bhk, floor_number,
             users!properties_owner_id_fkey ( full_name )
           )
         `)

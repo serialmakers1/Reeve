@@ -512,7 +512,7 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     display: (v) => (typeof v === "number" ? `${v} month${v === 1 ? "" : "s"}` : "—"),
     visibleWhen: (v) => v.listing_type !== "sale",
   },
-  // P3: notice period in days. Rent-only. Replaces the legacy notice_period_months field.
+  // P3: notice period in days. Rent-only.
   {
     key: "notice_period_days",
     label: "Notice period",
@@ -953,16 +953,6 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     editableBy: ["owner"],
     ownerSection: "rent_deposit",
   },
-  // Added in Prompt 4 — admin-captured legal owner name (never shown to tenants).
-  {
-    key: "legal_owner_name",
-    label: "Legal owner name",
-    adminLabel: "Property Legal Owner Name",
-    placeholder: "e.g. Rajesh Kumar Sharma",
-    input: "text",
-    audiences: ["admin_form"],
-    editableBy: ["admin"],
-  },
   {
     key: "status",
     label: "Status",
@@ -984,14 +974,6 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     tier: "locked",
   },
   {
-    key: "flat_number",
-    label: "Flat number",
-    input: "text",
-    audiences: ["admin_form"],
-    editableBy: ["admin"],
-    tier: "locked",
-  },
-  {
     key: "lister_flat_number",
     label: "Flat / Unit number",
     input: "text",
@@ -1001,54 +983,6 @@ export const PROPERTY_FIELDS: PropertyFieldSpec[] = [
     audiences: ["owner_form", "admin_form"],
     editableBy: ["owner", "admin"],
     ownerSection: "location",
-    tier: "locked",
-  },
-  {
-    key: "flat_number_revealed",
-    label: "Flat number revealed",
-    input: "switch",
-    audiences: ["admin_form"],
-    editableBy: ["admin"],
-    tier: "locked",
-  },
-  {
-    key: "board_status",
-    label: "Board status",
-    input: "select",
-    audiences: ["admin_form"],
-    editableBy: ["admin"],
-    tier: "locked",
-  },
-  {
-    key: "auto_accept_enabled",
-    label: "Auto-accept applications",
-    input: "switch",
-    audiences: ["admin_form"],
-    editableBy: ["admin"],
-    tier: "locked",
-  },
-  {
-    key: "owner_diet_preference",
-    label: "Owner diet preference",
-    input: "select",
-    audiences: ["admin_form"],
-    editableBy: ["admin"],
-    tier: "locked",
-  },
-  {
-    key: "owner_pet_preference",
-    label: "Owner pet preference",
-    input: "select",
-    audiences: ["admin_form"],
-    editableBy: ["admin"],
-    tier: "locked",
-  },
-  {
-    key: "owner_tenant_type_preference",
-    label: "Owner tenant-type preference",
-    input: "select",
-    audiences: ["admin_form"],
-    editableBy: ["admin"],
     tier: "locked",
   },
   {
@@ -1188,10 +1122,6 @@ export function validateSpec(spec: PropertyFieldSpec[]): string[] {
       (field.input === "select" || field.input === "radio") &&
       // status is admin-only and intentionally options-less — consumer builds them.
       field.key !== "status" &&
-      field.key !== "board_status" &&
-      field.key !== "owner_diet_preference" &&
-      field.key !== "owner_pet_preference" &&
-      field.key !== "owner_tenant_type_preference" &&
       (!field.options || field.options.length === 0)
     ) {
       errors.push(`Field ${field.key} is select/radio but has no options`);

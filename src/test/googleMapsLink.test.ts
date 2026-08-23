@@ -62,16 +62,14 @@ describe("buildGoogleMapsLink", () => {
   });
 
   it("never includes flat/unit identifiers in the URL", () => {
-    // flat_number / lister_flat_number are intentionally not part of the input
-    // type — cast through unknown to prove they can never leak into the URL.
+    // lister_flat_number is intentionally not part of the input type —
+    // cast through unknown to prove it can never leak into the URL.
     const input = {
       latitude: 1,
       longitude: 2,
-      flat_number: "A-101",
       lister_flat_number: "B-202",
     } as unknown as Parameters<typeof buildGoogleMapsLink>[0];
     const url = buildGoogleMapsLink(input);
-    expect(url).not.toContain("A-101");
     expect(url).not.toContain("B-202");
   });
 });
