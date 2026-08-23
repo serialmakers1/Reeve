@@ -283,11 +283,7 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
     if (!cr?.id || withdrawing) return;
     setWithdrawing(true);
     try {
-      const sb = supabase as unknown as { from: (t: string) => any };
-      const { error } = await sb.from("contact_requests")
-        .update({ status: "withdrawn" })
-        .eq("id", cr.id)
-        .eq("status", "pending");
+      const { error } = await supabase.rpc("withdraw_contact_request", { p_id: cr.id });
       if (error) throw error;
       toast.success("Request withdrawn.");
       setWithdrawOpen(false);

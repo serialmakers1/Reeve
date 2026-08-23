@@ -100,6 +100,12 @@ Deno.serve(async (req: Request) => {
         const retrySec = Math.max(1, Math.ceil((nextSlotMs - Date.now()) / 1000));
         return json({ error: "cooldown_active", retry_after_seconds: retrySec }, 429);
       }
+    } else {
+      // Fail closed: if the rate-limit query fails we cannot prove the caller is
+      // under the hourly limit, so refuse rather than dispatch. Log status only
+      // (no JWT/PII/secrets).
+      console.error("RESEND_HOUR_RATELIMIT_QUERY_FAILED", { status: hourRes.status });
+      return json({ error: "Internal server error" }, 500);
     }
 
     // 5/day IST — anchor to today's IST midnight
@@ -112,6 +118,10 @@ Deno.serve(async (req: Request) => {
     if (dayRes.ok) {
       const rows: Array<unknown> = await dayRes.json();
       if (rows.length >= 5) return json({ error: "daily_resend_limit" }, 429);
+    } else {
+      // Fail closed: same rationale as the hourly gate above.
+      console.error("RESEND_DAY_RATELIMIT_QUERY_FAILED", { status: dayRes.status });
+      return json({ error: "Internal server error" }, 500);
     }
 
     // 7. Gather payload data

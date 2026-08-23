@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -517,11 +518,10 @@ export default function RequestsTab({ propertyId, propertyStatus, listingType }:
     if (!declineTarget) return;
     setDeclining(true);
     try {
-      const sb = supabase as unknown as { from: (t: string) => any };
-      const { error } = await sb.from("contact_requests")
-        .update({ status: "declined", decline_reason: reason })
-        .eq("id", declineTarget)
-        .eq("status", "pending");
+      const { error } = await supabase.rpc("decline_contact_request", {
+        p_id: declineTarget,
+        p_reason: reason as Database["public"]["Enums"]["contact_request_decline_reason"],
+      });
       if (error) {
         toast.error("Could not decline. Please try again.");
         return;

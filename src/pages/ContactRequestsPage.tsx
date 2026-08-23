@@ -173,12 +173,7 @@ export default function ContactRequestsPage() {
     if (!withdrawTarget || !user?.id || withdrawing) return;
     setWithdrawing(true);
     try {
-      const sb = supabase as unknown as { from: (t: string) => any };
-      const { error } = await sb.from("contact_requests")
-        .update({ status: "withdrawn" })
-        .eq("id", withdrawTarget)
-        .eq("tenant_id", user.id)
-        .eq("status", "pending");
+      const { error } = await supabase.rpc("withdraw_contact_request", { p_id: withdrawTarget });
       if (error) throw error;
       toast.success("Request withdrawn.");
       setRows((prev) => prev?.map((r) =>
