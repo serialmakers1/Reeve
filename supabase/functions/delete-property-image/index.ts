@@ -263,6 +263,18 @@ Deno.serve(async (req: Request) => {
     }
     const imageRow = imageRows[0];
 
+    // SEC-002: bind the image to the authorized property. The image is fetched by id
+    // alone via service_role (RLS-bypassing), so without this the caller's authorized
+    // property_id and the privileged image lookup are independent — permitting deletion
+    // of another property's R2 object. Unconditional (admins included): the real
+    // property must be supplied so property A's status/rules never apply to B's image.
+    // Runs before any status branch, DB delete, RPC, or R2 delete.
+    if (imageRow.property_id !== propertyId) {
+      return new Response(JSON.stringify({ success: false, error: "Image does not belong to this property" }), {
+        status: 403, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+
     if (!isAdmin && ["pending_review", "unlisted", "archived"].includes(propStatus)) {
       return new Response(JSON.stringify({ success: false, error: `Photos are frozen while the listing is ${propStatus}` }), {
         status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
@@ -285,8 +297,27 @@ Deno.serve(async (req: Request) => {
       }
     } else {
       // draft / changes_requested: direct delete via caller JWT (trigger permits), then
-      // reassign the cover if the deleted image was primary.
-      await fetch(`${SUPABASE_URL}/rest/v1/property_images?id=eq.${imageId}`, { method: "DELETE", headers: callerHeaders });
+      // reassign the cover if the deleted image was primary. Verify the intended row was
+      // actually removed BEFORE touching R2 — an RLS-blocked delete returns HTTP 200 with
+      // zero rows, and deleting the R2 object then would orphan the victim's still-live row
+      // (SEC-002). Keep caller-JWT + RLS; do not switch to service_role.
+      const delRes = await fetch(`${SUPABASE_URL}/rest/v1/property_images?id=eq.${imageId}`, {
+        method: "DELETE",
+        headers: { ...callerHeaders, "Prefer": "return=representation" },
+      });
+      if (!delRes.ok) {
+        const detail = await delRes.text();
+        console.error("PROPERTY_IMAGE_DB_DELETE_FAILED", { status: delRes.status, detail });
+        return new Response(JSON.stringify({ success: false, error: "Delete failed" }), {
+          status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      const delRows = await delRes.json();
+      if (!Array.isArray(delRows) || delRows.length !== 1 || delRows[0]?.id !== imageId) {
+        return new Response(JSON.stringify({ success: false, error: "Delete blocked" }), {
+          status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
       if (imageRow.is_primary) {
         const remainRes = await fetch(
           `${SUPABASE_URL}/rest/v1/property_images?property_id=eq.${propertyId}&select=id&order=sort_order.asc,created_at.asc&limit=1`,
