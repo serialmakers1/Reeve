@@ -266,8 +266,10 @@ function OwnerStatsBlock({ userId }: { userId: string }) {
         sb.from("properties")
           .select("id", { count: "exact", head: true })
           .eq("owner_id", userId)
-          .in("status", ["listed", "edit_pending_review"])
-          .eq("is_active", true),
+          // Public-visibility gate: RLS independently enforces is_active=true for
+          // non-owner viewers of these two statuses; the status trigger keeps
+          // is_active in lockstep. is_active is not in the authenticated 65-col grant.
+          .in("status", ["listed", "edit_pending_review"]),
       ]);
       if (cancelled) return;
 

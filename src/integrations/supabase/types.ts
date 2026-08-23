@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -2308,6 +2308,20 @@ export type Database = {
           total_count: number
         }[]
       }
+      get_admin_pending_review_properties: {
+        Args: never
+        Returns: {
+          bhk: string
+          building_name: string
+          city: string
+          created_at: string
+          id: string
+          listed_rent: number
+          listing_type: string
+          locality: string
+          owner_id: string
+        }[]
+      }
       get_admin_properties_page: {
         Args: {
           p_city?: string
@@ -2340,6 +2354,109 @@ export type Database = {
           total_count: number
           updated_at: string
           view_count: number
+        }[]
+      }
+      get_admin_property: {
+        Args: { p_property_id: string }
+        Returns: {
+          address_mode: string
+          amenities: Json
+          annual_rent_increase_pct: number
+          available_from: string
+          balconies: number
+          bathrooms: number
+          bhk: string
+          building_age_years: number
+          building_name: string
+          building_name_source: string
+          building_notes: string
+          building_rules: string
+          city: string
+          country: string
+          created_at: string
+          description: string
+          discovery_confirmed_at: string
+          discovery_finalized_at: string
+          district: string
+          expected_price_per_sqft: number
+          facing: string
+          floor_number: number
+          formatted_address: string
+          furnishing: string
+          furnishing_detail: Json
+          gas_type: string
+          id: string
+          is_active: boolean
+          khata_type: string
+          landmark: string
+          latitude: number
+          listed_at: string
+          listed_rent: number
+          lister_flat_number: string
+          lister_role: string
+          listing_type: string
+          locality: string
+          location_confirmed_at: string
+          location_verified_at: string
+          location_verified_by_owner: boolean
+          lock_in_months: number
+          longitude: number
+          main_door_lock_type: string
+          maintenance_included_in_rent: boolean
+          move_in_charges_amount: number
+          neighborhood: string
+          notice_period_days: number
+          owner_email: string
+          owner_full_name: string
+          owner_id: string
+          owner_phone: string
+          owner_pin_adjusted_at: string
+          owner_pin_adjustment_distance_m: number
+          parking_2w: string
+          parking_2w_count: number
+          parking_4w: string
+          parking_4w_count: number
+          parking_notes: string
+          pet_policy: string
+          pincode: string
+          place_id: string
+          plus_code: string
+          possession_date: string
+          possession_status: string
+          price_negotiable: boolean
+          property_tax_paid_upto: string
+          property_type: string
+          rent_brokerage_fixed_amount: number
+          rera_registration_number: string
+          route: string
+          sale_brokerage_pct: number
+          sale_price: number
+          security_deposit_amount: number
+          security_deposit_months: number
+          society_maintenance_approx: number
+          square_footage: number
+          state: string
+          status: string
+          street_address: string
+          street_number: string
+          streetview_available: boolean
+          streetview_checked_at: string
+          streetview_pano_id: string
+          streetview_show_in_listing: boolean
+          sublocality_1: string
+          sublocality_2: string
+          super_built_up_area: number
+          total_floors: number
+          utility_electricity_included: boolean
+          utility_gas_included: boolean
+          utility_water_included: boolean
+          viewport_ne_lat: number
+          viewport_ne_lng: number
+          viewport_sw_lat: number
+          viewport_sw_lng: number
+          water_source: string[]
+          water_storage: string
+          youtube_walkthrough_url: string
         }[]
       }
       get_admin_property_cities: {
@@ -2393,6 +2510,125 @@ export type Database = {
         Returns: {
           name: string
           profile_photo_url: string
+        }[]
+      }
+      get_owner_property: {
+        Args: { p_property_id: string }
+        Returns: {
+          address_mode: string
+          amenities: Json
+          annual_rent_increase_pct: number
+          availability_confirmed_at: string
+          available_from: string
+          balconies: number
+          bathrooms: number
+          bhk: string
+          building_age_years: number
+          building_name: string
+          building_name_source: string
+          building_notes: string
+          building_rules: string
+          city: string
+          country: string
+          current_listed_period_started_at: string
+          description: string
+          discovery_confirmed_at: string
+          district: string
+          expected_price_per_sqft: number
+          facing: string
+          floor_number: number
+          formatted_address: string
+          furnishing: string
+          furnishing_detail: Json
+          gas_type: string
+          id: string
+          is_active: boolean
+          khata_type: string
+          landmark: string
+          latitude: number
+          listed_at: string
+          listed_rent: number
+          lister_flat_number: string
+          lister_role: string
+          listing_type: string
+          locality: string
+          location_confirmed_at: string
+          location_verified_at: string
+          location_verified_by_owner: boolean
+          lock_in_months: number
+          longitude: number
+          main_door_lock_type: string
+          maintenance_included_in_rent: boolean
+          move_in_charges_amount: number
+          neighborhood: string
+          notice_period_days: number
+          owner_id: string
+          parking_2w: string
+          parking_2w_count: number
+          parking_4w: string
+          parking_4w_count: number
+          parking_notes: string
+          pet_policy: string
+          pincode: string
+          place_id: string
+          plus_code: string
+          possession_date: string
+          possession_status: string
+          price_negotiable: boolean
+          property_tax_paid_upto: string
+          property_type: string
+          rent_brokerage_fixed_amount: number
+          rera_registration_number: string
+          route: string
+          sale_brokerage_pct: number
+          sale_listing_confirmed_at: string
+          sale_price: number
+          security_deposit_amount: number
+          security_deposit_months: number
+          society_maintenance_approx: number
+          square_footage: number
+          state: string
+          status: string
+          street_address: string
+          street_number: string
+          streetview_available: boolean
+          streetview_checked_at: string
+          streetview_pano_id: string
+          streetview_show_in_listing: boolean
+          sublocality_1: string
+          sublocality_2: string
+          super_built_up_area: number
+          total_floors: number
+          utility_electricity_included: boolean
+          utility_gas_included: boolean
+          utility_water_included: boolean
+          viewport_ne_lat: number
+          viewport_ne_lng: number
+          viewport_sw_lat: number
+          viewport_sw_lng: number
+          water_source: string[]
+          water_storage: string
+          youtube_walkthrough_url: string
+        }[]
+      }
+      get_owner_property_list: {
+        Args: never
+        Returns: {
+          availability_confirmed_at: string
+          bhk: string
+          building_name: string
+          city: string
+          created_at: string
+          current_listed_period_started_at: string
+          id: string
+          is_active: boolean
+          listed_at: string
+          listed_rent: number
+          listing_type: string
+          locality: string
+          sale_listing_confirmed_at: string
+          sale_price: number
+          status: string
         }[]
       }
       get_owner_response_rate: {

@@ -35,7 +35,6 @@ interface PropertyBrief {
   building_name: string | null;
   locality: string | null;
   status: string | null;
-  is_active: boolean | null;
 }
 
 interface CrRow {
@@ -101,7 +100,7 @@ export default function ContactRequestsPage() {
     // is decided client-side below.
     const { data, error } = await sb
       .from("contact_requests")
-      .select("id, property_id, status, attempt_number, decline_reason, created_at, approved_at, declined_at, withdrawn_at, auto_cancelled_at, tenant_profile_snapshot, properties(id, building_name, locality, status, is_active)")
+      .select("id, property_id, status, attempt_number, decline_reason, created_at, approved_at, declined_at, withdrawn_at, auto_cancelled_at, tenant_profile_snapshot, properties(id, building_name, locality, status)")
       .eq("tenant_id", user.id)
       .order("created_at", { ascending: false });
     if (error) {
@@ -230,9 +229,12 @@ export default function ContactRequestsPage() {
 
   // Visibility (client-side): keep every approved request regardless of current
   // status or property availability (they stay ratable forever); keep other
-  // requests only while the property is still active and listed.
+  // requests only while the property is still a public listing. For a non-owner
+  // tenant, RLS only returns the embedded property when it is public+active, so a
+  // non-null embed in these two statuses already implies is_active=true. is_active
+  // is not selected (not in the authenticated 65-column grant).
   const isPropertyListed = (p: PropertyBrief | null) =>
-    !!p && p.is_active === true && (p.status === "listed" || p.status === "edit_pending_review");
+    !!p && (p.status === "listed" || p.status === "edit_pending_review");
 
   // Tab data
   const allRows = (rows ?? []).filter(
@@ -414,9 +416,13 @@ function RequestCard({
   // card never renders blank; link only when the property is publicly viewable.
   const buildingName = r.properties?.building_name?.trim() || rateable?.building_name?.trim() || null;
   const locality = r.properties?.locality?.trim() || rateable?.locality?.trim() || null;
+  // For a non-owner tenant, RLS only returns the embedded property row when it is
+  // publicly visible (listed/edit_pending_review AND is_active). So a non-null
+  // properties embed in one of those two statuses already implies is_active=true;
+  // is_active is not selected (not in the authenticated 65-column grant).
   const propertyViewable = rateable
     ? rateable.property_viewable
-    : !!r.properties && r.properties.is_active === true &&
+    : !!r.properties &&
       (r.properties.status === "listed" || r.properties.status === "edit_pending_review");
   const propertyLabel = buildingName || (locality ? `Property in ${locality}` : null) ||
     (r.status === "approved" ? "Property no longer available" : "Property");

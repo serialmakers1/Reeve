@@ -28,7 +28,7 @@ export type PropertyRecord = {
   locality: string | null;
   bhk: string;
   balconies: number | null;
-  users: OwnerRelation;
+  owner_full_name: string | null;
 };
 
 export type InspectionRecord = {

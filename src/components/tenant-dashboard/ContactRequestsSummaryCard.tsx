@@ -33,10 +33,12 @@ export default function ContactRequestsSummaryCard() {
     const sb = supabase as unknown as { from: (table: string) => any };
     const { data, error } = await sb
       .from("contact_requests")
-      .select("id, status, properties!inner(status, is_active)")
+      // Public-visibility gate via the embedded status only. RLS enforces
+      // is_active=true for non-owner viewers of these statuses; the status trigger
+      // keeps them in lockstep. is_active is not in the authenticated 65-column grant.
+      .select("id, status, properties!inner(status)")
       .eq("tenant_id", user.id)
-      .in("properties.status", ["listed", "edit_pending_review"])
-      .eq("properties.is_active", true);
+      .in("properties.status", ["listed", "edit_pending_review"]);
     if (error) {
       console.error("SUMMARY_CARD_FETCH_ERROR", error);
       setFetchError(true);

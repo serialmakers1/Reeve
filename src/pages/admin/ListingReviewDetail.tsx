@@ -118,8 +118,10 @@ interface PropertyRow {
   streetview_show_in_listing: boolean;
   location_verified_by_owner: boolean;
   location_verified_at: string | null;
-  // Prompt 10: owner contact via FK join
-  owner: { full_name: string; email: string | null; phone: string | null } | null;
+  // Flat owner fields from get_admin_property RPC
+  owner_full_name: string | null;
+  owner_email: string | null;
+  owner_phone: string | null;
 }
 
 interface EditRequestRow {
@@ -346,12 +348,8 @@ export default function ListingReviewDetail() {
     }
 
     if (!propertyId) return;
-    // Prompt 10: owner FK join replaces the separate public_profiles query.
-    // Exact syntax from Properties.tsx line 170.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: prop, error: propError } = await (supabase as any).from("properties")
-      .select("*, owner:users!properties_owner_id_fkey(full_name, email, phone)")
-      .eq("id", propertyId).maybeSingle();
+    const { data: _propRows, error: propError } = await supabase.rpc("get_admin_property", { p_property_id: propertyId });
+    const prop = (_propRows ?? [])[0] ?? null;
     if (propError) {
       setLoading(false);
       toast({ title: "Couldn't load property", description: propError.message, variant: "destructive" });
@@ -362,8 +360,8 @@ export default function ListingReviewDetail() {
       navigate("/admin/listing-reviews", { replace: true });
       return;
     }
-    setProperty(prop as PropertyRow);
-    setOwnerName((prop as PropertyRow).owner?.full_name ?? "Owner");
+    setProperty(prop as unknown as PropertyRow);
+    setOwnerName((prop as unknown as { owner_full_name?: string }).owner_full_name ?? "Owner");
 
     // Photos — reset stale state before the query so a route change never shows
     // the previous property's photos, and a prior error never persists.
@@ -889,24 +887,24 @@ export default function ListingReviewDetail() {
           )}
         </section>
 
-        {/* Owner contact — from users FK join (Prompt 10) */}
-        {property.owner && (property.owner.email || property.owner.phone) && (
+        {/* Owner contact */}
+        {(property.owner_email || property.owner_phone) && (
           <section className="rounded-lg border bg-card p-4 space-y-2">
             <h2 className="text-sm font-semibold">Owner contact</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-              {property.owner.email && (
+              {property.owner_email && (
                 <div>
                   <p className="text-xs text-muted-foreground">Email</p>
-                  <a href={`mailto:${property.owner.email}`} className="text-sm text-primary underline truncate block">
-                    {property.owner.email}
+                  <a href={`mailto:${property.owner_email}`} className="text-sm text-primary underline truncate block">
+                    {property.owner_email}
                   </a>
                 </div>
               )}
-              {property.owner.phone && (
+              {property.owner_phone && (
                 <div>
                   <p className="text-xs text-muted-foreground">Phone</p>
-                  <a href={`tel:+${property.owner.phone}`} className="text-sm text-primary underline">
-                    +91 {property.owner.phone.replace(/^(\+91|91)/, "")}
+                  <a href={`tel:+${property.owner_phone}`} className="text-sm text-primary underline">
+                    +91 {property.owner_phone.replace(/^(\+91|91)/, "")}
                   </a>
                 </div>
               )}

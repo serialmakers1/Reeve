@@ -89,10 +89,8 @@ export function AdminLocationPanel({ propertyId, token, onChanged }: { propertyI
 
   const load = useCallback(async () => {
     setLoading(true); setLoadError(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: p, error: pe } = await (supabase as any).from("properties")
-      .select("status,building_name,building_name_source,place_id,address_mode,formatted_address,latitude,longitude,country,state,district,pincode,city,locality,route,street_address,location_confirmed_at,discovery_confirmed_at,discovery_finalized_at,streetview_available,streetview_pano_id,owner_pin_adjusted_at,owner_pin_adjustment_distance_m,streetview_show_in_listing")
-      .eq("id", propertyId).maybeSingle();
+    const { data: _propRows, error: pe } = await supabase.rpc("get_admin_property", { p_property_id: propertyId });
+    const p = (_propRows ?? [])[0] ?? null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: a, error: ae } = await (supabase as any).from("property_geo_associations")
       .select("geo_place_id,relationship,is_primary,source,evidence_type,distance_m,geo_places(display_name,kind)")

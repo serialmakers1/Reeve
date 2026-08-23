@@ -95,12 +95,7 @@ export default function ListingReviewQueue() {
     setLoading(true);
 
     // New listings: properties.status = 'pending_review'
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: props } = await (supabase as any)
-      .from("properties")
-      .select("id, owner_id, building_name, bhk, locality, city, listed_rent, created_at, listing_type")
-      .eq("status", "pending_review")
-      .order("created_at", { ascending: true });
+    const { data: props } = await supabase.rpc("get_admin_pending_review_properties");
 
     // Edit requests: pending rows with property joined
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
