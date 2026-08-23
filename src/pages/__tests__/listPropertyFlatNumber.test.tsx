@@ -142,7 +142,6 @@ const mockPropertyRow = {
   youtube_walkthrough_url: null,
   rera_registration_number: null,
   available_from: null,
-  notice_period_months: null,
   notice_period_days: null,
   lock_in_months: null,
   annual_rent_increase_pct: null,
@@ -180,7 +179,6 @@ const mockPropertyRow = {
   longitude: 77.6,
   landmark: null,
   street_address: null,
-  legal_owner_name: null,
   lister_flat_number_confirmed: null,
   expected_price_per_sqft: null,
   possession_status: null,
@@ -190,7 +188,6 @@ const mockPropertyRow = {
   is_active: false,
   title: null,
   description: null,
-  google_maps_url: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };

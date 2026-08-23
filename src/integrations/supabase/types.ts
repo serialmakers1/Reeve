@@ -1129,16 +1129,11 @@ export type Database = {
           address_mode: string | null
           amenities: Json | null
           annual_rent_increase_pct: number | null
-          auto_accept_enabled: boolean
           availability_confirmed_at: string | null
           available_from: string | null
           balconies: number | null
           bathrooms: number | null
           bhk: Database["public"]["Enums"]["bhk_type"] | null
-          board_installed_at: string | null
-          board_qr_code: string | null
-          board_removed_at: string | null
-          board_status: Database["public"]["Enums"]["board_status"]
           building_age_years: number | null
           building_name: string | null
           building_name_source: string | null
@@ -1153,18 +1148,14 @@ export type Database = {
           discovery_confirmed_at: string | null
           discovery_finalized_at: string | null
           district: string | null
-          draft_at: string | null
           expected_price_per_sqft: number | null
           facing: string | null
-          flat_number: string | null
-          flat_number_revealed: boolean
           floor_number: number | null
           formatted_address: string | null
           furnishing: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail: Json | null
           gas_type: string | null
           geom_exact: unknown
-          google_maps_url: string | null
           id: string
           is_active: boolean
           khata_type: string | null
@@ -1172,7 +1163,6 @@ export type Database = {
           last_public_listed_rent: number | null
           last_public_sale_price: number | null
           latitude: number | null
-          legal_owner_name: string | null
           listed_at: string | null
           listed_rent: number
           lister_flat_number: string | null
@@ -1189,21 +1179,9 @@ export type Database = {
           move_in_charges_amount: number | null
           neighborhood: string | null
           notice_period_days: number | null
-          notice_period_months: number | null
-          owner_committed_12_months: boolean | null
-          owner_diet_preference: string | null
-          owner_has_local_rep: boolean | null
           owner_id: string
-          owner_income_dependent: boolean | null
-          owner_lives_in_same_city: boolean | null
-          owner_only_rental_property: boolean | null
-          owner_pet_preference: string | null
           owner_pin_adjusted_at: string | null
           owner_pin_adjustment_distance_m: number | null
-          owner_prefers_phone_calls: boolean | null
-          owner_rep_name: string | null
-          owner_rep_phone: string | null
-          owner_tenant_type_preference: string | null
           parking_2w: Database["public"]["Enums"]["parking_availability"]
           parking_2w_count: number | null
           parking_4w: Database["public"]["Enums"]["parking_availability"]
@@ -1241,14 +1219,11 @@ export type Database = {
           sublocality_1: string | null
           sublocality_2: string | null
           super_built_up_area: number | null
-          title: string | null
           total_floors: number | null
           updated_at: string
           utility_electricity_included: boolean
           utility_gas_included: boolean
           utility_water_included: boolean
-          vacancy_review_day14_at: string | null
-          vacancy_review_day21_at: string | null
           viewport_ne_lat: number | null
           viewport_ne_lng: number | null
           viewport_sw_lat: number | null
@@ -1261,16 +1236,11 @@ export type Database = {
           address_mode?: string | null
           amenities?: Json | null
           annual_rent_increase_pct?: number | null
-          auto_accept_enabled?: boolean
           availability_confirmed_at?: string | null
           available_from?: string | null
           balconies?: number | null
           bathrooms?: number | null
           bhk?: Database["public"]["Enums"]["bhk_type"] | null
-          board_installed_at?: string | null
-          board_qr_code?: string | null
-          board_removed_at?: string | null
-          board_status?: Database["public"]["Enums"]["board_status"]
           building_age_years?: number | null
           building_name?: string | null
           building_name_source?: string | null
@@ -1285,18 +1255,14 @@ export type Database = {
           discovery_confirmed_at?: string | null
           discovery_finalized_at?: string | null
           district?: string | null
-          draft_at?: string | null
           expected_price_per_sqft?: number | null
           facing?: string | null
-          flat_number?: string | null
-          flat_number_revealed?: boolean
           floor_number?: number | null
           formatted_address?: string | null
           furnishing?: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail?: Json | null
           gas_type?: string | null
           geom_exact?: unknown
-          google_maps_url?: string | null
           id?: string
           is_active?: boolean
           khata_type?: string | null
@@ -1304,7 +1270,6 @@ export type Database = {
           last_public_listed_rent?: number | null
           last_public_sale_price?: number | null
           latitude?: number | null
-          legal_owner_name?: string | null
           listed_at?: string | null
           listed_rent?: number
           lister_flat_number?: string | null
@@ -1321,21 +1286,9 @@ export type Database = {
           move_in_charges_amount?: number | null
           neighborhood?: string | null
           notice_period_days?: number | null
-          notice_period_months?: number | null
-          owner_committed_12_months?: boolean | null
-          owner_diet_preference?: string | null
-          owner_has_local_rep?: boolean | null
           owner_id: string
-          owner_income_dependent?: boolean | null
-          owner_lives_in_same_city?: boolean | null
-          owner_only_rental_property?: boolean | null
-          owner_pet_preference?: string | null
           owner_pin_adjusted_at?: string | null
           owner_pin_adjustment_distance_m?: number | null
-          owner_prefers_phone_calls?: boolean | null
-          owner_rep_name?: string | null
-          owner_rep_phone?: string | null
-          owner_tenant_type_preference?: string | null
           parking_2w?: Database["public"]["Enums"]["parking_availability"]
           parking_2w_count?: number | null
           parking_4w?: Database["public"]["Enums"]["parking_availability"]
@@ -1373,14 +1326,11 @@ export type Database = {
           sublocality_1?: string | null
           sublocality_2?: string | null
           super_built_up_area?: number | null
-          title?: string | null
           total_floors?: number | null
           updated_at?: string
           utility_electricity_included?: boolean
           utility_gas_included?: boolean
           utility_water_included?: boolean
-          vacancy_review_day14_at?: string | null
-          vacancy_review_day21_at?: string | null
           viewport_ne_lat?: number | null
           viewport_ne_lng?: number | null
           viewport_sw_lat?: number | null
@@ -1393,16 +1343,11 @@ export type Database = {
           address_mode?: string | null
           amenities?: Json | null
           annual_rent_increase_pct?: number | null
-          auto_accept_enabled?: boolean
           availability_confirmed_at?: string | null
           available_from?: string | null
           balconies?: number | null
           bathrooms?: number | null
           bhk?: Database["public"]["Enums"]["bhk_type"] | null
-          board_installed_at?: string | null
-          board_qr_code?: string | null
-          board_removed_at?: string | null
-          board_status?: Database["public"]["Enums"]["board_status"]
           building_age_years?: number | null
           building_name?: string | null
           building_name_source?: string | null
@@ -1417,18 +1362,14 @@ export type Database = {
           discovery_confirmed_at?: string | null
           discovery_finalized_at?: string | null
           district?: string | null
-          draft_at?: string | null
           expected_price_per_sqft?: number | null
           facing?: string | null
-          flat_number?: string | null
-          flat_number_revealed?: boolean
           floor_number?: number | null
           formatted_address?: string | null
           furnishing?: Database["public"]["Enums"]["furnishing_type"] | null
           furnishing_detail?: Json | null
           gas_type?: string | null
           geom_exact?: unknown
-          google_maps_url?: string | null
           id?: string
           is_active?: boolean
           khata_type?: string | null
@@ -1436,7 +1377,6 @@ export type Database = {
           last_public_listed_rent?: number | null
           last_public_sale_price?: number | null
           latitude?: number | null
-          legal_owner_name?: string | null
           listed_at?: string | null
           listed_rent?: number
           lister_flat_number?: string | null
@@ -1453,21 +1393,9 @@ export type Database = {
           move_in_charges_amount?: number | null
           neighborhood?: string | null
           notice_period_days?: number | null
-          notice_period_months?: number | null
-          owner_committed_12_months?: boolean | null
-          owner_diet_preference?: string | null
-          owner_has_local_rep?: boolean | null
           owner_id?: string
-          owner_income_dependent?: boolean | null
-          owner_lives_in_same_city?: boolean | null
-          owner_only_rental_property?: boolean | null
-          owner_pet_preference?: string | null
           owner_pin_adjusted_at?: string | null
           owner_pin_adjustment_distance_m?: number | null
-          owner_prefers_phone_calls?: boolean | null
-          owner_rep_name?: string | null
-          owner_rep_phone?: string | null
-          owner_tenant_type_preference?: string | null
           parking_2w?: Database["public"]["Enums"]["parking_availability"]
           parking_2w_count?: number | null
           parking_4w?: Database["public"]["Enums"]["parking_availability"]
@@ -1505,14 +1433,11 @@ export type Database = {
           sublocality_1?: string | null
           sublocality_2?: string | null
           super_built_up_area?: number | null
-          title?: string | null
           total_floors?: number | null
           updated_at?: string
           utility_electricity_included?: boolean
           utility_gas_included?: boolean
           utility_water_included?: boolean
-          vacancy_review_day14_at?: string | null
-          vacancy_review_day21_at?: string | null
           viewport_ne_lat?: number | null
           viewport_ne_lng?: number | null
           viewport_sw_lat?: number | null
@@ -2898,11 +2823,6 @@ export type Database = {
         | "other"
       auth_provider: "phone_otp" | "google" | "apple" | "email_otp"
       bhk_type: "1BHK" | "2BHK" | "3BHK" | "4BHK" | "5BHK_plus" | "studio"
-      board_status:
-        | "not_installed"
-        | "installed"
-        | "needs_replacement"
-        | "removed"
       contact_request_decline_reason:
         | "preferences_dont_fit"
         | "property_currently_unavailable"
@@ -3113,12 +3033,6 @@ export const Constants = {
       ],
       auth_provider: ["phone_otp", "google", "apple", "email_otp"],
       bhk_type: ["1BHK", "2BHK", "3BHK", "4BHK", "5BHK_plus", "studio"],
-      board_status: [
-        "not_installed",
-        "installed",
-        "needs_replacement",
-        "removed",
-      ],
       contact_request_decline_reason: [
         "preferences_dont_fit",
         "property_currently_unavailable",

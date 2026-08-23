@@ -8,8 +8,8 @@
  *      "Location not resolved" message rather than a misleading pin).
  *   3. Only lat/lng coordinates are used — no place_id is appended.
  *
- * Admin-only unit/flat identifiers (flat_number, lister_flat_number) are NEVER
- * included in the external URL.
+ * The owner-submitted unit identifier (lister_flat_number) is NEVER included
+ * in the external URL.
  */
 
 export interface GoogleMapsLinkInput {

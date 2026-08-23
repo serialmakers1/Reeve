@@ -23,7 +23,7 @@ type OwnerRelation = { full_name: string | null } | { full_name: string | null }
 export type PropertyRecord = {
   id: string;
   building_name: string;
-  flat_number: string | null;
+  lister_flat_number: string | null;
   floor_number: number | null;
   locality: string | null;
   bhk: string;

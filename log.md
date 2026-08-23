@@ -1,3 +1,110 @@
+## [2026-08-24] security | Group 3 Phase 1 — post-deployment type regeneration + verification complete [01:09 IST]
+
+**Both migrations deployed to live Supabase. Types regenerated. Verification gates passed.**
+
+### Deployment
+- `20260824000000_group3_phase1_drop_retired_columns.sql` — DEPLOYED
+- `20260824000010_group3_phase1_restrict_anon_property_columns.sql` — DEPLOYED
+
+### Type regeneration
+- `src/integrations/supabase/types.ts` regenerated via `npx supabase gen types typescript --linked`
+- All 25 retired columns confirmed absent from generated types
+- `public.board_status` enum confirmed absent
+- Active fields confirmed present: `lister_flat_number`, `notice_period_days`, `availability_confirmed_at`, `sale_listing_confirmed_at`, `current_listed_period_started_at`, `last_public_listed_rent`, `last_public_sale_price`
+
+### Verification results
+- TypeScript: 0 errors (`npx tsc -p tsconfig.app.json --noEmit`)
+- Tests: 900/900 (1 apparent failure in `searchLocationMemory.test.ts` "serializes writes" is a pre-existing timing-sensitive flaky test unrelated to SEC-003; passes in isolation, races under full parallel test load)
+- Build + SSG: clean
+
+### Live PostgREST security verification
+**PENDING** — required before Phase 1 is considered complete:
+- Confirm anon 65-column explicit query succeeds
+- Confirm anon `lister_flat_number` query fails (permission denied)
+- Confirm anon `select=*` fails (permission denied — no table-level SELECT)
+- Confirm public PropertyDetail still loads correctly
+- Confirm search/map/authenticated/owner/admin flows intact
+
+### Phase 1 status
+```
+Prompt 1: COMPLETE
+Prompt 2: DEPLOYED
+Prompt 3: DEPLOYED
+Types: REGENERATED
+Local verification: COMPLETE
+Live PostgREST security verification: PENDING
+```
+
+---
+
+## [2026-08-24] security | Group 3 Phase 1 — all three prompts prepared, combined deployment pending [00:55 IST]
+
+**SEC-003 Group 3 Phase 1 implementation is COMPLETE (PREPARED, NOT DEPLOYED).**
+
+### Prompt 1 — Application cleanup (COMPLETE)
+- Retired all 25 dead/product-retired `public.properties` columns from frontend: removed from `PropertyEdit.tsx` state/data-load/save/JSX (16 state vars, 2 entire UI sections deleted), `property-fields.ts` spec entries, `ListingReviewDetail.tsx` display
+- Inspection chain: `flat_number` replaced with `lister_flat_number` in `InspectionForm.tsx` select + display, `src/types/inspection.ts` `PropertyRecord`, `CoverBlock.tsx` report cover; list view (`Inspections.tsx`) correctly did NOT receive `lister_flat_number` (not displayed there)
+- Retired owner/profile/admin controls fully removed; `lister_flat_number` preserved throughout
+- 4 test files updated: `googleMapsLink.test.ts`, `ownerEditPolicy.test.ts`, `property-fields.test.ts`, `listPropertyFlatNumber.test.tsx`
+- TypeScript clean · 900/900 tests · build + SSG clean
+
+### Prompt 2 — DB migration prepared (NOT DEPLOYED)
+- `supabase/migrations/20260824000000_group3_phase1_drop_retired_columns.sql` created
+- 25 columns scheduled for DROP: `legal_owner_name`, `owner_rep_name`, `owner_rep_phone`, `flat_number`, `flat_number_revealed`, `board_qr_code`, `board_status`, `board_installed_at`, `board_removed_at`, `title`, `auto_accept_enabled`, `owner_diet_preference`, `owner_pet_preference`, `owner_tenant_type_preference`, `owner_committed_12_months`, `owner_income_dependent`, `owner_has_local_rep`, `owner_lives_in_same_city`, `owner_only_rental_property`, `owner_prefers_phone_calls`, `google_maps_url`, `draft_at`, `vacancy_review_day14_at`, `vacancy_review_day21_at`, `notice_period_months`
+- `idx_properties_board_qr_code` dropped before its column
+- `public.board_status` enum dropped (confirmed sole usages: column + column grants + one trigger guard — all eliminated in same migration)
+- `prevent_owner_updating_admin_fields()` rewritten: removed 7 retiring-column guards; `last_public_listed_rent`/`last_public_sale_price` and all 3 server-managed guards preserved; SECURITY DEFINER + search_path unchanged
+- `enforce_owner_edit_partition()` rewritten: removed `legal_owner_name`, `google_maps_url`, `title` from `identity_changed`; removed `notice_period_months` from `live_changed`; `notice_period_days`, `lister_flat_number`, `description`, all active fields preserved; SECURITY DEFINER + search_path unchanged
+- No CASCADE anywhere; no RLS/grant changes; no Supabase deployment
+
+### Prompt 3 — Anon column restriction migration prepared (NOT DEPLOYED)
+- `supabase/migrations/20260824000010_group3_phase1_restrict_anon_property_columns.sql` created
+- Baseline had 40 individual column-level anon SELECT grants + broad table-level SELECT on `public.properties`; revoking table-level alone does not clear column-level grants in PostgreSQL
+- Migration: (1) revokes table-level SELECT; (2) explicitly revokes 7 surviving-but-excluded column grants (`street_address`, `state`, `pincode`, `is_active`, `created_at`, `updated_at`, `description`); 5 baseline grants auto-removed by Prompt 2 column drops
+- (3) grants exactly 65 public columns matching `PropertyDetail.tsx` explicit select (confirmed via code inspection; `property_type` added — present in PropertyDetail but absent from original list; clearly public listing data)
+- `lister_flat_number` confirmed absent from PropertyDetail and from the grant
+- authenticated/service_role/RLS/RPCs unchanged; `search_compact_properties_v3` is SECURITY DEFINER and unaffected by anon column grants
+- No Supabase deployment
+
+### Deployment state
+**No Supabase migration list / dry-run / push executed during Prompts 2 or 3. Linked types not regenerated. Combined Phase 1 deployment + type regeneration + live PostgREST security verification still required.**
+
+### Final local verification (Prompt 3)
+TypeScript: 0 errors · Tests: 900/900 · Build + SSG: clean
+
+### Phase 1 status
+```
+Prompt 1: COMPLETE
+Prompt 2: PREPARED (not deployed)
+Prompt 3: PREPARED (not deployed)
+
+Implementation: COMPLETE
+Deployment: PENDING
+Live verification: PENDING
+```
+
+## [2026-08-24] security | Group 3 Phase 1 Prompt 2 — DB dead-column migration prepared (deploy pending) [00:39 IST]
+
+Prepared `supabase/migrations/20260824000000_group3_phase1_drop_retired_columns.sql`. Migration NOT yet deployed — all three Phase 1 prompts (1 application cleanup, 2 DB cleanup, 3 anon SELECT restriction) will be deployed together.
+
+**25 columns scheduled for DROP** from `public.properties`:
+- Product-retired: `legal_owner_name`, `owner_rep_name`, `owner_rep_phone`, `flat_number`, `flat_number_revealed`, `board_qr_code`, `board_status`, `board_installed_at`, `board_removed_at`, `title`, `auto_accept_enabled`, `owner_diet_preference`, `owner_pet_preference`, `owner_tenant_type_preference`, `owner_committed_12_months`, `owner_income_dependent`, `owner_has_local_rep`, `owner_lives_in_same_city`, `owner_only_rental_property`, `owner_prefers_phone_calls`
+- Technically dead: `google_maps_url`, `draft_at`, `vacancy_review_day14_at`, `vacancy_review_day21_at`, `notice_period_months`
+
+**Trigger function rewrites:**
+- `prevent_owner_updating_admin_fields()` — removed 7 retiring-column guards (`flat_number`, `board_status`, `flat_number_revealed`, `auto_accept_enabled`, `owner_diet_preference`, `owner_pet_preference`, `owner_tenant_type_preference`); preserved all 3 server-managed guards and `last_public_listed_rent`/`last_public_sale_price` guards; SECURITY DEFINER + search_path unchanged
+- `enforce_owner_edit_partition()` — removed `legal_owner_name`, `google_maps_url`, `title` from `identity_changed` block; removed `notice_period_months` from `live_changed` block; all active fields (`notice_period_days`, `lister_flat_number`, `description`, all location/geo/pricing fields) preserved; SECURITY DEFINER + search_path unchanged
+
+**Index cleanup:** `idx_properties_board_qr_code` dropped before `board_qr_code` column.
+
+**Enum cleanup:** `public.board_status` dropped — baseline scan confirmed sole usages were the retiring column, its grants, and the trigger guard (all eliminated in this migration).
+
+**Not changed:** RLS, grants (anon/authenticated), `lister_flat_number`, availability/confirmation architecture, `notice_period_days`, all active pricing/lifecycle fields. No application code changed (Prompt 1 already clean). `src/integrations/supabase/types.ts` NOT regenerated — live DB not yet migrated.
+
+**Verification (local only — no Supabase push):** TypeScript 0 errors · 900/900 tests · build + SSG clean.
+
+**Next:** Prompt 3 (anon SELECT restriction + public column allow-list), then combined Phase 1 deployment, then types regen and live verification.
+
 ## [2026-08-21] cleanup | Removed verified orphan shared components and stale component API surface [21:55 IST]
 
 ## [2026-08-21] audit | Audited shared component reachability, stale props, exports, and replaced implementations [21:30 IST]

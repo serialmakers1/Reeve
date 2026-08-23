@@ -72,7 +72,7 @@ export function CoverBlock({ payload }: Props) {
   const meta = REPORT_TYPE_META[reportType];
 
   const address = [
-    property.flat_number ? `Flat ${property.flat_number}` : null,
+    property.lister_flat_number ? `Flat ${property.lister_flat_number}` : null,
     property.building_name,
     property.locality,
   ]

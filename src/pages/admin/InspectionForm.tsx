@@ -161,7 +161,7 @@ export default function InspectionForm() {
         supabase
           .from("properties")
           .select(`
-          id, building_name, flat_number, floor_number, locality, bhk, balconies,
+          id, building_name, lister_flat_number, floor_number, locality, bhk, balconies,
             users!properties_owner_id_fkey (full_name)
           `)
           .eq("id", propertyId)
@@ -713,7 +713,7 @@ export default function InspectionForm() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Floor & Flat Number</p>
-                <p className="text-sm font-medium">Floor {property.floor_number ?? "—"} · Flat {property.flat_number ?? "—"}</p>
+                <p className="text-sm font-medium">Floor {property.floor_number ?? "—"} · Flat {property.lister_flat_number ?? "—"}</p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">BHK</p>

@@ -87,7 +87,6 @@ export default function PropertyEdit() {
   // Form state — Section 1: Basic Details
   const [buildingName, setBuildingName] = useState("");
   const [bnSaving, setBnSaving] = useState(false);
-  const [legalOwnerName, setLegalOwnerName] = useState("");
   const [locality, setLocality] = useState("");
   const [bhk, setBhk] = useState("");
   const [propertyType, setPropertyType] = useState("");
@@ -96,7 +95,6 @@ export default function PropertyEdit() {
   const [squareFootage, setSquareFootage] = useState<string>("");
 
   // Section 2: Listing Details
-  const [flatNumber, setFlatNumber] = useState("");
   const [listedRent, setListedRent] = useState<string>("");
   const [societyMaintenance, setSocietyMaintenance] = useState<string>("");
   const [availableFrom, setAvailableFrom] = useState<Date | undefined>();
@@ -134,9 +132,7 @@ export default function PropertyEdit() {
 
   // Added in Prompt 4 — spec fields previously missing from admin form.
   const [buildingNotes, setBuildingNotes] = useState("");
-  const [flatNumberRevealed, setFlatNumberRevealed] = useState(false);
   const [securityDepositAmount, setSecurityDepositAmount] = useState<string>("");
-  const [boardStatus, setBoardStatus] = useState<string>("");
 
   // Prompt 8 — India fields (D-159).
   const [landmark, setLandmark] = useState<string>("");
@@ -173,19 +169,6 @@ export default function PropertyEdit() {
   const [rentBrokerageFixedAmount, setRentBrokerageFixedAmount] = useState<string>("");
   const [saleBrokeragePct, setSaleBrokeragePct] = useState<string>("");
 
-  // Section 7: Owner Profile
-  const [ownerOnlyRental, setOwnerOnlyRental] = useState<boolean | null>(null);
-  const [ownerIncomeDependent, setOwnerIncomeDependent] = useState<boolean | null>(null);
-  const [ownerCommitted12, setOwnerCommitted12] = useState<boolean | null>(null);
-  const [ownerWantsControl, setOwnerWantsControl] = useState<boolean | null>(null); // inverted from auto_accept_enabled
-  const [ownerHasLocalRep, setOwnerHasLocalRep] = useState<boolean | null>(null);
-  const [ownerRepName, setOwnerRepName] = useState("");
-  const [ownerRepPhone, setOwnerRepPhone] = useState("");
-  const [ownerLivesSameCity, setOwnerLivesSameCity] = useState<boolean | null>(null);
-  const [ownerPrefersPhone, setOwnerPrefersPhone] = useState<boolean | null>(null);
-  const [ownerDietPreference, setOwnerDietPreference] = useState<string>('no_preference');
-  const [ownerPetPreference, setOwnerPetPreference] = useState<string>('no_preference');
-  const [ownerTenantTypePreference, setOwnerTenantTypePreference] = useState<string>('no_preference');
 
   // Google Maps Phase 1 — address fields
   const [placeId, setPlaceId] = useState<string | null>(null);
@@ -252,14 +235,12 @@ export default function PropertyEdit() {
 
       // Pre-fill form
       setBuildingName((data as unknown as Record<string, unknown>).building_name as string || "");
-      setLegalOwnerName((data as unknown as Record<string, unknown>).legal_owner_name as string || "");
       setLocality((data as unknown as Record<string, unknown>).locality as string || "");
       setBhk((data as unknown as Record<string, unknown>).bhk as string || "");
       setPropertyType((data as unknown as Record<string, unknown>).property_type as string || "apartment");
       setFloorNumber((data as unknown as Record<string, unknown>).floor_number != null ? String((data as unknown as Record<string, unknown>).floor_number) : "");
       setTotalFloors((data as unknown as Record<string, unknown>).total_floors != null ? String((data as unknown as Record<string, unknown>).total_floors) : "");
       setSquareFootage((data as unknown as Record<string, unknown>).square_footage != null ? String((data as unknown as Record<string, unknown>).square_footage) : "");
-      setFlatNumber((data as unknown as Record<string, unknown>).flat_number as string || "");
       setListedRent((data as unknown as Record<string, unknown>).listed_rent != null ? String((data as unknown as Record<string, unknown>).listed_rent) : "");
       setSocietyMaintenance((data as unknown as Record<string, unknown>).society_maintenance_approx != null ? String((data as unknown as Record<string, unknown>).society_maintenance_approx) : "");
       if ((data as unknown as Record<string, unknown>).available_from) {
@@ -279,9 +260,7 @@ export default function PropertyEdit() {
       setYoutubeWalkthroughUrl((data as unknown as Record<string, unknown>).youtube_walkthrough_url as string || "");
       // Prompt 4 — hydrate spec fields previously missing from admin form.
       setBuildingNotes((data as unknown as Record<string, unknown>).building_notes as string || "");
-      setFlatNumberRevealed(!!(data as unknown as Record<string, unknown>).flat_number_revealed);
       setSecurityDepositAmount((data as unknown as Record<string, unknown>).security_deposit_amount != null ? String((data as unknown as Record<string, unknown>).security_deposit_amount) : "");
-      setBoardStatus((data as unknown as Record<string, unknown>).board_status as string || "");
       // Prompt 8 — India fields.
       setLandmark((data as unknown as Record<string, unknown>).landmark as string || "");
       setAnnualRentIncreasePct((data as unknown as Record<string, unknown>).annual_rent_increase_pct != null ? String((data as unknown as Record<string, unknown>).annual_rent_increase_pct) : "");
@@ -312,23 +291,6 @@ export default function PropertyEdit() {
       setRentBrokerageFixedAmount((data as unknown as Record<string, unknown>).rent_brokerage_fixed_amount != null ? String((data as unknown as Record<string, unknown>).rent_brokerage_fixed_amount) : "");
       setSaleBrokeragePct((data as unknown as Record<string, unknown>).sale_brokerage_pct != null ? String((data as unknown as Record<string, unknown>).sale_brokerage_pct) : "");
 
-      // Owner profile fields
-      const d = data as Record<string, unknown>;
-      setOwnerOnlyRental(d.owner_only_rental_property as boolean | null);
-      setOwnerIncomeDependent(d.owner_income_dependent as boolean | null);
-      setOwnerCommitted12(d.owner_committed_12_months as boolean | null);
-      // auto_accept_enabled: false = owner wants control (Yes), true = platform handles (No)
-      const autoAccept = d.auto_accept_enabled as boolean;
-      setOwnerWantsControl(autoAccept === true ? false : autoAccept === false ? true : null);
-      setOwnerHasLocalRep(d.owner_has_local_rep as boolean | null);
-      setOwnerRepName(d.owner_rep_name as string || "");
-      setOwnerRepPhone(d.owner_rep_phone as string || "");
-      setOwnerLivesSameCity(d.owner_lives_in_same_city as boolean | null);
-      setOwnerPrefersPhone(d.owner_prefers_phone_calls as boolean | null);
-      setOwnerDietPreference(d.owner_diet_preference as string || 'no_preference');
-      setOwnerPetPreference(d.owner_pet_preference as string || 'no_preference');
-      setOwnerTenantTypePreference(d.owner_tenant_type_preference as string || 'no_preference');
-
       // Parse amenities
       // D-171: furnishingItems state removed (D-170 follow-up) — amenities.furnishing_items
       // is derived from furnishingDetail on save via buildAmenitiesJson; no need to track separately.
@@ -336,6 +298,7 @@ export default function PropertyEdit() {
       setBuildingAmenities(Array.isArray(amenities.building) ? amenities.building as string[] : []);
 
       // New columns
+      const d = data as Record<string, unknown>;
       setBathrooms(d.bathrooms != null ? String(d.bathrooms) : '');
       setBalconies(d.balconies != null ? String(d.balconies) : '');
       setFacing(d.facing as string || '');
@@ -538,14 +501,12 @@ export default function PropertyEdit() {
 
     const updatePayload: Record<string, unknown> = {
         building_name: buildingName,
-        legal_owner_name: legalOwnerName || null,
         locality: locality || null,
         bhk: bhk as "studio" | "1BHK" | "2BHK" | "3BHK" | "4BHK" | "5BHK_plus",
         property_type: propertyType || null,
         floor_number: floorNumber ? parseInt(floorNumber) : null,
         total_floors: totalFloors ? parseInt(totalFloors) : null,
         square_footage: squareFootage ? parseFloat(squareFootage) : null,
-        flat_number: flatNumber || null,
         listed_rent: listedRent ? parseFloat(listedRent) : 0,
         society_maintenance_approx: societyMaintenance ? parseFloat(societyMaintenance) : null,
         available_from: availableFrom ? format(availableFrom, "yyyy-MM-dd") : null,
@@ -566,24 +527,10 @@ export default function PropertyEdit() {
         pet_policy: petPolicy || null,
         building_rules: buildingRules || null,
         is_active: isActive,
-        owner_only_rental_property: ownerOnlyRental,
-        owner_income_dependent: ownerIncomeDependent,
-        owner_committed_12_months: ownerCommitted12,
-        auto_accept_enabled: ownerWantsControl === null ? false : !ownerWantsControl,
-        owner_has_local_rep: ownerHasLocalRep,
-        owner_rep_name: ownerHasLocalRep ? (ownerRepName || null) : null,
-        owner_rep_phone: ownerHasLocalRep ? (ownerRepPhone || null) : null,
-        owner_lives_in_same_city: ownerLivesSameCity,
-        owner_prefers_phone_calls: ownerPrefersPhone,
-        owner_diet_preference: ownerDietPreference,
-        owner_pet_preference: ownerPetPreference,
-        owner_tenant_type_preference: ownerTenantTypePreference,
         youtube_walkthrough_url: youtubeWalkthroughUrl.trim() || null,
         // Prompt 4 — spec fields newly surfaced on admin form.
         building_notes: buildingNotes || null,
-        flat_number_revealed: flatNumberRevealed,
         security_deposit_amount: securityDepositAmount ? parseFloat(securityDepositAmount) : null,
-        // board_status is an enum column with no curated options in spec yet — save skipped to avoid empty-string enum violation. Read-only display only.
         // Prompt 8 — India fields (D-159).
         landmark: landmark || null,
         annual_rent_increase_pct: annualRentIncreasePct ? parseFloat(annualRentIncreasePct) : null,
@@ -1153,7 +1100,6 @@ export default function PropertyEdit() {
         {/* Section 1 — Basic Details — scalar rendering driven by PROPERTY_FIELDS (D-128, D-155, D-156). */}
         <Section title="Basic Details">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <SpecField fieldKey="legal_owner_name" surface="admin_form" value={legalOwnerName} onChange={(v: string) => setLegalOwnerName(v)} />
             <SpecField fieldKey="bhk" surface="admin_form" value={bhk} onChange={(v: string) => setBhk(v)} readOnly={conflictKeys.has("bhk")}>{conflictKeys.has("bhk") && <ConflictNote editId={pendingEditId} />}</SpecField>
             <SpecField fieldKey="property_type" surface="admin_form" value={propertyType} onChange={(v: string) => setPropertyType(v)} readOnly={conflictKeys.has("property_type")}>{conflictKeys.has("property_type") && <ConflictNote editId={pendingEditId} />}</SpecField>
             <SpecField fieldKey="floor_number" surface="admin_form" value={floorNumber} onChange={(v: string) => setFloorNumber(v)} />
@@ -1178,10 +1124,6 @@ export default function PropertyEdit() {
             <div className="sm:col-span-2">
               <SpecField fieldKey="listing_type" surface="admin_form" value={listingType} onChange={(v: string) => setListingType(v)} className="max-w-xs" />
             </div>
-            {/* TODO(spec): fold "Flat No. (hidden from tenants)" admin label into PROPERTY_FIELDS.flat_number.adminLabel in Prompt 6 bundle */}
-            <SpecField fieldKey="flat_number" surface="admin_form" value={flatNumber} onChange={(v: string) => setFlatNumber(v)} />
-            {/* Added in Prompt 4 — flat_number_revealed toggle previously missing. */}
-            <SpecField fieldKey="flat_number_revealed" surface="admin_form" value={flatNumberRevealed} onChange={(v: boolean) => setFlatNumberRevealed(v)} />
             {/* Prompt 10b — rent-only fields gated on listing_type !== 'sale' (fail-safe
                 pattern per D-161: legacy rows with null listing_type render rent).
                 Sale-only fields render below in the sale branch. */}
@@ -1372,137 +1314,9 @@ export default function PropertyEdit() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <SpecField fieldKey="listed_at" surface="admin_form" value={(property as unknown as Record<string, unknown>).listed_at} readOnly />
               <SpecField fieldKey="created_at" surface="admin_form" value={(property as unknown as Record<string, unknown>).created_at} readOnly />
-              {/* Board status — read-only display; edit path deferred (enum has no curated options in spec yet). TODO(spec): populate PROPERTY_FIELDS.board_status.options in Prompt 6 bundle, then re-enable edit. */}
-              <SpecField fieldKey="board_status" surface="admin_form" value={boardStatus} readOnly />
             </div>
           </Section>
         )}
-
-        {/* Section 7 — Owner Tenant Preferences */}
-        <div className="rounded-lg border bg-card p-4 md:p-6 space-y-4">
-          <div>
-            <h2 className="text-base font-medium text-foreground">Owner Tenant Preferences</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Captured during inspection — used for tenant matching only. Never visible to tenants or owners.</p>
-          </div>
-
-          <div className="space-y-5">
-            {/* Diet */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <p className="text-sm text-foreground flex-1">Dietary preference for tenants?</p>
-              <div className="flex items-center gap-1 shrink-0">
-                {[
-                  { value: 'no_preference', label: 'No Preference' },
-                  { value: 'prefer_vegetarian', label: 'Prefer Veg' },
-                  { value: 'vegetarian_only', label: 'Veg Only' },
-                ].map((opt, i, arr) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setOwnerDietPreference(opt.value)}
-                    className={cn(
-                      "px-3 py-1 text-xs font-medium min-h-[32px] border transition-colors",
-                      i === 0 ? "rounded-l-md" : "",
-                      i === arr.length - 1 ? "rounded-r-md border-l-0" : "border-r-0",
-                      i > 0 ? "border-l" : "",
-                      ownerDietPreference === opt.value
-                        ? "bg-primary/10 text-primary border-primary/30"
-                        : "bg-background text-muted-foreground border-border hover:bg-muted/50"
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Pets */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <p className="text-sm text-foreground flex-1">Preference regarding pets?</p>
-              <div className="flex items-center gap-1 shrink-0">
-                {[
-                  { value: 'no_preference', label: 'No Preference' },
-                  { value: 'prefer_no_pets', label: 'Prefer No Pets' },
-                  { value: 'no_pets_strictly', label: 'No Pets' },
-                ].map((opt, i, arr) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setOwnerPetPreference(opt.value)}
-                    className={cn(
-                      "px-3 py-1 text-xs font-medium min-h-[32px] border transition-colors",
-                      i === 0 ? "rounded-l-md" : "",
-                      i === arr.length - 1 ? "rounded-r-md border-l-0" : "border-r-0",
-                      i > 0 ? "border-l" : "",
-                      ownerPetPreference === opt.value
-                        ? "bg-primary/10 text-primary border-primary/30"
-                        : "bg-background text-muted-foreground border-border hover:bg-muted/50"
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tenant Type */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <p className="text-sm text-foreground flex-1">Preferred tenant type?</p>
-              <div className="flex items-center gap-1 shrink-0">
-                {[
-                  { value: 'no_preference', label: 'No Preference' },
-                  { value: 'prefer_family', label: 'Prefer Family' },
-                  { value: 'family_only', label: 'Family Only' },
-                ].map((opt, i, arr) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setOwnerTenantTypePreference(opt.value)}
-                    className={cn(
-                      "px-3 py-1 text-xs font-medium min-h-[32px] border transition-colors",
-                      i === 0 ? "rounded-l-md" : "",
-                      i === arr.length - 1 ? "rounded-r-md border-l-0" : "border-r-0",
-                      i > 0 ? "border-l" : "",
-                      ownerTenantTypePreference === opt.value
-                        ? "bg-primary/10 text-primary border-primary/30"
-                        : "bg-background text-muted-foreground border-border hover:bg-muted/50"
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 8 — Owner Profile */}
-        <div className="rounded-lg border bg-card p-4 md:p-6 space-y-4">
-          <div>
-            <h2 className="text-base font-medium text-foreground">Owner Profile</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Internal notes collected during inspection — not visible to tenants or owners.</p>
-          </div>
-          <div className="space-y-5">
-            <TriStateQuestion label="Is this the owner's only rental property?" value={ownerOnlyRental} onChange={setOwnerOnlyRental} />
-            <TriStateQuestion label="Is rental income from this property important for the owner's monthly financial commitments?" value={ownerIncomeDependent} onChange={setOwnerIncomeDependent} />
-            <TriStateQuestion label="Does the owner expect to keep this property available for rent for at least 12 months?" value={ownerCommitted12} onChange={setOwnerCommitted12} />
-            <TriStateQuestion label="Does the owner want to make the final accept/reject/counter decision on tenant applications themselves?" value={ownerWantsControl} onChange={setOwnerWantsControl} />
-            <div className="space-y-2">
-              <TriStateQuestion label="Does the owner have a local representative who can coordinate access and communication?" value={ownerHasLocalRep} onChange={(v) => { setOwnerHasLocalRep(v); if (v !== true) { setOwnerRepName(""); setOwnerRepPhone(""); } }} />
-              {ownerHasLocalRep === true && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-4 border-l-2 border-muted ml-2">
-                  <Field label="Representative Name">
-                    <Input value={ownerRepName} onChange={(e) => setOwnerRepName(e.target.value)} className="min-h-[44px]" />
-                  </Field>
-                  <Field label="Representative Phone">
-                    <Input value={ownerRepPhone} onChange={(e) => setOwnerRepPhone(e.target.value)} className="min-h-[44px]" />
-                  </Field>
-                </div>
-              )}
-            </div>
-            <TriStateQuestion label="Is the owner currently living in the same city as the property?" value={ownerLivesSameCity} onChange={setOwnerLivesSameCity} />
-            <TriStateQuestion label="Does the owner prefer phone calls over WhatsApp/email for urgent decisions?" value={ownerPrefersPhone} onChange={setOwnerPrefersPhone} />
-          </div>
-        </div>
 
         {/* Bottom save */}
         <div className="flex justify-end pb-8">
@@ -1529,46 +1343,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="space-y-1.5">
       <Label className="text-sm font-medium">{label}</Label>
       {children}
-    </div>
-  );
-}
-
-function TriStateQuestion({ label, value, onChange }: { label: string; value: boolean | null; onChange: (v: boolean | null) => void }) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-      <p className="text-sm text-foreground flex-1">{label}</p>
-      <div className="flex items-center gap-1 shrink-0">
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className={cn(
-            "px-2.5 py-1 text-xs font-medium rounded-l-md border min-h-[32px] transition-colors",
-            value === null ? "bg-muted text-foreground border-border" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
-          )}
-        >
-          —
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(true)}
-          className={cn(
-            "px-3 py-1 text-xs font-medium border-y border-r min-h-[32px] transition-colors",
-            value === true ? "bg-primary/10 text-primary border-primary/30" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
-          )}
-        >
-          Yes
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(false)}
-          className={cn(
-            "px-3 py-1 text-xs font-medium rounded-r-md border-y border-r min-h-[32px] transition-colors",
-            value === false ? "bg-destructive/10 text-destructive border-destructive/30" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
-          )}
-        >
-          No
-        </button>
-      </div>
     </div>
   );
 }
