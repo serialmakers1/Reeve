@@ -86,6 +86,13 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Never add auth-transaction triggers that sync `public.*`; use post-login RPCs. `prevent_user_privilege_escalation` protects role/verification/provider/active fields.
 - `public.users.phone` may be null for Google-first users; use scoped `get_phone_fallback(user_id)` where required. n8n never queries `auth.*` directly.
 
+## Telemetry / Privacy
+- Sentry is production-only. Replay masks all rendered text, blocks media, records only error sessions, and identifies authenticated users by Supabase UUID only; do not add name/email/phone or other PII.
+- PostHog is production-only and intentionally limited to Web Analytics + Session Replay + UUID/role identity. `autocapture` is disabled; do not reintroduce application `posthog.capture()` events without a new analytics decision.
+- PostHog identity may contain only Supabase UUID + role (`user | admin`); never send name, email, phone, auth tokens, or other PII.
+- PostHog Replay keeps rendered text visible but masks all inputs. Preserve OAuth `?code=` sanitization for analytics and Replay.
+- Telemetry changes must not redesign or retime the existing Supabase auth lifecycle; add telemetry side effects only within existing auth branches.
+
 ### useAuth
 - Single source: `{ session, user, isLoading, isAuthenticated, isFullyVerified, signOut, refreshUser }`.
 - `INITIAL_SESSION` returns early; `getSession()` owns bootstrap. Auth-state DB work is deferred with `setTimeout(100ms)` to avoid lock deadlocks.
@@ -139,5 +146,5 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 
 ## Skills / Gotchas / Log
 - Check `.claude/skills/` before work; use relevant React, Supabase/Postgres, security/auth, debugging, and frontend-design skills.
-- `posthog?.capture(...)` must remain optional-chained. Do not put entry animations on LCP images.
+- Do not reintroduce custom PostHog capture events without an explicit analytics requirement. Do not put entry animations on LCP images.
 - Root `/log.md` is canonical and append-only. Never prepend/reorder/rewrite history or recreate `.claude/log.md`.
