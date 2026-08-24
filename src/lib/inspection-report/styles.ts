@@ -8,7 +8,7 @@ export const BRAND = {
   zebra:          '#f8fafc',
 } as const;
 
-let fontsRegistered = false;
+const fontsRegistered = false;
 
 // Call once before rendering any PDF. Safe to call multiple times.
 // @react-pdf/renderer ships Helvetica built-in (no fetch required).

@@ -214,11 +214,13 @@ declare global {
 // ' = ' (straight apostrophe)
 // ' = ' (left single quotation mark)
 // ' = ' (right single quotation mark)
-const NAME_RE   = /^[\p{L}\p{M} .'''\-]{2,80}$/u;
-const BLDG_RE   = /^[\p{L}\p{N} .,'''\-\/#&():]{1,120}$/u;
-const LOCALE_RE = /^[\p{L}\p{N} .,'''\-\/&()]{2,80}$/u;
+const NAME_RE   = /^[\p{L}\p{M} .'''-]{2,80}$/u;
+const BLDG_RE   = /^[\p{L}\p{N} .,'''\-/#&():]{1,120}$/u;
+const LOCALE_RE = /^[\p{L}\p{N} .,'''\-/&()]{2,80}$/u;
 const HAS_LETTER          = /\p{L}/u;
 const HAS_LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
+// Intentional: reject C0 control characters and DEL in user input.
+// eslint-disable-next-line no-control-regex
 const CTRL_CHARS          = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
 const EMAIL_RE            = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 

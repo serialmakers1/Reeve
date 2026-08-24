@@ -141,7 +141,6 @@ export function useListingSave(propertyId: string | null) {
           }
           // Dev diagnostic — surfaces the exact failing column + PostgREST hint.
           // Kept as console.error (not removed) so future 400s are self-diagnosing.
-          // eslint-disable-next-line no-console
           console.error("[useListingSave] PATCH failed", {
             payload: snapshot,
             message: pgError.message,
@@ -244,7 +243,6 @@ export function useListingSave(propertyId: string | null) {
       }
     };
     // Intentional empty deps — cleanup fires only on true unmount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hasPendingChanges = useCallback(

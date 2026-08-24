@@ -71,7 +71,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       setAuthChecked(true);
 
       // Poll pending review count for nav badge
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const [{ count: newCount }, { count: editCount }] = await Promise.all([
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase as any).from("properties").select("id", { count: "exact", head: true }).eq("status", "pending_review"),

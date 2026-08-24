@@ -72,7 +72,6 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
     setError(false);
     setOpen(false);
     setActiveIndex(-1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [root?.geoPlaceId]);
 
   const runSearch = useCallback(

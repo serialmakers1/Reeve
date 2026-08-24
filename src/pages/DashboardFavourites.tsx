@@ -75,7 +75,7 @@ export default function DashboardFavourites() {
       return;
     }
 
-    let imageMap: Record<string, string> = {};
+    const imageMap: Record<string, string> = {};
     if (props && props.length > 0) {
       const { data: imgs } = await supabase
         .from("property_images")

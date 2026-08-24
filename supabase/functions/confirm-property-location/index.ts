@@ -429,7 +429,7 @@ Deno.serve(async (req: Request) => {
 
       if (mode === "use_pin") {
         // Deterministic root (same rule as commit) — never Google array order.
-        let root = (rootCity ? enriched.find((c) => c.kind === "settlement" && c.provider_place_id === rootCity.place_id) : null) ?? null;
+        const root = (rootCity ? enriched.find((c) => c.kind === "settlement" && c.provider_place_id === rootCity.place_id) : null) ?? null;
         let ownerRootPreview: (typeof extraPreviews)[number] | null = null;
         // Missing-root recovery preview: exactly one owner-added settlement may serve as root (rural).
         if (!root && rootCity === null && settlementExtras.length === 1) {

@@ -3,7 +3,6 @@ import { View, Text, Image, StyleSheet } from '@react-pdf/renderer';
 import { BRAND } from '../styles';
 import { REPORT_TYPE_META } from '../types';
 import type { ReportType } from '../types';
-// @ts-ignore — Vite resolves this to a base64 data URI at build time
 import logoUrl from '@/assets/logo-print.png';
 
 const s = StyleSheet.create({

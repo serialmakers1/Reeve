@@ -41,7 +41,6 @@ export default function Me() {
   useEffect(() => {
     if (authLoading || !user?.id) return;
     (async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const [{ data: pRow }, { data: uRow }] = await Promise.all([
         (supabase as any)
           .from("profiles")

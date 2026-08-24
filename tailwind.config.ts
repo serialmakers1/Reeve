@@ -93,5 +93,7 @@ export default {
       },
     },
   },
+  // tailwindcss-animate@1.0.7 is CommonJS-only.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

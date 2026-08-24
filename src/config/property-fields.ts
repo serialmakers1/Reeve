@@ -1189,7 +1189,6 @@ export function getOwnerEditPolicy(dbKey: string): OwnerEditPolicy {
   if (OWNER_LIVE_SET.has(dbKey)) return "live";
   if (OWNER_REVIEW_SET.has(dbKey)) return "review";
   if (import.meta.env?.DEV) {
-    // eslint-disable-next-line no-console
     console.warn(`[owner-edit-policy] "${dbKey}" is unclassified → defaulting to admin_only (locked).`);
   }
   return "admin_only";
