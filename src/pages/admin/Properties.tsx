@@ -156,7 +156,6 @@ export default function AdminProperties() {
   // Keep the input in sync when q changes externally (Back/forward, copied URL).
   useEffect(() => {
     setSearchInput(qParam);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qParam]);
 
   // Write a param patch. Empty/default values are dropped from the URL. Any

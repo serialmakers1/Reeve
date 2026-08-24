@@ -9,11 +9,13 @@ const TURNSTILE_VERIFY_URL =
 // ' = ' (U+0027, straight apostrophe)
 // ' = ' (U+2018, left single quotation mark)
 // ' = ' (U+2019, right single quotation mark)
-const SRV_NAME_RE   = /^[\p{L}\p{M} .'''\-]{2,80}$/u;
-const SRV_BLDG_RE   = /^[\p{L}\p{N} .,'''\-\/#&():]{1,120}$/u;
-const SRV_LOCALE_RE = /^[\p{L}\p{N} .,'''\-\/&()]{2,80}$/u;
+const SRV_NAME_RE   = /^[\p{L}\p{M} .'''-]{2,80}$/u;
+const SRV_BLDG_RE   = /^[\p{L}\p{N} .,'''\-/#&():]{1,120}$/u;
+const SRV_LOCALE_RE = /^[\p{L}\p{N} .,'''\-/&()]{2,80}$/u;
 const SRV_HAS_L     = /\p{L}/u;
 const SRV_HAS_LD    = /[\p{L}\p{N}]/u;
+// Intentional: reject C0 control characters and DEL in user input.
+// eslint-disable-next-line no-control-regex
 const SRV_CTRL      = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
 const SRV_EMAIL_RE  = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 

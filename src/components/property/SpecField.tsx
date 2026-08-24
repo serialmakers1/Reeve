@@ -209,7 +209,6 @@ export function SpecField<T = unknown>(props: SpecFieldProps<T>) {
 
   if (!field) {
     if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
       console.error(`[SpecField] unknown field key: ${fieldKey}`);
     }
     return null;
@@ -223,7 +222,6 @@ export function SpecField<T = unknown>(props: SpecFieldProps<T>) {
       if (!isFieldVisible(field, formValues)) return null;
     } else if (import.meta.env.DEV && !missingFormValuesWarned.has(fieldKey)) {
       missingFormValuesWarned.add(fieldKey);
-      // eslint-disable-next-line no-console
       console.warn(
         `[SpecField] field "${fieldKey}" has visibleWhen but no formValues prop was passed. ` +
           `Field will render by default. Pass formValues to gate visibility.`,

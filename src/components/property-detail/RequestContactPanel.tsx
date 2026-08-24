@@ -138,7 +138,7 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
     } finally {
       setDataLoading(false);
     }
-  }, [propertyId, user?.id]);
+  }, [propertyId, user?.id, listingType]);
 
   useEffect(() => {
     if (authLoading) return;

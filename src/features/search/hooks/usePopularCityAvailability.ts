@@ -12,7 +12,6 @@ export interface CityAvailabilityEntry {
 
 async function resolveCity(name: string): Promise<CityAvailabilityEntry> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows = await suggestGeo(
       { query: name, kinds: ["settlement", "search_region"], limit: 5 },
       supabase as any,

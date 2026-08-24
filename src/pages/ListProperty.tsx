@@ -785,7 +785,7 @@ export default function ListProperty() {
 
       // Load + hydrate the pending review request (edit_pending_review only).
       let pending: PendingEditRow | null = null;
-      let proposedScalars: Record<string, unknown> = {};
+      const proposedScalars: Record<string, unknown> = {};
       let addAmenities: string[] = [];
       let addFurnishing: FurnishingDetailItem[] = [];
       if (status === "edit_pending_review") {
@@ -1546,7 +1546,7 @@ export default function ListProperty() {
     }
     toast({ title: "Submitted for review!", description: "We'll review your listing within 48 hours." });
     navigate("/owner-dashboard", { replace: true });
-  }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, isLiveListing, isInitialEditable, editRequestPayload, stagedPhotos, pendingBaseline, saveState, hasPendingChanges, lastError, poisonedKeys, furnishingDraftInvalid, amenitiesDraftInvalid, locationDirty]);
+  }, [propertyId, submitting, saveNow, patch, sectionStatuses, images.length, form, navigate, toast, path, isLiveListing, isInitialEditable, editRequestPayload, stagedPhotos, pendingBaseline, saveState, hasPendingChanges, lastError, poisonedKeys, furnishingDraftInvalid, amenitiesDraftInvalid, locationDirty]);
 
   // ─── Preview data ────────────────────────────────────────────────────────
   const previewData = useMemo<PropertyPreviewData>(() => ({
