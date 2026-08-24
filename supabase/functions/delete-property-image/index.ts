@@ -290,8 +290,9 @@ Deno.serve(async (req: Request) => {
         method: "POST", headers: callerHeaders, body: JSON.stringify({ p_image_id: imageId }),
       });
       if (!rpcRes.ok) {
-        const detail = await rpcRes.text();
-        return new Response(JSON.stringify({ success: false, error: "Delete blocked", detail }), {
+        await rpcRes.text(); // consume body; not logged (may contain DB/RPC internals)
+        console.error("DELETE_RPC_FAILED", { status: rpcRes.status });
+        return new Response(JSON.stringify({ success: false, error: "Delete blocked" }), {
           status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         });
       }
@@ -346,8 +347,8 @@ Deno.serve(async (req: Request) => {
     });
   } catch (err) {
     // L) Catch-all
-    const error = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ success: false, error }), {
+    console.error("DELETE_UNEXPECTED_ERROR");
+    return new Response(JSON.stringify({ success: false, error: "Unexpected error" }), {
       status: 500,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });

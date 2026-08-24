@@ -110,6 +110,18 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Unauthorized" }, 401);
     }
 
+    // Timestamp freshness (Standard Webhooks spec: ±5 min tolerance, timestamp is Unix seconds).
+    // Strict check: /^\d+$/ rejects mixed strings that Number() alone would partially accept.
+    const tsSec = Number(svixTimestamp);
+    if (
+      !/^\d+$/.test(svixTimestamp) ||
+      !Number.isSafeInteger(tsSec) ||
+      Math.abs(Math.floor(Date.now() / 1000) - tsSec) > 300
+    ) {
+      console.warn("WEBHOOK_STALE_OR_INVALID_TIMESTAMP", { svixId });
+      return json({ received: true }, 200);
+    }
+
     // Parse payload
     let payload: {
       type?: string;

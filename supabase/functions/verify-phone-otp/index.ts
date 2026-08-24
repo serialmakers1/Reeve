@@ -104,9 +104,7 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!verifyRes.ok) {
-      const verifyErr = JSON.parse(verifyBody) ?? {};
-      const msg = verifyErr?.msg || verifyErr?.message || "Invalid or expired OTP";
-      return json({ error: msg }, 400);
+      return json({ error: "Invalid or expired OTP" }, 400);
     }
 
     const verifyData = (() => { try { return JSON.parse(verifyBody); } catch { return {}; } })();
@@ -188,9 +186,8 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!patchRes.ok) {
-      const patchErr = (() => { try { return JSON.parse(patchBody); } catch { return {}; } })();
-      const msg = patchErr?.message || "Failed to link phone to user";
-      return json({ error: msg }, 500);
+      console.error("VERIFY_PHONE_PATCH_FAILED", { status: patchRes.status });
+      return json({ error: "Failed to link phone to user" }, 500);
     }
 
     // ── 7. Sync the confirmed phone into public.users atomically ──────────────
@@ -274,7 +271,7 @@ Deno.serve(async (req: Request) => {
     console.log('STEP7_SYNC_OK', { expected_phone_matches: true });
     return json({ success: true }, 200);
   } catch (err) {
-    const error = err instanceof Error ? err.message : String(err);
-    return json({ error }, 500);
+    console.error("VERIFY_PHONE_UNEXPECTED_ERROR");
+    return json({ error: "Verification failed" }, 500);
   }
 });

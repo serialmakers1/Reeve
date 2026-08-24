@@ -355,8 +355,9 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!insertRes.ok) {
-      const detail = await insertRes.text();
-      return new Response(JSON.stringify({ success: false, error: "DB insert failed", detail }), {
+      await insertRes.text(); // consume body; not logged (may contain DB internals)
+      console.error("UPLOAD_DB_INSERT_FAILED", { status: insertRes.status });
+      return new Response(JSON.stringify({ success: false, error: "Upload failed" }), {
         status: 500,
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });
@@ -372,8 +373,8 @@ Deno.serve(async (req: Request) => {
     );
   } catch (err) {
     // N) Catch-all
-    const error = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ success: false, error }), {
+    console.error("UPLOAD_UNEXPECTED_ERROR");
+    return new Response(JSON.stringify({ success: false, error: "Unexpected error" }), {
       status: 500,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
