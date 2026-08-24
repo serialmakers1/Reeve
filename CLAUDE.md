@@ -13,6 +13,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Normal changes: run build, tests, typecheck, plus targeted/static checks. Dependency/security work also runs `npm audit` and relevant `npm ls` / `npm explain`.
 - Database deploy verification is separate: repo tests do not prove production DB behavior. Verify migration ledger, exact live object/catalog state, relevant advisor finding, and one representative functional path when behavior could be affected.
 - Avoid redundant testing when a full catalog scan plus representative behavior gives stronger coverage.
+- Treat lint as diagnostic: never broad `eslint --fix` or mechanically satisfy `exhaustive-deps`/`no-explicit-any`; trace behavior first and fix only genuine issues.
 
 ## Dependency + TypeScript Rules
 - Read `package.json` and resolved `package-lock.json` before recommending versions.
@@ -36,7 +37,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 ## Supabase Core Rules
 - Project ref: `tfutuqqcxqqbirnsdpvz`; client import: `@/integrations/supabase/client`.
 - `src/integrations/supabase/types.ts` is generated. Never hand-edit it; regenerate from verified schema or fix frontend typing at the source/boundary.
-- On Windows, do not regenerate types via PowerShell `>` (writes UTF-16, corrupts the file); pipe to `Out-File -Encoding utf8` or a UTF-8 writer so it stays UTF-8/LF.
+- On Windows, while regenerating types, pipe to `Out-File -Encoding utf8` or a UTF-8 writer so it stays UTF-8/LF.
 - For PostgREST update typing, use generated table `Update` types; do not cast the final `.update(...)`, use `any`, or patch generated types.
 - Preserve the `noOpLock` workaround in `src/integrations/supabase/client.ts`; removal/replacement requires dedicated investigation.
 - Auth storage key: `reeve-auth`.
@@ -49,14 +50,12 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Edge Functions must return stable user-safe errors; never expose raw DB/PostgREST/provider/runtime error text. Log only non-sensitive stage/status context.
 
 ## Supabase Advisor / Audit Baseline — Aug 2026
-- Full security/performance audit is closed. Advisor findings are investigation inputs, not instructions to make the dashboard zero.
 - Classify findings as actionable, accepted/intentional, deferred pending scale/evidence, or regression/new.
 - Closed categories that should remain zero: `auth_rls_initplan`, `function_search_path_mutable`. Any future finding here is a regression/new issue.
 - Accepted: reviewed authenticated/anon SECURITY DEFINER executable findings; intentional multi-permissive policy cases; `rls_enabled_no_policy` on the four documented deny-all tables; `auth_leaked_password_protection` while Email provider is disabled.
 - Deferred: remaining `unindexed_foreign_keys` until scale/query evidence justifies them; `unused_index` until meaningful production usage exists.
 - Never change working authorization, add dummy policies, revoke legitimate RPC access, add low-value indexes, drop indexes, or enable unused auth features merely to silence advisors.
 - Re-open accepted/deferred items only for new objects, ACL/policy/config drift, materially changed table size/query patterns, or changed product requirements.
-- Protected/retained during cleanup: `property_views`; ratings architecture is HOLD; inspection architecture is protected; Razorpay is intentionally retained.
 
 ## RLS / Function / Index Conventions
 - New tables require RLS at creation. Separate permissive SELECT policies are OR-combined by Postgres.
@@ -80,7 +79,6 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 ## Auth Architecture
 - Active providers: Phone ENABLED (MSG91 OTP), Google ENABLED (OAuth), Email DISABLED.
 - No supported password login/signup/reset/update flow exists. A legacy admin may still have an old encrypted password in `auth.users`; do not manually alter Supabase Auth internals.
-- `auth_leaked_password_protection` is intentionally accepted while Email stays disabled. If Email is ever enabled, re-audit password/magic-link/OTP behavior and leaked-password protection before release.
 - All attacker-controlled `returnTo` values must pass through `getSafeReturnTo()` in `src/lib/authUtils.ts`; same-origin internal routes only, sanitize before storage and again before navigation.
 - `public.users.pseudonym` is UNIQUE, permanent, system-assigned, shown on `/me` only, never `/u/:userId`.
 - Profile Name is read-only from `public.users.full_name`; no client write. `last_login_at` is written only through `touch_last_login()` on `SIGNED_IN`.
@@ -103,13 +101,13 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 
 ### Auth Infrastructure
 - `handle_new_user` handles phone OTP users; `handle_user_updated` handles phone/email verification updates.
-- AppUser verification fields: `phone_verified`, `email_verified`, `auth_provider`; `onboarding_completed` is removed.
+- AppUser verification fields: `phone_verified`, `email_verified`, `auth_provider`
 - `send-sms-otp` uses MSG91 with `verify_jwt=false`; profile phone verification preserves the Google token and sends it to `verify-phone-otp`.
 - Google-link return path uses sessionStorage key `reeve-link-returnTo`; do not put query params in `linkIdentity redirectTo`.
 - `verify-phone-otp` protects legitimate existing users with `SPURIOUS_ROW_MAX_AGE_MS = 60_000`.
 
 ## Roles / Routing / Layout
-- Roles: `user | admin`; protected pages use `useRequireAuth()`. `OnboardingGuard` is removed and must not be casually reintroduced.
+- Roles: `user | admin`; protected pages use `useRequireAuth()`.
 - React Router v7 Declarative Mode only (`BrowserRouter`/`Routes`/`Route` via `react-router-dom`); do not introduce Data/Framework Mode as unrelated cleanup.
 - Important navigation uses absolute paths; user-controlled destinations use the canonical returnTo sanitizer.
 - Public pages use `<Layout>`; admin pages use `<AdminLayout>`; do not hardcode shared nav/footer inside pages.
@@ -135,7 +133,6 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - `search_compact_properties` is a STABLE SECURITY DEFINER search RPC; preserve return-type casting. `confirm_availability_of_rental(uuid)` is authenticated-only and must explicitly revoke anon when redefined.
 - `searchDataClient.ts` owns fetch/overlay/cursor helpers; `SearchMapView` is CSS-hidden/shown, not repeatedly unmounted. Map RPC currently receives only BHK + price filters. `zeroRentBrokerage` serializes as `zero_brok`.
 - `confirm-property-location` must authenticate before any server-side Google API call; do not restore unauthenticated smoke/test paths that trigger billable APIs.
-- Public `youtube_walkthrough_url` links must pass the canonical `validateYoutubeUrl()` check at render time; never trust the stored URL directly.
 
 ## Contact Requests + n8n Security
 - Edge Functions: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`.
