@@ -46,6 +46,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Before `supabase db push --linked`, run `supabase migration list --linked` and `supabase db push --linked --dry-run`; stop if unexpected pending migrations appear.
 - Avoid `CASCADE` unless specifically investigated and justified.
 - Prefer `.maybeSingle()` only when zero rows is valid; never on unfiltered multi-row queries.
+- Edge Functions must return stable user-safe errors; never expose raw DB/PostgREST/provider/runtime error text. Log only non-sensitive stage/status context.
 
 ## Supabase Advisor / Audit Baseline — Aug 2026
 - Full security/performance audit is closed. Advisor findings are investigation inputs, not instructions to make the dashboard zero.
@@ -133,6 +134,8 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - URL/search params are source of truth; `SearchPropertyResult` is card contract, `SearchMapMarker` separate map payload; pagination is cursor-based and `locations_data` uses `{ v:1, items:[...] }`.
 - `search_compact_properties` is a STABLE SECURITY DEFINER search RPC; preserve return-type casting. `confirm_availability_of_rental(uuid)` is authenticated-only and must explicitly revoke anon when redefined.
 - `searchDataClient.ts` owns fetch/overlay/cursor helpers; `SearchMapView` is CSS-hidden/shown, not repeatedly unmounted. Map RPC currently receives only BHK + price filters. `zeroRentBrokerage` serializes as `zero_brok`.
+- `confirm-property-location` must authenticate before any server-side Google API call; do not restore unauthenticated smoke/test paths that trigger billable APIs.
+- Public `youtube_walkthrough_url` links must pass the canonical `validateYoutubeUrl()` check at render time; never trust the stored URL directly.
 
 ## Contact Requests + n8n Security
 - Edge Functions: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`.
@@ -143,6 +146,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Third-party credentials belong in n8n credential store, never raw node params. Never log/export secrets, JWTs, phone/email/contact payloads.
 - Reveal/resend retries require idempotency; `resend-reveal` rate limiting is fail-closed. Reveal uses fixed keys per contact_request+role; Resend Reveal uses `email_send_log` dispatch UUID; explicit user Resend actions need unique keys.
 - Provider orchestration (Resend/WhatsApp/etc.) belongs in n8n; Supabase owns auth, business rules, state, trusted data access.
+- Resend/Svix webhooks require valid signature + ±5-minute timestamp freshness; stale signed events must not be processed.
 
 ## Skills / Gotchas / Log
 - Check `.claude/skills/` before work; use relevant React, Supabase/Postgres, security/auth, debugging, and frontend-design skills.
