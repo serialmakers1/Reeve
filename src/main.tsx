@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import posthog from "posthog-js";
+import { supabase } from "@/integrations/supabase/client";
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -10,9 +11,10 @@ Sentry.init({
   enabled: import.meta.env.PROD,
   integrations: [
     Sentry.browserTracingIntegration(),
+    Sentry.supabaseIntegration({ supabaseClient: supabase }),
     Sentry.replayIntegration({
-      maskAllText: false,
-      blockAllMedia: false,
+      maskAllText: true,
+      blockAllMedia: true,
     }),
   ],
   tracesSampleRate: 0.1,

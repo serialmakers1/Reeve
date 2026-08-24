@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import posthog from "posthog-js";
+import * as Sentry from '@sentry/react';
 
 type UserRole = "user" | "tenant" | "owner" | "admin" | "super_admin";
 
@@ -72,9 +73,11 @@ export function useAuth() {
 
   const loadUser = useCallback(async (session: Session | null) => {
     if (!session?.user) {
+      Sentry.setUser(null);
       setState({ session: null, user: null, isLoading: false, isAuthenticated: false });
       return;
     }
+    Sentry.setUser({ id: session.user.id });
     if (fetchingRef.current) return;
     fetchingRef.current = true;
 
@@ -131,6 +134,7 @@ export function useAuth() {
                 .catch((err) => console.warn("touch_last_login threw", err));
             }
           } else if (event === "SIGNED_OUT") {
+            Sentry.setUser(null);
             setState({ session: null, user: null, isLoading: false, isAuthenticated: false });
           }
         }, 100);
