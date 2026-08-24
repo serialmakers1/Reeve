@@ -152,3 +152,4 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Check `.claude/skills/` before work; use relevant React, Supabase/Postgres, security/auth, debugging, and frontend-design skills.
 - Do not reintroduce custom PostHog capture events without an explicit analytics requirement. Do not put entry animations on LCP images.
 - Root `/log.md` is canonical and append-only. Never prepend/reorder/rewrite history or recreate `.claude/log.md`.
+- Tracked `.env` contains public client configuration only; never add server secrets or private credentials to it.
