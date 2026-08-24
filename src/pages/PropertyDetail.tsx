@@ -24,6 +24,7 @@ import BuildingAmenities from "@/components/property-detail/BuildingAmenities";
 import AllDetailsAccordion from "@/components/property-detail/AllDetailsAccordion";
 import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
 import { cn } from "@/lib/utils";
+import { validateYoutubeUrl } from "@/lib/ownerTextValidation";
 import type { CommentSectionHandle } from "@/components/comments/CommentSection";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -890,7 +891,7 @@ const PropertyDetail: React.FC = () => {
                 </div>
               )}
               {/* F1-B1b: available_from removed from header — surfaces in AtAGlance. */}
-              {property.youtube_walkthrough_url && (
+              {property.youtube_walkthrough_url && validateYoutubeUrl(property.youtube_walkthrough_url).ok && (
                 <div className="flex flex-wrap gap-2 pt-2">
                   <a
                     href={property.youtube_walkthrough_url}

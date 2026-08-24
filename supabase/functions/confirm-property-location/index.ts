@@ -328,26 +328,6 @@ type Resolved = Awaited<ReturnType<typeof resolveGeography>>;
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: CORS_HEADERS });
 
-  // ── Fixed-input live-key smoke probe (no user input, no secrets returned) ──
-  const url = new URL(req.url);
-  if (req.method === "GET" && url.searchParams.get("smoke") === "1") {
-    try {
-      const rg = await reverseGeocode(12.9716, 77.5946); // Bengaluru
-      const anyPlaceId = rg.cityCandidate?.place_id ?? rg.areas[0]?.place_id ?? null;
-      let placeOk = false;
-      if (anyPlaceId) { const p = await fetchPlaceDetails(anyPlaceId); placeOk = !!p.id; }
-      return json({
-        ok: placeOk && rg.rawResultsCount > 0,
-        reverse_geocode: rg.rawResultsCount > 0,
-        address_descriptors: rg.areas.length >= 0,
-        place_details: placeOk,
-        country: rg.country,
-      });
-    } catch (e) {
-      return json({ ok: false, cause: (e as Error).message }, 200);
-    }
-  }
-
   if (req.method !== "POST") return errResp("method_not_allowed", 405);
 
   try {
