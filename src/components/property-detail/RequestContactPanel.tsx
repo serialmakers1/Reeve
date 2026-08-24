@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import posthog from "posthog-js";
-import { SEARCH_EVENTS, getDeviceClass } from "@/features/search/analytics/searchAnalytics";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,7 +40,6 @@ export interface RequestContactPanelProps {
   buildingName: string;
   propertyStatus: string;
   listingType?: string | null;
-  searchContext?: Record<string, unknown> | null;
 }
 
 const ELIGIBLE_STATUSES = new Set(["listed", "edit_pending_review"]);
@@ -67,7 +64,7 @@ function formatCountdown(ms: number): string {
 }
 
 export default function RequestContactPanel(props: RequestContactPanelProps) {
-  const { propertyId, ownerId, ownerDisplayName, buildingName, propertyStatus, listingType, searchContext } = props;
+  const { propertyId, ownerId, ownerDisplayName, buildingName, propertyStatus, listingType } = props;
   const { user, isAuthenticated, isLoading: authLoading, isFullyVerified } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -224,21 +221,6 @@ export default function RequestContactPanel(props: RequestContactPanelProps) {
         | null;
 
       if (!error && errBody?.id) {
-        posthog?.capture(SEARCH_EVENTS.CONTACT_REQUESTED, {
-          property_id: propertyId,
-          source_surface: "property_detail",
-          ...(searchContext ?? {
-            search_session_id: null,
-            listing_mode: null,
-            city_id: null,
-            selected_location_count: null,
-            property_type: null,
-            filter_groups: null,
-            result_count_bucket: "unknown",
-            view_mode: null,
-            device_class: getDeviceClass(),
-          }),
-        });
         toast.success("Request sent — the owner will be notified.");
         await refetchTenantData();
         setMessage("");

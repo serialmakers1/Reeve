@@ -17,7 +17,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import posthog from "posthog-js";
 import { format, formatDistanceToNow } from "date-fns";
 import { ChevronDown, MapPin } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -391,7 +390,6 @@ export default function ListingReviewDetail() {
     }
     setLoading(false);
 
-    posthog?.capture("commons_admin_review_detail_viewed", { type, id });
   }, [id, type, navigate, toast]);
 
   useEffect(() => { void load(); }, [load]);
@@ -414,7 +412,6 @@ export default function ListingReviewDetail() {
       await load();
       return;
     }
-    posthog?.capture("commons_admin_new_listing_approved", { property_id: property.id });
     toast({ title: "Listing approved" });
     navigate("/admin/listing-reviews?tab=new");
   };
@@ -441,7 +438,6 @@ export default function ListingReviewDetail() {
       await load();
       return;
     }
-    posthog?.capture("commons_admin_new_listing_changes_requested", { property_id: property.id, reason });
     toast({ title: "Changes requested" });
     setShowRequestChanges(false);
     navigate("/admin/listing-reviews?tab=new");
@@ -463,12 +459,6 @@ export default function ListingReviewDetail() {
       await load();
       return;
     }
-    const fieldCount = Object.keys(editRequest.payload.field_changes ?? {}).length;
-    posthog?.capture("commons_admin_edit_approved", {
-      edit_request_id: editRequest.id,
-      property_id: editRequest.property_id,
-      field_count: fieldCount,
-    });
     toast({ title: "Edit approved" });
     navigate("/admin/listing-reviews?tab=edit");
   };
@@ -491,11 +481,6 @@ export default function ListingReviewDetail() {
       await load();
       return;
     }
-    posthog?.capture("commons_admin_edit_rejected", {
-      edit_request_id: editRequest.id,
-      property_id: editRequest.property_id,
-      reason,
-    });
     // Rejection is authoritative. Now best-effort clean the abandoned staged R2 objects
     // (Prompt 1 deferred this to Prompt 3). Order matters: the DB blocks staged-delete
     // while the request is still `pending`, so this runs only AFTER a successful reject.

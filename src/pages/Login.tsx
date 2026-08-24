@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
-import posthog from "posthog-js";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +16,6 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
   const safeReturnTo = getSafeReturnTo(returnTo);
-  const isOwnerIntent = safeReturnTo === "/owner/add";
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [step, setStep] = useState<LoginStep>("phone");
@@ -33,7 +31,6 @@ export default function LoginPage() {
   const phoneRef = useRef<HTMLInputElement>(null);
   const otpRef = useRef<HTMLInputElement>(null);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const verifyAttemptRef = useRef(0);
   const fallbackShownRef = useRef(false);
 
   useEffect(() => {
@@ -49,11 +46,9 @@ export default function LoginPage() {
     navigate(safeReturnTo, { replace: true });
   }, [authLoading, isAuthenticated, navigate, safeReturnTo]);
 
-  // Fire sms_fallback_shown once when fallback becomes visible
   useEffect(() => {
     if (resendUsed && resendCooldown === 0 && !fallbackShownRef.current) {
       fallbackShownRef.current = true;
-      posthog?.capture("sms_fallback_shown", { method: "phone_otp" });
     }
   }, [resendUsed, resendCooldown]);
 
@@ -116,7 +111,6 @@ export default function LoginPage() {
     }
 
     setStep("otp");
-    posthog?.capture("signup_initiated", { method: "phone_otp" });
     startCooldown();
   };
 
@@ -134,11 +128,6 @@ export default function LoginPage() {
       });
 
       if (verifyError) {
-        verifyAttemptRef.current += 1;
-        posthog?.capture("otp_verification_failed", {
-          method: "phone_otp",
-          attempt: verifyAttemptRef.current,
-        });
         setError(verifyError.message || "Invalid or expired code. Please try again.");
         setOtp("");
         otpRef.current?.focus();
@@ -146,16 +135,6 @@ export default function LoginPage() {
       }
 
       if (data?.user) {
-        // First-ever sign-in: Supabase sets last_sign_in_at on verify, so on
-        // the very first verify it equals created_at (within a couple seconds).
-        // Returning phone-OTP users have last_sign_in_at well after created_at.
-        const createdAt = data.user.created_at ? new Date(data.user.created_at).getTime() : 0;
-        const lastSignInAt = data.user.last_sign_in_at ? new Date(data.user.last_sign_in_at).getTime() : 0;
-        const isNewUser = !!createdAt && !!lastSignInAt && Math.abs(lastSignInAt - createdAt) < 2000;
-        posthog?.capture(isNewUser ? "signup_completed" : "login_completed", {
-          method: "phone_otp",
-          ...(isOwnerIntent && { intent: "owner", return_to: safeReturnTo }),
-        });
         navigate(safeReturnTo, { replace: true });
       }
     } finally {
@@ -167,8 +146,6 @@ export default function LoginPage() {
   const handleResend = async () => {
     setIsLoading(true);
     setError(null);
-    posthog?.capture("otp_resend_requested", { method: "phone_otp" });
-
     const { error: resendError } = await supabase.auth.signInWithOtp({
       phone: "+91" + phone,
     });
@@ -191,7 +168,6 @@ export default function LoginPage() {
 
   // Google OAuth
   const handleGoogleAuth = async () => {
-    posthog?.capture("google_oauth_initiated");
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -202,7 +178,6 @@ export default function LoginPage() {
       },
     });
     if (oauthError) {
-      posthog?.capture("google_oauth_failed");
       setError("Google sign-in failed. Please try again.");
     }
   };

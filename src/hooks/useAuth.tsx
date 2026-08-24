@@ -3,6 +3,9 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import posthog from "posthog-js";
 import * as Sentry from '@sentry/react';
+import { consumeReplayPending } from "@/lib/posthogRuntime";
+
+const posthogEnabled = import.meta.env.PROD && !!import.meta.env.VITE_POSTHOG_KEY;
 
 type UserRole = "user" | "tenant" | "owner" | "admin" | "super_admin";
 
@@ -94,13 +97,15 @@ export function useAuth() {
         isLoading: false,
         isAuthenticated: true,
       });
-      if (appUser) {
-        posthog.identify(appUser.id, {
-          name: appUser.full_name ?? undefined,
-          email: appUser.email ?? undefined,
-          phone: appUser.phone ?? undefined,
-          role: appUser.role ?? undefined,
-        });
+      if (appUser && posthogEnabled) {
+        const analyticsRole =
+          appUser.role === "user" || appUser.role === "admin"
+            ? appUser.role
+            : undefined;
+        posthog.identify(
+          appUser.id,
+          analyticsRole ? { role: analyticsRole } : {}
+        );
       }
     } catch {
       setState({ session, user: null, isLoading: false, isAuthenticated: true });
@@ -132,9 +137,18 @@ export function useAuth() {
                   if (error) console.warn("touch_last_login failed", error);
                 })
                 .catch((err) => console.warn("touch_last_login threw", err));
+              if (posthogEnabled && consumeReplayPending()) {
+                const url = new URL(window.location.href);
+                if (url.searchParams.has("code")) {
+                  url.searchParams.delete("code");
+                  window.history.replaceState(window.history.state, "", url.toString());
+                }
+                posthog.startSessionRecording?.();
+              }
             }
           } else if (event === "SIGNED_OUT") {
             Sentry.setUser(null);
+            if (posthogEnabled) posthog.reset();
             setState({ session: null, user: null, isLoading: false, isAuthenticated: false });
           }
         }, 100);
@@ -169,7 +183,7 @@ export function useAuth() {
   }, [loadUser]);
 
   const signOut = useCallback(async () => {
-    posthog.reset();
+    // posthog.reset() fires via the SIGNED_OUT auth event — not called here.
     // Clear this user's search-location account cache before the session is torn down
     // (at SIGNED_OUT `user` is already null, so the id must be captured here).
     // Key format mirrors src/features/search/state/searchLocationStorage.ts.

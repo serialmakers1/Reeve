@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import posthog from "posthog-js";
 import logo from "@/assets/Logo.svg";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -330,7 +329,6 @@ const Header = () => {
                 <Link
                   to="/list"
                   className="bg-[#2563EB] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200 hover:-translate-y-0.5"
-                  onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "header" })}
                 >
                   List Your Property
                 </Link>
@@ -388,7 +386,6 @@ const Header = () => {
                 <Link
                   to="/list"
                   className="bg-[#2563EB] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200 hover:-translate-y-0.5"
-                  onClick={() => posthog?.capture("list_property_cta_clicked", { source_page: "header" })}
                 >
                   List Your Property
                 </Link>
@@ -555,7 +552,6 @@ const Header = () => {
             <Link
               to="/list"
               onClick={() => {
-                posthog?.capture("list_property_cta_clicked", { source_page: "header" });
                 closeMobileMenu();
               }}
               className="block w-full text-center bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-semibold rounded-[9px] py-3 min-h-[44px] transition-colors duration-150"

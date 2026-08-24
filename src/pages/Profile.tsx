@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Loader2, CheckCircle2, Circle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
-import posthog from "posthog-js";
 import { getSafeReturnTo } from "@/lib/authUtils";
 
 // D-172: reason-banner copy shown when /profile is reached via VerificationGate.
@@ -290,7 +289,6 @@ export default function Profile() {
       setPhoneStep("idle");
       setNewPhone("");
       setPhoneOtp("");
-      posthog?.capture("phone_verified", { method: "sms_otp" });
       toast({ title: "Phone number verified." });
     } catch (e) {
       setPhoneVerifying(false);
@@ -308,7 +306,6 @@ export default function Profile() {
     if (returnTo && returnTo !== '/profile') {
       sessionStorage.setItem('reeve-link-returnTo', returnTo);
     }
-    posthog?.capture("google_link_initiated");
     const { error } = await supabase.auth.linkIdentity({
       provider: "google",
       options: {

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import posthog from "posthog-js";
 import { format } from "date-fns";
 import { CheckCircle2 } from "lucide-react";
 
@@ -66,20 +65,8 @@ function PublicProfileContent({ userId }: { userId?: string }) {
   const [notFound, setNotFound] = useState(false);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const posthogFiredRef = useRef(false);
-
   // F2 (D-151): no self-redirect. /u/:userId renders the public view regardless
   // of viewer identity so owners can preview their own public profile.
-
-  useEffect(() => {
-    if (!userId || !user?.id) return;
-    if (posthogFiredRef.current) return;
-    posthogFiredRef.current = true;
-    posthog?.capture("commons_profile_viewed", {
-      self: user.id === userId,
-      target_user_id: userId,
-    });
-  }, [userId, user?.id]);
 
   useEffect(() => {
     if (!userId) return;

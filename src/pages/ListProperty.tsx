@@ -13,7 +13,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import posthog from "posthog-js";
 import { format } from "date-fns";
 import { CheckCircle2, Circle, AlertCircle, Eye, Lock } from "lucide-react";
 import { getStatusDisplay } from "@/lib/propertyStatus";
@@ -586,7 +585,6 @@ export default function ListProperty() {
   // value (a closed-over `form` would be stale and defeat the stale-response guard).
   const formRef = useRef(form);
   useEffect(() => { formRef.current = form; }, [form]);
-  const pageOpenedRef = useRef(false);
   const sectionCompletionRef = useRef<Record<SectionNum, boolean>>({ 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false });
 
   // ── Edit-mode state ─────────────────────────────────────────────────────
@@ -695,13 +693,6 @@ export default function ListProperty() {
       return changed ? next : prev;
     });
   }, [poisonedKeys]);
-
-  // ─── PostHog: page opened once per mount ─────────────────────────────────
-  useEffect(() => {
-    if (pageOpenedRef.current) return;
-    pageOpenedRef.current = true;
-    posthog?.capture("commons_listing_page_opened", { mode: draftIdFromQuery ? "resume" : "new" });
-  }, [draftIdFromQuery]);
 
   // ─── Draft-limit check on mount ──────────────────────────────────────────
   useEffect(() => {
@@ -840,7 +831,6 @@ export default function ListProperty() {
       }
       setEntryStatus(status as EntryStatus);
       setPropertyId(idParam);
-      posthog?.capture("commons_listing_edit_mode_opened", { status });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, idParam, user?.id]);
@@ -905,9 +895,6 @@ export default function ListProperty() {
     for (const s of [1, 2, 3, 4, 5, 6, 7, 8, 9] as SectionNum[]) {
       const nowComplete = sectionStatuses[s] === "complete";
       const wasComplete = sectionCompletionRef.current[s];
-      if (nowComplete && !wasComplete) {
-        posthog?.capture("commons_listing_section_completed", { section_number: s });
-      }
       sectionCompletionRef.current[s] = nowComplete;
     }
     // Also clear an errored section once it becomes complete
@@ -1164,7 +1151,6 @@ export default function ListProperty() {
     }
     setPropertyId(data.id);
     setSearchParams({ draft: data.id }, { replace: true });
-    posthog?.capture('commons_listing_draft_created', { property_id: data.id });
     return data.id;
   }, [propertyId, user?.id, form.lister_role, form.property_type, setSearchParams, toast]);
 
@@ -1532,11 +1518,6 @@ export default function ListProperty() {
       });
       setSubmitting(false);
       if (rpcError) { toast({ title: "Could not submit edit", description: rpcError.message, variant: "destructive" }); return; }
-      posthog?.capture("commons_edit_submitted", {
-        property_id: propertyId, edit_request_id: newEditId as string,
-        changed_field_count: Object.keys(args.p_field_changes).length,
-        photo_change_count: args.p_photo_changes.add.length,
-      });
       try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId!)); } catch { /* ignore */ }
       toast({ title: "Edit submitted for review", description: "We'll review your changes within 48 hours." });
       navigate("/owner-dashboard", { replace: true });
@@ -1563,11 +1544,6 @@ export default function ListProperty() {
       toast({ title: "Could not submit", description: error.message, variant: "destructive" });
       return;
     }
-    posthog?.capture("commons_listing_submitted", {
-      property_id: propertyId,
-      photo_count: images.length,
-      has_optional_sections_filled: !!(form.building_notes || form.building_rules),
-    });
     toast({ title: "Submitted for review!", description: "We'll review your listing within 48 hours." });
     navigate("/owner-dashboard", { replace: true });
   }, [propertyId, submitting, saveNow, sectionStatuses, images.length, form, navigate, toast, path, isLiveListing, isInitialEditable, editRequestPayload, stagedPhotos, pendingBaseline, saveState, hasPendingChanges, lastError, poisonedKeys, furnishingDraftInvalid, amenitiesDraftInvalid, locationDirty]);
@@ -1734,7 +1710,6 @@ export default function ListProperty() {
     // Merge field_changes into form so read fields reflect saved values
     setForm((prev) => ({ ...prev, ...(pendingRestore.field_changes as Partial<FormState>) }));
     setPendingRestore(null);
-    posthog?.capture("commons_edit_session_restored", { property_id: propertyId });
   }, [pendingRestore, propertyId]);
 
   const discardSaved = useCallback(() => {
@@ -1744,7 +1719,6 @@ export default function ListProperty() {
     if (urls.length) void stagedDeleteUrls(urls);
     try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId)); } catch { /* ignore */ }
     setPendingRestore(null);
-    posthog?.capture("commons_edit_session_discarded", { property_id: propertyId });
   }, [propertyId, pendingRestore, stagedDeleteUrls]);
 
   // ─── Session storage for Path B in-progress edits ────────────────────────
@@ -1781,7 +1755,6 @@ export default function ListProperty() {
     if (abandoned.length) await stagedDeleteUrls(abandoned);
     setCancelling(false);
     try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId)); } catch { /* ignore */ }
-    posthog?.capture("commons_edit_cancelled", { property_id: propertyId, edit_request_id: pendingEdit.id });
     toast({ title: "Pending edit cancelled" });
     navigate("/owner-dashboard", { replace: true });
   }, [propertyId, pendingEdit, cancelling, toast, navigate, pendingBaseline, stagedPhotos, stagedDeleteUrls]);
@@ -2432,7 +2405,7 @@ export default function ListProperty() {
                 </span>
               </label>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => { setShowPreview(true); posthog?.capture("commons_listing_preview_opened"); }}>
+                <Button variant="outline" onClick={() => { setShowPreview(true); }}>
                   <Eye className="h-4 w-4 mr-1.5" /> Preview the Listing
                 </Button>
               </div>
