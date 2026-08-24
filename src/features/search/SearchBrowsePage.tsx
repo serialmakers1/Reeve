@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import posthog from "posthog-js";
 import { useLocation } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { useSearchState } from "@/features/search";
@@ -9,12 +8,6 @@ import { useSearchMeta } from "@/features/search/hooks/useSearchMeta";
 import { useSearchBootstrap } from "@/features/search/state/useSearchBootstrap";
 import { formatSearchHeading } from "@/features/search/state/formatSearchHeading";
 import { formatCitiesLabel } from "@/features/search/state/searchStateUtils";
-import {
-  SEARCH_EVENTS,
-  newSearchSessionId,
-  buildSearchContext,
-  getDeviceClass,
-} from "@/features/search/analytics/searchAnalytics";
 import { SearchSetupPanel } from "@/features/search/components/SearchSetupPanel";
 import { SearchControlRow } from "@/features/search/components/SearchControlRow";
 import { SearchFilterPanel } from "@/features/search/components/SearchFilterPanel";
@@ -98,22 +91,9 @@ export default function SearchBrowsePage() {
     }
   }, [bootstrap.status]);
 
-  // ── search_context_submitted ───────────────────────────────────────────────
   const handleContextSubmitted = useCallback(
-    (submittedCtx: { mode: string; city: string | null; locations: { id: string }[]; propertyTypes: string[] }) => {
-      const sessionId = newSearchSessionId();
-      posthog?.capture(SEARCH_EVENTS.CONTEXT_SUBMITTED, {
-        search_session_id: sessionId,
-        listing_mode: submittedCtx.mode,
-        city_id: null,
-        selected_location_count: submittedCtx.locations.length,
-        property_types: submittedCtx.propertyTypes,
-        property_type: submittedCtx.propertyTypes.length === 1 ? submittedCtx.propertyTypes[0] : null,
-        filter_groups: [],
-        result_count_bucket: "unknown",
-        view_mode: "list",
-        device_class: getDeviceClass(),
-      });
+    (_submittedCtx: { mode: string; city: string | null; locations: { id: string }[]; propertyTypes: string[] }) => {
+      // no analytics side-effects
     },
     [],
   );
@@ -134,53 +114,11 @@ export default function SearchBrowsePage() {
     [setMode, state.context, bootstrap],
   );
 
-  // ── search_results_loaded / no_results_viewed — criteria fingerprint dedup ─
-  const lastFiredCriteriaRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (search.isInitialLoading || search.error || !hasValidContext) return;
-    const fp = JSON.stringify({
-      mode: state.context.mode,
-      city: state.context.city,
-      locationIds: state.context.locations.map((l) => l.id).sort(),
-      propertyTypes: state.context.propertyTypes,
-      filters: state.filters,
-    });
-    if (fp === lastFiredCriteriaRef.current) return;
-    lastFiredCriteriaRef.current = fp;
-    const ctx = buildSearchContext(state, { resultsCount: search.results.length });
-    posthog?.capture(SEARCH_EVENTS.RESULTS_LOADED, ctx);
-    if (search.isEmpty) {
-      posthog?.capture(SEARCH_EVENTS.NO_RESULTS_VIEWED, ctx);
-    }
-  }, [search.isInitialLoading, search.error, search.isEmpty, search.results.length, hasValidContext, state]);
-
-  // ── listing_opened callback ───────────────────────────────────────────────
   const handleListingOpen = useCallback(
-    (propertyId: string) => {
-      posthog?.capture(SEARCH_EVENTS.LISTING_OPENED, {
-        property_id: propertyId,
-        source_surface: "list",
-        ...buildSearchContext(state, { resultsCount: search.results.length }),
-      });
+    (_propertyId: string) => {
+      // no analytics side-effects
     },
-    [state, search.results.length],
-  );
-
-  // ── favourite_completed — wrapped toggle ──────────────────────────────────
-  const wrappedToggleFavourite = useCallback(
-    async (propertyId: string) => {
-      const wasAdding = !isFavourited(propertyId);
-      const success = await toggleFavourite(propertyId);
-      if (success && wasAdding) {
-        posthog?.capture(SEARCH_EVENTS.FAVOURITE_COMPLETED, {
-          property_id: propertyId,
-          source_surface: "list",
-          ...buildSearchContext(state, { resultsCount: search.results.length }),
-        });
-      }
-      return success;
-    },
-    [toggleFavourite, isFavourited, state, search.results.length],
+    [],
   );
 
   // ── Card refs for one-time return scroll (login-return / detail-return) ────
@@ -335,7 +273,7 @@ export default function SearchBrowsePage() {
               selectedPropertyId={state.selectedPropertyId}
               onRegisterRef={onRegisterRef}
               isFavourited={isFavourited}
-              onToggleFavourite={wrappedToggleFavourite}
+              onToggleFavourite={toggleFavourite}
               isLoggedIn={isLoggedIn}
               onListingOpen={handleListingOpen}
               nextPageHref={nextPageHref}

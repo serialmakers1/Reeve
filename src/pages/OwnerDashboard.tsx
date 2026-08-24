@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import posthog from "posthog-js";
 import { Plus, Building2, AlertCircle } from "lucide-react";
 
 import Layout from "@/components/Layout";
@@ -50,13 +49,6 @@ export default function OwnerDashboard() {
   const [loading, setLoading] = useState(true);
   const [showDraftLimit, setShowDraftLimit] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
-  const posthogFiredRef = useRef(false);
-
-  useEffect(() => {
-    if (authLoading || posthogFiredRef.current) return;
-    posthogFiredRef.current = true;
-    posthog?.capture("commons_owner_dashboard_viewed");
-  }, [authLoading]);
 
   useEffect(() => {
     if (authLoading || !user?.id) return;
@@ -118,9 +110,7 @@ export default function OwnerDashboard() {
   }, [activeProperties]);
 
   const handleAddProperty = () => {
-    posthog?.capture("commons_owner_dashboard_add_property_clicked", { draft_count: draftCount });
     if (draftCount >= DRAFT_LIMIT) {
-      posthog?.capture("commons_owner_dashboard_add_property_blocked", { draft_count: draftCount });
       setShowDraftLimit(true);
       return;
     }
@@ -187,21 +177,15 @@ export default function OwnerDashboard() {
         listed_at: data.listed_at,
       });
     }
-    posthog?.capture("commons_property_action", { action: "relist", property_id: propertyId, from_status: "unlisted", to_status: "listed" });
     toast({ title: "Re-listed", description: "Your listing is visible to tenants again." });
   }
 
   const goToProperty = (p: OwnerProperty) => {
-    posthog?.capture("commons_owner_dashboard_property_card_clicked", {
-      property_id: p.id,
-      status: p.status,
-    });
     navigate(`/owner-dashboard/property/${p.id}`);
   };
 
   const handleTabChange = (next: "active" | "archived") => {
     setTab(next);
-    posthog?.capture("commons_owner_dashboard_tab_changed", { tab: next });
   };
 
   if (authLoading || loading) {

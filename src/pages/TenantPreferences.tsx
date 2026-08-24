@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { ArrowLeft, CalendarIcon, Loader2, Minus, Plus } from "lucide-react";
-import posthog from "posthog-js";
 import { toast as sonnerToast } from "sonner";
 
 import Layout from "@/components/Layout";
@@ -330,10 +329,6 @@ function TenantPreferencesInner() {
       return;
     }
 
-    posthog?.capture("rental_preferences_saved", {
-      mode: form.preference_mode,
-      is_update: existingRowRef.current,
-    });
     sonnerToast("Preferences saved");
 
     if (returnTo) {

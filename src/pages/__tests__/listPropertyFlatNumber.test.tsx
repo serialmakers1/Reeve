@@ -49,9 +49,6 @@ vi.mock("@/hooks/useRequireAuth", () => ({
   }),
 }));
 
-vi.mock("posthog-js", () => ({
-  default: { capture: vi.fn(), identify: vi.fn() },
-}));
 
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: vi.fn() }),

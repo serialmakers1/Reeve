@@ -7,9 +7,8 @@
  * Row → detail view at /admin/listing-reviews/(new|edit)/:id.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import posthog from "posthog-js";
 import { formatDistanceToNow, format } from "date-fns";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,14 +82,6 @@ export default function ListingReviewQueue() {
   const [newListings, setNewListings] = useState<NewListingRow[]>([]);
   const [editRequests, setEditRequests] = useState<EditRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const posthogFiredRef = useRef(false);
-
-  useEffect(() => {
-    if (posthogFiredRef.current) return;
-    posthogFiredRef.current = true;
-    posthog?.capture("commons_admin_review_queue_viewed");
-  }, []);
-
   const load = useCallback(async () => {
     setLoading(true);
 
@@ -196,7 +187,6 @@ export default function ListingReviewQueue() {
       next.set("tab", t);
       return next;
     }, { replace: true });
-    posthog?.capture("commons_admin_review_tab_changed", { tab: t, city_filter: city, sort });
   };
 
   const cities = useMemo(() => {

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import posthog from "posthog-js";
 import { format } from "date-fns";
 import { CheckCircle2, Pencil, Settings, Award } from "lucide-react";
 
@@ -38,13 +37,6 @@ export default function Me() {
   const [fullName, setFullName] = useState<string | null>(null);
   const [pseudonym, setPseudonym] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const posthogFiredRef = useRef(false);
-
-  useEffect(() => {
-    if (authLoading || !user?.id || posthogFiredRef.current) return;
-    posthogFiredRef.current = true;
-    posthog?.capture("commons_profile_viewed", { self: true });
-  }, [authLoading, user?.id]);
 
   useEffect(() => {
     if (authLoading || !user?.id) return;
@@ -96,9 +88,6 @@ export default function Me() {
         is_public: p?.is_public ?? true,
         profile_photo_url: p?.profile_photo_url ?? null,
       }));
-      posthog?.capture("commons_profile_edited", {
-        changed_fields: savedBio !== (profile?.bio ?? null) ? ["bio"] : [],
-      });
       return { ok: true as const };
     } catch (err) {
       toast({

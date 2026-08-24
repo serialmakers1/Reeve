@@ -26,14 +26,6 @@ import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
 import { cn } from "@/lib/utils";
 import type { CommentSectionHandle } from "@/components/comments/CommentSection";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import posthog from "posthog-js";
-import {
-  SEARCH_EVENTS,
-  getSearchSessionId,
-  getDeviceClass,
-  getActiveFilterGroups,
-} from "@/features/search/analytics/searchAnalytics";
-import { parseSearchUrl } from "@/features/search/state/parseSearchUrl";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -347,28 +339,6 @@ const PropertyDetail: React.FC = () => {
   const routeLocation = useLocation();
   const fromSearch = (routeLocation.state as { fromSearch?: string } | null)?.fromSearch ?? null;
 
-  // Sanitized search context for analytics — only available when arrived from search
-  const searchOriginContext = useMemo<Record<string, unknown> | null>(() => {
-    if (!fromSearch) return null;
-    try {
-      const params = new URL(fromSearch, window.location.origin).searchParams;
-      const parsed = parseSearchUrl(params);
-      const mode = parsed.context.mode ?? "rent";
-      return {
-        search_session_id: getSearchSessionId(),
-        listing_mode: parsed.context.mode ?? null,
-        city_id: null,
-        selected_location_count: parsed.context.locations.length,
-        property_type: parsed.context.propertyTypes?.[0] ?? null,
-        filter_groups: getActiveFilterGroups(parsed.filters, mode),
-        result_count_bucket: "unknown",
-        view_mode: "list",
-        device_class: getDeviceClass(),
-      };
-    } catch {
-      return null;
-    }
-  }, [fromSearch]);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -510,9 +480,6 @@ const PropertyDetail: React.FC = () => {
       const logRows = logRes.data;
       if (logRows) {
         setPublicTimeline(logRows as PublicTimelineRow[]);
-        if ((logRows as PublicTimelineRow[]).length > 0) {
-          posthog?.capture("commons_property_public_timeline_viewed", { property_id: raw.id, event_count: (logRows as PublicTimelineRow[]).length });
-        }
       }
 
       setLoading(false);
@@ -534,20 +501,6 @@ const PropertyDetail: React.FC = () => {
     // Own-property detection requires property to be loaded
     if (property) {
       setIsOwnProperty(!!(currentUserId && property.owner_id === currentUserId));
-    }
-
-    // P4: fire archived/unlisted analytics from an effect (previously fired
-    // inline in render return — bad side-effect placement).
-    if (
-      property &&
-      currentUserId &&
-      property.owner_id === currentUserId &&
-      (property.status === "archived" || property.status === "unlisted")
-    ) {
-      posthog?.capture("commons_archived_property_notice_shown", {
-        property_id: property.id,
-        status: property.status,
-      });
     }
 
     if (!currentUserId) {
@@ -711,24 +664,7 @@ const PropertyDetail: React.FC = () => {
                   if (!favLoggedIn) { setLoginDrawerOpen(true); return; }
                   if (!id) return;
                   const wasAdding = !isFavourited(id);
-                  const success = await toggleFavourite(id);
-                  if (success && wasAdding) {
-                    posthog?.capture(SEARCH_EVENTS.FAVOURITE_COMPLETED, {
-                      property_id: id,
-                      source_surface: "property_detail",
-                      ...(searchOriginContext ?? {
-                        search_session_id: null,
-                        listing_mode: null,
-                        city_id: null,
-                        selected_location_count: null,
-                        property_type: null,
-                        filter_groups: null,
-                        result_count_bucket: "unknown",
-                        view_mode: null,
-                        device_class: getDeviceClass(),
-                      }),
-                    });
-                  }
+                  await toggleFavourite(id);
                 }}
                 className="!bg-black/40 !text-white hover:!bg-black/60"
               />
@@ -1071,7 +1007,6 @@ const PropertyDetail: React.FC = () => {
                     buildingName={property.building_name?.trim() || "this property"}
                     propertyStatus={property.status}
                     listingType={property.listing_type}
-                    searchContext={searchOriginContext}
                   />
                 )}
               </div>

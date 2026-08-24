@@ -10,7 +10,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import posthog from "posthog-js";
 import { format, parseISO, isValid } from "date-fns";
 import { AlertCircle, ExternalLink, Pencil } from "lucide-react";
 
@@ -186,14 +185,6 @@ export default function OwnerPropertyManagement() {
     void load();
   }, [authLoading, load]);
 
-  useEffect(() => {
-    if (!property) return;
-    posthog?.capture("commons_property_management_viewed", {
-      property_id: property.id,
-      status: property.status,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [property?.id, property?.status]);
 
   const tab: TabValue = (() => {
     const raw = searchParams.get("tab");
@@ -208,7 +199,6 @@ export default function OwnerPropertyManagement() {
       next.set("tab", t);
       return next;
     }, { replace: true });
-    posthog?.capture("commons_property_management_tab_changed", { tab: t });
   };
 
   const isCommons = !!property && COMMONS_STATUSES.has(property.status);
@@ -271,9 +261,6 @@ export default function OwnerPropertyManagement() {
       });
       return;
     }
-    posthog?.capture("commons_property_action", {
-      action: actionLabel, property_id: property.id, from_status: property.status, to_status: nextStatus,
-    });
     toast({ title: `${actionLabel[0].toUpperCase()}${actionLabel.slice(1)} complete` });
     setConfirmKind(null);
     await load();
@@ -287,7 +274,6 @@ export default function OwnerPropertyManagement() {
       toast({ title: "Could not cancel edit", description: error.message, variant: "destructive" });
       return;
     }
-    posthog?.capture("commons_property_action", { action: "cancel_edit", property_id: property.id });
     toast({ title: "Pending edit cancelled" });
     setConfirmKind(null);
     await load();
