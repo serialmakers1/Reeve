@@ -12,6 +12,10 @@ const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const R2_ENDPOINT = "https://731bf5e6253cfe9a3ae733dbe3ac5dea.r2.cloudflarestorage.com";
 const R2_BUCKET = "property-images";
 const R2_PUBLIC_URL = "https://images.reeve.in";
+// Object keys embed a unique UUID and are never overwritten, so new image objects are
+// safely immutable-cacheable for a year. Sent UNSIGNED (SigV4 doesn't require ordinary
+// headers to be signed); R2 persists it as PutObject system metadata.
+const CACHE_CONTROL = "public, max-age=31536000, immutable";
 
 // ── AWS SigV4 helpers ──────────────────────────────────────────────────────────
 
@@ -109,6 +113,9 @@ async function signR2Request(
       "x-amz-date": amzDate,
       "x-amz-content-sha256": payloadHash,
       "Content-Type": contentType,
+      // Unsigned — not in signedHeaders/canonicalHeaders, so the signature is unaffected;
+      // R2 stores it as the object's Cache-Control metadata.
+      "Cache-Control": CACHE_CONTROL,
       "Host": host,
     },
   };
