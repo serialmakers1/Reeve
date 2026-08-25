@@ -2170,3 +2170,9 @@ n8n (live production workflows, manual + MCP):
 **Local verification (2026-08-23):** TypeScript (`tsc -p tsconfig.app.json`) clean; tests 900/900; build + SSG green. (Local checks do not exercise the Deno Edge Function; the change was reviewed by hand — repo has no Deno test harness.)
 
 **Status:** fix committed on branch `claude/sec-002-image-deletion-auth-1430f3`, **not yet deployed**. Group 2 (SEC-002) remains **OPEN** pending manual Edge Function deployment and live security + functional verification (cross-owner mismatch → 403 with victim R2 object intact; own draft delete → row + object removed; listed delete → RPC path; staged delete → unchanged).
+
+## [2026-08-25] fix | Added durable DB-first R2 image deletion cleanup [09:42 IST]
+
+## [2026-08-25] feat | Added server-side 15-photo upload + submit cap [10:15 IST]
+
+## [2026-08-25] feat | Completed durable property-image lifecycle cleanup and reconciliation [11:40 IST]

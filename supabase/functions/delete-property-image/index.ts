@@ -109,6 +109,94 @@ async function signR2Request(
   };
 }
 
+// ── R2 deletion + durable outbox helpers ────────────────────────────────────────
+
+// Delete one trusted object key from R2 with a single bounded retry for transient
+// failures. R2's S3-compatible DeleteObject is idempotent — a missing key returns
+// 2xx — so there is NO 404 special-case: a 404 here signals a wrong bucket/path/
+// endpoint and is treated as a real (retained) failure, never silently "cleaned".
+async function deleteFromR2(
+  objectKey: string,
+): Promise<{ ok: boolean; status: number; transient: boolean; error: string | null }> {
+  const maxAttempts = 2; // one small bounded retry for transient cases only
+  let lastStatus = 0;
+  let lastError: string | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const { url, headers } = await signR2Request("DELETE", objectKey, new ArrayBuffer(0));
+      const res = await fetch(url, { method: "DELETE", headers });
+      if (res.ok) {
+        return { ok: true, status: res.status, transient: false, error: null };
+      }
+      lastStatus = res.status;
+      lastError = `R2 DELETE HTTP ${res.status}`;
+      // Transient: throttling / server error → retry once more. Everything else
+      // (401/403/404/other 4xx) is non-transient → stop and retain the outbox row.
+      if (!(res.status === 429 || res.status >= 500)) {
+        return { ok: false, status: res.status, transient: false, error: lastError };
+      }
+    } catch (_e) {
+      // Network/exception → transient → retry once more.
+      lastStatus = 0;
+      lastError = "R2 DELETE network error";
+    }
+  }
+  return { ok: false, status: lastStatus, transient: true, error: lastError };
+}
+
+// Remove the outbox row for a fully-cleaned object. Best-effort: a leftover row is
+// harmless (the future reconciliation worker re-checks and clears it).
+async function clearOutbox(objectKey: string, srHeaders: Record<string, string>): Promise<void> {
+  try {
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/pending_r2_deletions?object_key=eq.${encodeURIComponent(objectKey)}`,
+      { method: "DELETE", headers: srHeaders },
+    );
+  } catch (_e) { /* best-effort; outbox row simply remains for later retry */ }
+}
+
+// Record a sanitized failure marker on the retained outbox row. Only last_attempt_at
+// and last_error — attempt_count is intentionally left to the Prompt 3 retry worker
+// (a plain PATCH cannot atomically increment). Best-effort; never fatal.
+async function markOutboxFailed(
+  objectKey: string,
+  detail: string | null,
+  srHeaders: Record<string, string>,
+): Promise<void> {
+  try {
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/pending_r2_deletions?object_key=eq.${encodeURIComponent(objectKey)}`,
+      {
+        method: "PATCH",
+        headers: srHeaders,
+        body: JSON.stringify({
+          last_attempt_at: new Date().toISOString(),
+          last_error: (detail ?? "R2 delete failed").slice(0, 500),
+        }),
+      },
+    );
+  } catch (_e) { /* best-effort */ }
+}
+
+// Durably enqueue a staged object for cleanup BEFORE relying on R2. Staged objects
+// have no property_images row, so the AFTER DELETE trigger cannot enqueue them.
+// Uses ignore-duplicates so a re-enqueue is a safe no-op. Returns false only on a
+// genuine failure (so the caller can refuse to report false success).
+async function enqueueOutbox(objectKey: string, srHeaders: Record<string, string>): Promise<boolean> {
+  try {
+    // on_conflict=object_key is required: the table's PK is the surrogate `id`, so
+    // ignore-duplicates alone would conflict on the PK (never the UNIQUE object_key).
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/pending_r2_deletions?on_conflict=object_key`, {
+      method: "POST",
+      headers: { ...srHeaders, "Prefer": "resolution=ignore-duplicates" },
+      body: JSON.stringify({ object_key: objectKey }),
+    });
+    return res.ok;
+  } catch (_e) {
+    return false;
+  }
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
@@ -216,22 +304,36 @@ Deno.serve(async (req: Request) => {
           status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         });
       }
-      // Must not correspond to a live property_images row.
+      // Must not correspond to a live property_images row. Fail CLOSED: if the reference
+      // check itself errors, do NOT delete (a non-OK body isn't an array and would else
+      // read as "not live" → wrongful deletion).
       const liveRes = await fetch(
         `${SUPABASE_URL}/rest/v1/property_images?url=eq.${encodeURIComponent(stagedUrl)}&select=id`,
         { headers: srHeaders },
       );
+      if (!liveRes.ok) {
+        console.error("STAGED_LIVE_REFERENCE_CHECK_FAILED", { status: liveRes.status });
+        return new Response(JSON.stringify({ success: false, error: "Could not delete photo. Please try again." }), {
+          status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
       const liveRows = await liveRes.json();
       if (Array.isArray(liveRows) && liveRows.length > 0) {
         return new Response(JSON.stringify({ success: false, error: "That photo is a live image, not a staged object" }), {
           status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         });
       }
-      // Must not be referenced by a still-pending edit request for this property.
+      // Must not be referenced by a still-pending edit request for this property. Fail CLOSED.
       const perRes = await fetch(
         `${SUPABASE_URL}/rest/v1/property_edit_requests?property_id=eq.${propertyId}&status=eq.pending&select=payload`,
         { headers: srHeaders },
       );
+      if (!perRes.ok) {
+        console.error("STAGED_PENDING_REFERENCE_CHECK_FAILED", { status: perRes.status });
+        return new Response(JSON.stringify({ success: false, error: "Could not delete photo. Please try again." }), {
+          status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
       const perRows = await perRes.json();
       const referenced = Array.isArray(perRows) && perRows.some((r: { payload?: { photo_changes?: { add?: Array<{ url?: string }> } } }) =>
         (r?.payload?.photo_changes?.add ?? []).some((a) => a?.url === stagedUrl));
@@ -241,8 +343,23 @@ Deno.serve(async (req: Request) => {
         });
       }
       const objectKey = stagedUrl.replace(`${R2_PUBLIC_URL}/`, "");
-      const { url: sr2Url, headers: sr2Headers } = await signR2Request("DELETE", objectKey, new ArrayBuffer(0));
-      await fetch(sr2Url, { method: "DELETE", headers: sr2Headers });
+      // Durably record the cleanup BEFORE relying on R2. If the enqueue itself
+      // fails we must NOT pretend deletion succeeded (there would be no recovery record).
+      const enqueued = await enqueueOutbox(objectKey, srHeaders);
+      if (!enqueued) {
+        console.error("STAGED_OUTBOX_ENQUEUE_FAILED");
+        return new Response(JSON.stringify({ success: false, error: "Could not delete photo" }), {
+          status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      const stagedR2 = await deleteFromR2(objectKey);
+      if (stagedR2.ok) {
+        await clearOutbox(objectKey, srHeaders);
+      } else {
+        console.error("STAGED_R2_DELETE_FAILED", { status: stagedR2.status });
+        await markOutboxFailed(objectKey, stagedR2.error, srHeaders);
+      }
+      // Deletion is durably queued either way; report success (unchanged contract).
       return new Response(JSON.stringify({ success: true, staged: true }), {
         status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });
@@ -335,16 +452,32 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // R2 cleanup AFTER the DB deletion (orphan file is safer than a dangling row).
+    // R2 cleanup AFTER the committed DB deletion (orphan file is safer than a
+    // dangling row). The AFTER DELETE trigger already enqueued this object in
+    // pending_r2_deletions within the delete transaction, so an R2 failure here is
+    // durably recoverable: clear the outbox row on success, retain it on failure.
+    // The application delete already succeeded either way.
     const objectKey = (imageRow.url ?? "").replace(`${R2_PUBLIC_URL}/`, "");
+    let storageCleanupPending = false;
     if (objectKey) {
-      const { url: r2Url, headers: r2Headers } = await signR2Request("DELETE", objectKey, new ArrayBuffer(0));
-      await fetch(r2Url, { method: "DELETE", headers: r2Headers });
+      const r2 = await deleteFromR2(objectKey);
+      if (r2.ok) {
+        await clearOutbox(objectKey, srHeaders);
+      } else {
+        console.error("R2_DELETE_FAILED", { status: r2.status });
+        await markOutboxFailed(objectKey, r2.error, srHeaders);
+        storageCleanupPending = true;
+      }
     }
 
-    return new Response(JSON.stringify({ success: true, new_primary_id: newPrimaryId }), {
-      status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        new_primary_id: newPrimaryId,
+        ...(storageCleanupPending ? { storage_cleanup_pending: true } : {}),
+      }),
+      { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+    );
   } catch (err) {
     // L) Catch-all
     console.error("DELETE_UNEXPECTED_ERROR");

@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.digest-pending-requests]
 verify_jwt = false
+
+[functions.cleanup-property-images]
+verify_jwt = false

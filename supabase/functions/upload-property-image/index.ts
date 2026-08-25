@@ -258,6 +258,36 @@ Deno.serve(async (req: Request) => {
     }
     void pendingEditRequestId;
 
+    // F.6) Server-side 15-photo safeguard — enforced beyond the browser for BOTH
+    // owner and admin (no role bypass). Counts current LIVE property_images only;
+    // unsubmitted staged objects are intentionally not counted here — the authoritative
+    // live+staged cap lives in submit_property_edit_request. Fail CLOSED: if the count
+    // query errors or is malformed, reject rather than risk silently bypassing the cap.
+    // Not concurrency-perfect (two requests at 14 may both pass) — accepted by design.
+    const countRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/property_images?property_id=eq.${propertyIdStr}&select=id`,
+      { method: "HEAD", headers: { ...srHeaders, "Prefer": "count=exact" } },
+    );
+    if (!countRes.ok) {
+      console.error("UPLOAD_COUNT_FAILED", { status: countRes.status });
+      return new Response(JSON.stringify({ success: false, error: "Upload failed" }), {
+        status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+    const liveCount = Number((countRes.headers.get("content-range") ?? "").split("/")[1]);
+    if (!Number.isFinite(liveCount)) {
+      console.error("UPLOAD_COUNT_MALFORMED");
+      return new Response(JSON.stringify({ success: false, error: "Upload failed" }), {
+        status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+    if (liveCount >= 15) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Maximum 15 photos reached", code: "PHOTO_LIMIT_REACHED" }),
+        { status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+      );
+    }
+
     // G) Validate file type
     const file = fileField as File;
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -357,6 +387,29 @@ Deno.serve(async (req: Request) => {
     if (!insertRes.ok) {
       await insertRes.text(); // consume body; not logged (may contain DB internals)
       console.error("UPLOAD_DB_INSERT_FAILED", { status: insertRes.status });
+      // R2 PUT already succeeded but no authoritative property_images row exists, so the
+      // object is orphaned. Enqueue its exact server-generated key into the durable outbox
+      // (service-role, internal cleanup only — never bypasses the caller's image authz).
+      // on_conflict=object_key: the outbox PK is a surrogate id, not object_key.
+      try {
+        const enqRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/pending_r2_deletions?on_conflict=object_key`,
+          {
+            method: "POST",
+            headers: {
+              "apikey": serviceRoleKey,
+              "Authorization": `Bearer ${serviceRoleKey}`,
+              "Content-Type": "application/json",
+              "Prefer": "resolution=ignore-duplicates",
+            },
+            body: JSON.stringify({ object_key: filePath }),
+          },
+        );
+        if (!enqRes.ok) console.error("UPLOAD_ORPHAN_ENQUEUE_FAILED", { status: enqRes.status });
+      } catch (_e) {
+        // Sanitized: no secrets/DB internals. Reconciliation is the final recovery path.
+        console.error("UPLOAD_ORPHAN_ENQUEUE_ERROR");
+      }
       return new Response(JSON.stringify({ success: false, error: "Upload failed" }), {
         status: 500,
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
