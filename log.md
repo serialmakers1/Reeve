@@ -2176,3 +2176,7 @@ n8n (live production workflows, manual + MCP):
 ## [2026-08-25] feat | Added server-side 15-photo upload + submit cap [10:15 IST]
 
 ## [2026-08-25] feat | Completed durable property-image lifecycle cleanup and reconciliation [11:40 IST]
+
+## [2026-08-25] perf | Added browser property-image compression [13:58 IST]
+
+## [2026-08-25] perf | Completed image delivery optimization and final image regression [14:29 IST]

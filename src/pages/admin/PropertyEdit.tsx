@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { SpecField } from "@/components/property/SpecField";
 import { ensurePrimaryPhoto } from "@/lib/property-images";
+import { processPhotoForUpload } from "@/lib/photo";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -643,8 +644,25 @@ export default function PropertyEdit() {
       setUploadErrors(prev => { const n = { ...prev }; delete n[fileKey]; return n; });
 
       try {
+        // Browser preprocessing (same shared helper as the owner flow): HEIC→JPEG,
+        // resize ≤1280 / q0.70 / EXIF-stripped, WebP-preferred. Never upload the raw file.
+        const processed = await processPhotoForUpload(file);
+        if (processed.ok === false) {
+          const messages: Record<string, string> = {
+            too_large: "Photo too big — max 15 MB",
+            unsupported_format: "Format not supported — please use JPG, PNG, WebP or HEIC",
+            heic_conversion_failed: "Couldn't convert your iPhone photo — please try a JPG",
+            compression_failed: "Photo processing failed — please try another photo",
+          };
+          const msg = messages[processed.error.kind] ?? "Photo failed";
+          setUploadErrors(prev => ({ ...prev, [fileKey]: msg }));
+          toast({ title: msg, variant: "destructive" });
+          setUploadingFiles(prev => { const n = { ...prev }; delete n[fileKey]; return n; });
+          continue; // preserve already-successful files; skip this one
+        }
+
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", processed.file, processed.file.name);
         formData.append("property_id", id!);
         formData.append("section", section);
         formData.append("is_floor_plan", section.toLowerCase() === "floor plan" ? "true" : "false");

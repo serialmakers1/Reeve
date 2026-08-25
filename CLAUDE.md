@@ -78,6 +78,8 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Do not add every FK advisor index or drop an index solely because it is reported unused; usage statistics are sparse and new indexes may initially show zero scans.
 - Migrations should be single-purpose; enum values must be committed before later use; BEFORE triggers fire alphabetically.
 - Property images use Cloudflare R2, not Supabase Storage.
+- New property photos/floor plans are browser-preprocessed once via `processPhotoForUpload` (HEIC→JPEG, ≤1280px, q0.70, EXIF-stripped, WebP-preferred with format-safe fallback, ≤10 MB) before the existing Edge upload; owner and admin paths share it.
+- Image delivery: Search cards render only the cover URL (first/LCP card eager+`fetchPriority="high"`, others lazy); new R2 uploads set `Cache-Control: public, max-age=31536000, immutable` (unsigned header; keys are immutable UUIDs).
 
 ## Auth Architecture
 - Active providers: Phone ENABLED (MSG91 OTP), Google ENABLED (OAuth), Email DISABLED.

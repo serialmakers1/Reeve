@@ -181,6 +181,7 @@ export function SearchPropertyCard({
               src={imgSrc}
               alt={imageAlt}
               loading={isFirstVisible ? "eager" : "lazy"}
+              fetchPriority={isFirstVisible ? "high" : "auto"}
               decoding="async"
               className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
               onError={() => setImgSrc(PLACEHOLDER_IMG)}
@@ -311,6 +312,7 @@ export function SearchPropertyCard({
             src={imgSrc}
             alt={imageAlt}
             loading={isFirstVisible ? "eager" : "lazy"}
+            fetchPriority={isFirstVisible ? "high" : "auto"}
             decoding="async"
             className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
             onError={() => setImgSrc(PLACEHOLDER_IMG)}

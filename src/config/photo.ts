@@ -1,8 +1,14 @@
 export const PHOTO_CONFIG = {
   compression: {
-    maxSizeMB: 1.5,
-    maxWidthOrHeight: 1920,
+    // Longest edge cap; browser-image-compression only downscales, never upscales,
+    // so sources already under 1280 keep their original dimensions.
+    maxWidthOrHeight: 1280,
+    initialQuality: 0.70,
     useWebWorker: true,
+    // Strip metadata. The library bakes EXIF orientation into the pixels first, so
+    // output stays visually upright even without the orientation tag.
+    preserveExif: false,
+    // No maxSizeMB: one final optimized output; fileType is decided in photo.ts.
   },
   upload: {
     minCount: 3,
