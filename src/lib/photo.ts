@@ -54,7 +54,7 @@ function finalize(sourceName: string, produced: File): File {
 /**
  * Preprocess ONE newly selected image into a single optimized upload candidate.
  * Pipeline: raw file → size check → HEIC/HEIF→JPEG (dynamic import) → compress to
- * ≤1280px longest edge, q0.70, EXIF stripped → prefer WebP, else format-safe fallback.
+ * ≤1280px longest edge, q0.70 (WebP/PNG) or q0.50 (JPEG fallback), EXIF stripped → prefer WebP, else format-safe fallback.
  * Every successful output is a PROCESSED candidate (never the raw original): MIME ∈
  * {webp,jpeg,png}, ≤1280px, EXIF-stripped, ≤10 MB, and reduced when possible.
  * Silent — no logging, no toast. Callers decide how to surface errors.
@@ -101,9 +101,11 @@ export async function processPhotoForUpload(
   const sourceBytes = file.size;
 
   // Run one compression pass; return a *valid candidate* File (accepted MIME + ≤10 MB) or null.
+  // JPEG fallback uses q0.50 (smaller Safari output); WebP/PNG remain at the config default q0.70.
   const compress = async (fileType: string): Promise<File | null> => {
     try {
-      const out = await imageCompression(input, { ...PHOTO_CONFIG.compression, fileType });
+      const quality = fileType === "image/jpeg" ? 0.50 : PHOTO_CONFIG.compression.initialQuality;
+      const out = await imageCompression(input, { ...PHOTO_CONFIG.compression, initialQuality: quality, fileType });
       const produced =
         out instanceof File
           ? out
