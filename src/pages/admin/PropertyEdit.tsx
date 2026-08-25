@@ -676,6 +676,9 @@ export default function PropertyEdit() {
               setImages((prev) => prev.map((i) => (i.id === json.id ? { ...i, is_primary: true } : i)));
             }
           }
+        } else if (json.code === "PHOTO_LIMIT_REACHED") {
+          setUploadErrors(prev => ({ ...prev, [fileKey]: "Maximum 15 photos allowed." }));
+          toast({ title: "Maximum 15 photos allowed.", variant: "destructive" });
         } else {
           setUploadErrors(prev => ({ ...prev, [fileKey]: json.error || "Upload failed" }));
           toast({ title: "Photo upload failed", description: json.error || "Upload failed", variant: "destructive" });

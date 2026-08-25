@@ -1168,12 +1168,12 @@ export default function ListProperty() {
     if (Array.isArray(data)) setImages(data as PropertyImageRow[]);
   }, [propertyId]);
 
-  const uploadPhoto = useCallback(async (file: File, section: string) => {
-    if (!propertyId || !session?.access_token) return;
+  const uploadPhoto = useCallback(async (file: File, section: string): Promise<"uploaded" | "limit_reached" | "failed"> => {
+    if (!propertyId || !session?.access_token) return "failed";
     // Max-count guard counts live images + staged (R9).
     if (images.length + stagedPhotos.length >= PHOTO_CONFIG.upload.maxCount) {
       toast({ title: `Maximum ${PHOTO_CONFIG.upload.maxCount} photos reached`, variant: "destructive" });
-      return;
+      return "limit_reached";
     }
     const key = `${section}-${file.name}-${Date.now()}`;
     setUploadingFiles((p) => ({ ...p, [key]: true }));
@@ -1188,7 +1188,7 @@ export default function ListProperty() {
       };
       toast({ title: messages[processed.error.kind] ?? "Photo failed", variant: "destructive" });
       setUploadingFiles((p) => { const n = { ...p }; delete n[key]; return n; });
-      return;
+      return "failed";
     }
 
     try {
@@ -1203,7 +1203,14 @@ export default function ListProperty() {
         body: formData,
       });
       const json = await res.json();
-      if (!json.success) { toast({ title: json.error || "Upload failed", variant: "destructive" }); return; }
+      if (!json.success) {
+        if (json.code === "PHOTO_LIMIT_REACHED") {
+          toast({ title: "Maximum 15 photos allowed.", variant: "destructive" });
+          return "limit_reached";
+        }
+        toast({ title: json.error || "Upload failed", variant: "destructive" });
+        return "failed";
+      }
 
       if (json.staged) {
         // Live listing: R2-only staged photo → pending review (no live row).
@@ -1221,8 +1228,10 @@ export default function ListProperty() {
         await ensurePrimaryPhoto(propertyId, json.id);
         if (!prevHadPrimary) setImages((prev) => prev.map((i) => (i.id === json.id ? { ...i, is_primary: true } : i)));
       }
+      return "uploaded";
     } catch {
       toast({ title: "Network error uploading photo", variant: "destructive" });
+      return "failed";
     } finally {
       setUploadingFiles((p) => { const n = { ...p }; delete n[key]; return n; });
     }
@@ -1517,7 +1526,16 @@ export default function ListProperty() {
         p_property_id: propertyId, p_field_changes: args.p_field_changes, p_photo_changes: args.p_photo_changes,
       });
       setSubmitting(false);
-      if (rpcError) { toast({ title: "Could not submit edit", description: rpcError.message, variant: "destructive" }); return; }
+      if (rpcError) {
+        // Cap hit at submission (P0001/PHOTO_LIMIT_REACHED): friendly message; staged
+        // photos + form state are left intact so the owner can remove one and resubmit.
+        if (rpcError.code === "P0001" && rpcError.message === "PHOTO_LIMIT_REACHED") {
+          toast({ title: "Maximum 15 photos allowed.", variant: "destructive" });
+          return;
+        }
+        toast({ title: "Could not submit edit", description: rpcError.message, variant: "destructive" });
+        return;
+      }
       try { sessionStorage.removeItem(SESSION_STORAGE_KEY(propertyId!)); } catch { /* ignore */ }
       toast({ title: "Edit submitted for review", description: "We'll review your changes within 48 hours." });
       navigate("/owner-dashboard", { replace: true });
@@ -2318,7 +2336,22 @@ export default function ListProperty() {
                               if (!e.target.files) return;
                               const files = Array.from(e.target.files);
                               e.target.value = "";
-                              for (const f of files) { await uploadPhoto(f, section); }
+                              // Cap the whole selection up front — stagedPhotos from this
+                              // closure doesn't grow synchronously across the loop, so per-file
+                              // guards alone would let one multi-file pick overshoot 15.
+                              const remainingSlots = Math.max(0, PHOTO_CONFIG.upload.maxCount - images.length - stagedPhotos.length);
+                              if (remainingSlots === 0) {
+                                toast({ title: "Maximum 15 photos allowed.", variant: "destructive" });
+                                return;
+                              }
+                              const filesToUpload = files.slice(0, remainingSlots);
+                              if (files.length > remainingSlots) {
+                                toast({ title: `Only ${remainingSlots} more photo${remainingSlots === 1 ? "" : "s"} can be added.`, variant: "destructive" });
+                              }
+                              for (const f of filesToUpload) {
+                                const r = await uploadPhoto(f, section);
+                                if (r === "limit_reached") break;
+                              }
                             }} />
                         </label>
                       </div>
