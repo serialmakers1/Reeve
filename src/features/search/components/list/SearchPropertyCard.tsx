@@ -336,32 +336,34 @@ export function SearchPropertyCard({
 
         {/* Content */}
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-2.5 md:p-3">
-          {/* 1. Price + activity header */}
-          {(displayPrice || hasActivity) && (
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-              {displayPrice ? (
-                <div className="min-w-0 leading-tight">
-                  <p className="text-2xl font-bold text-foreground tabular-nums break-words">
-                    {displayPrice.amount}
-                    {displayPrice.unit && (
-                      <span className="ml-1 text-sm font-normal text-muted-foreground">{displayPrice.unit}</span>
-                    )}
-                  </p>
-                  <p
-                    className={cn(
-                      "text-[10px] font-semibold uppercase tracking-wide",
-                      isRent ? "text-teal-600" : "text-indigo-600",
-                    )}
-                  >
-                    {displayPrice.label}
-                  </p>
-                </div>
-              ) : (
-                <span />
-              )}
+          {/* 1. Price + activity header — always rendered to prevent CLS when async counts arrive */}
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+            {displayPrice ? (
+              <div className="min-w-0 leading-tight">
+                <p className="text-2xl font-bold text-foreground tabular-nums break-words">
+                  {displayPrice.amount}
+                  {displayPrice.unit && (
+                    <span className="ml-1 text-sm font-normal text-muted-foreground">{displayPrice.unit}</span>
+                  )}
+                </p>
+                <p
+                  className={cn(
+                    "text-[10px] font-semibold uppercase tracking-wide",
+                    isRent ? "text-teal-600" : "text-indigo-600",
+                  )}
+                >
+                  {displayPrice.label}
+                </p>
+              </div>
+            ) : (
+              <span />
+            )}
+            {/* Activity column: fixed footprint prevents CLS when badges appear asynchronously.
+                w-14 (56px) covers icon + gap + 4-digit count; min-h-[52px] covers both rows. */}
+            <div className="w-14 min-h-[52px]">
               {activityStack}
             </div>
-          )}
+          </div>
 
           {/* 2. Identity */}
           {(identityParts.length > 0 || locationParts.length > 0) && (

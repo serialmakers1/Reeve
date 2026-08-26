@@ -7,6 +7,7 @@ import { mergeSearchPages, useSearchResults, isRadiusFailure } from "../state/us
 import type { SearchPropertyResult } from "../data/searchResultContract";
 import { useSearchState } from "../state/useSearchState";
 import { searchProperties } from "../data/searchDataClient";
+import { supabase } from "@/integrations/supabase/client";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -515,5 +516,150 @@ describe("useSearchResults — locality_no_representative_point recovery", () =>
       expect(result.current.error).not.toBeNull();
     }, { timeout: 5000 });
     expect(setDistanceKm).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Async count overlay (Phase 3) ───────────────────────────────────────────
+// These tests verify that view/comment counts are fetched independently of the
+// main search RPC, merged by property_id, and never block card rendering.
+
+describe("useSearchResults — async count overlay", () => {
+  const rpcMock = vi.mocked(supabase.rpc as ReturnType<typeof vi.fn>);
+
+  beforeEach(() => {
+    vi.mocked(useSearchState).mockReturnValue(validRentContext as ReturnType<typeof useSearchState>);
+    rpcMock.mockClear();
+  });
+
+  it("cards are available as soon as searchProperties resolves, before counts return", async () => {
+    // searchProperties resolves immediately; count RPC hangs
+    vi.mocked(searchProperties).mockResolvedValueOnce({
+      results: [makeResult("p1"), makeResult("p2")],
+      nextCursor: null,
+      hasNextPage: false,
+    });
+    // Count RPC never resolves in this test — simulates slow secondary fetch
+    rpcMock.mockImplementation(
+      (name: string) =>
+        name === "get_property_counts" ? new Promise(() => {}) : Promise.resolve({ data: null, error: null }),
+    );
+
+    const { result } = renderHook(() => useSearchResults(), { wrapper: wrapper() });
+
+    // Cards should be available without waiting for counts
+    await waitFor(() => {
+      expect(result.current.results).toHaveLength(2);
+      expect(result.current.results[0].id).toBe("p1");
+    });
+    // Still loading counts — results have zero counts (default)
+    expect(result.current.results[0].viewCount).toBe(0);
+    expect(result.current.results[0].commentCount).toBe(0);
+  });
+
+  it("view/comment counts overlay onto correct cards when count RPC resolves", async () => {
+    vi.mocked(searchProperties).mockResolvedValueOnce({
+      results: [makeResult("p1"), makeResult("p2")],
+      nextCursor: null,
+      hasNextPage: false,
+    });
+    rpcMock.mockImplementation((name: string, args: { p_property_ids?: string[] }) => {
+      if (name === "get_property_counts") {
+        return Promise.resolve({
+          data: [
+            { property_id: "p1", view_count: 42, comment_count: 3 },
+            { property_id: "p2", view_count: 0, comment_count: 0 },
+          ],
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    const { result } = renderHook(() => useSearchResults(), { wrapper: wrapper() });
+
+    await waitFor(() => {
+      const p1 = result.current.results.find((r) => r.id === "p1");
+      expect(p1?.viewCount).toBe(42);
+      expect(p1?.commentCount).toBe(3);
+    });
+    const p2 = result.current.results.find((r) => r.id === "p2");
+    expect(p2?.viewCount).toBe(0);
+    expect(p2?.commentCount).toBe(0);
+  });
+
+  it("count RPC failure is non-fatal — cards remain with zero counts, search error stays null", async () => {
+    vi.mocked(searchProperties).mockResolvedValueOnce({
+      results: [makeResult("p1")],
+      nextCursor: null,
+      hasNextPage: false,
+    });
+    rpcMock.mockImplementation((name: string) => {
+      if (name === "get_property_counts") {
+        return Promise.resolve({ data: null, error: new Error("RPC failed") });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    const { result } = renderHook(() => useSearchResults(), { wrapper: wrapper() });
+
+    await waitFor(() => expect(result.current.results).toHaveLength(1));
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.results[0].viewCount).toBe(0);
+    expect(result.current.results[0].commentCount).toBe(0);
+  });
+
+  it("partial count response — only returned IDs update, others stay at zero", async () => {
+    vi.mocked(searchProperties).mockResolvedValueOnce({
+      results: [makeResult("p1"), makeResult("p2"), makeResult("p3")],
+      nextCursor: null,
+      hasNextPage: false,
+    });
+    rpcMock.mockImplementation((name: string) => {
+      if (name === "get_property_counts") {
+        // Only p1 in the response; p2 and p3 are absent
+        return Promise.resolve({
+          data: [{ property_id: "p1", view_count: 10, comment_count: 1 }],
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    const { result } = renderHook(() => useSearchResults(), { wrapper: wrapper() });
+
+    await waitFor(() => {
+      expect(result.current.results.find((r) => r.id === "p1")?.viewCount).toBe(10);
+    });
+    expect(result.current.results.find((r) => r.id === "p2")?.viewCount).toBe(0);
+    expect(result.current.results.find((r) => r.id === "p3")?.viewCount).toBe(0);
+  });
+
+  it("count overlay preserves all existing result fields (id, isFavourited, etc.)", async () => {
+    vi.mocked(searchProperties).mockResolvedValueOnce({
+      results: [makeResult("p1")],
+      nextCursor: null,
+      hasNextPage: false,
+    });
+    rpcMock.mockImplementation((name: string) => {
+      if (name === "get_property_counts") {
+        return Promise.resolve({
+          data: [{ property_id: "p1", view_count: 20, comment_count: 5 }],
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    const { result } = renderHook(() => useSearchResults(), { wrapper: wrapper() });
+
+    await waitFor(() => {
+      expect(result.current.results.find((r) => r.id === "p1")?.viewCount).toBe(20);
+    });
+    // Count overlay must not clobber other result fields
+    const p1 = result.current.results.find((r) => r.id === "p1");
+    expect(p1?.commentCount).toBe(5);
+    expect(p1?.id).toBe("p1");
+    expect(p1?.isFavourited).toBe(false); // anonymous user from module-level mock
   });
 });
