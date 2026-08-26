@@ -35,7 +35,6 @@ function makeRow(overrides: Partial<SearchPropertyRpcRow> = {}): SearchPropertyR
     lister_role: "owner",
     response_handled_count: 10,
     response_rate_pct: 80,
-    experience_feedback: null,
     listed_at: "2026-07-01T00:00:00Z",
     availability_confirmed_at: "2026-07-20T00:00:00Z",
     rent_brokerage_type: "fixed",

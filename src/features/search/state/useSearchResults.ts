@@ -99,8 +99,6 @@ export interface AreaFallback {
 
 export interface UseSearchResultsReturn {
   results: SearchPropertyResult[];
-  /** Exact total over the filtered pre-cursor relation (Prompt 3 v2). */
-  totalCount: number;
   hasNextPage: boolean;
   nextCursor: SearchCursor | null;
   isInitialLoading: boolean;
@@ -207,19 +205,23 @@ export function useSearchResults(): UseSearchResultsReturn {
     if (nextCursor) setCursor(nextCursor);
   }, [query.data?.nextCursor, setCursor]);
 
-  // Stale-cursor recovery: a cursor page that comes back empty while the true
-  // total is > 0 means the bookmarked/deep cursor no longer resolves — clear it
-  // and fall back to page 1 (once; total_count guards against a genuine empty set).
+  // Stale-cursor recovery: if a non-null cursor returns 0 rows, the bookmarked
+  // cursor no longer resolves — reset to page 1 once. recoveryGuardRef holds the
+  // JSON of the cursor currently being recovered; cleared after page-1 settles.
+  const recoveryGuardRef = useRef<string | null>(null);
   useEffect(() => {
-    if (
-      query.isSuccess &&
-      state.cursor !== null &&
-      (query.data?.results.length ?? 0) === 0 &&
-      (query.data?.totalCount ?? 0) > 0
-    ) {
-      setCursor(null);
+    if (query.isSuccess && state.cursor !== null && (query.data?.results.length ?? 0) === 0) {
+      const cursorJson = JSON.stringify(state.cursor);
+      if (recoveryGuardRef.current !== cursorJson) {
+        recoveryGuardRef.current = cursorJson;
+        setCursor(null);
+      }
+      return;
     }
-  }, [query.isSuccess, query.data, state.cursor, setCursor]);
+    if (state.cursor === null && !query.isFetching && recoveryGuardRef.current !== null) {
+      recoveryGuardRef.current = null;
+    }
+  }, [query.isSuccess, query.isFetching, query.data, state.cursor, setCursor]);
 
   // Radius-eligibility failure recovery (one-shot). The deployed helper RAISEs when a
   // selected locality has no representative_point / a radius lacks a locality anchor.
@@ -278,17 +280,17 @@ export function useSearchResults(): UseSearchResultsReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.isSuccess, searchKey]);
 
-  // True total over the filtered pre-cursor relation (exact; independent of page).
-  const totalCount = query.data?.totalCount ?? results.length;
-
   // ── Area → city fallback recovery ──────────────────────────────────────────
   // Trigger ONLY when the primary query genuinely succeeded with zero rows AND
   // areas are selected. Never on loading/error (those surface as-is).
-  const shouldRecover = shouldRecoverAreas(
-    query.isSuccess,
-    query.data?.results.length ?? 0,
-    state.context.locations.length,
-  );
+  // cursor === null guard: stale cursor empty pages must not trigger area fallback.
+  const shouldRecover =
+    state.cursor === null &&
+    shouldRecoverAreas(
+      query.isSuccess,
+      query.data?.results.length ?? 0,
+      state.context.locations.length,
+    );
 
   const recoveryInput = useMemo(
     // City-wide recovery drops the detail (locality/road) UUIDs + radius, keeping only
@@ -340,7 +342,6 @@ export function useSearchResults(): UseSearchResultsReturn {
 
   return {
     results,
-    totalCount,
     hasNextPage: query.data?.hasNextPage ?? false,
     nextCursor: query.data?.nextCursor ?? null,
     isInitialLoading,

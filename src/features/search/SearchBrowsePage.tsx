@@ -262,7 +262,7 @@ export default function SearchBrowsePage() {
           <h1 className="sr-only">{h1Text}</h1>
           <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
             {search.isInitialLoading && "Loading properties…"}
-            {!search.isInitialLoading && !search.isEmpty && `${search.results.length}${search.hasNextPage ? "+" : ""} properties`}
+            {!search.isInitialLoading && !search.isEmpty && "Properties loaded"}
             {search.isEmpty && "No properties found for this search"}
           </div>
           <div className="pb-24">

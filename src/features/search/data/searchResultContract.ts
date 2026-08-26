@@ -1,12 +1,5 @@
 import type { SearchMode } from "@/features/search/domain/searchMode";
 
-// Resolved from get_user_rating_summary when status === "active"
-export interface ExperienceFeedbackAggregate {
-  totalRatings: number;
-  dealAgainPct: number;   // 0–100, maps to as_owner.deal_again_pct
-  reviewCount: number;    // count of written experience reviews
-}
-
 // Resolved pricing — discriminated union computed by the mapper from price_kind + price_amount.
 // Guard: listed_rent = 0 on a rent listing → price = null.
 export type ResolvedPrice =
@@ -64,7 +57,6 @@ export interface SearchPropertyResult {
   // ── Public activity ────────────────────────────────────────────────────────
   viewCount: number;                    // 0 when none — never null
   commentCount: number;                 // 0 when none — never null
-  experienceFeedback: ExperienceFeedbackAggregate | null;  // null when < RATING_MIN_COUNT
 
   // ── Freshness ──────────────────────────────────────────────────────────────
   listedAt: string | null;
@@ -149,9 +141,6 @@ export interface SearchPropertyRpcRow {
   response_handled_count: number;
   response_rate_pct: number | null;
 
-  // Experience feedback (inline lateral subquery — Option A: inline)
-  experience_feedback: ExperienceFeedbackAggregate | null;
-
   // Freshness
   listed_at: string | null;
   availability_confirmed_at: string | null;  // Phase 3A — null until column added
@@ -230,7 +219,6 @@ export function mapRpcRowToResult(
     responseRatePct: row.response_rate_pct,
     viewCount,
     commentCount,
-    experienceFeedback: row.experience_feedback,
     listedAt: row.listed_at,
     availabilityConfirmedAt: row.availability_confirmed_at,
     isFavourited,
@@ -262,5 +250,4 @@ export type ContextualSignalInputs = Pick<
   | "hasVideoWalkthrough"
   | "priceNegotiable"
   | "commentCount"
-  | "experienceFeedback"
 >;

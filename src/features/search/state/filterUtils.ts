@@ -21,8 +21,6 @@ export function countActiveFilters(
   if (f.parking4w?.length || f.parking2w?.length) n++;
   if (f.amenities?.length) n++;
   if (f.hasVideoWalkthrough) n++;
-  if (f.minResponseRate) n++;
-  if (f.hasExperienceFeedback) n++;
 
   if (mode === "rent") {
     const rf = filters as RentFilters;

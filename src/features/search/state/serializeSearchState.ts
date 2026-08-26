@@ -126,8 +126,6 @@ export function serializeSearchState(state: SearchState): URLSearchParams {
   setArrayIfNonEmpty(params, P.parking2w, f.parking2w);
   setArrayIfNonEmpty(params, P.amenities, f.amenities);
   setBoolIfTrue(params, P.hasVideoWalkthrough, f.hasVideoWalkthrough);
-  if (f.minResponseRate !== undefined) params.set(P.minResponseRate, String(f.minResponseRate));
-  setBoolIfTrue(params, P.hasExperienceFeedback, f.hasExperienceFeedback);
 
   // ── Mode-specific filters ──
   if (context.mode === "buy") {

@@ -69,8 +69,6 @@ export function buildSearchInput(state: SearchState): SearchPropertiesInput | nu
     parking2w: f.parking2w ?? [],
     amenities: f.amenities ?? [],
     hasVideoWalkthrough: f.hasVideoWalkthrough ?? null,
-    minResponseRate: f.minResponseRate ?? null,
-    hasExperienceFeedback: f.hasExperienceFeedback ?? null,
 
     sort: state.sort,
     cursor: state.cursor,

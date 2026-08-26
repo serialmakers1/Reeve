@@ -11,8 +11,6 @@ export interface SearchPropertiesResult {
   results: SearchPropertyResult[];
   nextCursor: SearchCursor | null;
   hasNextPage: boolean;
-  /** True total over the fully-filtered, pre-cursor relation (Prompt 3 v2). */
-  totalCount: number;
 }
 
 /**
@@ -35,7 +33,7 @@ export async function searchProperties(
     input.cursor?.sort === "availability_confirmed" ? input.cursor : null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabaseClient as any).rpc("search_compact_properties_v3", {
+  const { data, error } = await (supabaseClient as any).rpc("search_compact_properties_v4", {
     p_listing_type: input.mode === "buy" ? "sale" : "rent",
     p_geo_place_ids: input.geoPlaceIds.length > 0 ? input.geoPlaceIds : null,
     p_distance_km: input.distanceKm,
@@ -70,8 +68,6 @@ export async function searchProperties(
     p_parking_2w: input.parking2w.length > 0 ? input.parking2w : null,
     p_amenities: input.amenities.length > 0 ? input.amenities : null,
     p_has_video_walkthrough: input.hasVideoWalkthrough,
-    p_min_response_rate: input.minResponseRate,
-    p_has_experience_feedback: input.hasExperienceFeedback,
     p_sort: input.sort,
     p_cursor_listed_at: cursorNewest?.listedAt ?? cursorPrice?.listedAt ?? cursorAvail?.listedAt ?? null,
     p_cursor_id: input.cursor?.id ?? null,
@@ -82,12 +78,9 @@ export async function searchProperties(
 
   if (error) throw error;
 
-  const rawRows = (data ?? []) as (SearchPropertyRpcRow & { total_count?: number | string })[];
+  const rawRows = (data ?? []) as SearchPropertyRpcRow[];
   const hasNextPage = rawRows.length > input.limit;
   const pageRows = hasNextPage ? rawRows.slice(0, input.limit) : rawRows;
-
-  // total_count is a constant column on every row; 0 when the page is empty.
-  const totalCount = rawRows.length > 0 ? Number(rawRows[0].total_count ?? 0) : 0;
 
   const results = pageRows.map((row) => mapRpcRowToResult(row, 0, 0, false));
 
@@ -95,7 +88,7 @@ export async function searchProperties(
   const nextCursor: SearchCursor | null =
     hasNextPage && lastRow ? buildSearchCursor(lastRow, input.sort) : null;
 
-  return { results, nextCursor, hasNextPage, totalCount };
+  return { results, nextCursor, hasNextPage };
 }
 
 /**

@@ -102,8 +102,6 @@ export const URL_PARAMS = {
   parking2w: "park2w",
   amenities: "amenities",
   hasVideoWalkthrough: "video",
-  minResponseRate: "min_resp",
-  hasExperienceFeedback: "has_fb",
   // Buy-specific
   minCarpetArea: "min_carpet",
   maxCarpetArea: "max_carpet",

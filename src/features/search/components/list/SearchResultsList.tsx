@@ -10,7 +10,6 @@ import type { AreaFallback } from "@/features/search/state/useSearchResults";
 
 interface SearchResultsListProps {
   results: SearchPropertyResult[];
-  totalCount: number;
   hasNextPage: boolean;
   isInitialLoading: boolean;
   isLoadingMore: boolean;
@@ -37,7 +36,6 @@ interface SearchResultsListProps {
 
 export function SearchResultsList({
   results,
-  totalCount,
   hasNextPage,
   isInitialLoading,
   isLoadingMore,
@@ -185,7 +183,7 @@ export function SearchResultsList({
           </p>
         </div>
       ) : (
-        <SearchResultsHeader totalCount={totalCount} />
+        <SearchResultsHeader />
       )}
       <div className={wrapperClass}>
       {isRefreshing && !showingFallback && (

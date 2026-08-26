@@ -63,8 +63,6 @@ export function appliedFilterChips(filters: RentFilters | BuyFilters, mode: Sear
   if (f.amenities?.length) chips.push({ key: "amenities", label: `Amenities: ${f.amenities.length}`, clearKeys: ["amenities"] });
   if (f.parking4w?.length || f.parking2w?.length) chips.push({ key: "parking", label: "Parking", clearKeys: ["parking4w", "parking2w"] });
   if (f.hasVideoWalkthrough) chips.push({ key: "video", label: "Video walkthrough", clearKeys: ["hasVideoWalkthrough"] });
-  if (f.minResponseRate) chips.push({ key: "response", label: "Response rate", clearKeys: ["minResponseRate"] });
-  if (f.hasExperienceFeedback) chips.push({ key: "feedback", label: "Has feedback", clearKeys: ["hasExperienceFeedback"] });
 
   if (mode === "rent") {
     const rf = filters as RentFilters;

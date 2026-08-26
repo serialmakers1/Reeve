@@ -65,8 +65,6 @@ export interface SearchPropertiesInput {
   parking2w: string[];
   amenities: string[];               // AND semantics
   hasVideoWalkthrough: boolean | null;
-  minResponseRate: number | null;
-  hasExperienceFeedback: boolean | null;
 
   // Pagination
   sort: SearchSortKey;

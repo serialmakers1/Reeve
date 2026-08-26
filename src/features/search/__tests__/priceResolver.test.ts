@@ -36,7 +36,6 @@ function makeResult(price: SearchPropertyResult["price"]): SearchPropertyResult 
     responseRatePct: null,
     viewCount: 0,
     commentCount: 0,
-    experienceFeedback: null,
     listedAt: null,
     availabilityConfirmedAt: null,
     isFavourited: false,
