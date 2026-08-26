@@ -46,8 +46,6 @@ describe("search contracts", () => {
       parking2w: [],
       amenities: [],
       hasVideoWalkthrough: null,
-      minResponseRate: null,
-      hasExperienceFeedback: null,
       sort: "newest",
       cursor: null,
       limit: 20,

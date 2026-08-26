@@ -1,3 +1,40 @@
+## [2026-08-27] perf | Group 1 Phase 1 — Remove total count, response-rate filter, experience feedback from Search RPC
+
+**Frontend implementation complete. DB migration (`20260827000000_group1_phase1_search_rpc_v4.sql`) written and ready — user must run `supabase db push --linked` manually, then regenerate types.**
+
+### What was removed
+- `COUNT(*) OVER()::bigint AS total_count` — window function scanning full filtered set; no longer needed now that pagination uses `limit+1` hasNextPage
+- `p_min_response_rate` filter param — product-retired; silently ignored on legacy URLs (`min_resp`)
+- `p_has_experience_feedback` filter param + `interaction_ratings` lateral subquery — feature fully removed from Search; underlying table untouched
+
+### DB
+- New function `search_compact_properties_v4` created from live v3 definition via `pg_get_functiondef`; v3 left intact for rollback
+- Migration: `supabase/migrations/20260827000000_group1_phase1_search_rpc_v4.sql`
+- ACL: REVOKE PUBLIC; GRANT anon, authenticated (no service_role — matches v3 hardened state)
+- **Pending manual deploy**: `supabase db push --linked` from the worktree, then `npx supabase gen types typescript --linked --schema public | Out-File -Encoding utf8 src/integrations/supabase/types.ts`
+
+### Frontend changes
+- `searchDataClient.ts`: RPC → v4, removed `totalCount` from result, removed two RPC args
+- `searchResultContract.ts`: removed `ExperienceFeedbackAggregate`, `experienceFeedback` fields
+- `searchContracts.ts`, `searchTypes.ts`, `searchConstants.ts`: removed both filter fields + URL params
+- `parseSearchUrl.ts`, `serializeSearchState.ts`, `filterUtils.ts`, `filterSummary.ts`, `searchStateUtils.ts`, `buildSearchInput.ts`: all plumbing removed
+- `useSearchResults.ts`: removed `totalCount` from interface + return; replaced `totalCount > 0` stale-cursor guard with `recoveryGuardRef` (single-slot JSON cursor guard); added `state.cursor === null` gate to area→city fallback
+- `resultHeaderResolver.ts`: deleted (only purpose was formatting count label)
+- `SearchResultsHeader.tsx`: replaced with mobile-only `desk:hidden` SortControl; no count label, no empty desktop strip
+- `SearchResultsList.tsx`: removed `totalCount` prop
+- `SearchBrowsePage.tsx`: replaced numeric aria-live count with `"Properties loaded"`
+- `index.ts`: removed `ExperienceFeedbackAggregate` export
+- `SearchFilterPanel.tsx`: removed response-rate input group, experience-feedback checkbox group, both from lister badge count
+
+### Tests
+- Deleted: `resultHeaderResolver.test.ts`
+- Updated: `multiCitySearch.test.ts` (removed resolver import + describe block), `searchDataClient.test.ts` (v4 RPC name, fixtures), `searchContracts.test.ts`, `useSearchResults.test.ts` (totalCount mocks), `searchMapper.test.ts`, `SearchPropertyCard.test.tsx`, `priceResolver.test.ts`, `comparisonFactsResolver.test.ts`, `cardTilesResolver.test.ts`, `contextualSignalResolver.test.ts`
+
+### Verification
+- TypeScript: 0 errors (`npx tsc -p tsconfig.app.json --noEmit`)
+- Tests: 66 suites / 901 tests — all passed (also installed missing `heic-to` package)
+- Build: succeeded, 7 routes pre-rendered
+
 ## [2026-08-24] security | Group 3 Phase 2 — corrective diagnosis + fixes, implementation-ready (NOT deployed) [SEC-003]
 
 **Fresh evidence-based re-review of the prepared Phase 2 (below) against the live linked DB (`tfutuqqcxqqbirnsdpvz`). Found + fixed one blocking migration bug and query-boundary breakages the first pass missed. Neither Phase 2 migration is applied live (`schema_migrations` = only `20260824000000` + `20260824000010`), so the pending migration files were fixed in place. No deployment performed — handed back for manual staged deploy.**

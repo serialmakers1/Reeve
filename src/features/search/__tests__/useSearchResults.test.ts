@@ -133,7 +133,6 @@ function makeResult(id: string): SearchPropertyResult {
     responseRatePct: null,
     viewCount: 0,
     commentCount: 0,
-    experienceFeedback: null,
     listedAt: "2026-07-01T00:00:00Z",
     availabilityConfirmedAt: null,
     isFavourited: false,
@@ -240,7 +239,6 @@ describe("useSearchResults — with valid context", () => {
       results: [makeResult("p1"), makeResult("p2")],
       nextCursor: null,
       hasNextPage: false,
-      totalCount: 0,
     });
 
     const { result } = renderHook(() => useSearchResults(), { wrapper: wrapper() });
@@ -257,7 +255,6 @@ describe("useSearchResults — with valid context", () => {
       results: [],
       nextCursor: null,
       hasNextPage: false,
-      totalCount: 0,
     });
 
     const { result } = renderHook(() => useSearchResults(), { wrapper: wrapper() });
@@ -321,7 +318,6 @@ describe("useSearchResults — anonymous favourites", () => {
       results: [makeResult("p1"), makeResult("p2"), makeResult("p3")],
       nextCursor: null,
       hasNextPage: false,
-      totalCount: 0,
     });
   });
 
@@ -452,7 +448,6 @@ describe("useSearchResults — locality_no_representative_point recovery", () =>
       results: [],
       nextCursor: null,
       hasNextPage: false,
-      totalCount: 0,
     });
     rerender();
 
@@ -489,7 +484,6 @@ describe("useSearchResults — locality_no_representative_point recovery", () =>
       results: [],
       nextCursor: null,
       hasNextPage: false,
-      totalCount: 0,
     });
     rerender();
     await waitFor(() => expect(result.current.distanceNotice).toBeDefined());

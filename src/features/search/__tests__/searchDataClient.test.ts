@@ -14,7 +14,7 @@ function baseInput(overrides: Partial<SearchPropertiesInput> = {}): SearchProper
     zeroRentBrokerage: null, minCarpetArea: null, maxCarpetArea: null, minSuperBuiltUp: null,
     maxSuperBuiltUp: null, possessionBefore: null, negotiable: null, buyBrokerageMaxPct: null,
     reraDisclosed: null, khataType: [], propertyTaxPaid: null, parking4w: [], parking2w: [],
-    amenities: [], hasVideoWalkthrough: null, minResponseRate: null, hasExperienceFeedback: null,
+    amenities: [], hasVideoWalkthrough: null,
     sort: "newest", cursor: null, limit: 20,
     ...overrides,
   } as SearchPropertiesInput;
@@ -30,13 +30,48 @@ describe("searchProperties — RPC payload", () => {
   it("sends p_bhk with selected BHK values (filter reaches the request)", async () => {
     const { client, rpc } = mockClient();
     await searchProperties(baseInput({ bhk: ["1BHK"] }), client);
-    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v3", expect.objectContaining({ p_bhk: ["1BHK"] }));
+    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v4", expect.objectContaining({ p_bhk: ["1BHK"] }));
   });
 
   it("sends p_bhk null when no BHK selected (empty default does not filter)", async () => {
     const { client, rpc } = mockClient();
     await searchProperties(baseInput({ bhk: [] }), client);
-    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v3", expect.objectContaining({ p_bhk: null }));
+    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v4", expect.objectContaining({ p_bhk: null }));
+  });
+
+  it("sends limit+1 (21) to the RPC for the hasNextPage lookahead", async () => {
+    const { client, rpc } = mockClient();
+    await searchProperties(baseInput({ limit: 20 }), client);
+    expect(rpc).toHaveBeenCalledWith(
+      "search_compact_properties_v4",
+      expect.objectContaining({ p_limit: 21 }),
+    );
+  });
+
+  it("hasNextPage=true and nextCursor!=null when RPC returns 21 rows (page size 20)", async () => {
+    const rows = Array.from({ length: 21 }, (_, i) =>
+      makeRpcRow({ property_id: `prop-${i}`, listed_at: `2026-07-0${(i % 9) + 1}T00:00:00Z` }),
+    );
+    const rpc = vi.fn().mockResolvedValue({ data: rows, error: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = { rpc } as any;
+    const result = await searchProperties(baseInput({ limit: 20 }), client);
+    expect(result.results).toHaveLength(20);
+    expect(result.hasNextPage).toBe(true);
+    expect(result.nextCursor).not.toBeNull();
+  });
+
+  it("hasNextPage=false and nextCursor=null when RPC returns <=20 rows", async () => {
+    const rows = Array.from({ length: 20 }, (_, i) =>
+      makeRpcRow({ property_id: `prop-${i}`, listed_at: `2026-07-0${(i % 9) + 1}T00:00:00Z` }),
+    );
+    const rpc = vi.fn().mockResolvedValue({ data: rows, error: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = { rpc } as any;
+    const result = await searchProperties(baseInput({ limit: 20 }), client);
+    expect(result.results).toHaveLength(20);
+    expect(result.hasNextPage).toBe(false);
+    expect(result.nextCursor).toBeNull();
   });
 
   it("maps furnishing + price + geo anchors + distance to the correct RPC args", async () => {
@@ -50,7 +85,7 @@ describe("searchProperties — RPC payload", () => {
       client,
     );
     expect(rpc).toHaveBeenCalledWith(
-      "search_compact_properties_v3",
+      "search_compact_properties_v4",
       expect.objectContaining({
         p_furnishing: ["semi_furnished"],
         p_min_price: 10000,
@@ -96,7 +131,6 @@ function makeResult(overrides: Partial<SearchPropertyResult> = {}): SearchProper
     responseRatePct: null,
     viewCount: 0,
     commentCount: 0,
-    experienceFeedback: null,
     listedAt: "2026-07-01T00:00:00Z",
     availabilityConfirmedAt: null,
     isFavourited: false,
@@ -148,7 +182,6 @@ function makeRpcRow(overrides: Partial<SearchPropertyRpcRow> = {}): SearchProper
     lister_role: "owner",
     response_handled_count: 0,
     response_rate_pct: null,
-    experience_feedback: null,
     listed_at: "2026-07-01T00:00:00Z",
     availability_confirmed_at: null,
     rent_brokerage_type: null,

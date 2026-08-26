@@ -46,7 +46,6 @@ function makeResult(overrides: Partial<SearchPropertyResult> = {}): SearchProper
     responseRatePct: null,
     viewCount: 0,
     commentCount: 0,
-    experienceFeedback: null,
     listedAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
     availabilityConfirmedAt: null,
     isFavourited: false,

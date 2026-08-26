@@ -129,8 +129,6 @@ export function changeSearchMode(
     parking2w: f.parking2w,
     amenities: f.amenities,
     hasVideoWalkthrough: f.hasVideoWalkthrough,
-    minResponseRate: f.minResponseRate,
-    hasExperienceFeedback: f.hasExperienceFeedback,
     listedWithin: f.listedWithin,
   };
 

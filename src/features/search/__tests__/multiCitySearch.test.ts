@@ -8,7 +8,6 @@ import {
 import { serializeSearchState } from "../state/serializeSearchState";
 import { parseSearchUrl } from "../state/parseSearchUrl";
 import { buildSearchInput } from "../state/buildSearchInput";
-import { resultHeaderLabel } from "../state/resultHeaderResolver";
 import { getDefaultSearchState } from "../domain/searchDefaults";
 import type { CityToken, LocationToken, SearchState } from "../domain/searchTypes";
 
@@ -132,10 +131,3 @@ describe("buildSearchInput — multi-city geoPlaceIds", () => {
   });
 });
 
-// ─── Header never collapses a multi-city search to one city ───────────────────
-
-describe("resultHeaderLabel — multi-city", () => {
-  it("shows the multi-city label, not just the first city", () => {
-    expect(resultHeaderLabel(stateWith([BLR, MUM]), 30)).toBe("30 homes in Bengaluru +1");
-  });
-});

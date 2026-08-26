@@ -242,8 +242,7 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
 
   // ── Shared trust / media filters ──
   const hasVideoWalkthrough = params.get(P.hasVideoWalkthrough) === "1" ? true : undefined;
-  const minResponseRate = parsePositiveInt(params.get(P.minResponseRate)) ?? undefined;
-  const hasExperienceFeedback = params.get(P.hasExperienceFeedback) === "1" ? true : undefined;
+  // Note: legacy "min_resp" and "has_fb" URL params are intentionally ignored here.
 
   // ── Sort ──
   const rawSort = params.get(P.sort) ?? "";
@@ -315,8 +314,6 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
       ...(parking2w.length && { parking2w }),
       ...(amenities.length && { amenities }),
       ...(hasVideoWalkthrough !== undefined && { hasVideoWalkthrough }),
-      ...(minResponseRate !== undefined && { minResponseRate }),
-      ...(hasExperienceFeedback !== undefined && { hasExperienceFeedback }),
     };
     filters = buyFilters;
   } else {
@@ -359,8 +356,6 @@ export function parseSearchUrl(params: URLSearchParams): SearchState {
       ...(parking2w.length && { parking2w }),
       ...(amenities.length && { amenities }),
       ...(hasVideoWalkthrough !== undefined && { hasVideoWalkthrough }),
-      ...(minResponseRate !== undefined && { minResponseRate }),
-      ...(hasExperienceFeedback !== undefined && { hasExperienceFeedback }),
     };
     filters = rentFilters;
   }

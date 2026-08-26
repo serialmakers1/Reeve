@@ -80,7 +80,6 @@ export {
 
 // ─── Data contracts ───────────────────────────────────────────────────────────
 export type {
-  ExperienceFeedbackAggregate,
   ResolvedPrice,
   SearchPropertyResult,
   SearchPropertyRpcRow,

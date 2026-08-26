@@ -101,8 +101,6 @@ export interface RentFilters {
   parking2w?: ParkingValue[];
   amenities?: string[];
   hasVideoWalkthrough?: boolean;
-  minResponseRate?: number;
-  hasExperienceFeedback?: boolean;
 }
 
 export interface BuyFilters {
@@ -126,8 +124,6 @@ export interface BuyFilters {
   parking2w?: ParkingValue[];
   amenities?: string[];
   hasVideoWalkthrough?: boolean;
-  minResponseRate?: number;
-  hasExperienceFeedback?: boolean;
 }
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────

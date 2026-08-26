@@ -10,32 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -1070,6 +1045,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pending_r2_deletions: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_attempt_at: string | null
+          last_error: string | null
+          object_key: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          object_key: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          object_key?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -2946,6 +2948,95 @@ export type Database = {
           youtube_walkthrough_url: string
         }[]
       }
+      search_compact_properties_v4: {
+        Args: {
+          p_amenities?: string[]
+          p_availability_confirmed_within_days?: number
+          p_available_by?: string
+          p_bhk?: string[]
+          p_cursor_availability_confirmed_at?: string
+          p_cursor_id?: string
+          p_cursor_listed_at?: string
+          p_cursor_price_amount?: number
+          p_distance_km?: number
+          p_furnishing?: string[]
+          p_geo_place_ids?: string[]
+          p_has_video_walkthrough?: boolean
+          p_khata_type?: string[]
+          p_limit?: number
+          p_listed_within_days?: number
+          p_listing_type: Database["public"]["Enums"]["property_listing_type"]
+          p_max_annual_increase?: number
+          p_max_carpet_area?: number
+          p_max_deposit?: number
+          p_max_lock_in_months?: number
+          p_max_move_in_charges?: number
+          p_max_notice_days?: number
+          p_max_price?: number
+          p_max_rent_brokerage_fixed?: number
+          p_max_sale_brokerage_pct?: number
+          p_max_super_built_up?: number
+          p_min_carpet_area?: number
+          p_min_price?: number
+          p_min_super_built_up?: number
+          p_negotiable?: boolean
+          p_parking_2w?: string[]
+          p_parking_4w?: string[]
+          p_pet_policy?: string[]
+          p_possession_before?: string
+          p_possession_status?: string[]
+          p_property_tax_paid?: boolean
+          p_property_type?: string
+          p_rera_disclosed?: boolean
+          p_sort?: string
+          p_zero_rent_brokerage?: boolean
+        }
+        Returns: {
+          availability_confirmed_at: string
+          bathrooms: number
+          bhk: string
+          building_age_years: number
+          building_name: string
+          carpet_area_sqft: number
+          city: string
+          floor_number: number
+          furnishing: string
+          latitude: number
+          listed_at: string
+          lister_role: string
+          listing_type: string
+          locality: string
+          location_mode: string
+          lock_in_months: number
+          longitude: number
+          notice_period_days: number
+          owner_id: string
+          parking_2w: string
+          parking_2w_count: number
+          parking_4w: string
+          parking_4w_count: number
+          pet_policy: string
+          photo_count: number
+          possession_date: string
+          possession_status: string
+          price_amount: number
+          price_kind: string
+          price_negotiable: boolean
+          primary_image_url: string
+          property_id: string
+          property_type: string
+          rent_brokerage_fixed_amount: number
+          rent_brokerage_months: number
+          rent_brokerage_type: string
+          response_handled_count: number
+          response_rate_pct: number
+          sale_brokerage_pct: number
+          security_deposit_amount: number
+          super_built_up_sqft: number
+          total_floors: number
+          youtube_walkthrough_url: string
+        }[]
+      }
       set_primary_property_photo: {
         Args: { p_image_id: string }
         Returns: undefined
@@ -3240,9 +3331,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       appliance_condition: [

@@ -231,8 +231,6 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
         : [bf.maxBrokerage, bf.negotiable].filter(Boolean).length,
     lister: [
       g.hasVideoWalkthrough,
-      g.minResponseRate,
-      g.hasExperienceFeedback,
       mode === "buy" && (bf.reraDisclosed || bf.khataType?.length || bf.propertyTaxPaid),
     ].filter(Boolean).length,
   };
@@ -718,32 +716,6 @@ export function SearchFilterPanel({ open, onOpenChange }: SearchFilterPanelProps
                   />
                   <Label htmlFor="video" className="text-sm cursor-pointer">
                     Video walkthrough available
-                  </Label>
-                </div>
-                <div>
-                  <Label className="text-[11px] text-muted-foreground">Min response rate (%)</Label>
-                  <Input
-                    type="number"
-                    placeholder="e.g. 70"
-                    min={0}
-                    max={100}
-                    value={(draft as RentFilters & BuyFilters).minResponseRate ?? ""}
-                    onChange={(e) =>
-                      setShared({ minResponseRate: e.target.value ? Number(e.target.value) : undefined })
-                    }
-                    className="h-8 text-sm mt-1"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="has-fb"
-                    checked={!!((draft as RentFilters & BuyFilters).hasExperienceFeedback)}
-                    onCheckedChange={(checked) =>
-                      setShared({ hasExperienceFeedback: checked === true ? true : undefined })
-                    }
-                  />
-                  <Label htmlFor="has-fb" className="text-sm cursor-pointer">
-                    Has experience feedback
                   </Label>
                 </div>
               </div>
