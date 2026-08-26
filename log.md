@@ -2182,3 +2182,5 @@ n8n (live production workflows, manual + MCP):
 ## [2026-08-25] perf | Completed image delivery optimization and final image regression [14:29 IST]
 
 ## [2026-08-25] perf | Reduced JPEG image fallback quality to 0.50 [23:00 IST]
+
+## [2026-08-26] perf | Updated HEIC/HEIF decoding and final image qualities [11:30 IST]

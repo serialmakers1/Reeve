@@ -54,16 +54,16 @@ function finalize(sourceName: string, produced: File): File {
 /**
  * Preprocess ONE newly selected image into a single optimized upload candidate.
  * Pipeline: raw file → size check → HEIC/HEIF→JPEG (dynamic import) → compress to
- * ≤1280px longest edge, q0.70 (WebP/PNG) or q0.50 (JPEG fallback), EXIF stripped → prefer WebP, else format-safe fallback.
+ * ≤1280px longest edge, q0.60 (WebP) / q0.40 (JPEG) / q0.50 (PNG), EXIF stripped → prefer WebP, else format-safe fallback.
  * Every successful output is a PROCESSED candidate (never the raw original): MIME ∈
  * {webp,jpeg,png}, ≤1280px, EXIF-stripped, ≤10 MB, and reduced when possible.
  * Silent — no logging, no toast. Callers decide how to surface errors.
- * heic2any is dynamically imported to keep the initial bundle unchanged for non-iPhone users.
+ * heic-to is dynamically imported to keep the initial bundle unchanged for non-HEIC/HEIF users.
  */
 export async function processPhotoForUpload(
   file: File,
 ): Promise<PhotoProcessResult> {
-  // Reject files above raw size limit (prevents heic2any memory crash on very large iPhone photos)
+  // Reject files above raw size limit (prevents heic-to memory crash on very large HEIC/HEIF photos)
   const sizeMB = file.size / (1024 * 1024);
   if (sizeMB > PHOTO_CONFIG.upload.maxSizeMBRaw) {
     return { ok: false, error: { kind: "too_large", sizeMB } };
@@ -75,13 +75,12 @@ export async function processPhotoForUpload(
   // HEIC and fall through to the acceptedFormats validation below → unsupported_format.
   if (isHeic(file)) {
     try {
-      const heic2any = (await import("heic2any")).default;
-      const converted = await heic2any({
+      const { heicTo } = await import("heic-to");
+      const blob = await heicTo({
         blob: file,
-        toType: "image/jpeg",
+        type: "image/jpeg",
         quality: 0.92,
       });
-      const blob = Array.isArray(converted) ? converted[0] : converted;
       input = new File(
         [blob],
         file.name.replace(/\.(heic|heif)$/i, ".jpg"),
@@ -101,10 +100,13 @@ export async function processPhotoForUpload(
   const sourceBytes = file.size;
 
   // Run one compression pass; return a *valid candidate* File (accepted MIME + ≤10 MB) or null.
-  // JPEG fallback uses q0.50 (smaller Safari output); WebP/PNG remain at the config default q0.70.
+  // Final quality: WebP q0.60, JPEG q0.40, PNG q0.50. HEIC intermediate JPEG used q0.92 above.
   const compress = async (fileType: string): Promise<File | null> => {
     try {
-      const quality = fileType === "image/jpeg" ? 0.50 : PHOTO_CONFIG.compression.initialQuality;
+      const quality =
+        fileType === "image/jpeg" ? 0.40
+        : fileType === "image/webp" ? 0.60
+        : 0.50; // image/png
       const out = await imageCompression(input, { ...PHOTO_CONFIG.compression, initialQuality: quality, fileType });
       const produced =
         out instanceof File
