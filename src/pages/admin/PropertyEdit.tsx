@@ -650,8 +650,8 @@ export default function PropertyEdit() {
         if (processed.ok === false) {
           const messages: Record<string, string> = {
             too_large: "Photo too big — max 15 MB",
-            unsupported_format: "Format not supported — please use JPG, PNG, WebP or HEIC",
-            heic_conversion_failed: "Couldn't convert your iPhone photo — please try a JPG",
+            unsupported_format: "Format not supported — please use JPG, PNG, WebP, HEIC or HEIF",
+            heic_conversion_failed: "Couldn't convert your HEIC/HEIF photo — please try a JPG",
             compression_failed: "Photo processing failed — please try another photo",
           };
           const msg = messages[processed.error.kind] ?? "Photo failed";
