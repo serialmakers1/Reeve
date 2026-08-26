@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { useSearchState } from "@/features/search";
 import { useSearchResults } from "@/features/search/state/useSearchResults";
@@ -20,12 +20,32 @@ import { URL_PARAMS } from "@/features/search/domain/searchConstants";
  * LIST-only Search experience (Phase 4 · Prompt 4 — Map/Split permanently removed).
  * Stale ?view=map|split and map-bounds params are ignored by the parser and open plain LIST.
  */
+// Exact retired Search URL params confirmed from git history (searchConstants.ts P.* mapping):
+// P.view = "view", P.boundsNeLat = "ne_lat", P.boundsNeLng = "ne_lng",
+// P.boundsSwLat = "sw_lat", P.boundsSwLng = "sw_lng"
+const STALE_SEARCH_PARAMS = new Set(["view", "ne_lat", "ne_lng", "sw_lat", "sw_lng"]);
+
 export default function SearchBrowsePage() {
   const { state, setMode, hasValidContext } = useSearchState();
   const search = useSearchResults();
   const { isFavourited, toggleFavourite, isLoggedIn } = useFavourites();
   const routeLocation = useLocation();
+  const navigate = useNavigate();
   useSearchMeta();
+
+  // Strip retired Split/Map URL params on every navigation — reacts to Back/Forward.
+  // Only removes the confirmed stale keys; all filter/location/sort/cursor params and
+  // any unrelated query keys (e.g. UTM) are preserved.
+  useEffect(() => {
+    const cur = new URLSearchParams(routeLocation.search);
+    let dirty = false;
+    for (const key of STALE_SEARCH_PARAMS) {
+      if (cur.has(key)) { cur.delete(key); dirty = true; }
+    }
+    if (!dirty) return;
+    const qs = cur.toString();
+    navigate(routeLocation.pathname + (qs ? `?${qs}` : ""), { replace: true });
+  }, [navigate, routeLocation.pathname, routeLocation.search]);
 
   // Deterministic location bootstrap: confirmed memory → Vercel IP → setup panel.
   const bootstrap = useSearchBootstrap();

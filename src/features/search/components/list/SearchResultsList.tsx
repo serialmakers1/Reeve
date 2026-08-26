@@ -20,16 +20,13 @@ interface SearchResultsListProps {
   onOpenSetup: () => void;
   onOpenFilters?: () => void;
   areaFallback?: AreaFallback | null;
-  layout?: "list" | "horizontal";
   columns?: 1 | "responsive";
   selectedPropertyId?: string | null;
-  hoveredPropertyId?: string | null;
-  onHover?: (id: string | null) => void;
   onRegisterRef?: (id: string, el: HTMLDivElement | null) => void;
   isFavourited: (id: string) => boolean;
-  onToggleFavourite: (id: string, surface: "list" | "split" | "map") => void;
+  onToggleFavourite: (id: string, surface: "list") => void;
   isLoggedIn: boolean;
-  onListingOpen?: (id: string, surface: "list" | "split") => void;
+  onListingOpen?: (id: string, surface: "list") => void;
   nextPageHref?: string | null;
   emptyLocationContext?: { singleCity?: string; hasLocations: boolean };
 }
@@ -45,11 +42,8 @@ export function SearchResultsList({
   loadMore,
   onOpenSetup,
   onOpenFilters,
-  layout = "list",
   columns = "responsive",
   selectedPropertyId,
-  hoveredPropertyId,
-  onHover,
   onRegisterRef,
   isFavourited,
   onToggleFavourite,
@@ -159,11 +153,9 @@ export function SearchResultsList({
   const displayResults = showingFallback ? areaFallback!.results : results;
 
   const wrapperClass =
-    layout === "horizontal"
-      ? "flex flex-col gap-2.5 p-3"
-      : columns === "responsive"
-        ? "flex flex-col gap-2.5 p-4 md:grid md:grid-cols-2 md:gap-4 desk:grid-cols-3 2xl:grid-cols-4"
-        : "flex flex-col gap-2.5 p-4";
+    columns === "responsive"
+      ? "flex flex-col gap-2.5 p-4 md:grid md:grid-cols-2 md:gap-4 desk:grid-cols-3 2xl:grid-cols-4"
+      : "flex flex-col gap-2.5 p-4";
 
   return (
     <>
@@ -195,10 +187,8 @@ export function SearchResultsList({
         <SearchPropertyCard
           key={r.id}
           result={r}
-          layout={layout === "horizontal" ? "horizontal" : "vertical"}
           isSelected={r.id === selectedPropertyId}
           isFirstVisible={i === 0}
-          onHover={onHover}
           onRegisterRef={onRegisterRef}
           isFavourited={isFavourited}
           onToggleFavourite={onToggleFavourite}
