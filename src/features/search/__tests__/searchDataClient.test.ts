@@ -30,20 +30,20 @@ describe("searchProperties — RPC payload", () => {
   it("sends p_bhk with selected BHK values (filter reaches the request)", async () => {
     const { client, rpc } = mockClient();
     await searchProperties(baseInput({ bhk: ["1BHK"] }), client);
-    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v4", expect.objectContaining({ p_bhk: ["1BHK"] }));
+    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v5", expect.objectContaining({ p_bhk: ["1BHK"] }));
   });
 
   it("sends p_bhk null when no BHK selected (empty default does not filter)", async () => {
     const { client, rpc } = mockClient();
     await searchProperties(baseInput({ bhk: [] }), client);
-    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v4", expect.objectContaining({ p_bhk: null }));
+    expect(rpc).toHaveBeenCalledWith("search_compact_properties_v5", expect.objectContaining({ p_bhk: null }));
   });
 
   it("sends limit+1 (21) to the RPC for the hasNextPage lookahead", async () => {
     const { client, rpc } = mockClient();
     await searchProperties(baseInput({ limit: 20 }), client);
     expect(rpc).toHaveBeenCalledWith(
-      "search_compact_properties_v4",
+      "search_compact_properties_v5",
       expect.objectContaining({ p_limit: 21 }),
     );
   });
@@ -85,7 +85,7 @@ describe("searchProperties — RPC payload", () => {
       client,
     );
     expect(rpc).toHaveBeenCalledWith(
-      "search_compact_properties_v4",
+      "search_compact_properties_v5",
       expect.objectContaining({
         p_furnishing: ["semi_furnished"],
         p_min_price: 10000,

@@ -33,7 +33,7 @@ export async function searchProperties(
     input.cursor?.sort === "availability_confirmed" ? input.cursor : null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabaseClient as any).rpc("search_compact_properties_v4", {
+  const { data, error } = await (supabaseClient as any).rpc("search_compact_properties_v5", {
     p_listing_type: input.mode === "buy" ? "sale" : "rent",
     p_geo_place_ids: input.geoPlaceIds.length > 0 ? input.geoPlaceIds : null,
     p_distance_km: input.distanceKm,
