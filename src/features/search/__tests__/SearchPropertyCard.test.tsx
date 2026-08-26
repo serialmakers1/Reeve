@@ -257,6 +257,53 @@ describe("SearchPropertyCard — activity + header", () => {
   });
 });
 
+describe("SearchPropertyCard — CLS activity column reservation", () => {
+  // The activity column wrapper (w-14 min-h-[52px]) must always be present in the
+  // vertical card so async count arrival never causes layout shift.
+
+  function getActivityWrapper(container: HTMLElement) {
+    // The reserved wrapper is the first element in the grid that carries both classes.
+    return container.querySelector(".w-14.min-h-\\[52px\\]");
+  }
+
+  it("activity wrapper present when viewCount=0, commentCount=0 (no activity yet)", () => {
+    const { container } = renderCard(makeResult({ viewCount: 0, commentCount: 0 }));
+    expect(getActivityWrapper(container)).not.toBeNull();
+  });
+
+  it("activity wrapper present with views only (viewCount>=10)", () => {
+    const { container } = renderCard(makeResult({ viewCount: 15, commentCount: 0 }));
+    expect(getActivityWrapper(container)).not.toBeNull();
+    expect(screen.getByText("15 views")).toBeTruthy();
+  });
+
+  it("activity wrapper present with comments only", () => {
+    const { container } = renderCard(makeResult({ viewCount: 0, commentCount: 4 }));
+    expect(getActivityWrapper(container)).not.toBeNull();
+    expect(screen.getByText("4 comments")).toBeTruthy();
+  });
+
+  it("activity wrapper present with both views and comments", () => {
+    const { container } = renderCard(makeResult({ viewCount: 20, commentCount: 3 }));
+    expect(getActivityWrapper(container)).not.toBeNull();
+    expect(screen.getByText("20 views")).toBeTruthy();
+    expect(screen.getByText("3 comments")).toBeTruthy();
+  });
+
+  it("activity wrapper present with views below threshold — no fake count shown", () => {
+    const { container } = renderCard(makeResult({ viewCount: 5, commentCount: 0 }));
+    expect(getActivityWrapper(container)).not.toBeNull();
+    // No count text rendered
+    expect(screen.queryByText(/views/)).toBeNull();
+    expect(screen.queryByText(/comments/)).toBeNull();
+  });
+
+  it("activity wrapper present even when price is null", () => {
+    const { container } = renderCard(makeResult({ price: null, viewCount: 0, commentCount: 0 }));
+    expect(getActivityWrapper(container)).not.toBeNull();
+  });
+});
+
 describe("SearchPropertyCard — Split isolation (layout=horizontal)", () => {
   function renderSplit(result: SearchPropertyResult) {
     return render(

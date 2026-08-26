@@ -2223,3 +2223,5 @@ n8n (live production workflows, manual + MCP):
 ## [2026-08-26] perf | Updated HEIC/HEIF decoding and final image qualities [11:30 IST]
 
 ## [2026-08-27] perf | Group 1 Phase 2 select-first Search enrichment + response aggregation [02:10 IST]
+
+## [2026-08-27] perf | Group 1 Phase 3 moved views/comments off Search critical path [03:15 IST]

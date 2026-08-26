@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavourites } from "@/hooks/useFavourites";
 import type { SearchPropertyResult } from "../data/searchResultContract";
 import type { SearchCursor } from "../domain/searchTypes";
 import {
   searchProperties,
-  overlayPropertyCounts,
 } from "../data/searchDataClient";
 import type { SearchPropertiesResult } from "../data/searchDataClient";
 import { useSearchState } from "./useSearchState";
@@ -77,6 +76,10 @@ function computeSearchKey(state: ReturnType<typeof useSearchState>["state"]): st
 function cursorKey(cursor: ReturnType<typeof useSearchState>["state"]["cursor"]): string {
   return cursor ? JSON.stringify(cursor) : "null";
 }
+
+// ─── Count RPC row shape ──────────────────────────────────────────────────────
+
+type CountRow = { property_id: string; view_count: number; comment_count: number };
 
 // ─── Accumulated page state ────────────────────────────────────────────────────
 
@@ -151,10 +154,7 @@ export function useSearchResults(): UseSearchResultsReturn {
     retry: (failureCount, error) => !isRadiusFailure(error) && failureCount < 1,
     queryFn: async (): Promise<SearchPropertiesResult> => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const page = await searchProperties(input!, supabase as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const withCounts = await overlayPropertyCounts(page.results, supabase as any);
-      return { ...page, results: withCounts };
+      return await searchProperties(input!, supabase as any);
     },
   });
 
@@ -174,13 +174,63 @@ export function useSearchResults(): UseSearchResultsReturn {
     });
   }, [query.data, searchKey]);
 
-  // Apply favourite overlay at render time (stays fresh without re-fetching)
+  // ── Secondary count query (off the critical path) ──────────────────────────
+  // Keyed on the exact accumulated IDs for this searchKey.
+  // keepPreviousData: Load More transitions show prior counts while the expanded
+  // query runs — page-1 cards retain counts, page-2 cards start at 0.
+  // searchKey in key: stale count data for an old search never applies to new cards
+  // because new IDs won't match old countMap entries.
+  const accumulatedIds = useMemo(
+    () => accumulated.results.map((r) => r.id),
+    [accumulated.results],
+  );
+  const accumulatedIdsKey = useMemo(
+    () => [...accumulatedIds].sort().join(","),
+    [accumulatedIds],
+  );
+
+  const countsQuery = useQuery<CountRow[], Error>({
+    queryKey: ["propertyCounts", searchKey, accumulatedIdsKey],
+    queryFn: async (): Promise<CountRow[]> => {
+      if (accumulatedIds.length === 0) return [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any).rpc("get_property_counts", {
+        p_property_ids: accumulatedIds,
+      });
+      if (error) {
+        console.warn("propertyCounts: get_property_counts failed, using zeros", error);
+        return [];
+      }
+      return (data ?? []) as CountRow[];
+    },
+    enabled: accumulatedIds.length > 0 && accumulated.key === searchKey,
+    staleTime: 60_000,
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+
+  const countMap = useMemo(() => {
+    const m = new Map<string, { viewCount: number; commentCount: number }>();
+    for (const row of countsQuery.data ?? []) {
+      m.set(row.property_id, { viewCount: row.view_count, commentCount: row.comment_count });
+    }
+    return m;
+  }, [countsQuery.data]);
+
+  // Apply favourite + count overlays at render time
   const results = useMemo(
     () =>
       accumulated.key === searchKey
-        ? accumulated.results.map((r) => ({ ...r, isFavourited: isFavourited(r.id) }))
+        ? accumulated.results.map((r) => {
+            const c = countMap.get(r.id);
+            return {
+              ...r,
+              ...(c !== undefined ? { viewCount: c.viewCount, commentCount: c.commentCount } : {}),
+              isFavourited: isFavourited(r.id),
+            };
+          })
         : [],
-    [accumulated, searchKey, isFavourited],
+    [accumulated, searchKey, isFavourited, countMap],
   );
 
   const hasPages = accumulated.key === searchKey && accumulated.results.length > 0;
@@ -314,16 +364,57 @@ export function useSearchResults(): UseSearchResultsReturn {
     gcTime: 5 * 60 * 1000,
     queryFn: async (): Promise<SearchPropertiesResult> => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const page = await searchProperties(recoveryInput!, supabase as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const withCounts = await overlayPropertyCounts(page.results, supabase as any);
-      return { ...page, results: withCounts };
+      return await searchProperties(recoveryInput!, supabase as any);
     },
   });
 
+  const recoveryIds = useMemo(
+    () => recoveryQuery.data?.results.map((r) => r.id) ?? [],
+    [recoveryQuery.data],
+  );
+  const recoveryIdsKey = useMemo(
+    () => [...recoveryIds].sort().join(","),
+    [recoveryIds],
+  );
+
+  const recoveryCountsQuery = useQuery<CountRow[], Error>({
+    queryKey: ["propertyCounts", "recovery", searchKey, recoveryIdsKey],
+    queryFn: async (): Promise<CountRow[]> => {
+      if (recoveryIds.length === 0) return [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any).rpc("get_property_counts", {
+        p_property_ids: recoveryIds,
+      });
+      if (error) {
+        console.warn("recoveryPropertyCounts: get_property_counts failed, using zeros", error);
+        return [];
+      }
+      return (data ?? []) as CountRow[];
+    },
+    enabled: recoveryIds.length > 0,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const recoveryCountMap = useMemo(() => {
+    const m = new Map<string, { viewCount: number; commentCount: number }>();
+    for (const row of recoveryCountsQuery.data ?? []) {
+      m.set(row.property_id, { viewCount: row.view_count, commentCount: row.comment_count });
+    }
+    return m;
+  }, [recoveryCountsQuery.data]);
+
   const recoveryResults = useMemo(
-    () => (recoveryQuery.data?.results ?? []).map((r) => ({ ...r, isFavourited: isFavourited(r.id) })),
-    [recoveryQuery.data, isFavourited],
+    () =>
+      (recoveryQuery.data?.results ?? []).map((r) => {
+        const c = recoveryCountMap.get(r.id);
+        return {
+          ...r,
+          ...(c !== undefined ? { viewCount: c.viewCount, commentCount: c.commentCount } : {}),
+          isFavourited: isFavourited(r.id),
+        };
+      }),
+    [recoveryQuery.data, isFavourited, recoveryCountMap],
   );
 
   const cityLabel = state.context.city
