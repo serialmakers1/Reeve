@@ -125,7 +125,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Direct `properties` SELECT for `anon`/`authenticated` is intentionally limited to the approved public-column allow-list (65 as of Aug 2026). Never restore broad table SELECT or expose private/internal columns; owner/admin private reads use scoped SECURITY DEFINER RPCs.
 - Browser `properties` queries must not use excluded columns in SELECT/filter/order/embed/RETURNING; use the public allow-list or the owner/admin RPC path instead.
 - `property_activity_log` / `property_edit_requests` are not written directly from frontend. Listed/edit-pending edits are partitioned into LIVE/REVIEW/ADMIN-ONLY; preserve `enforce_owner_edit_partition`.
-- Reviewable edits use `submit_property_edit_request`; approval stale-checks base values.  are staged in R2 until approval and use established cover/delete/reorder server/RPC paths.
+- Reviewable edits use `submit_property_edit_request`; approval stale-checks base values. Photos are staged in R2 until approval and use established cover/delete/reorder server/RPC paths.
 - `ListProperty` writes by canonical DB key; `edit_pending_review` remains per-field editable; `pending_review`/`unlisted`/`archived` remain blocked.
 - `property-fields.ts` + `<SpecField>` define property fields; trace FormState/init/prefill/DB mapping/JSX/PropertyEdit/approval behavior when adding fields.
 - JSONB furnishing/amenity editing uses shared editors; do not create parallel systems.
@@ -134,9 +134,9 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Maps use `@vis.gl/react-google-maps` v1.x with app-level `APIProvider`; preserve Places session tokens, India-only restrictions, address/location invariants, Street View preference, and owner location-edit locks.
 - `VITE_GOOGLE_MAPS_MAP_ID` is required. Remove `isBuildingResult` / `useApiLoadingStatus` only after tracing/replacing active usage.
 - Search domain lives in `src/features/search/`; public modes are `rent`/`buy`, DB mapping is `rent`/`sale`, never emit `sale` in public URLs.
-- URL/search params are source of truth; `SearchPropertyResult` is card contract, `SearchMapMarker` separate map payload; pagination is cursor-based and `locations_data` uses `{ v:1, items:[...] }`.
-- `search_compact_properties` is a STABLE SECURITY DEFINER search RPC; preserve return-type casting. `confirm_availability_of_rental(uuid)` is authenticated-only and must explicitly revoke anon when redefined.
-- `searchDataClient.ts` owns fetch/overlay/cursor helpers; `SearchMapView` is CSS-hidden/shown, not repeatedly unmounted. Map RPC currently receives only BHK + price filters. `zeroRentBrokerage` serializes as `zero_brok`.
+- Search is LIST-only; no active Split/Map path. `SearchResultsHeader` owns mobile Sort; desktop toolbar owns desktop Sort. Stale `view`/map-bound URL params are stripped.
+- URL/search params are source of truth; `SearchPropertyResult` is the card contract; pagination is cursor-based with 20 displayed + 1 lookahead; `locations_data` uses `{ v:1, items:[...] }`.
+- Active Search RPC is `search_compact_properties_v5` (STABLE SECURITY DEFINER); cards render before secondary `get_property_counts`, which must never block/hide Search. No exact total count.
 - `confirm-property-location` must authenticate before any server-side Google API call; do not restore unauthenticated smoke/test paths that trigger billable APIs.
 
 ## Contact Requests + n8n Security
