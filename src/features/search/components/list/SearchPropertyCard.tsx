@@ -6,8 +6,6 @@ import type { SearchPropertyResult } from "@/features/search/data/searchResultCo
 import { writePendingIntent } from "@/features/search/state/pendingSearchIntent";
 import { useSearchState } from "@/features/search/state/useSearchState";
 import { resolveDisplayPrice } from "@/features/search/resolvers/priceResolver";
-import { resolveComparisonFacts } from "@/features/search/resolvers/comparisonFactsResolver";
-import { resolveContextualSignal } from "@/features/search/resolvers/contextualSignalResolver";
 import {
   resolveSecondaryRentTerm,
   resolveDepositTile,
@@ -34,33 +32,18 @@ const TILE_GRID_COLUMNS: Record<1 | 2 | 3, string> = {
 
 interface SearchPropertyCardProps {
   result: SearchPropertyResult;
-  layout?: "vertical" | "horizontal";
   isSelected?: boolean;
   isFirstVisible?: boolean;
   onHover?: (id: string | null) => void;
   onRegisterRef?: (id: string, el: HTMLDivElement | null) => void;
   isFavourited: (id: string) => boolean;
-  onToggleFavourite: (id: string, surface: "list" | "split" | "map") => void;
+  onToggleFavourite: (id: string, surface: "list") => void;
   isLoggedIn: boolean;
-  onListingOpen?: (id: string, surface: "list" | "split") => void;
+  onListingOpen?: (id: string, surface: "list") => void;
 }
-
-// ── Horizontal (Split) chip styles — unchanged from the original card ──────────
-const FACT_CHIP =
-  "rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] text-muted-foreground";
-
-// Contextual-signal type → fact concept key, so a fact never repeats the signal chip.
-const SIGNAL_TO_FACT_CONCEPT: Record<string, string> = {
-  zero_brokerage: "brokerage",
-  pets: "pets",
-  no_lockin: "lockin",
-  negotiable: "negotiable",
-  // "video" has no fact-concept equivalent — nothing to exclude.
-};
 
 export function SearchPropertyCard({
   result,
-  layout = "vertical",
   isSelected,
   isFirstVisible = false,
   onHover,
@@ -75,16 +58,13 @@ export function SearchPropertyCard({
   const { setSelectedPropertyId } = useSearchState();
   const [imgSrc, setImgSrc] = useState(result.primaryImageUrl || PLACEHOLDER_IMG);
 
-  const isHorizontal = layout === "horizontal";
   const isRent = result.listingMode === "rent";
-  // Surface derived from layout — horizontal = desktop Split, vertical = List
-  const surface = isHorizontal ? "split" : ("list" as const);
+  const surface = "list" as const;
   const isFav = isFavourited(result.id);
   const displayPrice = resolveDisplayPrice(result);
 
   const bhkLabel = formatEnumLabel("bhk", result.bhk);
   const typeLabel = formatEnumLabel("property_type", result.propertyType);
-  const titleLine = [bhkLabel, typeLabel].filter(Boolean).join(" · ") || "Property";
 
   const imageAlt =
     [bhkLabel, typeLabel, result.buildingName ? `in ${result.buildingName}` : null].filter(Boolean).join(" ") ||
@@ -132,108 +112,12 @@ export function SearchPropertyCard({
       aria-pressed={isFav}
       className={cn(
         "absolute right-2 top-2 z-10 flex items-center justify-center rounded-full transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2",
-        isHorizontal
-          ? "h-8 w-8 bg-black/40 text-white hover:bg-black/60 focus-visible:ring-white/70"
-          : "h-10 w-10 bg-white/90 text-slate-900 shadow-sm hover:bg-white focus-visible:ring-primary/50",
+        "h-10 w-10 bg-white/90 text-slate-900 shadow-sm hover:bg-white focus-visible:ring-primary/50",
       )}
     >
       <Heart className={cn("h-4 w-4", isFav && "fill-red-500 text-red-500")} />
     </button>
   );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // HORIZONTAL (Split) — unchanged behaviour/markup from the original card.
-  // ─────────────────────────────────────────────────────────────────────────
-  if (isHorizontal) {
-    const signal = resolveContextualSignal(result);
-    const signalConcept = signal ? SIGNAL_TO_FACT_CONCEPT[signal.type] : undefined;
-    const facts = resolveComparisonFacts(result, result.listingMode, signalConcept ? [signalConcept] : []);
-    const visibleFacts = facts.slice(0, 2);
-
-    return (
-      <article
-        ref={registerRef}
-        className={cn(
-          "group relative overflow-hidden rounded-xl border border-border bg-card transition-shadow",
-          "focus-within:ring-2 focus-within:ring-primary/40 hover:shadow-md",
-          isSelected && "ring-2 ring-primary",
-          "desk:flex desk:h-[132px] desk:flex-row",
-        )}
-        onMouseEnter={() => onHover?.(result.id)}
-        onMouseLeave={() => onHover?.(null)}
-        onFocus={() => onHover?.(result.id)}
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node)) onHover?.(null);
-        }}
-      >
-        {favourite}
-        <Link
-          to={result.detailUrl}
-          state={{ fromSearch: returnTo }}
-          onClick={() => {
-            setSelectedPropertyId(result.id);
-            onListingOpen?.(result.id, surface);
-          }}
-          className="block focus-visible:outline-none desk:flex desk:flex-1 desk:flex-row desk:overflow-hidden"
-        >
-          <div className="relative h-32 overflow-hidden bg-muted desk:h-full desk:w-[132px] desk:shrink-0">
-            <img
-              src={imgSrc}
-              alt={imageAlt}
-              loading={isFirstVisible ? "eager" : "lazy"}
-              fetchPriority={isFirstVisible ? "high" : "auto"}
-              decoding="async"
-              className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-              onError={() => setImgSrc(PLACEHOLDER_IMG)}
-            />
-            {result.photoCount > 1 && (
-              <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white">
-                <Camera className="h-3 w-3" />
-                {result.photoCount}
-              </span>
-            )}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 p-3">
-            {displayPrice && (
-              <div className="leading-tight">
-                <p className="text-base font-bold text-foreground">
-                  {displayPrice.amount}
-                  {displayPrice.unit && (
-                    <span className="ml-1 text-xs font-normal text-muted-foreground">{displayPrice.unit}</span>
-                  )}
-                </p>
-                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  {displayPrice.label}
-                </p>
-              </div>
-            )}
-            <div className="min-w-0 space-y-0.5">
-              <p className="text-[15px] font-semibold leading-tight text-foreground break-words">{titleLine}</p>
-              {locationParts.length > 0 && (
-                <p className="truncate text-xs leading-tight text-muted-foreground">
-                  {locationParts.join(" · ")}
-                </p>
-              )}
-            </div>
-            {(visibleFacts.length > 0 || signal) && (
-              <div className="flex flex-wrap items-center gap-1">
-                {visibleFacts.map((f) => (
-                  <span key={f.concept} className={FACT_CHIP}>
-                    {f.label}
-                  </span>
-                ))}
-                {signal && (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                    {signal.displayValue}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </Link>
-      </article>
-    );
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // VERTICAL (List) — vibrant redesign.

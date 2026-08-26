@@ -4,9 +4,7 @@ import { formatEnumLabel } from "@/utils/property/formatEnumLabel";
 
 /**
  * Pure presentation resolver for the vibrant vertical SearchPropertyCard.
- * No JSX, no React. Produces typed tile/segment descriptors the card renders
- * declaratively. The horizontal (Split) card does NOT use any of this — it keeps
- * its existing resolveComparisonFacts / resolveContextualSignal rendering.
+ * No JSX, no React. Produces typed tile/segment descriptors the card renders declaratively.
  */
 
 // ── Shared type guard ─────────────────────────────────────────────────────────

@@ -247,3 +247,29 @@ describe("parseSearchUrl", () => {
     expect(state.sort).toBe("price_desc");
   });
 });
+
+describe("parseSearchUrl — stale view/map params are ignored", () => {
+  it("view=split yields valid List state (mode=rent, no crash)", () => {
+    const state = parseSearchUrl(p("view=split"));
+    expect(state.context.mode).toBe("rent");
+    expect(state.context.city).toBeNull();
+    expect(state.context.locations).toEqual([]);
+  });
+
+  it("view=map yields valid List state", () => {
+    const state = parseSearchUrl(p("view=map"));
+    expect(state.context.mode).toBe("rent");
+  });
+
+  it("view=split plus filters preserves filters in parsed state", () => {
+    const state = parseSearchUrl(p("view=split&type=buy&bhk=3BHK&sort=price_desc"));
+    expect(state.context.mode).toBe("buy");
+    expect((state.filters as { bhk?: string[] }).bhk).toContain("3BHK");
+    expect(state.sort).toBe("price_desc");
+  });
+
+  it("all four legacy map-bound params are safely ignored (no crash, no state)", () => {
+    const state = parseSearchUrl(p("ne_lat=12.9&ne_lng=77.6&sw_lat=12.8&sw_lng=77.5&type=rent"));
+    expect(state.context.mode).toBe("rent");
+  });
+});

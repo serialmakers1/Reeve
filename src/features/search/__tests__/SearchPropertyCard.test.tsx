@@ -304,27 +304,38 @@ describe("SearchPropertyCard — CLS activity column reservation", () => {
   });
 });
 
-describe("SearchPropertyCard — Split isolation (layout=horizontal)", () => {
-  function renderSplit(result: SearchPropertyResult) {
-    return render(
-      <MemoryRouter initialEntries={["/search?type=rent&city=bengaluru"]}>
+describe("SearchPropertyCard — surface / analytics contract", () => {
+  it("favourite toggle always emits surface='list'", () => {
+    renderCard(makeResult());
+    const btn = screen.getByLabelText(/Save to favourites|Remove from favourites/);
+    fireEvent.click(btn);
+    expect(toggleSpy).toHaveBeenCalledWith("prop-1", "list");
+  });
+
+  it("onListingOpen always emits surface='list'", () => {
+    const openSpy = vi.fn();
+    render(
+      <MemoryRouter initialEntries={["/search?type=rent"]}>
         <SearchPropertyCard
-          result={result}
-          layout="horizontal"
+          result={makeResult()}
           isFavourited={() => false}
           onToggleFavourite={toggleSpy}
+          onListingOpen={openSpy}
           isLoggedIn
         />
       </MemoryRouter>,
     );
-  }
+    const link = document.querySelector("a") as HTMLAnchorElement;
+    fireEvent.click(link);
+    expect(openSpy).toHaveBeenCalledWith("prop-1", "list");
+  });
 
-  it("does not render the new footer deck / feature grid in Split", () => {
-    renderSplit(makeResult({ responseRatePct: 80 }));
-    // The vibrant footer response segment is List-only.
-    expect(screen.queryByText("Responds 80%")).toBeNull();
-    // Split keeps its chip facts instead of feature tiles.
-    expect(screen.queryByText("Carpet")).toBeNull();
+  it("no 'split' or 'map' surface value emitted on toggle", () => {
+    renderCard(makeResult());
+    const btn = screen.getByLabelText(/Save to favourites|Remove from favourites/);
+    fireEvent.click(btn);
+    const calls = toggleSpy.mock.calls;
+    expect(calls.every(([, surface]) => surface === "list")).toBe(true);
   });
 });
 
