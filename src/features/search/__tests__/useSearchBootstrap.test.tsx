@@ -4,7 +4,11 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
-const mockAuth = { user: null as { id: string } | null, isLoading: false };
+const mockAuth = {
+  session: null as { user: { id: string } } | null,
+  user: null as { id: string } | null,
+  isLoading: false,
+};
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => mockAuth }));
 
 const geo = { approxCity: null as { geoPlaceId: string; kind: string; label: string } | null, status: "idle" as string };
@@ -35,6 +39,7 @@ function wrapperFor(initialUrl: string) {
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
+  mockAuth.session = null;
   mockAuth.user = null;
   mockAuth.isLoading = false;
   geo.approxCity = null;
@@ -96,6 +101,98 @@ describe("useSearchBootstrap precedence", () => {
     });
     await waitFor(() => expect(result.current.status).toBe("resolved"));
     expect(geoEnabledCalls.some((e) => e === true)).toBe(false);
+  });
+
+  it("session known but profile still loading → restores account city without waiting for profile", async () => {
+    mockAuth.session = { user: { id: "userEarly" } };
+    mockAuth.user = null;       // profile DB row not yet fetched
+    mockAuth.isLoading = true;  // still loading
+    localStorage.setItem(
+      "reeve_search_location_account_v1:userEarly",
+      JSON.stringify({
+        version: 1,
+        history: confirmSelection(emptyHistory(), "hyderabad", [], "rent", [], 1),
+        serverUpdatedAt: null,
+      }),
+    );
+    const { result } = renderHook(() => useSearchBootstrap(), {
+      wrapper: wrapperFor("/search"),
+    });
+    await waitFor(() => expect(result.current.status).toBe("resolved"));
+    expect(geoEnabledCalls.some((e) => e === true)).toBe(false);
+  });
+
+  it("session known + no local cache: server reconcile survives profile-load completing, IP never starts", async () => {
+    // Simulates the critical race: session resolves early (userId known, authLoading
+    // still true), no local cache so reconcileAccountHistory is awaited, then
+    // authLoading flips false when the profile DB row lands. The identityPending
+    // dep ensures the effect does NOT clean up/restart at that point.
+    mockAuth.session = { user: { id: "userNoCache" } };
+    mockAuth.user = null;
+    mockAuth.isLoading = true;
+
+    const { fetchLocationPrefs } = await import("../data/searchLocationPrefsClient");
+
+    let resolvePrefs!: (v: unknown) => void;
+    vi.mocked(fetchLocationPrefs).mockReturnValueOnce(
+      new Promise((r) => { resolvePrefs = r; }) as never,
+    );
+
+    const { result, rerender } = renderHook(() => useSearchBootstrap(), {
+      wrapper: wrapperFor("/search"),
+    });
+
+    // Status is still "checking" — waiting on server.
+    expect(result.current.status).toBe("checking");
+    expect(geoEnabledCalls.some((e) => e === true)).toBe(false);
+
+    // Profile finishes loading (authLoading true → false) — must NOT abort the reconcile.
+    mockAuth.isLoading = false;
+    mockAuth.user = { id: "userNoCache" };
+    rerender();
+
+    // Server returns a saved preference in ServerPrefsRow shape.
+    resolvePrefs({
+      schemaVersion: 2,
+      history: confirmSelection(emptyHistory(), "chennai", [], "rent", [], 1),
+      updatedAt: "2026-08-01T00:00:00Z",
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("resolved"));
+    expect(geoEnabledCalls.some((e) => e === true)).toBe(false);
+  });
+
+  it("late account reconciliation cannot overwrite a user interaction", async () => {
+    // Bootstrap starts with account cache present; user interacts before the
+    // background reconcile resolves → the reconcile result must be discarded.
+    mockAuth.user = { id: "userRace" };
+    mockAuth.isLoading = false;
+    let resolveReconcile!: (h: unknown) => void;
+    const reconcilePromise = new Promise((r) => { resolveReconcile = r; });
+
+    const { fetchLocationPrefs } = await import("../data/searchLocationPrefsClient");
+    vi.mocked(fetchLocationPrefs).mockReturnValueOnce(reconcilePromise as never);
+
+    localStorage.setItem(
+      "reeve_search_location_account_v1:userRace",
+      JSON.stringify({
+        version: 1,
+        history: confirmSelection(emptyHistory(), "pune", [], "rent", [], 1),
+        serverUpdatedAt: null,
+      }),
+    );
+    const { result } = renderHook(() => useSearchBootstrap(), {
+      wrapper: wrapperFor("/search"),
+    });
+    await waitFor(() => expect(result.current.status).toBe("resolved"));
+
+    // User interacts (changes city), then the stale server response arrives.
+    result.current.markUserInteracted();
+    resolveReconcile(null);
+
+    // Status remains resolved; no new city seed from the server.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(result.current.status).toBe("resolved");
   });
 
   it("no memory + IP success → resolved with an IP notice", async () => {

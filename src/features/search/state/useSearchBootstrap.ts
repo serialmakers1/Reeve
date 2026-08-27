@@ -60,8 +60,13 @@ export interface SearchBootstrap {
  */
 export function useSearchBootstrap(): SearchBootstrap {
   const { state, replaceSearchSetup, setContext } = useSearchState();
-  const { user, isLoading: authLoading } = useAuth();
-  const userId = user?.id ?? null;
+  const { session, user, isLoading: authLoading } = useAuth();
+  const userId = session?.user?.id ?? user?.id ?? null;
+  // True only while we genuinely don't know the user's identity yet. Once session
+  // resolves (logged-in or anonymous), this becomes false and stays false — so
+  // authLoading true→false (profile DB fetch finishing) does NOT re-trigger the
+  // main bootstrap effect or abort an in-flight reconcileAccountHistory.
+  const identityPending = !userId && authLoading;
   const { search: rawSearch } = useLocation();
 
   // Live refs (updated every render) so the stable main effect never needs these as deps.
@@ -144,8 +149,8 @@ export function useSearchBootstrap(): SearchBootstrap {
       return;
     }
 
-    // Phase B — bare URL: wait for auth so anon memory isn't used for a logged-in user.
-    if (authLoading) return;
+    // Phase B — bare URL: wait only while identity is genuinely unresolved.
+    if (identityPending) return;
     bootstrapRanRef.current = true;
 
     const myRun = ++runIdRef.current;
@@ -206,7 +211,7 @@ export function useSearchBootstrap(): SearchBootstrap {
       ac.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, userId, bootstrapEpoch]);
+  }, [identityPending, userId, bootstrapEpoch]);
 
   // ── Re-arm for a genuinely new empty search (has-location → no-location) ──────
   useEffect(() => {
