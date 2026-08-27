@@ -131,7 +131,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - JSONB furnishing/amenity editing uses shared editors; do not create parallel systems.
 - `<VerificationGate />` protects `/list` and `/tenant-dashboard/preferences`; `rental_preferences` is one-row-per-user/upsert-oriented.
 - Razorpay is intentionally retained; payment writes are RLS-protected and webhook processing is source of truth.
-- Maps use `@vis.gl/react-google-maps` v1.x with app-level `APIProvider`; preserve Places session tokens, India-only restrictions, address/location invariants, Street View preference, and owner location-edit locks.
+- Maps use `@vis.gl/react-google-maps` v1.x with a route-scoped shared `APIProvider` only around active owner/admin Google flows (`/list`, `/list/:id`, `/admin/properties/:id`); libraries load via `useMapsLibrary`. Preserve Places session tokens, India-only restrictions, address/location invariants, Street View preference, and owner location-edit locks.
 - `VITE_GOOGLE_MAPS_MAP_ID` is required. Remove `isBuildingResult` / `useApiLoadingStatus` only after tracing/replacing active usage.
 - Search domain lives in `src/features/search/`; public modes are `rent`/`buy`, DB mapping is `rent`/`sale`, never emit `sale` in public URLs.
 - Search is LIST-only; no active Split/Map path. `SearchResultsHeader` owns mobile Sort; desktop toolbar owns desktop Sort. Stale `view`/map-bound URL params are stripped.
