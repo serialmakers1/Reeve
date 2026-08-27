@@ -4,7 +4,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { APIProvider } from '@vis.gl/react-google-maps';
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SuspenseFallback } from "@/components/SuspenseFallback";
@@ -46,6 +45,9 @@ const DashboardFavourites    = React.lazy(() => import("./pages/DashboardFavouri
 const TenantPreferences      = React.lazy(() => import("./pages/TenantPreferences"));
 const TenantDashboard        = React.lazy(() => import("./pages/TenantDashboard"));
 const ContactRequestsPage    = React.lazy(() => import("./pages/ContactRequestsPage"));
+
+// Google Maps provider — lazy so vis.gl code stays out of public-route initial bundles
+const GoogleMapsProvider     = React.lazy(() => import("./components/GoogleMapsProvider"));
 
 // Admin
 const PropertyEdit           = React.lazy(() => import("./pages/admin/PropertyEdit"));
@@ -115,8 +117,12 @@ function AppInner() {
         <Route path="/khata-transfer-bangalore" element={<KhataTransferBangalore />} />
         <Route path="/owner-dashboard" element={<OwnerDashboard />} />
         <Route path="/owner-dashboard/property/:id" element={<OwnerPropertyManagement />} />
-        <Route path="/list" element={<ListProperty key="new" />} />
-        <Route path="/list/:id" element={<ListPropertyEditWrapper />} />
+        {/* Google Maps provider — scoped to routes that need it */}
+        <Route element={<GoogleMapsProvider />}>
+          <Route path="/list" element={<ListProperty key="new" />} />
+          <Route path="/list/:id" element={<ListPropertyEditWrapper />} />
+          <Route path="/admin/properties/:id" element={<PropertyEdit />} />
+        </Route>
         <Route path="/profile" element={<Profile />} />
         <Route path="/me" element={<Me />} />
         <Route path="/u/:userId" element={<PublicProfile />} />
@@ -126,7 +132,6 @@ function AppInner() {
         <Route path="/tenant-dashboard/contact-requests" element={<ContactRequestsPage />} />
         <Route path="/admin" element={<Navigate to="/admin/properties" replace />} />
         <Route path="/admin/properties" element={<AdminProperties />} />
-        <Route path="/admin/properties/:id" element={<PropertyEdit />} />
         <Route path="/admin/listing-reviews" element={<ListingReviewQueue />} />
         <Route path="/admin/listing-reviews/:type/:id" element={<ListingReviewDetail />} />
         <Route path="/admin/callbacks" element={<Callbacks />} />
@@ -140,21 +145,16 @@ function AppInner() {
 const App = () => (
   <Sentry.ErrorBoundary fallback={<p>Something went wrong. Please refresh the page.</p>}>
     <QueryClientProvider client={queryClient}>
-      <APIProvider
-        apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ''}
-        libraries={['places']}
-      >
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <ScrollToTop />
-            <ErrorBoundary>
-              <AppInner />
-            </ErrorBoundary>
-          </BrowserRouter>
-        </TooltipProvider>
-      </APIProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <ScrollToTop />
+          <ErrorBoundary>
+            <AppInner />
+          </ErrorBoundary>
+        </BrowserRouter>
+      </TooltipProvider>
     </QueryClientProvider>
   </Sentry.ErrorBoundary>
 );

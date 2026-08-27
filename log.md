@@ -2225,3 +2225,5 @@ n8n (live production workflows, manual + MCP):
 ## [2026-08-27] perf | Group 1 Phase 2 select-first Search enrichment + response aggregation [02:10 IST]
 
 ## [2026-08-27] perf | Group 1 Phase 3 moved views/comments off Search critical path [03:15 IST]
+
+## [2026-08-27] perf | Scoped Google Maps runtime to active owner/admin routes [07:20 IST]
