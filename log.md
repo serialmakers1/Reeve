@@ -2227,3 +2227,5 @@ n8n (live production workflows, manual + MCP):
 ## [2026-08-27] perf | Group 1 Phase 3 moved views/comments off Search critical path [03:15 IST]
 
 ## [2026-08-27] perf | Scoped Google Maps runtime to active owner/admin routes [07:20 IST]
+
+## [2026-08-27] perf | Decoupled Search bootstrap identity from profile loading [08:15 IST]
