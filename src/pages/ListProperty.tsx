@@ -841,6 +841,9 @@ export default function ListProperty() {
   // re-fetching the just-inserted row (with only the 6 threshold fields) and
   // clobbering everything the owner had typed after crossing the threshold.
   const draftInitialResumeRef = useRef<string | null>(null);
+  // Cancellable scroll intent for normal user section switching. Cleared on unmount.
+  const pendingSectionScrollRef = useRef<{ cancel: () => void } | null>(null);
+  useEffect(() => () => { pendingSectionScrollRef.current?.cancel(); }, []);
   useEffect(() => {
     if (isEditMode || !user?.id) return;
     // Latch: capture whatever draftIdFromQuery was on the FIRST render where
@@ -1901,6 +1904,62 @@ export default function ListProperty() {
             const sec = Number(match[1]) as SectionNum;
             setOpenedSections((prev) => (prev.has(sec) ? prev : new Set(prev).add(sec)));
           }
+
+          // Cancel any superseded scroll intent (rapid switching / programmatic nav).
+          pendingSectionScrollRef.current?.cancel();
+          pendingSectionScrollRef.current = null;
+
+          if (!v) return; // collapse-only: no scroll
+
+          const targetValue = v;
+          let cancelled = false;
+          let fallbackId: ReturnType<typeof setTimeout> | null = null;
+          let contentEl: Element | null = null;
+          let animEndHandler: EventListener | null = null;
+
+          const doScroll = () => {
+            if (cancelled) return;
+            const header = document.getElementById(`${targetValue}-header`);
+            // Guard: only scroll if this section is still the open one.
+            if (header?.closest('[data-state="open"]')) {
+              const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+              header.scrollIntoView({ behavior: reducedMotion ? "instant" : "smooth", block: "start" });
+            }
+          };
+
+          const cleanup = () => {
+            if (fallbackId !== null) { clearTimeout(fallbackId); fallbackId = null; }
+            if (contentEl && animEndHandler) contentEl.removeEventListener("animationend", animEndHandler);
+          };
+
+          const cancel = () => { cancelled = true; cleanup(); };
+
+          pendingSectionScrollRef.current = { cancel };
+
+          // Wait for React to commit the DOM state change, then attach to the animation.
+          requestAnimationFrame(() => {
+            if (cancelled) return;
+            const header = document.getElementById(`${targetValue}-header`);
+            contentEl = header?.querySelector("[data-list-property-accordion-content]") ?? null;
+
+            if (contentEl) {
+              // Primary signal: fire only when the accordion content element itself
+              // finishes its open animation — not a descendant event bubbling up.
+              animEndHandler = (event: Event) => {
+                if (event.target !== contentEl) return;
+                if ((event as AnimationEvent).animationName !== "accordion-down") return;
+                cleanup();
+                doScroll();
+              };
+              contentEl.addEventListener("animationend", animEndHandler);
+            }
+            // Fallback: fires if animationend never fires (animation suppressed by CSS
+            // or future reduced-motion stylesheet). 300ms > the 200ms accordion duration.
+            fallbackId = setTimeout(() => {
+              cleanup();
+              doScroll();
+            }, 300);
+          });
         }} className="w-full">
           <SectionShell num={1} title="Where is your property?" status={sectionStatuses[1]} summary={sectionSummary(1, form, images)} required>
             <div className="space-y-4">
@@ -2567,7 +2626,7 @@ function SectionShell({
   num: SectionNum; title: string; status: SectionStatus; summary: string; children: React.ReactNode; required?: boolean;
 }) {
   return (
-    <AccordionItem value={`section-${num}`} id={`section-${num}-header`}>
+    <AccordionItem value={`section-${num}`} id={`section-${num}-header`} className="scroll-mt-2">
       <AccordionTrigger className="hover:no-underline">
         <div className="flex items-center justify-between flex-1 gap-3 pr-2">
           <div className="flex items-center gap-3 min-w-0">
@@ -2582,7 +2641,7 @@ function SectionShell({
         </div>
       </AccordionTrigger>
       {/* A2/B1: pl-1 pr-1 so focus-ring left edge on inputs inside AccordionContent isn't clipped by Radix's overflow-hidden animation container. */}
-      <AccordionContent className="pt-2 px-1">{children}</AccordionContent>
+      <AccordionContent data-list-property-accordion-content className="pt-2 px-1">{children}</AccordionContent>
     </AccordionItem>
   );
 }

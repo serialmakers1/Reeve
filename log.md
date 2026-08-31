@@ -1,3 +1,5 @@
+## [2026-08-31] fix | Fixed ListProperty accordion section viewport positioning [15:30 IST]
+
 ## [2026-08-27] perf | Group 1 Phase 1 — Remove total count, response-rate filter, experience feedback from Search RPC
 
 **Frontend implementation complete. DB migration (`20260827000000_group1_phase1_search_rpc_v4.sql`) written and ready — user must run `supabase db push --linked` manually, then regenerate types.**
