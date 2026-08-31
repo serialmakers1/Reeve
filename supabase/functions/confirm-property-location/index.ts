@@ -184,6 +184,30 @@ async function loadGeoPlace(id: string): Promise<GeoPlaceRow | null> {
   return rows?.[0] ?? null;
 }
 
+/** Current (relationship IS NULL) road geo_place ids for a property. */
+async function roadIdsForProperty(propertyId: string): Promise<string[]> {
+  const r = await srSelect(
+    `property_geo_associations?property_id=eq.${propertyId}&relationship=is.null&select=geo_place_id,geo_places(kind)`,
+  );
+  if (!r.ok) return [];
+  const rows = (await r.json()) as Array<{ geo_place_id: string; geo_places: { kind?: string } | null }>;
+  return rows.filter((x) => x.geo_places?.kind === "road").map((x) => x.geo_place_id);
+}
+
+/** Re-derive road→search_region membership (ambiguity-safe, set-based) for each road id.
+ *  Best-effort: the authoritative geography write has already succeeded; a failed reconcile
+ *  only leaves derived road membership stale (logged), never reverses the property write. */
+async function reconcileRoads(roadIds: string[]): Promise<void> {
+  for (const id of [...new Set(roadIds)]) {
+    try {
+      const rr = await srRpc("reeve_reconcile_road_search_region", { p_road_id: id });
+      if (!rr.ok) console.error("road_region_reconcile_failed", id, rr.status);
+    } catch (e) {
+      console.error("road_region_reconcile_error", id, (e as Error).message);
+    }
+  }
+}
+
 const EXPECTED_RESOLVER_CONFLICT = /ambiguous canonical match|incompatible with requested/i;
 function isExpectedCanonicalResolutionConflict(msg: string): boolean {
   return EXPECTED_RESOLVER_CONFLICT.test(msg);
@@ -513,13 +537,10 @@ Deno.serve(async (req: Request) => {
         }
         const gp = await loadGeoPlace(gid);
         const kind = gp?.kind ?? c.kind;
+        // NOTE: a per-property search_region association is intentionally NOT materialized here.
+        // Marketplace-region membership is derived at query time from geo_places.search_region_id
+        // (the single authoritative source), so a copied per-property row can never go stale.
         if (!resolvedAssoc.some((a) => a.geo_place_id === gid)) resolvedAssoc.push({ geo_place_id: gid, kind, evidence_type: c.evidence_type, source });
-        if (gp?.kind === "settlement" && gp.search_region_id) { // curated (not proximity) search_region
-          const sr = await loadGeoPlace(gp.search_region_id);
-          if (sr?.kind === "search_region" && !resolvedAssoc.some((a) => a.geo_place_id === sr.id)) {
-            resolvedAssoc.push({ geo_place_id: sr.id, kind: "search_region", evidence_type: "curated_search_region", source: "system" });
-          }
-        }
         return gid;
       };
 
@@ -686,11 +707,18 @@ Deno.serve(async (req: Request) => {
         ...(ownerProvenanceKeys !== undefined ? ownerProvenanceKeys : {}),
       };
 
+      // Capture pre-write road associations so a road REMOVED by this change is also re-reconciled.
+      const oldRoadIds = await roadIdsForProperty(propertyId);
+
       const ar = await srRpc("apply_final_property_location", {
         p_property_id: propertyId, p_actor_user_id: user.id, p_actor_type: actor,
         p_location, p_final_associations: finalAssociations, p_streetview: { available: sv.available, pano_id: sv.pano_id },
       });
       if (!ar.ok) { console.error("apply_final_property_location failed", await ar.text()); return errResp("save_failed", 500); }
+
+      // Derived road→search_region membership: recompute for every road touched (added/kept/removed).
+      const newRoadIds = resolvedAssoc.filter((a) => a.kind === "road").map((a) => a.geo_place_id);
+      await reconcileRoads([...oldRoadIds, ...newRoadIds]);
 
       return json({
         ok: true, property_id: propertyId, exact_location, factual,
@@ -847,8 +875,15 @@ Deno.serve(async (req: Request) => {
         const decision = resolveAdminDiscovery({ current, keepIds, adds, rootGeoPlaceId: finalRootId });
         if ("error" in decision) return errResp(decision.error, 400);
 
+        // Pre-write road ids (from the already-fetched current set) so removed roads re-reconcile.
+        const oldRoadIds = current.filter((c) => c.kind === "road").map((c) => c.geo_place_id);
+
         const rr = await srRpc("replace_property_discovery_geography", { p_property_id: propertyId, p_associations: decision.payload });
         if (!rr.ok) { console.error("admin_update_discovery replace failed", await rr.text()); return errResp("save_failed", 500); }
+
+        // Derived road→search_region membership over union(old, new) road ids.
+        const newRoadIds = await roadIdsForProperty(propertyId);
+        await reconcileRoads([...oldRoadIds, ...newRoadIds]);
         return json({ ok: true, property_id: propertyId, updated: true });
       } catch (e) {
         console.error("admin_update_discovery error", (e as Error).message);

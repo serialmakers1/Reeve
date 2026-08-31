@@ -53,6 +53,21 @@ export function rowToLocationToken(row: GeoSuggestRow, scopeRootId: string): Loc
   };
 }
 
+/**
+ * Public-Search root dedup: drop a settlement whose display_name collides with a
+ * search_region present in the same result set (e.g. the "Bengaluru" region + the
+ * factual "Bengaluru" settlement). Narrow — keyed strictly on same normalized
+ * display_name; never removes unrelated settlements. Shared DB suggest RPC is left
+ * intact (both identities remain available to non-marketplace callers).
+ */
+export function dedupeSameNameRegion(rows: GeoSuggestRow[]): GeoSuggestRow[] {
+  const regionNames = new Set(
+    rows.filter((r) => r.kind === "search_region").map((r) => norm(r.display_name)),
+  );
+  if (regionNames.size === 0) return rows;
+  return rows.filter((r) => !(r.kind === "settlement" && regionNames.has(norm(r.display_name))));
+}
+
 interface SuggestArgs {
   query: string;
   kinds?: GeoSuggestRow["kind"][];
@@ -110,6 +125,10 @@ export function selectCanonicalCityCandidate(
   const q = norm(name.trim());
   const exact = rows.filter((r) => norm(r.display_name) === q);
   if (exact.length > 0) {
+    // A curated search_region is the canonical marketplace root — it wins a same-name
+    // collision with the factual settlement (e.g. "Bengaluru" region vs settlement).
+    const exactRegions = exact.filter((r) => r.kind === "search_region");
+    if (exactRegions.length === 1) return rowToCityToken(exactRegions[0]);
     const settlement = exact.find((r) => r.kind === "settlement");
     const uniqueExactIds = new Set(exact.map((r) => r.id));
     if (uniqueExactIds.size === 1) return rowToCityToken(settlement ?? exact[0]);
@@ -118,6 +137,11 @@ export function selectCanonicalCityCandidate(
     }
     return null;
   }
+  // No exact display-name match. A region reached only via alias (e.g. "Bangalore" →
+  // the "Bengaluru" region) is the canonical answer when it is the sole region candidate,
+  // even alongside a lower-ranked prefix settlement such as "Bangalore Rural".
+  const regions = rows.filter((r) => r.kind === "search_region");
+  if (regions.length === 1) return rowToCityToken(regions[0]);
   const uniqueIds = new Set(rows.map((r) => r.id));
   if (uniqueIds.size === 1) return rowToCityToken(rows[0]);
   return null;

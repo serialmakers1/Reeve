@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useId } from "react";
+import { useState, useRef, useEffect, useId, useMemo } from "react";
 import { useCanonicalGeoSearch } from "@/features/search/hooks/useCanonicalGeoSearch";
-import { rowToCityToken } from "@/features/search/data/geoSuggestClient";
+import { rowToCityToken, dedupeSameNameRegion } from "@/features/search/data/geoSuggestClient";
 import type { CityToken } from "@/features/search/domain/searchTypes";
 import { Input } from "@/components/ui/input";
 import { Command, CommandItem, CommandList } from "@/components/ui/command";
@@ -29,6 +29,11 @@ export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
   const { suggestions, isLoading, error, fetchSuggestions, clearSuggestions } =
     useCanonicalGeoSearch();
 
+  // Single source of truth for rendering AND selection: a same-name factual settlement is
+  // hidden when its region is present, so the displayed row can never diverge from the
+  // selected row (selectOption indexes THIS list).
+  const visibleSuggestions = useMemo(() => dedupeSameNameRegion(suggestions), [suggestions]);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const listboxId = useId();
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -37,7 +42,7 @@ export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
 
   useEffect(() => {
     setActiveIndex(-1);
-  }, [suggestions]);
+  }, [visibleSuggestions]);
 
   useEffect(() => {
     if (activeIndex < 0) return;
@@ -56,7 +61,7 @@ export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
   }
 
   function selectOption(index: number) {
-    const row = suggestions[index];
+    const row = visibleSuggestions[index];
     if (!row) return;
     const token = rowToCityToken(row);
     if (!token) return;
@@ -71,7 +76,7 @@ export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
   return (
     <div className="space-y-2">
       <div className="relative">
-        <Popover open={open && suggestions.length > 0} onOpenChange={setOpen}>
+        <Popover open={open && visibleSuggestions.length > 0} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <div className="relative">
               <Input
@@ -79,18 +84,18 @@ export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
                 placeholder="Search city, town or region…"
                 value={inputText}
                 onChange={(e) => handleInputChange(e.target.value)}
-                onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+                onFocus={() => { if (visibleSuggestions.length > 0) setOpen(true); }}
                 role="combobox"
-                aria-expanded={open && suggestions.length > 0}
+                aria-expanded={open && visibleSuggestions.length > 0}
                 aria-autocomplete="list"
                 aria-haspopup="listbox"
-                aria-controls={open && suggestions.length > 0 ? listboxId : undefined}
+                aria-controls={open && visibleSuggestions.length > 0 ? listboxId : undefined}
                 aria-activedescendant={
                   open && activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
                 }
                 onKeyDown={(e) => {
-                  if (!open || suggestions.length === 0) return;
-                  const total = suggestions.length;
+                  if (!open || visibleSuggestions.length === 0) return;
+                  const total = visibleSuggestions.length;
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
                     setActiveIndex((prev) => (prev >= total - 1 ? 0 : prev + 1));
@@ -117,7 +122,7 @@ export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
           <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
             <Command>
               <CommandList id={listboxId} role="listbox">
-                {suggestions.map((s, idx) => (
+                {visibleSuggestions.map((s, idx) => (
                   <CommandItem
                     key={s.id}
                     id={`${listboxId}-option-${idx}`}
@@ -141,7 +146,7 @@ export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
       {error && (
         <p className="text-xs text-destructive">Couldn't load locations. Try again.</p>
       )}
-      {!error && inputText.trim() && !isLoading && suggestions.length === 0 && (
+      {!error && inputText.trim() && !isLoading && visibleSuggestions.length === 0 && (
         <p className="mt-1 text-xs text-muted-foreground">
           We don't have this location available in Reeve search yet.
         </p>
