@@ -21,6 +21,7 @@ import { CitySearchInput } from "./CitySearchInput";
 import { LocationSearchInput } from "./LocationSearchInput";
 import { PropertyTypeSelector } from "./PropertyTypeSelector";
 import { usePopularCityAvailability } from "@/features/search/hooks/usePopularCityAvailability";
+import { useGeoAvailability } from "@/features/search/hooks/useGeoAvailability";
 
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -66,7 +67,6 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
   };
   const [resolvingCity, setResolvingCity] = useState<string | null>(null);
   const [pruningNotice, setPruningNotice] = useState<string | null>(null);
-  const { availability, retryCity } = usePopularCityAvailability(POPULAR_CITIES);
 
   const contextKey = JSON.stringify({
     mode: state.context.mode,
@@ -94,6 +94,11 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
 
   const activeCity: CityToken | null =
     draft.cities.find((c) => c.geoPlaceId === draft.activeRootId) ?? draft.cities.at(-1) ?? null;
+
+  // Phase 3 availability keyed on the in-panel Rent/Buy toggle (draft.mode).
+  const { availability, retryCity } = usePopularCityAvailability(POPULAR_CITIES, draft.mode);
+  // Recent-city availability reuses the SAME hook (same inventory semantics; dynamic list).
+  const { availability: recentCityAvail } = usePopularCityAvailability(recentCities ?? [], draft.mode);
 
   // ── City add / remove / active ──────────────────────────────────────────────
   function addCity(token: CityToken) {
@@ -174,6 +179,10 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
 
   const recentAreasForActiveCity =
     activeCity ? (getCityMemory?.(activeCity.label.toLowerCase())?.recentAreas ?? []).filter((a) => a.scopeRootId === activeCity.geoPlaceId) : [];
+  // Recent-area availability proves "activeRoot AND area" for the selected mode.
+  const recentAreaIds = recentAreasForActiveCity.map((a) => a.geoPlaceId);
+  const { availState: recentAreaAvailState, availableIds: recentAreaAvailableIds } =
+    useGeoAvailability(recentAreaIds, draft.mode, activeCity?.geoPlaceId);
 
   const canSubmit = !!draft.mode;
 
@@ -272,7 +281,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                 <p className="text-sm font-medium">
                   Cities <span className="text-muted-foreground font-normal">(add one or more)</span>
                 </p>
-                <CitySearchInput onCitySelected={handleCitySelected} />
+                <CitySearchInput onCitySelected={handleCitySelected} mode={draft.mode} />
                 {isApproxCity && (
                   <p className="flex items-center gap-1 text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3" /> Approximate location
@@ -301,13 +310,20 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                       {recentCities.map((name) => {
                         const label = titleCase(name);
                         const selected = draft.cities.some((c) => c.label.toLowerCase() === name);
+                        // Disable while the inventory check is in flight (loading) or confirmed
+                        // unavailable for the mode; fail-open on error/idle. Already-selected chips
+                        // stay usable via the forget (X) button.
+                        const recentStatus = recentCityAvail[name]?.status;
+                        const recentBlocked = draft.mode != null && (recentStatus === "loading" || recentStatus === "unavailable");
+                        const recentUnavailable = draft.mode != null && recentStatus === "unavailable";
                         return (
-                          <div key={name} className={cn("flex items-center rounded-lg border", selected ? "border-primary bg-primary/10" : "border-input bg-background")}>
+                          <div key={name} className={cn("flex items-center rounded-lg border", selected ? "border-primary bg-primary/10" : "border-input bg-background", recentUnavailable && "opacity-60")}>
                             <button
                               type="button"
-                              disabled={resolvingCity !== null}
+                              disabled={resolvingCity !== null || (recentBlocked && !selected)}
+                              title={recentUnavailable ? `Not available for ${draft.mode === "buy" ? "buy" : "rent"} yet` : undefined}
                               onClick={() => resolveAndAddCity(name, true)}
-                              className="h-9 rounded-l-lg pl-3.5 pr-2 text-sm font-medium hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60"
+                              className="h-9 rounded-l-lg pl-3.5 pr-2 text-sm font-medium hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                               {resolvingCity === name ? "…" : label}
                             </button>
@@ -436,6 +452,11 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                       <div className="flex flex-wrap gap-2">
                         {recentAreasForActiveCity.map((area) => {
                           const picked = draft.locations.some((l) => l.id === area.id);
+                          // Disable while checking (loading) or when confirmed zero-inventory for
+                          // "activeRoot AND area"; fail-open on error/idle. Picked areas stay removable.
+                          const areaChecking = !picked && draft.mode != null && recentAreaAvailState === "loading";
+                          const areaUnavailable =
+                            !picked && draft.mode != null && recentAreaAvailState === "success" && !recentAreaAvailableIds.has(area.geoPlaceId);
                           return (
                             <Button
                               key={area.id}
@@ -443,8 +464,9 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                               variant={picked ? "default" : "outline"}
                               size="sm"
                               aria-pressed={picked}
-                              disabled={!picked && draft.locations.length >= 5}
-                              className={cn("h-8 rounded-lg px-3 text-xs font-medium", picked && "bg-primary text-primary-foreground hover:bg-primary/90")}
+                              disabled={(!picked && draft.locations.length >= 5) || areaChecking || areaUnavailable}
+                              title={areaUnavailable ? `Not available for ${draft.mode === "buy" ? "buy" : "rent"} yet` : undefined}
+                              className={cn("h-8 rounded-lg px-3 text-xs font-medium", picked && "bg-primary text-primary-foreground hover:bg-primary/90", areaUnavailable && "opacity-60")}
                               onClick={() =>
                                 setDraft((d) =>
                                   d.locations.some((l) => l.id === area.id)
@@ -464,6 +486,7 @@ export function SearchSetupPanel({ open, onOpenChange, onSubmit, suggestedCity, 
                   )}
                   <LocationSearchInput
                     root={activeCity}
+                    mode={draft.mode}
                     selected={draft.locations.filter((l) => l.scopeRootId === activeCity.geoPlaceId)}
                     onAdd={(token) => {
                       if (draft.locations.length >= 5 || draft.locations.some((l) => l.id === token.id)) return;

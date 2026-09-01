@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useId, useMemo } from "react";
 import { useCanonicalGeoSearch } from "@/features/search/hooks/useCanonicalGeoSearch";
+import { useGeoAvailability } from "@/features/search/hooks/useGeoAvailability";
 import { rowToCityToken, dedupeSameNameRegion } from "@/features/search/data/geoSuggestClient";
 import type { CityToken } from "@/features/search/domain/searchTypes";
+import type { SearchMode } from "@/features/search/domain/searchMode";
 import { Input } from "@/components/ui/input";
 import { Command, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -10,6 +12,8 @@ import { Loader2 } from "lucide-react";
 interface CitySearchInputProps {
   /** Fired for a fully-resolved canonical root (search_region | settlement). */
   onCitySelected: (token: CityToken) => void;
+  /** Active Rent/Buy mode. When set, zero-inventory roots are hidden (Phase 3). */
+  mode?: SearchMode | null;
 }
 
 const subtypeLabel = (kind: string, subtype: string | null): string => {
@@ -25,14 +29,24 @@ const subtypeLabel = (kind: string, subtype: string | null): string => {
  * from `reeve_search_geo_suggest` (kinds search_region | settlement) — Reeve
  * geo_place UUID identity, no Google Places.
  */
-export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
+export function CitySearchInput({ onCitySelected, mode }: CitySearchInputProps) {
   const { suggestions, isLoading, error, fetchSuggestions, clearSuggestions } =
     useCanonicalGeoSearch();
 
-  // Single source of truth for rendering AND selection: a same-name factual settlement is
-  // hidden when its region is present, so the displayed row can never diverge from the
-  // selected row (selectOption indexes THIS list).
-  const visibleSuggestions = useMemo(() => dedupeSameNameRegion(suggestions), [suggestions]);
+  // Same-name factual settlement hidden when its region is present (Phase 2 dedup).
+  const deduped = useMemo(() => dedupeSameNameRegion(suggestions), [suggestions]);
+  // Phase 3: inventory-/mode-aware availability for the deduped root candidates.
+  const candidateIds = useMemo(() => deduped.map((r) => r.id), [deduped]);
+  const { availState, availableIds } = useGeoAvailability(candidateIds, mode);
+  const availLoading = !!mode && availState === "loading";
+
+  // Single source of truth for rendering AND selection (selectOption indexes THIS list):
+  //   idle/error → canonical deduped (fail-open); loading → none exposed; success → only available.
+  const visibleSuggestions = useMemo(() => {
+    if (availState === "success") return deduped.filter((r) => availableIds.has(r.id));
+    if (availLoading) return [];
+    return deduped;
+  }, [deduped, availState, availableIds, availLoading]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listboxId = useId();
@@ -114,7 +128,7 @@ export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
                 }}
                 className="pr-8"
               />
-              {isLoading && (
+              {(isLoading || availLoading) && (
                 <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
               )}
             </div>
@@ -146,7 +160,7 @@ export function CitySearchInput({ onCitySelected }: CitySearchInputProps) {
       {error && (
         <p className="text-xs text-destructive">Couldn't load locations. Try again.</p>
       )}
-      {!error && inputText.trim() && !isLoading && visibleSuggestions.length === 0 && (
+      {!error && inputText.trim() && !isLoading && !availLoading && visibleSuggestions.length === 0 && (
         <p className="mt-1 text-xs text-muted-foreground">
           We don't have this location available in Reeve search yet.
         </p>
