@@ -47,7 +47,7 @@ export function useSearchMeta() {
       createdCanonical = true;
     }
     const prevCanonicalHref = canonical.href;
-    canonical.href = "https://reeve.in/search";
+    canonical.href = "https://www.reeve.in/search";
 
     return () => {
       document.title = prevTitle;

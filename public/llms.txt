@@ -1,25 +1,40 @@
 # Reeve
 
-Reeve is a Bengaluru-based zero-brokerage rental property
-management platform. Free for owners. Tenants pay a 7% Reeve
-Service Fee (4% on renewal). 2-month deposit cap. Operated
-by Serial Makers Private Limited, HSR Layout, Bengaluru.
+Reeve is a property marketplace and property-services business in India,
+operated by Serial Makers Private Limited, HSR Layout, Bengaluru. Reeve
+connects sellers with buyers and owners with tenants, and offers a family
+of property services in Bangalore and NRI-focused services across India.
 
 ## Core pages
 
-- [Homepage](https://www.reeve.in/): Property management overview
-- [For Owners](https://www.reeve.in/owners): Owner-side service
-- [Tenant Savings Calculator](https://www.reeve.in/savings/tenant): Compare Reeve vs broker costs
-- [Search Properties](https://www.reeve.in/search): Browse Reeve-managed rentals
+- [Homepage](https://www.reeve.in/): What Reeve is
+- [Search Properties](https://www.reeve.in/search): Browse properties for rent and sale
 - [Contact](https://www.reeve.in/contact): Phone, WhatsApp, email
+
+## Property services in Bangalore
+
+- [All Bangalore property services](https://www.reeve.in/property-services-bangalore): Hub
+- [Reeve Managed](https://www.reeve.in/property-management-bangalore): Ongoing property management
+- [Reeve Watch](https://www.reeve.in/vacant-property-care-bangalore): Care for vacant properties
+- [Reeve Let](https://www.reeve.in/find-tenant-bangalore): One-time tenant placement
+- [Khata & Mutation](https://www.reeve.in/khata-transfer-bangalore): Property record transfers
+
+## NRI property services (anywhere in India)
+
+- [All NRI property services](https://www.reeve.in/nri-property-services-india): Hub
+- [NRI Property Sale](https://www.reeve.in/nri-property-sale-india): Documents, tax & sale coordination
+- [NRI Rent & TDS](https://www.reeve.in/nri-rent-tds-india): Withholding on Indian rent
 
 ## Founders
 
 - Lohit Agarwal — Co-founder
 - Daksh Jain — Co-founder
 
-## Service areas
+## Contact
 
-HSR Layout, Koramangala, BTM Layout, Indiranagar, Whitefield,
-Marathahalli, Bellandur, Sarjapur Road, Electronic City —
-Bengaluru, Karnataka, India.
+- Email: support@reeve.in
+- Phone: +91 78998 74281
+- Address: Shubh Encl, HSR Layout, Bengaluru - 560102, Karnataka, India
+- CIN: U62099KA2026PTC216343
+- LinkedIn: https://www.linkedin.com/company/reeve-pm/
+- X: https://x.com/reeve_pm

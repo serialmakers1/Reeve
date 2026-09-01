@@ -12,6 +12,12 @@
       ]
     }
   ],
+  "redirects": [
+    { "source": "/pms", "destination": "/", "statusCode": 301 },
+    { "source": "/owners", "destination": "/", "statusCode": 301 },
+    { "source": "/savings/tenant", "destination": "/", "statusCode": 301 },
+    { "source": "/move-in-audit", "destination": "/", "statusCode": 301 }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

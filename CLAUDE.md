@@ -29,8 +29,10 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Production sourcemaps are conditional on `SENTRY_AUTH_TOKEN`; when generated they are uploaded to Sentry and deleted from `dist`. Never expose production source maps or disable Sentry symbolication as unrelated cleanup.
 - No explicit `build.target`/Browserslist contract; keep Vite 7 defaults unless product requirements change.
 - `scripts/prerender.mjs` runs after build and writes route-specific HTML; React replaces it on mount via `createRoot`.
-- Pre-rendered: `/`, `/search`, `/contact`. Public/not prerendered: `/privacy`, `/terms`, `/refund`, `/login`. Protected/CSR-only: `/admin`, `/profile`.
-- New public routes require both `scripts/prerender.mjs` and `ACTIVE_ROUTES` in `scripts/generate-sitemap.mjs`.
+- Canonical host is `https://www.reeve.in` (`www`); every sitemap `<loc>`, canonical, JSON-LD URL/`@id`, `robots.txt` sitemap URL, and `llms.txt` link uses `www`. The apex `reeve.in` permanently redirects to `www`. `sitemap.xml` emits `<loc>` only (no `lastmod`/`changefreq`/`priority`).
+- Pre-rendered: `/`, `/search`, `/contact` + the 8 Property Services routes (`/property-services-bangalore`, `/property-management-bangalore`, `/vacant-property-care-bangalore`, `/find-tenant-bangalore`, `/khata-transfer-bangalore`, `/nri-property-services-india`, `/nri-property-sale-india`, `/nri-rent-tds-india`). Public/indexable but NOT prerendered: `/privacy`, `/terms`, `/refund`. Not indexed: `/login`. Protected/CSR-only: `/admin`, `/profile`.
+- Retired marketing URLs `/pms`, `/owners`, `/savings/tenant`, `/move-in-audit` all 301 → `/` via `vercel.json`; they are absent from sitemap/prerender.
+- Every new public indexable SEO route must be reconciled across App routing and `ACTIVE_ROUTES` in `scripts/generate-sitemap.mjs`, and explicitly classified for prerendering; routes intended to be prerendered must also be added to `scripts/prerender.mjs`. Retired indexable URLs must receive the correct redirect/removal status.
 - JSON-LD lives in `scripts/prerender.mjs`; use `safeJsonLd()`, never raw `JSON.stringify`; no `aggregateRating` until 5+ Google reviews.
 - Do not introduce alternate SSR/SSG frameworks or prerender auth/protected routes without dedicated investigation.
 
