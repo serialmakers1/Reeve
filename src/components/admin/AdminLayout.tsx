@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Building2, ClipboardCheck, Menu, User, ChevronDown, Phone, ExternalLink, Search, PlusSquare, LayoutDashboard, UserCircle, ShieldAlert } from "lucide-react";
 import { useReviewQueueBadge } from "@/pages/admin/commentModeration/useCommentModeration";
 import {
@@ -154,8 +154,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0 bg-primary border-none">
+                <SheetDescription className="sr-only">Admin section navigation</SheetDescription>
                 <div className="flex items-center justify-between px-4 py-5 border-b border-primary-foreground/20">
-                  <span className="text-primary-foreground font-bold text-lg">Reeve Admin</span>
+                  <SheetTitle className="text-primary-foreground font-bold text-lg">Reeve Admin</SheetTitle>
                 </div>
                 <NavLinks onNavigate={() => setMobileOpen(false)} />
               </SheetContent>

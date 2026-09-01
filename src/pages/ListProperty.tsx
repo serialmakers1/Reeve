@@ -1306,13 +1306,13 @@ export default function ListProperty() {
   // Cover change on a live listing — transactional RPC, then resync (S6).
   const setPrimaryPhoto = useCallback(async (imageId: string) => {
     if (!isLiveListing) {
-      // draft/create: direct (allowed) — set + refetch.
-      try { await setPrimaryPhotoViaRpc(imageId); } catch { /* draft path: fall through to direct */
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any).from("property_images").update({ is_primary: false }).eq("property_id", propertyId);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any).from("property_images").update({ is_primary: true }).eq("id", imageId);
-      }
+      // draft/create/changes_requested: direct is_primary flip (allowed by RLS off-live)
+      // — set + refetch. The RPC (set_primary_property_photo) intentionally rejects
+      // non-live status, so it is not attempted here (the live branch below owns it).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from("property_images").update({ is_primary: false }).eq("property_id", propertyId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from("property_images").update({ is_primary: true }).eq("id", imageId);
       await reloadImages();
       return;
     }
