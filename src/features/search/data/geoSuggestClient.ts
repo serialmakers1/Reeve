@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CityToken, LocationToken } from "@/features/search/domain/searchTypes";
+import { listingTypeBySearchMode, type SearchMode } from "@/features/search/domain/searchMode";
 
 /**
  * Canonical Reeve geography lookup client (Phase 4 · Prompt 3).
@@ -92,6 +93,34 @@ export async function suggestGeo(
   });
   if (error) throw error;
   return (data ?? []) as GeoSuggestRow[];
+}
+
+/**
+ * Inventory-aware, mode-aware availability check (Phase 3). Returns the subset of `ids` that
+ * have >=1 PUBLIC property for the selected mode, reusing the Phase-2 geography matcher via the
+ * `reeve_geo_ids_with_inventory` RPC. Pass `rootGeoPlaceId` for Area details so availability means
+ * "root AND detail" (never "this locality has a property somewhere"); omit it for roots/Popular.
+ *
+ * Mode maps UI rent→DB rent, buy→DB sale (shared `listingTypeBySearchMode`). Ids are deduped.
+ * THROWS on RPC error — callers MUST fail open (show/enable the canonical choices), never hide
+ * real inventory because of a transient availability failure.
+ */
+export async function availableGeoIds(
+  ids: string[],
+  mode: SearchMode,
+  supabaseClient: SupabaseClient,
+  rootGeoPlaceId?: string | null,
+): Promise<Set<string>> {
+  const unique = [...new Set(ids.filter((s): s is string => typeof s === "string" && s.length > 0))];
+  if (unique.length === 0) return new Set();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabaseClient as any).rpc("reeve_geo_ids_with_inventory", {
+    p_geo_place_ids: unique,
+    p_listing_type: listingTypeBySearchMode[mode],
+    p_root_geo_place_id: rootGeoPlaceId ?? null,
+  });
+  if (error) throw error;
+  return new Set(((data ?? []) as Array<{ id: string }>).map((r) => r.id));
 }
 
 /** Authoritative UUID → token hydration for URL/memory restore. */

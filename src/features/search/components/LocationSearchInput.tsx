@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect, useId, useCallback } from "react";
+import { useState, useRef, useEffect, useId, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { suggestGeo, rowToLocationToken, type GeoSuggestRow } from "@/features/search/data/geoSuggestClient";
+import { useGeoAvailability } from "@/features/search/hooks/useGeoAvailability";
 import { MAX_SELECTED_LOCATIONS } from "@/features/search/domain/searchConstants";
 import type { LocationToken, CityToken } from "@/features/search/domain/searchTypes";
+import type { SearchMode } from "@/features/search/domain/searchMode";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Command, CommandItem, CommandList } from "@/components/ui/command";
@@ -15,6 +17,8 @@ interface LocationSearchInputProps {
   selected: LocationToken[];
   onAdd: (token: LocationToken) => void;
   onRemove: (id: string) => void;
+  /** Active Rent/Buy mode. When set, details with no `root AND detail` inventory are hidden (Phase 3). */
+  mode?: SearchMode | null;
 }
 
 const DEBOUNCE_MS = 250;
@@ -25,7 +29,7 @@ const DEBOUNCE_MS = 250;
  * search_region (never an India-wide road query). search_region root → localities +
  * roads within the region. Reeve geo_place UUID identity — no Google Places.
  */
-export function LocationSearchInput({ root, selected, onAdd, onRemove }: LocationSearchInputProps) {
+export function LocationSearchInput({ root, selected, onAdd, onRemove, mode }: LocationSearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const listboxId = useId();
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -44,7 +48,21 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
     root?.kind === "search_region" ||
     (root?.kind === "settlement" && !!root.searchRegionId);
 
-  useEffect(() => setActiveIndex(-1), [suggestions]);
+  // Phase 3: availability proves "selected root AND this detail" — anchor pairs [root, detail].
+  // Its OWN generation guard (inside the hook) is independent of the suggestion `genRef` above.
+  const candidateIds = useMemo(() => suggestions.map((r) => r.id), [suggestions]);
+  const { availState, availableIds } = useGeoAvailability(candidateIds, mode, root?.geoPlaceId);
+  const availLoading = !!mode && availState === "loading";
+
+  // One consistent list for render + keyboard + selectOption:
+  //   idle/error → canonical (fail-open); loading → none exposed; success → only available.
+  const visibleSuggestions = useMemo(() => {
+    if (availState === "success") return suggestions.filter((r) => availableIds.has(r.id));
+    if (availLoading) return [];
+    return suggestions;
+  }, [suggestions, availState, availableIds, availLoading]);
+
+  useEffect(() => setActiveIndex(-1), [visibleSuggestions]);
   useEffect(() => {
     if (activeIndex < 0) return;
     document.getElementById(`${listboxId}-option-${activeIndex}`)?.scrollIntoView({ block: "nearest" });
@@ -149,7 +167,7 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
   }
 
   function selectOption(index: number) {
-    const row = suggestions[index];
+    const row = visibleSuggestions[index];
     if (!row || !root) return;
     const token = rowToLocationToken(row, root.geoPlaceId);
     if (!token) return;
@@ -184,7 +202,7 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
       {atMax ? (
         <p className="text-xs text-muted-foreground">(max {MAX_SELECTED_LOCATIONS} locations reached)</p>
       ) : (
-        <Popover open={open && suggestions.length > 0} onOpenChange={setOpen}>
+        <Popover open={open && visibleSuggestions.length > 0} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <div className="relative">
               <Input
@@ -193,18 +211,18 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
                 value={inputText}
                 disabled={disabled}
                 onChange={(e) => handleInputChange(e.target.value)}
-                onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+                onFocus={() => { if (visibleSuggestions.length > 0) setOpen(true); }}
                 role="combobox"
-                aria-expanded={open && suggestions.length > 0}
+                aria-expanded={open && visibleSuggestions.length > 0}
                 aria-autocomplete="list"
                 aria-haspopup="listbox"
-                aria-controls={open && suggestions.length > 0 ? listboxId : undefined}
+                aria-controls={open && visibleSuggestions.length > 0 ? listboxId : undefined}
                 aria-activedescendant={
                   open && activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
                 }
                 onKeyDown={(e) => {
-                  if (!open || suggestions.length === 0) return;
-                  const total = suggestions.length;
+                  if (!open || visibleSuggestions.length === 0) return;
+                  const total = visibleSuggestions.length;
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
                     setActiveIndex((prev) => (prev >= total - 1 ? 0 : prev + 1));
@@ -223,7 +241,7 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
                 }}
                 className="pr-8"
               />
-              {isLoading && (
+              {(isLoading || availLoading) && (
                 <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
               )}
             </div>
@@ -231,7 +249,7 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
           <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
             <Command>
               <CommandList id={listboxId} role="listbox">
-                {suggestions.map((s, idx) => (
+                {visibleSuggestions.map((s, idx) => (
                   <CommandItem
                     key={s.id}
                     id={`${listboxId}-option-${idx}`}
@@ -259,7 +277,7 @@ export function LocationSearchInput({ root, selected, onAdd, onRemove }: Locatio
       {error && !disabled && (
         <p className="text-xs text-destructive">Couldn't load locations. Try again.</p>
       )}
-      {root && !atMax && !isLoading && !error && inputText.trim() && suggestions.length === 0 && (
+      {root && !atMax && !isLoading && !availLoading && !error && inputText.trim() && visibleSuggestions.length === 0 && (
         <p className="mt-1 text-xs text-muted-foreground">
           {roadsWereSearched
             ? `No matching localities or roads in ${root.label}.`

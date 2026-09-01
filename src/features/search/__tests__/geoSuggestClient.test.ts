@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   selectCanonicalCityCandidate,
   dedupeSameNameRegion,
   rowToCityToken,
   rowToLocationToken,
+  availableGeoIds,
   type GeoSuggestRow,
 } from "../data/geoSuggestClient";
 
@@ -99,5 +100,46 @@ describe("rowToCityToken / rowToLocationToken", () => {
     const token = rowToLocationToken(loc, "region-blr");
     expect(token?.geoPlaceId).toBe("loc");
     expect(token?.scopeRootId).toBe("region-blr");
+  });
+});
+
+describe("availableGeoIds (Phase 3 inventory availability)", () => {
+  const client = (rpc: ReturnType<typeof vi.fn>) => ({ rpc }) as never;
+
+  it("maps buy→sale and rent→rent, passes optional root, returns the id Set", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [{ id: "a" }, { id: "b" }], error: null });
+    const out = await availableGeoIds(["a", "b"], "buy", client(rpc), "root-1");
+    expect(out).toEqual(new Set(["a", "b"]));
+    expect(rpc).toHaveBeenCalledWith("reeve_geo_ids_with_inventory", {
+      p_geo_place_ids: ["a", "b"],
+      p_listing_type: "sale",
+      p_root_geo_place_id: "root-1",
+    });
+
+    const rpc2 = vi.fn().mockResolvedValue({ data: [], error: null });
+    await availableGeoIds(["a"], "rent", client(rpc2));
+    expect(rpc2).toHaveBeenCalledWith("reeve_geo_ids_with_inventory", {
+      p_geo_place_ids: ["a"],
+      p_listing_type: "rent",
+      p_root_geo_place_id: null,
+    });
+  });
+
+  it("dedupes ids and short-circuits an empty input without calling the RPC", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [{ id: "a" }], error: null });
+    await availableGeoIds(["a", "a", "", "a"], "rent", client(rpc));
+    expect(rpc).toHaveBeenCalledWith(
+      "reeve_geo_ids_with_inventory",
+      expect.objectContaining({ p_geo_place_ids: ["a"] }),
+    );
+
+    const rpc2 = vi.fn();
+    expect(await availableGeoIds([], "rent", client(rpc2))).toEqual(new Set());
+    expect(rpc2).not.toHaveBeenCalled();
+  });
+
+  it("throws on RPC error (fail-open contract lives in the callers)", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: "boom" } });
+    await expect(availableGeoIds(["a"], "rent", client(rpc))).rejects.toBeTruthy();
   });
 });
