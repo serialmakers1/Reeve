@@ -5,6 +5,7 @@ import "./index.css";
 import posthog from "posthog-js";
 import { supabase } from "@/integrations/supabase/client";
 import { markReplayPending } from "@/lib/posthogRuntime";
+import { isExpectedSupabaseNoise } from "@/lib/sentryNoise";
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -21,6 +22,10 @@ Sentry.init({
   tracesSampleRate: 0.1,
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1.0,
+  // Drop only fully-handled Supabase/PostgREST control-flow events that
+  // supabaseIntegration reports as unhandled (see isExpectedSupabaseNoise).
+  // Fails open — anything it cannot positively identify still reports.
+  beforeSend: (event) => (isExpectedSupabaseNoise(event) ? null : event),
 });
 
 function stripAuthCode(url: string): string {

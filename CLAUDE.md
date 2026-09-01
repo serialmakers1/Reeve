@@ -98,6 +98,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Telemetry changes must not redesign or retime the existing Supabase auth lifecycle; add telemetry side effects only within existing auth branches.
 
 ### useAuth
+- One app-level `AuthProvider` (mounted around `AppInner` in `App.tsx`) owns the single auth lifecycle; `useAuth()` is a thin context consumer that throws outside the provider. The `AppInner` SIGNED_OUT redirect listener and `AdminLayout`'s independent role check are intentionally separate — do not fold them in.
 - Single source: `{ session, user, isLoading, isAuthenticated, isFullyVerified, signOut, refreshUser }`.
 - `INITIAL_SESSION` returns early; `getSession()` owns bootstrap. Auth-state DB work is deferred with `setTimeout(100ms)` to avoid lock deadlocks.
 - `loadUser` sets session/authenticated before DB query; 5s safety timeout must not redirect a valid session.

@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useParams } from "react-rout
 import { supabase } from "@/integrations/supabase/client";
 import { SuspenseFallback } from "@/components/SuspenseFallback";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AuthProvider } from "@/hooks/useAuth";
 import ScrollToTop from "@/components/ScrollToTop";
 import { Navigate } from "react-router-dom";
 
@@ -151,7 +152,9 @@ const App = () => (
         <BrowserRouter>
           <ScrollToTop />
           <ErrorBoundary>
-            <AppInner />
+            <AuthProvider>
+              <AppInner />
+            </AuthProvider>
           </ErrorBoundary>
         </BrowserRouter>
       </TooltipProvider>

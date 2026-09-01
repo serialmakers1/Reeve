@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,9 @@ export default function ReportModal({ open, onOpenChange, commentId, onReported 
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Report comment</DialogTitle>
+          <DialogDescription className="sr-only">
+            Tell us why you're reporting this comment.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <RadioGroup value={reason} onValueChange={(v) => setReason(v as Reason)}>

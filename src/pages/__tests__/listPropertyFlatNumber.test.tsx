@@ -35,6 +35,16 @@ vi.mock("@/hooks/useListingSave", () => ({
   }),
 }));
 
+// Header/BottomNav (rendered via Layout) call the real useAuth, which now throws
+// outside AuthProvider. Auth is irrelevant to these tests → mock it anonymous.
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({
+    session: null, user: null, isLoading: false, isAuthenticated: false,
+    isFullyVerified: false, signOut: vi.fn(), refreshUser: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children: import("react").ReactNode }) => children,
+}));
+
 vi.mock("@/hooks/useRequireAuth", () => ({
   useRequireAuth: () => ({
     user: {

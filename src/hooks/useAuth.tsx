@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
+import type { ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import posthog from "posthog-js";
@@ -26,6 +27,16 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
 }
+
+export interface AuthContextValue extends AuthState {
+  isFullyVerified: boolean;
+  signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+}
+
+// No default/fallback — consuming useAuth() outside AuthProvider must fail loudly
+// (a wiring bug), not silently report "anonymous, finished loading".
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 async function fetchUserRow(userId: string): Promise<{ user: AppUser | null; error: unknown }> {
   const { data, error } = await supabase
@@ -65,7 +76,7 @@ async function fetchUserWithRetry(userId: string): Promise<AppUser | null> {
   return null;
 }
 
-export function useAuth() {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     session: null,
     user: null,
@@ -208,5 +219,19 @@ export function useAuth() {
 
   const isFullyVerified = !!(state.user?.phone_verified && state.user?.email_verified);
 
-  return { ...state, isFullyVerified, signOut, refreshUser };
+  const value: AuthContextValue = { ...state, isFullyVerified, signOut, refreshUser };
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/**
+ * Thin context consumer. Returns the single shared auth state owned by AuthProvider.
+ * Throws if used outside the provider so a missing-provider wiring bug fails loudly
+ * rather than silently reporting an anonymous, finished-loading state.
+ */
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
 }
