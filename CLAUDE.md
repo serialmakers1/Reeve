@@ -138,6 +138,9 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - URL/search params are source of truth; `SearchPropertyResult` is the card contract; pagination is cursor-based with 20 displayed + 1 lookahead; `locations_data` uses `{ v:1, items:[...] }`.
 - Active Search RPC is `search_compact_properties_v5` (STABLE SECURITY DEFINER); cards render before secondary `get_property_counts`, which must never block/hide Search. No exact total count.
 - `confirm-property-location` must authenticate before any server-side Google API call; do not restore unauthenticated smoke/test paths that trigger billable APIs.
+- Canonical Search geography is `geo_places` UUID-based. `search_region` is a marketplace grouping, not factual property geography; settlement membership comes from `geo_places.search_region_id`. Do not fake property→region associations or infer region membership from names/radius.
+- `reeve_search_property_ids_v2` is the canonical geography matcher: direct settlement search stays narrow; `search_region` traverses authoritative member settlements; root + locality/road means intersection. Any new geography-dependent behavior must reuse these semantics rather than duplicate them.
+- Geography identity/hydration stays inventory-independent (`reeve_search_geo_suggest`, `reeve_search_geo_by_ids`). New-choice availability is mode-aware via `reeve_geo_ids_with_inventory` using only public inventory (`listed|edit_pending_review`, `is_active=true`, rent→rent, buy→sale); availability failures fail open, and zero inventory must not delete canonical or already-selected/hydrated geography.
 
 ## Contact Requests + n8n Security
 - Edge Functions: `submit-contact-request`, `reveal-contact`, `resend-reveal`, `resend-contact-webhook`.
