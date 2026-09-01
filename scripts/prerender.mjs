@@ -11,7 +11,7 @@
  *   3. Write the result to dist/{route}/index.html.
  *
  * Vercel serves static files before applying rewrites, so:
- *   - dist/owners/index.html  → served for /owners  (pre-rendered, crawlable)
+ *   - dist/property-management-bangalore/index.html → served for /property-management-bangalore (pre-rendered, crawlable)
  *   - dist/index.html         → patched in-place for /
  *   - All auth routes         → no static file → catch-all rewrite → CSR as before
  *
@@ -128,8 +128,10 @@ function writeRoute(outPath, html) {
 
 // ── Shared data ───────────────────────────────────────────────────────────────
 
-const BASE = 'https://reeve.in';
-const WWW  = 'https://www.reeve.in';
+// Canonical host is www. Single source of truth; WWW kept as an alias so existing
+// schema references (url/@id/breadcrumb item) resolve to the same canonical host.
+const BASE = 'https://www.reeve.in';
+const WWW  = BASE;
 
 const BENGALURU_PARENT = {
   '@type': 'City',
@@ -147,6 +149,14 @@ const ORG_REF = {
   name: 'Reeve',
   url: WWW,
 };
+
+// areaServed values, matched to each page's actual geography.
+const BENGALURU_AREA = {
+  '@type': 'City',
+  name: 'Bengaluru',
+  containedInPlace: { '@type': 'AdministrativeArea', name: 'Karnataka' },
+};
+const INDIA_AREA = { '@type': 'Country', name: 'India' };
 
 // ── Route definitions ─────────────────────────────────────────────────────────
 
@@ -224,7 +234,7 @@ const routes = [
     <a href="/">Reeve</a>
     <nav>
       <a href="/search">Search Properties</a>
-      <a href="/owners">For Owners</a>
+      <a href="/property-services-bangalore">Property Services</a>
       <a href="/contact">Contact</a>
     </nav>
   </header>
@@ -249,211 +259,6 @@ const routes = [
     <section aria-label="Compact Closing Action">
       <h2>Ready to find your next home?</h2>
       <a href="/search">Search Properties</a>
-      <a href="/contact">Contact Us</a>
-    </section>
-  </main>
-</div>`,
-  },
-
-  // ── /pms (PMS homepage — previously at /) ───────────────────────────────────
-  {
-    outFile: path.join(DIST, 'pms', 'index.html'),
-    title: 'Reeve | Rentals in Bangalore',
-    description: "2-month deposit. Reeve is Bangalore's fully managed rental platform — free for owners, fair for tenants.",
-    ogTitle: 'Reeve | Rentals in Bangalore',
-    ogDescription: '2-month deposit. Free property management for owners. No brokers. No hidden fees.',
-    canonical: BASE + '/pms',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Managed Rentals', item: WWW + '/pms' },
-          ],
-        },
-      ],
-    },
-    bodyHtml: `
-<div style="font-family:system-ui,sans-serif">
-  <header>
-    <a href="/">Reeve</a>
-    <nav>
-      <a href="/search">Search Properties</a>
-      <a href="/owners">For Owners</a>
-      <a href="/contact">Contact</a>
-    </nav>
-  </header>
-  <main>
-    <section aria-label="Hero">
-      <p>Now live in Bangalore</p>
-      <h1>Zero brokerage. Two month deposit. Free property management.</h1>
-      <p>Reeve manages everything between owners and tenants — at no cost to owners. No brokers. No hidden fees.</p>
-      <a href="/search">Search Properties</a>
-      <a href="/my-properties/new">List Your Property</a>
-    </section>
-    <section aria-label="For tenants and owners">
-      <article>
-        <h2>For Tenants — Save ₹1L+ on day one</h2>
-        <p>We charge a 7% Reeve Fee on each month's rent (dropping to 4% when you renew) — instead of a broker's 1–2 months.</p>
-        <ul>
-          <li>2 month deposit only — not 3</li>
-          <li>Zero brokerage, always</li>
-          <li>Platform-managed home, no middlemen</li>
-        </ul>
-        <a href="/savings/tenant">Calculate My Savings</a>
-      </article>
-      <article>
-        <h2>For Owners — ₹0 in fees. Always.</h2>
-        <p>Your rent arrives in full, every month.</p>
-        <ul>
-          <li>Free listing, zero commission</li>
-          <li>We handle all tenants — you just get paid</li>
-          <li>No visits, no calls, no broker</li>
-        </ul>
-        <a href="/owners">See Owner Savings</a>
-      </article>
-    </section>
-    <section aria-label="Call to action">
-      <h2>Ready to rent smarter?</h2>
-      <p>Join Bangalore's only zero-brokerage, fully managed rental platform.</p>
-      <a href="/search">Search Properties</a>
-      <a href="/my-properties/new">List Your Property</a>
-    </section>
-  </main>
-</div>`,
-  },
-
-  // ── /owners ──────────────────────────────────────────────────────────────────
-  {
-    outFile: path.join(DIST, 'owners', 'index.html'),
-    title: 'For Property Owners in Bangalore | Reeve — Zero Fees, Full Management',
-    description: 'Reeve manages your Bangalore rental property end-to-end at ₹0 cost to you. No listing fee, no commission, no broker. Verified tenants, rent collected, exit handled.',
-    ogTitle: 'For Property Owners in Bangalore | Reeve',
-    ogDescription: 'Zero listing fee. Zero commission. Reeve handles everything — tenant screening, rent collection, maintenance, and exit — at no cost to you.',
-    canonical: BASE + '/owners',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Service',
-          '@id': WWW + '/owners#service',
-          name: 'Rental Property Management',
-          serviceType: 'Rental Property Management',
-          provider: ORG_REF,
-          areaServed: AREA_SERVED,
-          description: 'Reeve manages your Bangalore rental property end-to-end at ₹0 cost to you. Tenant screening, rent collection, maintenance, inspections, and exit all handled by Reeve.',
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'For Owners', item: WWW + '/owners' },
-          ],
-        },
-        {
-          '@type': 'FAQPage',
-          mainEntity: [
-            {
-              '@type': 'Question',
-              name: 'What does Reeve charge property owners?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Nothing. Reeve charges property owners ₹0 — zero listing fee, zero commission, and zero monthly owner-side charge. The tenant pays a 7% Reeve Fee on top of the agreed base rent, so your rent is not reduced.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'Who pays for repainting and deep cleaning at exit?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Reeve bears the cost of standard deep cleaning and standard interior repainting at exit, subject to the service agreement terms. This is at no cost to the owner.',
-              },
-            },
-          ],
-        },
-      ],
-    },
-    bodyHtml: `
-<div style="font-family:system-ui,sans-serif">
-  <header>
-    <a href="/">Reeve</a>
-    <nav>
-      <a href="/search">Search Properties</a>
-      <a href="/owners">For Owners</a>
-      <a href="/contact">Contact</a>
-    </nav>
-  </header>
-  <main>
-    <section aria-label="Owner hero">
-      <p>For Property Owners</p>
-      <h1>₹0 in fees. Your rent, in full, every month.</h1>
-      <p>Reeve is Bangalore's fully managed rental platform. We handle everything between you and your tenant — at no cost to you. Zero listing fee, zero commission, zero monthly charge.</p>
-      <a href="/my-properties/new">List Your Property Free</a>
-      <a href="/contact">Talk to Us</a>
-    </section>
-    <section aria-label="Owner value proposition">
-      <h2>What you get as an owner</h2>
-      <ul>
-        <li>Free listing — zero listing fee, zero commission</li>
-        <li>Verified tenants — Aadhaar, PAN, income, employment, CIBIL range checked</li>
-        <li>Rent collected and transferred within 2 business days</li>
-        <li>Automated escalation for late payment — you are notified, never asked to chase</li>
-        <li>Maintenance portal — coordinated without your involvement for minor items</li>
-        <li>All owner–tenant communication routes through Reeve</li>
-        <li>Standard deep cleaning and repainting at exit — funded by Reeve</li>
-      </ul>
-    </section>
-    <section aria-label="Full lifecycle management">
-      <h2>How Reeve manages your property end-to-end</h2>
-      <ol>
-        <li>
-          <h3>Listing</h3>
-          <p>We inspect the property, photograph every room, list the property, and show it to every screened applicant. You are never asked to attend a showing or take a broker call.</p>
-        </li>
-        <li>
-          <h3>Screening</h3>
-          <p>Every applicant is verified for Aadhaar, PAN, income, employment, and CIBIL range before their profile reaches you. We filter by qualification standard — not by who responded fastest.</p>
-        </li>
-        <li>
-          <h3>Documentation</h3>
-          <p>Move-in condition report signed by the tenant on possession day. Tripartite leave-and-licence agreement executed digitally with eStamp. Move-in inventory record covering every item, key, and remote.</p>
-        </li>
-        <li>
-          <h3>Rent Flow</h3>
-          <p>Tenant pays Reeve directly. Your base rent is transferred to your account within 2 business days of collection. Automated escalation handles any late payment.</p>
-        </li>
-        <li>
-          <h3>Maintenance</h3>
-          <p>Tenant raises issues via maintenance portal. Reeve acknowledges within 4 hours. Minor items handled without your approval. Larger items need your sign-off within a defined window.</p>
-        </li>
-        <li>
-          <h3>Inspections</h3>
-          <p>Inspections at months 5–6 and 10–11 of the tenancy. Every room photographed against the Move In Condition Report. Findings shared with you in a condition update report.</p>
-        </li>
-        <li>
-          <h3>Exit</h3>
-          <p>Move-out inspection comparing exit photos against the signed Move In Condition Report. Reeve coordinates all repairs. Standard repainting and deep cleaning funded by Reeve at exit.</p>
-        </li>
-      </ol>
-    </section>
-    <section aria-label="FAQ">
-      <h2>Frequently asked questions</h2>
-      <dl>
-        <dt>What does Reeve charge property owners?</dt>
-        <dd>Nothing. Reeve charges property owners ₹0 — zero listing fee, zero commission, and zero monthly owner-side charge. The tenant pays a 7% Reeve Fee on top of the agreed base rent, so your rent is not reduced by Reeve's fee.</dd>
-        <dt>Do I still approve who moves into my property?</dt>
-        <dd>Yes. You receive a clean, verified tenant profile and you decide to accept, reject, or make one counter-offer. You never see raw documents or get direct calls from applicants.</dd>
-        <dt>Who pays for repainting and deep cleaning at exit?</dt>
-        <dd>Reeve bears the cost of standard deep cleaning and standard interior repainting at exit, subject to the service agreement terms.</dd>
-        <dt>When can I take my property back?</dt>
-        <dd>Give 2 months' written notice through Reeve and we manage the tenant's exit per the lease terms. There is no penalty after the minimum lock-in period has passed.</dd>
-      </dl>
-    </section>
-    <section aria-label="Owner CTA">
-      <h2>List your Bangalore property — free, forever</h2>
-      <a href="/my-properties/new">List Your Property</a>
       <a href="/contact">Contact Us</a>
     </section>
   </main>
@@ -486,7 +291,7 @@ const routes = [
     <a href="/">Reeve</a>
     <nav>
       <a href="/search">Search Properties</a>
-      <a href="/owners">For Owners</a>
+      <a href="/property-services-bangalore">Property Services</a>
       <a href="/contact">Contact</a>
     </nav>
   </header>
@@ -495,101 +300,6 @@ const routes = [
       <h1>Properties for Rent and Sale in India</h1>
       <p>Search rental and sale properties across India on Reeve. Filter by city, neighbourhood, BHK, furnishing, and budget to find the right home.</p>
       <p>Each listing includes transparent lister information and property details so you can make informed decisions.</p>
-    </section>
-  </main>
-</div>`,
-  },
-
-  // ── /savings/tenant ───────────────────────────────────────────────────────────
-  {
-    outFile: path.join(DIST, 'savings', 'tenant', 'index.html'),
-    title: 'Tenant Savings Calculator | Reeve — See How Much You Save vs a Broker',
-    description: 'Calculate how much you save renting through Reeve vs a traditional broker. 2-month deposit, 7% Reeve Fee. Most tenants save ₹1 lakh or more on day one.',
-    ogTitle: 'Tenant Savings Calculator | Reeve',
-    ogDescription: 'See exactly how much you save renting through Reeve vs a traditional broker. 2-month deposit, no hidden fees.',
-    canonical: BASE + '/savings/tenant',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'WebApplication',
-          '@id': WWW + '/savings/tenant#app',
-          name: 'Reeve Tenant Savings Calculator',
-          applicationCategory: 'FinanceApplication',
-          operatingSystem: 'All',
-          url: WWW + '/savings/tenant',
-          description: 'Calculate how much you save renting through Reeve vs a traditional broker in Bangalore. Compare brokerage, deposit, and monthly costs.',
-          provider: ORG_REF,
-          offers: {
-            '@type': 'Offer',
-            price: '0',
-            priceCurrency: 'INR',
-          },
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Tenant Savings Calculator', item: WWW + '/savings/tenant' },
-          ],
-        },
-        {
-          '@type': 'FAQPage',
-          mainEntity: [
-            {
-              '@type': 'Question',
-              name: 'How much does Reeve charge tenants?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Reeve charges a 7% Reeve Fee per month on the base rent during the first lease term, dropping to 4% from the second term onwards. There is no brokerage fee and the security deposit is capped at 2 months.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'How much do tenants save compared to a traditional broker?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'At ₹50,000/month rent, tenants save ₹50,000–₹1,00,000 in brokerage and ₹50,000 in deposit (2 months vs 3), for a total upfront saving of ₹1 lakh or more on day one.',
-              },
-            },
-          ],
-        },
-      ],
-    },
-    bodyHtml: `
-<div style="font-family:system-ui,sans-serif">
-  <header>
-    <a href="/">Reeve</a>
-    <nav>
-      <a href="/search">Search Properties</a>
-      <a href="/owners">For Owners</a>
-      <a href="/contact">Contact</a>
-    </nav>
-  </header>
-  <main>
-    <section aria-label="Tenant savings calculator">
-      <h1>How Much Do You Save Renting Through Reeve?</h1>
-      <p>Traditional brokers charge 1–2 months' rent as brokerage plus a 3-month deposit. Reeve charges a 7% Reeve Fee per month (dropping to 4% on renewal), and only a 2-month deposit.</p>
-      <h2>What Reeve charges tenants</h2>
-      <ul>
-        <li>Save 1–2 months' rent immediately</li>
-        <li>2-month deposit (not 3) — save 1 extra month upfront</li>
-        <li>7% Reeve Fee per month on base rent (4% from year 2)</li>
-        <li>No hidden fees</li>
-      </ul>
-      <h2>Example savings at ₹50,000/month rent</h2>
-      <table>
-        <thead>
-          <tr><th>Item</th><th>Traditional (broker)</th><th>Reeve</th><th>You save</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Brokerage</td><td>₹50,000–₹1,00,000</td><td>₹0</td><td>₹50,000–₹1,00,000</td></tr>
-          <tr><td>Security deposit</td><td>₹1,50,000 (3 months)</td><td>₹1,00,000 (2 months)</td><td>₹50,000</td></tr>
-          <tr><td>Reeve Fee (monthly)</td><td>—</td><td>₹3,500 (7% of rent)</td><td>—</td></tr>
-        </tbody>
-      </table>
-      <p>Use the interactive calculator on this page to enter your specific rent and see your personalised savings breakdown.</p>
-      <a href="/search">Find a Property</a>
     </section>
   </main>
 </div>`,
@@ -654,7 +364,7 @@ const routes = [
     <a href="/">Reeve</a>
     <nav>
       <a href="/search">Search Properties</a>
-      <a href="/owners">For Owners</a>
+      <a href="/property-services-bangalore">Property Services</a>
       <a href="/contact">Contact</a>
     </nav>
   </header>
@@ -689,105 +399,31 @@ const routes = [
 </div>`,
   },
 
-  // ── /move-in-audit ─────────────────────────────────────────────────────────
+  // ── /property-services-bangalore (Bangalore hub) ────────────────────────────
   {
-    outFile: path.join(DIST, 'move-in-audit', 'index.html'),
-    title: 'Move-in Audit — Rental Handover Documentation | Reeve',
-    description: 'Reeve documents the visible condition of your rented flat before possession — photos, videos, room-wise notes, and a neutral PDF report shared with all parties. Bengaluru rentals.',
-    ogTitle: 'Move-in Audit — Document Your Rental Before Possession',
-    ogDescription: 'A neutral handover record so deposit discussions are based on evidence, not memory. For tenants, owners, and brokers in Bengaluru.',
-    canonical: BASE + '/move-in-audit',
+    outFile: path.join(DIST, 'property-services-bangalore', 'index.html'),
+    title: 'Property Services in Bangalore | Reeve',
+    description: 'Reeve manages rented properties, looks after empty ones, and finds tenants in Bangalore. Ongoing services start at ₹2,000/month.',
+    ogTitle: 'Property Services in Bangalore | Reeve',
+    ogDescription: 'Property management, vacant property care, and tenant placement in Bangalore — one accountable Reeve contact, wherever you live.',
+    canonical: BASE + '/property-services-bangalore',
     jsonLd: {
       '@context': 'https://schema.org',
       '@graph': [
         {
           '@type': 'Service',
-          '@id': WWW + '/move-in-audit#service',
-          name: 'Reeve Move-in Audit',
-          serviceType: 'Rental Handover Documentation',
-          description: 'A neutral room-wise documentation of a rented flat\'s visible condition at handover, with photos, videos, and a PDF report shared with tenant and owner.',
+          '@id': WWW + '/property-services-bangalore#service',
+          name: 'Reeve Property Services in Bangalore',
+          serviceType: 'Property Services',
           provider: ORG_REF,
-          areaServed: AREA_SERVED,
-          offers: [
-            { '@type': 'Offer', name: '1 BHK Move-in Audit', price: '1199', priceCurrency: 'INR' },
-            { '@type': 'Offer', name: '2 BHK Move-in Audit', price: '2199', priceCurrency: 'INR' },
-            { '@type': 'Offer', name: '3 BHK+ Move-in Audit', price: '2999', priceCurrency: 'INR' },
-          ],
+          areaServed: BENGALURU_AREA,
+          description: 'Reeve manages rented properties, looks after empty ones, and finds tenants in Bangalore. Ongoing services start at ₹2,000/month.',
         },
         {
           '@type': 'BreadcrumbList',
           itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home',         item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Move-in Audit', item: WWW + '/move-in-audit' },
-          ],
-        },
-        {
-          '@type': 'FAQPage',
-          mainEntity: [
-            {
-              '@type': 'Question',
-              name: 'Is this a structural inspection?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'No. A Reeve Move-in Audit documents what is visibly observable during the handover visit. It does not cover hidden defects, structural integrity, electrical compliance, plumbing pressure, pest presence, or property valuation. It is a documentation service, not a technical inspection.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'Who should pay for it?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Anyone — the tenant, the owner, or the broker. Many tenants book it to protect their deposit. Some owners book it to have a clean record from day one. Brokers sometimes include it as part of a premium handover. The report remains neutral regardless of who pays.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'Will this guarantee my deposit is returned?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'No. A Move-in Audit creates a documented baseline — a neutral record of the property\'s condition on the day of possession. It does not guarantee any outcome. What it does is replace guesswork with evidence, so that any deposit discussion is based on a shared, dated record rather than conflicting memories.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'Do both owner and tenant get the report?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Yes. The same report is shared with both parties. Neither the owner nor the tenant receives a version that differs from the other.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'Can brokers book this for their clients?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Yes. Brokers can book a Move-in Audit for any rental handover they are facilitating. The booking process is the same — you select the BHK size, share the property address, and choose a date. An optional co-branded report mention is available for brokers who complete multiple handovers through Reeve.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'Do you inspect fully furnished homes?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Yes. Fully furnished homes are covered, with an additional fee of ₹500 to ₹750 depending on scope. This applies when the flat has extensive furniture, multiple appliances, or requires item-level documentation beyond standard scope.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'When should I book it?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Ideally, after the rental agreement is finalised but before physical possession is taken — specifically before keys are handed over, before the tenant moves furniture in, and before the first night in the flat. This ensures the condition is documented before the tenant occupies the space. A Move-in Audit can also be conducted at move-out to compare exit condition against the move-in baseline.',
-              },
-            },
-            {
-              '@type': 'Question',
-              name: 'What if the owner or tenant disagrees with an observation?',
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: 'Any party who disagrees with a specific observation in the report can raise it formally. The disagreement is recorded as a signed addendum attached to the original report. The original report is not changed — the addendum becomes part of the record alongside it.',
-              },
-            },
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
           ],
         },
       ],
@@ -798,69 +434,382 @@ const routes = [
     <a href="/">Reeve</a>
     <nav>
       <a href="/search">Search Properties</a>
-      <a href="/owners">For Owners</a>
+      <a href="/property-services-bangalore">Property Services</a>
       <a href="/contact">Contact</a>
     </nav>
   </header>
   <main>
-    <section aria-label="Move-in Audit hero">
-      <p>For tenants, owners, and brokers in Bengaluru</p>
-      <h1>Move in with clarity, not confusion.</h1>
-      <p>Reeve documents the visible condition of a rented flat before possession — room by room, with photos, videos, and a neutral PDF report shared with all parties.</p>
-      <a href="/contact?service=move-in-audit">Book a Move-in Audit</a>
-    </section>
-    <section aria-label="What we document">
-      <h2>What Reeve captures during a Move-in Audit</h2>
+    <section aria-label="Property services in Bangalore">
+      <h1>Property Services in Bangalore, wherever you are.</h1>
+      <p>We manage rented properties, look after empty ones, and find tenants. Ongoing services start at ₹2,000/month.</p>
+      <h2>Choose a service</h2>
       <ul>
-        <li>Room-wise condition — walls, flooring, ceiling, doors, windows, electrical, and plumbing</li>
-        <li>Photo and video evidence — captured during the visit and shared via a secure link</li>
-        <li>Keys and locks — number of keys, lock type, brand, and condition</li>
-        <li>Utilities and meters — electricity, water, gas consumer IDs and readings</li>
-        <li>Fixtures and fittings — light fixtures, fans, geysers, exhaust fans</li>
-        <li>Appliances and furniture — inventory with brand, model, condition, and ownership</li>
-        <li>Pre-existing damages — documented with location, type, and severity</li>
-        <li>PDF handover report — structured, branded, shared after the visit</li>
+        <li><a href="/property-management-bangalore">Reeve Managed — ongoing property management</a></li>
+        <li><a href="/vacant-property-care-bangalore">Reeve Watch — care for vacant properties</a></li>
+        <li><a href="/find-tenant-bangalore">Reeve Let — one-time tenant placement</a></li>
+        <li><a href="/khata-transfer-bangalore">Khata &amp; Mutation — property record transfers</a></li>
       </ul>
-    </section>
-    <section aria-label="Pricing">
-      <h2>Simple pricing. No hidden costs.</h2>
-      <ul>
-        <li>1 BHK: ₹1,199</li>
-        <li>2 BHK: ₹2,199</li>
-        <li>3 BHK+: ₹2,999</li>
-      </ul>
-      <p>Fully furnished or heavy inventory: +₹500 to ₹750 depending on scope.</p>
-      <p>Anyone can pay — tenant, owner, broker, or split between parties. The report remains neutral regardless of who pays.</p>
-    </section>
-    <section aria-label="Call to action">
-      <h2>Moving in soon? Document it before you take the keys.</h2>
-      <a href="/contact?service=move-in-audit">Book a Move-in Audit</a>
       <a href="/contact">Talk to Reeve</a>
-    </section>
-    <section aria-label="FAQ">
-      <h2>Common questions</h2>
-      <dl>
-        <dt>Is this a structural inspection?</dt>
-        <dd>No. A Reeve Move-in Audit documents what is visibly observable during the handover visit. It does not cover hidden defects, structural integrity, electrical compliance, plumbing pressure, pest presence, or property valuation. It is a documentation service, not a technical inspection.</dd>
-        <dt>Who should pay for it?</dt>
-        <dd>Anyone — the tenant, the owner, or the broker. Many tenants book it to protect their deposit. Some owners book it to have a clean record from day one. Brokers sometimes include it as part of a premium handover. The report remains neutral regardless of who pays.</dd>
-        <dt>Will this guarantee my deposit is returned?</dt>
-        <dd>No. A Move-in Audit creates a documented baseline — a neutral record of the property's condition on the day of possession. It does not guarantee any outcome. What it does is replace guesswork with evidence, so that any deposit discussion is based on a shared, dated record rather than conflicting memories.</dd>
-        <dt>Do both owner and tenant get the report?</dt>
-        <dd>Yes. The same report is shared with both parties. Neither the owner nor the tenant receives a version that differs from the other.</dd>
-        <dt>Can brokers book this for their clients?</dt>
-        <dd>Yes. Brokers can book a Move-in Audit for any rental handover they are facilitating. The booking process is the same — you select the BHK size, share the property address, and choose a date. An optional co-branded report mention is available for brokers who complete multiple handovers through Reeve.</dd>
-        <dt>Do you inspect fully furnished homes?</dt>
-        <dd>Yes. Fully furnished homes are covered, with an additional fee of ₹500 to ₹750 depending on scope. This applies when the flat has extensive furniture, multiple appliances, or requires item-level documentation beyond standard scope.</dd>
-        <dt>When should I book it?</dt>
-        <dd>Ideally, after the rental agreement is finalised but before physical possession is taken — specifically before keys are handed over, before the tenant moves furniture in, and before the first night in the flat. This ensures the condition is documented before the tenant occupies the space. A Move-in Audit can also be conducted at move-out to compare exit condition against the move-in baseline.</dd>
-        <dt>What if the owner or tenant disagrees with an observation?</dt>
-        <dd>Any party who disagrees with a specific observation in the report can raise it formally. The disagreement is recorded as a signed addendum attached to the original report. The original report is not changed — the addendum becomes part of the record alongside it.</dd>
-      </dl>
     </section>
   </main>
 </div>`,
   },
+
+  // ── /property-management-bangalore (Reeve Managed) ──────────────────────────
+  {
+    outFile: path.join(DIST, 'property-management-bangalore', 'index.html'),
+    title: 'Property Management in Bangalore | Reeve',
+    description: 'Reeve handles tenant communication, property visits, repairs and records in Bangalore — through one accountable Reeve contact, wherever you live.',
+    ogTitle: 'Property Management in Bangalore | Reeve',
+    ogDescription: 'Ongoing property management in Bangalore — tenant communication, visits, repairs and records through one accountable Reeve contact.',
+    canonical: BASE + '/property-management-bangalore',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Service',
+          '@id': WWW + '/property-management-bangalore#service',
+          name: 'Reeve Managed — Property Management in Bangalore',
+          serviceType: 'Property Management',
+          provider: ORG_REF,
+          areaServed: BENGALURU_AREA,
+          description: 'Reeve handles tenant communication, property visits, repairs and records in Bangalore through one accountable Reeve contact, wherever you live.',
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
+            { '@type': 'ListItem', position: 3, name: 'Property Management', item: WWW + '/property-management-bangalore' },
+          ],
+        },
+      ],
+    },
+    bodyHtml: `
+<div style="font-family:system-ui,sans-serif">
+  <header>
+    <a href="/">Reeve</a>
+    <nav>
+      <a href="/search">Search Properties</a>
+      <a href="/property-services-bangalore">Property Services</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section aria-label="Property management in Bangalore">
+      <h1>Property Management in Bangalore</h1>
+      <p>Reeve handles tenant communication, property visits, repairs and records — through one accountable Reeve contact, wherever you live.</p>
+      <p>See all <a href="/property-services-bangalore">Bangalore property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
+    </section>
+  </main>
+</div>`,
+  },
+
+  // ── /vacant-property-care-bangalore (Reeve Watch) ───────────────────────────
+  {
+    outFile: path.join(DIST, 'vacant-property-care-bangalore', 'index.html'),
+    title: 'Vacant Property Care in Bangalore | Reeve',
+    description: 'Reeve looks after empty homes in Bangalore — monthly visits, preventive checks, and coordination of anything that needs attention.',
+    ogTitle: 'Vacant Property Care in Bangalore | Reeve',
+    ogDescription: 'Care for vacant properties in Bangalore — monthly visits, preventive checks, and coordinated upkeep by Reeve.',
+    canonical: BASE + '/vacant-property-care-bangalore',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Service',
+          '@id': WWW + '/vacant-property-care-bangalore#service',
+          name: 'Reeve Watch — Vacant Property Care in Bangalore',
+          serviceType: 'Vacant Property Care',
+          provider: ORG_REF,
+          areaServed: BENGALURU_AREA,
+          description: 'Reeve looks after empty homes in Bangalore with monthly visits, preventive checks, and coordination of anything that needs attention.',
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
+            { '@type': 'ListItem', position: 3, name: 'Vacant Property Care', item: WWW + '/vacant-property-care-bangalore' },
+          ],
+        },
+      ],
+    },
+    bodyHtml: `
+<div style="font-family:system-ui,sans-serif">
+  <header>
+    <a href="/">Reeve</a>
+    <nav>
+      <a href="/search">Search Properties</a>
+      <a href="/property-services-bangalore">Property Services</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section aria-label="Vacant property care in Bangalore">
+      <h1>Vacant Property Care in Bangalore</h1>
+      <p>We visit every month, run preventive checks and coordinate anything that needs attention.</p>
+      <p>See all <a href="/property-services-bangalore">Bangalore property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
+    </section>
+  </main>
+</div>`,
+  },
+
+  // ── /find-tenant-bangalore (Reeve Let) ──────────────────────────────────────
+  {
+    outFile: path.join(DIST, 'find-tenant-bangalore', 'index.html'),
+    title: 'Find a Tenant in Bangalore | Reeve',
+    description: 'Reeve finds a tenant for your Bangalore property — professional listing, Reeve-conducted viewings, negotiation, agreement and documented handover, whether you are in Bangalore or abroad.',
+    ogTitle: 'Find a Tenant in Bangalore | Reeve',
+    ogDescription: 'One-time tenant placement in Bangalore — listing, viewings, negotiation, agreement and documented handover by Reeve.',
+    canonical: BASE + '/find-tenant-bangalore',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Service',
+          '@id': WWW + '/find-tenant-bangalore#service',
+          name: 'Reeve Let — Tenant Placement in Bangalore',
+          serviceType: 'Tenant Placement',
+          provider: ORG_REF,
+          areaServed: BENGALURU_AREA,
+          description: 'Reeve finds a tenant for your Bangalore property with professional listing, Reeve-conducted viewings, negotiation, agreement and documented handover.',
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
+            { '@type': 'ListItem', position: 3, name: 'Find a Tenant', item: WWW + '/find-tenant-bangalore' },
+          ],
+        },
+      ],
+    },
+    bodyHtml: `
+<div style="font-family:system-ui,sans-serif">
+  <header>
+    <a href="/">Reeve</a>
+    <nav>
+      <a href="/search">Search Properties</a>
+      <a href="/property-services-bangalore">Property Services</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section aria-label="Find a tenant in Bangalore">
+      <h1>Find a Tenant for Your Bangalore Property</h1>
+      <p>Professional listing, Reeve-conducted viewings, negotiation, agreement and documented handover — whether you're in Bangalore or abroad.</p>
+      <p>See all <a href="/property-services-bangalore">Bangalore property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
+    </section>
+  </main>
+</div>`,
+  },
+
+  // ── /khata-transfer-bangalore (Khata & Mutation) ────────────────────────────
+  {
+    outFile: path.join(DIST, 'khata-transfer-bangalore', 'index.html'),
+    title: 'Khata Transfer in Bangalore | Reeve',
+    description: 'Reeve helps with Khata transfer and mutation in Bangalore when the recorded owner is wrong, an application has come back, ownership changed through inheritance, or the property record cannot be matched cleanly.',
+    ogTitle: 'Khata Transfer in Bangalore | Reeve',
+    ogDescription: 'Khata transfer and property record corrections in Bangalore — Reeve helps when the recorded owner is wrong or the record cannot be matched cleanly.',
+    canonical: BASE + '/khata-transfer-bangalore',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Service',
+          '@id': WWW + '/khata-transfer-bangalore#service',
+          name: 'Khata Transfer & Mutation in Bangalore',
+          serviceType: 'Property Record Transfer',
+          provider: ORG_REF,
+          areaServed: BENGALURU_AREA,
+          description: 'Reeve helps with Khata transfer and mutation in Bangalore when the recorded owner is wrong, an application has come back, ownership changed through inheritance, or the property record cannot be found or matched cleanly.',
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
+            { '@type': 'ListItem', position: 3, name: 'Khata Transfer', item: WWW + '/khata-transfer-bangalore' },
+          ],
+        },
+      ],
+    },
+    bodyHtml: `
+<div style="font-family:system-ui,sans-serif">
+  <header>
+    <a href="/">Reeve</a>
+    <nav>
+      <a href="/search">Search Properties</a>
+      <a href="/property-services-bangalore">Property Services</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section aria-label="Khata transfer in Bangalore">
+      <h1>Khata Transfer in Bangalore</h1>
+      <p>When the property record doesn't match, the simple Khata process stops being simple.</p>
+      <p>Reeve helps when the recorded owner is wrong, an application has come back, ownership changed through inheritance, or the existing property record cannot be found or matched cleanly.</p>
+      <p>See all <a href="/property-services-bangalore">Bangalore property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
+    </section>
+  </main>
+</div>`,
+  },
+
+  // ── /nri-property-services-india (NRI hub) ──────────────────────────────────
+  {
+    outFile: path.join(DIST, 'nri-property-services-india', 'index.html'),
+    title: 'NRI Property Services in India | Reeve',
+    description: 'Reeve is one point of contact in India for your property — sale coordination, rent and TDS, documents and professionals — for NRIs, anywhere in India.',
+    ogTitle: 'NRI Property Services in India | Reeve',
+    ogDescription: 'One point of contact in India for your property — NRI property sale, rent and TDS, documents and coordination by Reeve.',
+    canonical: BASE + '/nri-property-services-india',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Service',
+          '@id': WWW + '/nri-property-services-india#service',
+          name: 'NRI Property Services in India',
+          serviceType: 'NRI Property Services',
+          provider: ORG_REF,
+          areaServed: INDIA_AREA,
+          description: 'Reeve is one point of contact in India for an NRI-owned property — sale coordination, rent and TDS, documents and professionals.',
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'NRI Property Services in India', item: WWW + '/nri-property-services-india' },
+          ],
+        },
+      ],
+    },
+    bodyHtml: `
+<div style="font-family:system-ui,sans-serif">
+  <header>
+    <a href="/">Reeve</a>
+    <nav>
+      <a href="/search">Search Properties</a>
+      <a href="/property-services-bangalore">Property Services</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section aria-label="NRI property services in India">
+      <h1>NRI Property Services in India</h1>
+      <p>One point of contact in India for your property.</p>
+      <h2>Choose a service</h2>
+      <ul>
+        <li><a href="/nri-property-sale-india">NRI Property Sale — documents, tax &amp; sale coordination</a></li>
+        <li><a href="/nri-rent-tds-india">NRI Rent &amp; TDS — withholding on Indian rent</a></li>
+      </ul>
+      <a href="/contact">Talk to Reeve</a>
+    </section>
+  </main>
+</div>`,
+  },
+
+  // ── /nri-property-sale-india ────────────────────────────────────────────────
+  {
+    outFile: path.join(DIST, 'nri-property-sale-india', 'index.html'),
+    title: 'NRI Property Sale in India | Reeve',
+    description: 'Sell your property in India, even when you live abroad. Reeve is one point of coordination for sale readiness, documents, professionals, buyers and execution.',
+    ogTitle: 'NRI Property Sale in India | Reeve',
+    ogDescription: 'One point of coordination for an NRI property sale in India — sale readiness, documents, professionals, buyers and execution.',
+    canonical: BASE + '/nri-property-sale-india',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Service',
+          '@id': WWW + '/nri-property-sale-india#service',
+          name: 'NRI Property Sale in India',
+          serviceType: 'NRI Property Sale Coordination',
+          provider: ORG_REF,
+          areaServed: INDIA_AREA,
+          description: 'Reeve coordinates an NRI property sale in India — sale readiness, documents, professionals, buyers and execution — as one point of contact.',
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'NRI Property Services in India', item: WWW + '/nri-property-services-india' },
+            { '@type': 'ListItem', position: 3, name: 'NRI Property Sale', item: WWW + '/nri-property-sale-india' },
+          ],
+        },
+      ],
+    },
+    bodyHtml: `
+<div style="font-family:system-ui,sans-serif">
+  <header>
+    <a href="/">Reeve</a>
+    <nav>
+      <a href="/search">Search Properties</a>
+      <a href="/property-services-bangalore">Property Services</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section aria-label="NRI property sale in India">
+      <h1>Sell your property in India, even when you live abroad.</h1>
+      <p>One point of coordination for sale readiness, documents, professionals, buyers and execution.</p>
+      <p>See all <a href="/nri-property-services-india">NRI property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
+    </section>
+  </main>
+</div>`,
+  },
+
+  // ── /nri-rent-tds-india ─────────────────────────────────────────────────────
+  {
+    outFile: path.join(DIST, 'nri-rent-tds-india', 'index.html'),
+    title: 'NRI Rent & TDS in India | Reeve',
+    description: 'Renting out property in India while living abroad? Reeve makes sure the rent, withholding (TDS) and records line up properly.',
+    ogTitle: 'NRI Rent & TDS in India | Reeve',
+    ogDescription: 'NRI rent and TDS in India — Reeve makes sure the rent, withholding and records line up properly.',
+    canonical: BASE + '/nri-rent-tds-india',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Service',
+          '@id': WWW + '/nri-rent-tds-india#service',
+          name: 'NRI Rent & TDS in India',
+          serviceType: 'NRI Rent & TDS Coordination',
+          provider: ORG_REF,
+          areaServed: INDIA_AREA,
+          description: 'Reeve helps NRIs renting out property in India make sure the rent, withholding (TDS) and records line up properly.',
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
+            { '@type': 'ListItem', position: 2, name: 'NRI Property Services in India', item: WWW + '/nri-property-services-india' },
+            { '@type': 'ListItem', position: 3, name: 'NRI Rent & TDS', item: WWW + '/nri-rent-tds-india' },
+          ],
+        },
+      ],
+    },
+    bodyHtml: `
+<div style="font-family:system-ui,sans-serif">
+  <header>
+    <a href="/">Reeve</a>
+    <nav>
+      <a href="/search">Search Properties</a>
+      <a href="/property-services-bangalore">Property Services</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </header>
+  <main>
+    <section aria-label="NRI rent and TDS in India">
+      <h1>NRI Rent &amp; TDS in India</h1>
+      <p>Renting out property in India while living abroad? Make sure the rent, withholding and records line up properly.</p>
+      <p>See all <a href="/nri-property-services-india">NRI property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
+    </section>
+  </main>
+</div>`,
+  },
+
 ];
 
 // ── Write all routes ───────────────────────────────────────────────────────────

@@ -107,4 +107,4 @@ User-agent: *
 Allow: /
 
 # Sitemaps
-Sitemap: https://reeve.in/sitemap.xml
+Sitemap: https://www.reeve.in/sitemap.xml
