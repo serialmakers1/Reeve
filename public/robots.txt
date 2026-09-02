@@ -108,3 +108,4 @@ Allow: /
 
 # Sitemaps
 Sitemap: https://www.reeve.in/sitemap.xml
+Sitemap: https://www.reeve.in/sitemap-properties.xml

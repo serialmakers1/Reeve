@@ -19,6 +19,8 @@
     { "source": "/move-in-audit", "destination": "/", "statusCode": 301 }
   ],
   "rewrites": [
+    { "source": "/property/:id", "destination": "/api/property" },
+    { "source": "/sitemap-properties.xml", "destination": "/api/sitemap-properties" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
