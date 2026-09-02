@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Suspense } from "react";
 const CommentSection = React.lazy(() => import("@/components/comments/CommentSection"));
 import PublicTimeline, { type PublicTimelineRow } from "@/components/property-detail/PublicTimeline";
 import { formatBuildingLine } from "@/lib/location/formatBuildingLine";
@@ -15,6 +15,7 @@ import PriceAndTerms from "@/components/property-detail/PriceAndTerms";
 import { LISTER_ROLE_BADGE } from "@/components/property-detail/listerRoleBadge";
 import ClampedText from "@/components/property-detail/ClampedText";
 import { useOwnerCard } from "@/hooks/useOwnerCard";
+import { restorePdpBaseHead } from "@/lib/seo/pdpHeadCleanup";
 import PageSection from "@/components/property-detail/PageSection";
 import NoSurprisesCard from "@/components/property-detail/NoSurprisesCard";
 import AtAGlance from "@/components/property-detail/AtAGlance";
@@ -406,6 +407,12 @@ const PropertyDetail: React.FC = () => {
   // B3: view tracking — fires once per propertyId, RPC handles owner exclusion + dedup.
   useTrackPropertyView(property?.id, property?.owner_id);
 
+  // Group 2 SEO — on leaving a direct edge-rendered PDP, restore the original homepage
+  // head and remove the edge-injected property tags. Layout-effect cleanup runs before
+  // useSearchMeta's passive effect on the next route (no property-metadata leak). No-op
+  // for client-entered PDPs. See src/lib/seo/pdpHeadCleanup.ts.
+  useLayoutEffect(() => restorePdpBaseHead, []);
+
   // Fetch property + images
   useEffect(() => {
     if (!id) return;
@@ -533,10 +540,10 @@ const PropertyDetail: React.FC = () => {
   };
 
   // P4: Web Share (native sheet) with clipboard fallback. Canonical URL always
-  // https://reeve.in — never window.location.href (would leak localhost in dev).
+  // https://www.reeve.in — never window.location.href (would leak localhost in dev).
   const handleShare = useCallback(async () => {
     if (!property) return;
-    const shareUrl = `https://reeve.in/property/${property.id}`;
+    const shareUrl = `https://www.reeve.in/property/${property.id}`;
     const bhk = formatEnumLabel("bhk", property.bhk);
     const priceBit = property.listing_type === "sale"
       ? (typeof property.sale_price === "number" ? ` — ₹${property.sale_price.toLocaleString("en-IN")}` : "")
