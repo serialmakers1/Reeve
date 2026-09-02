@@ -133,17 +133,6 @@ function writeRoute(outPath, html) {
 const BASE = 'https://www.reeve.in';
 const WWW  = BASE;
 
-const BENGALURU_PARENT = {
-  '@type': 'City',
-  name: 'Bengaluru',
-  containedInPlace: { '@type': 'AdministrativeArea', name: 'Karnataka' },
-};
-
-const AREA_SERVED = [
-  'HSR Layout', 'Koramangala', 'BTM Layout', 'Indiranagar',
-  'Whitefield', 'Marathahalli', 'Bellandur', 'Sarjapur Road', 'Electronic City',
-].map(name => ({ '@type': 'City', name, containedInPlace: BENGALURU_PARENT }));
-
 const ORG_REF = {
   '@type': 'Organization',
   name: 'Reeve',
@@ -173,7 +162,7 @@ const routes = [
       '@context': 'https://schema.org',
       '@graph': [
         {
-          '@type': ['Organization', 'LocalBusiness', 'RealEstateAgent'],
+          '@type': 'Organization',
           '@id': WWW + '/#organization',
           name: 'Reeve',
           legalName: 'Serial Makers Private Limited',
@@ -188,8 +177,7 @@ const routes = [
             postalCode: '560102',
             addressCountry: 'IN',
           },
-          areaServed: AREA_SERVED,
-          priceRange: '₹0 for owners',
+          areaServed: INDIA_AREA,
           image: WWW + '/icon-192.png',
           sameAs: [
             'https://www.linkedin.com/company/reeve-pm/',
@@ -209,14 +197,6 @@ const routes = [
               jobTitle: 'Co-founder',
               sameAs: 'https://www.linkedin.com/in/dakshjain127/',
               worksFor: { '@id': WWW + '/#organization' },
-            },
-          ],
-          openingHoursSpecification: [
-            {
-              '@type': 'OpeningHoursSpecification',
-              dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-              opens: '09:00',
-              closes: '19:00',
             },
           ],
         },
@@ -246,15 +226,15 @@ const routes = [
     </section>
     <section aria-label="See What's Behind the Listing">
       <h2>See What's Behind the Listing</h2>
-      <p>Every listing shows lister details, response rate, and verified terms before you reach out.</p>
+      <p>Every listing shows lister details, responsiveness, and key property terms before you reach out.</p>
     </section>
     <section aria-label="Contact Without Losing Control">
       <h2>Contact Without Losing Control</h2>
-      <p>Send a contact request on your terms. No cold calls, no broker middlemen.</p>
+      <p>Send a contact request privately. Your contact details stay hidden until the lister approves, then you connect directly.</p>
     </section>
     <section aria-label="Different by Design">
       <h2>Different by Design</h2>
-      <p>Built for transparency — zero brokerage, 2-month deposit, platform-managed.</p>
+      <p>Built for transparency — explore property details and connect directly with listers.</p>
     </section>
     <section aria-label="Compact Closing Action">
       <h2>Ready to find your next home?</h2>
@@ -308,16 +288,16 @@ const routes = [
   // ── /contact ──────────────────────────────────────────────────────────────────
   {
     outFile: path.join(DIST, 'contact', 'index.html'),
-    title: 'Contact Reeve | Bangalore Rental Platform',
-    description: "Get in touch with Reeve — Bangalore's fully managed rental platform. Call, WhatsApp, or email us. We're a small team and we read every message.",
-    ogTitle: 'Contact Reeve | Bangalore Rental Platform',
+    title: 'Contact Reeve | Marketplace & Property Services',
+    description: 'Contact Reeve about the property marketplace, Property Services in Bangalore, or NRI property coordination across India.',
+    ogTitle: 'Contact Reeve | Marketplace & Property Services',
     ogDescription: "Get in touch with Reeve. Call, WhatsApp, or email — we're a small team and we read every message.",
     canonical: BASE + '/contact',
     jsonLd: {
       '@context': 'https://schema.org',
       '@graph': [
         {
-          '@type': 'LocalBusiness',
+          '@type': 'Organization',
           '@id': WWW + '/#organization',
           name: 'Reeve',
           legalName: 'Serial Makers Private Limited',
@@ -333,7 +313,7 @@ const routes = [
             postalCode: '560102',
             addressCountry: 'IN',
           },
-          areaServed: AREA_SERVED,
+          areaServed: INDIA_AREA,
           contactPoint: [
             {
               '@type': 'ContactPoint',
@@ -385,7 +365,7 @@ const routes = [
         </li>
         <li>
           <h2>Email</h2>
-          <p><a href="mailto:hello@reeve.in">hello@reeve.in</a></p>
+          <p><a href="mailto:support@reeve.in">support@reeve.in</a></p>
           <p>We aim to reply within one business day.</p>
         </li>
         <li>
