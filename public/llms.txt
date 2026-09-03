@@ -1,9 +1,13 @@
 # Reeve
 
-Reeve is a property marketplace and property-services business in India,
-operated by Serial Makers Private Limited, HSR Layout, Bengaluru. Reeve
-connects sellers with buyers and owners with tenants, and offers a family
-of property services in Bangalore and NRI-focused services across India.
+Reeve is a transparent property marketplace for India and a provider of
+professional Property Management and Property Services in Bangalore. Users
+can browse properties, while owners, brokers, builders and property managers
+can list properties with their role shown on each listing. Core marketplace
+access is free, users can browse without an account, Reeve's organic
+marketplace results aren't for sale, and Reeve does not sell enquiries.
+Reeve also provides NRI property coordination across India. Operated by
+Serial Makers Private Limited, Bengaluru.
 
 ## Core pages
 
@@ -34,7 +38,7 @@ of property services in Bangalore and NRI-focused services across India.
 
 - Email: support@reeve.in
 - Phone: +91 78998 74281
-- Address: Shubh Encl, HSR Layout, Bengaluru - 560102, Karnataka, India
+- Address: Bengaluru, Karnataka, India
 - CIN: U62099KA2026PTC216343
 - LinkedIn: https://www.linkedin.com/company/reeve-pm/
 - X: https://x.com/reeve_pm

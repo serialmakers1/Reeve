@@ -10,18 +10,26 @@
  *      and inject static body HTML.
  *   3. Write the result to dist/{route}/index.html.
  *
- * Vercel serves static files before applying rewrites, so:
- *   - dist/property-management-bangalore/index.html → served for /property-management-bangalore (pre-rendered, crawlable)
- *   - dist/index.html         → patched in-place for /
- *   - All auth routes         → no static file → catch-all rewrite → CSR as before
- *
  * React uses createRoot (not hydrateRoot), so it replaces static HTML on mount.
  * No hydration mismatch issues.
  *
- * JSON-LD notes:
- *   - Schema is injected here at build time, NOT in React components.
- *   - aggregateRating must not be added until 5+ Google reviews exist.
+ * Schema architecture:
+ *   - One shared Reeve Organization entity (@id .../#organization) is emitted on
+ *     every prerendered page, alongside a shared WebSite node. A per-page WebPage
+ *     node carries the build-time dateModified (freshness routes only). A single
+ *     shared LocalBusiness (@id .../#local-business) appears on the homepage and
+ *     the five Bangalore service pages. Service/FAQPage/BreadcrumbList nodes are
+ *     appended per route.
+ *   - Do not add self-serving review/aggregateRating markup to Reeve's
+ *     Organization or LocalBusiness schema.
  *   - safeJsonLd() Unicode-escapes <, >, & so the JSON is safe inside <script> tags.
+ *
+ * Build-time freshness:
+ *   - The current IST (Asia/Kolkata) build date is computed once and applied as a
+ *     crawler-only "Last updated" line inside #root (replaced by React on mount)
+ *     and as WebPage.dateModified. Applies to the homepage + 8 service pages;
+ *     /search and /contact are excluded (freshness:false). The date advances on
+ *     every production build/redeploy — no scheduler.
  */
 
 import fs from 'fs';
@@ -62,18 +70,191 @@ function safeJsonLd(obj) {
     .replace(/&/g, '\\u0026');
 }
 
+// ── Build-time date (IST / Asia/Kolkata) ───────────────────────────────────────
+// Computed once per build. ISO date is assembled from explicit parts (never from
+// a locale's display formatting) so it is always a valid YYYY-MM-DD.
+const NOW = new Date();
+const IST_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+}).formatToParts(NOW).reduce((o, x) => (o[x.type] = x.value, o), {});
+const LAST_UPDATED_ISO   = `${IST_PARTS.year}-${IST_PARTS.month}-${IST_PARTS.day}`; // e.g. "2026-09-07"
+const LAST_UPDATED_HUMAN = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric',
+}).format(NOW); // e.g. "7 September 2026"
+
+// ── Shared data ─────────────────────────────────────────────────────────────
+
+// Canonical host is www. Single source of truth.
+const BASE = 'https://www.reeve.in';
+const WWW  = BASE;
+
+const ORG_ID  = WWW + '/#organization';
+const SITE_ID = WWW + '/#website';
+const LB_ID   = WWW + '/#local-business';
+
+const ORG_REF = { '@id': ORG_ID };
+const LB_REF  = { '@id': LB_ID };
+
+// areaServed values, matched to each page's actual geography.
+const BENGALURU_AREA = {
+  '@type': 'City',
+  name: 'Bengaluru',
+  containedInPlace: { '@type': 'AdministrativeArea', name: 'Karnataka' },
+};
+const INDIA_AREA = { '@type': 'Country', name: 'India' };
+
+const ORG_DESCRIPTION =
+  "Reeve is a transparent property marketplace for India and a provider of professional Property Management and Property Services in Bangalore. Users can browse properties, while owners, brokers, builders and property managers can list properties with their role shown on each listing. Core marketplace access is free, users can browse without an account, Reeve's organic marketplace results aren't for sale, and Reeve does not sell enquiries. Reeve also provides NRI property coordination across India.";
+
+const LB_DESCRIPTION =
+  'Reeve combines its India-wide transparent property marketplace for browsing and listing properties with professional Property Management and Property Services in Bangalore, including vacant property care, tenant placement, Khata and mutation support, and related property services in Bengaluru.';
+
+// ── Shared schema nodes ─────────────────────────────────────────────────────
+
+// One canonical Organization entity, emitted verbatim on every prerendered page.
+const ORGANIZATION = {
+  '@type': 'Organization',
+  '@id': ORG_ID,
+  name: 'Reeve',
+  legalName: 'Serial Makers Private Limited',
+  url: WWW,
+  description: ORG_DESCRIPTION,
+  telephone: '+917899874281',
+  email: 'support@reeve.in',
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: 'Bengaluru',
+    addressRegion: 'Karnataka',
+    addressCountry: 'IN',
+  },
+  areaServed: INDIA_AREA,
+  image: WWW + '/icon-192.png',
+  sameAs: [
+    'https://www.linkedin.com/company/reeve-pm/',
+    'https://x.com/reeve_pm',
+  ],
+  contactPoint: [
+    {
+      '@type': 'ContactPoint',
+      telephone: '+917899874281',
+      contactType: 'customer service',
+      availableLanguage: ['English', 'Hindi', 'Kannada'],
+      hoursAvailable: {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        opens: '09:00',
+        closes: '19:00',
+      },
+    },
+  ],
+  founder: [
+    {
+      '@type': 'Person',
+      name: 'Lohit Agarwal',
+      jobTitle: 'Co-founder',
+      sameAs: 'https://www.linkedin.com/in/lohit24a/',
+      worksFor: ORG_REF,
+    },
+    {
+      '@type': 'Person',
+      name: 'Daksh Jain',
+      jobTitle: 'Co-founder',
+      sameAs: 'https://www.linkedin.com/in/dakshjain127/',
+      worksFor: ORG_REF,
+    },
+  ],
+};
+
+const WEBSITE = {
+  '@type': 'WebSite',
+  '@id': SITE_ID,
+  name: 'Reeve',
+  url: WWW,
+};
+
+// One shared LocalBusiness (same Reeve entity), Bangalore-scoped. No storefront /
+// opening-hours / hasMap signals; no priceRange; no street address.
+const LOCAL_BUSINESS = {
+  '@type': 'LocalBusiness',
+  '@id': LB_ID,
+  name: 'Reeve',
+  url: WWW + '/property-services-bangalore',
+  parentOrganization: ORG_REF,
+  telephone: '+917899874281',
+  email: 'support@reeve.in',
+  areaServed: BENGALURU_AREA,
+  description: LB_DESCRIPTION,
+};
+
+// ── Node builders ───────────────────────────────────────────────────────────
+
+function webPageNode(canonical, name, freshness) {
+  const node = {
+    '@type': 'WebPage',
+    '@id': canonical + '#webpage',
+    url: canonical,
+    name,
+    isPartOf: { '@id': SITE_ID },
+    about: ORG_REF,
+  };
+  if (freshness) node.dateModified = LAST_UPDATED_ISO;
+  return node;
+}
+
+function breadcrumbNode(items) {
+  return {
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: it.name,
+      item: it.item,
+    })),
+  };
+}
+
+function faqNode(canonical, faqs) {
+  return {
+    '@type': 'FAQPage',
+    '@id': canonical + '#faq',
+    mainEntity: faqs.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  };
+}
+
+/**
+ * Assemble the full @graph for a route:
+ *   [Organization, WebSite, WebPage, (LocalBusiness), (Service), (FAQPage), (BreadcrumbList)]
+ */
+function buildGraph(route) {
+  const graph = [
+    ORGANIZATION,
+    WEBSITE,
+    webPageNode(route.canonical, route.title, route.freshness),
+  ];
+  if (route.localBusiness) graph.push(LOCAL_BUSINESS);
+  if (route.service) graph.push(route.service);
+  if (route.faqs && route.faqs.length) graph.push(faqNode(route.canonical, route.faqs));
+  if (route.breadcrumb) graph.push(breadcrumbNode(route.breadcrumb));
+  return { '@context': 'https://schema.org', '@graph': graph };
+}
+
+/** Render a route's FAQ Q&A into prerender body HTML (visible content matches FAQPage schema). */
+function faqBodyHtml(faqs) {
+  const items = faqs
+    .map((f) => `      <div>\n        <h3>${esc(f.q)}</h3>\n        <p>${esc(f.a)}</p>\n      </div>`)
+    .join('\n');
+  return `\n<section aria-label="Frequently asked questions">\n  <h2>Frequently asked questions</h2>\n${items}\n</section>`;
+}
+
 /**
  * Build a complete HTML page by patching the Vite-built shell.
- * @param {object} opts
- * @param {string} opts.title         <title> content
- * @param {string} opts.description   <meta name="description">
- * @param {string} opts.ogTitle       og:title
- * @param {string} opts.ogDescription og:description
- * @param {string} opts.canonical     canonical URL
- * @param {string} opts.bodyHtml      HTML to inject inside <div id="root">
- * @param {object} [opts.jsonLd]      JSON-LD schema object (injected before </head>)
  */
-function buildPage({ title, description, ogTitle, ogDescription, canonical, bodyHtml, jsonLd }) {
+function buildPage(route) {
+  const { title, description, ogTitle, ogDescription, canonical, bodyHtml, freshness, faqs } = route;
   let html = shell;
 
   // <title>
@@ -105,18 +286,19 @@ function buildPage({ title, description, ogTitle, ogDescription, canonical, body
     );
   }
 
-  // JSON-LD schema — injected just before </head> so it never conflicts
-  // with existing <meta> or <title> tags already written above.
-  if (jsonLd) {
-    const scriptBlock = `\n  <script type="application/ld+json">\n${safeJsonLd(jsonLd)}\n  </script>`;
-    html = html.replace('</head>', `${scriptBlock}\n</head>`);
-  }
+  // JSON-LD schema — injected just before </head>.
+  const jsonLd = buildGraph(route);
+  const scriptBlock = `\n  <script type="application/ld+json">\n${safeJsonLd(jsonLd)}\n  </script>`;
+  html = html.replace('</head>', `${scriptBlock}\n</head>`);
 
-  // inject pre-rendered body into #root
-  html = html.replace(
-    '<div id="root"></div>',
-    `<div id="root">${bodyHtml}</div>`
-  );
+  // Body content: base body + optional FAQ Q&A + optional crawler-only freshness line.
+  // Everything lives inside #root, so React's createRoot() replaces it on mount.
+  let inner = bodyHtml;
+  if (faqs && faqs.length) inner += faqBodyHtml(faqs);
+  if (freshness) {
+    inner += `\n  <p data-prerender-freshness>Last updated: ${esc(LAST_UPDATED_HUMAN)}</p>`;
+  }
+  html = html.replace('<div id="root"></div>', `<div id="root">${inner}</div>`);
 
   return html;
 }
@@ -126,88 +308,21 @@ function writeRoute(outPath, html) {
   fs.writeFileSync(outPath, html, 'utf-8');
 }
 
-// ── Shared data ───────────────────────────────────────────────────────────────
-
-// Canonical host is www. Single source of truth; WWW kept as an alias so existing
-// schema references (url/@id/breadcrumb item) resolve to the same canonical host.
-const BASE = 'https://www.reeve.in';
-const WWW  = BASE;
-
-const ORG_REF = {
-  '@type': 'Organization',
-  name: 'Reeve',
-  url: WWW,
-};
-
-// areaServed values, matched to each page's actual geography.
-const BENGALURU_AREA = {
-  '@type': 'City',
-  name: 'Bengaluru',
-  containedInPlace: { '@type': 'AdministrativeArea', name: 'Karnataka' },
-};
-const INDIA_AREA = { '@type': 'Country', name: 'India' };
-
 // ── Route definitions ─────────────────────────────────────────────────────────
 
 const routes = [
   // ── / (homepage) — patched in-place ────────────────────────────────────────
   {
     outFile: path.join(DIST, 'index.html'),
-    title: 'Reeve — See More Before You Contact',
-    description: 'Reeve is a transparent property marketplace. See lister info, responsiveness, terms, and history before you make contact.',
-    ogTitle: 'Reeve — See More Before You Contact',
-    ogDescription: 'Reeve is a transparent property marketplace. See lister info, responsiveness, terms, and history before you make contact.',
+    title: 'Reeve | Property Marketplace India & Property Services Bangalore',
+    description: 'Browse and list properties on Reeve, a transparent property marketplace for India. Core marketplace access is free, with Property Management and Property Services in Bangalore.',
+    ogTitle: 'Reeve | Property Marketplace India & Property Services Bangalore',
+    ogDescription: 'Browse and list properties on Reeve, a transparent property marketplace for India. Core marketplace access is free, with Property Management and Property Services in Bangalore.',
     canonical: BASE + '/',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Organization',
-          '@id': WWW + '/#organization',
-          name: 'Reeve',
-          legalName: 'Serial Makers Private Limited',
-          url: WWW,
-          telephone: '+917899874281',
-          email: 'support@reeve.in',
-          address: {
-            '@type': 'PostalAddress',
-            streetAddress: 'Shubh Encl, HSR Layout',
-            addressLocality: 'Bengaluru',
-            addressRegion: 'Karnataka',
-            postalCode: '560102',
-            addressCountry: 'IN',
-          },
-          areaServed: INDIA_AREA,
-          image: WWW + '/icon-192.png',
-          sameAs: [
-            'https://www.linkedin.com/company/reeve-pm/',
-            'https://x.com/reeve_pm',
-          ],
-          founder: [
-            {
-              '@type': 'Person',
-              name: 'Lohit Agarwal',
-              jobTitle: 'Co-founder',
-              sameAs: 'https://www.linkedin.com/in/lohit24a/',
-              worksFor: { '@id': WWW + '/#organization' },
-            },
-            {
-              '@type': 'Person',
-              name: 'Daksh Jain',
-              jobTitle: 'Co-founder',
-              sameAs: 'https://www.linkedin.com/in/dakshjain127/',
-              worksFor: { '@id': WWW + '/#organization' },
-            },
-          ],
-        },
-        {
-          '@type': 'WebSite',
-          '@id': WWW + '/#website',
-          name: 'Reeve',
-          url: WWW,
-        },
-      ],
-    },
+    freshness: true,
+    localBusiness: true,
+    // No BreadcrumbList on the homepage: Google requires ≥2 ListItems, and there
+    // is no genuine hierarchy above Home.
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -262,18 +377,11 @@ const routes = [
     ogTitle: 'Properties for Rent and Sale in India | Reeve',
     ogDescription: 'Find rental and sale properties across India on Reeve. Search by city, neighbourhood, BHK, and budget.',
     canonical: BASE + '/search',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Search Properties', item: WWW + '/search' },
-          ],
-        },
-      ],
-    },
+    freshness: false,
+    breadcrumb: [
+      { name: 'Home', item: WWW + '/' },
+      { name: 'Search Properties', item: WWW + '/search' },
+    ],
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -302,51 +410,11 @@ const routes = [
     ogTitle: 'Contact Reeve | Marketplace & Property Services',
     ogDescription: "Get in touch with Reeve. Call, WhatsApp, or email — we're a small team and we read every message.",
     canonical: BASE + '/contact',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Organization',
-          '@id': WWW + '/#organization',
-          name: 'Reeve',
-          legalName: 'Serial Makers Private Limited',
-          url: WWW,
-          image: WWW + '/icon-192.png',
-          telephone: '+917899874281',
-          email: 'support@reeve.in',
-          address: {
-            '@type': 'PostalAddress',
-            streetAddress: 'Shubh Encl, HSR Layout',
-            addressLocality: 'Bengaluru',
-            addressRegion: 'Karnataka',
-            postalCode: '560102',
-            addressCountry: 'IN',
-          },
-          areaServed: INDIA_AREA,
-          contactPoint: [
-            {
-              '@type': 'ContactPoint',
-              telephone: '+917899874281',
-              contactType: 'customer service',
-              availableLanguage: ['English', 'Hindi', 'Kannada'],
-              hoursAvailable: {
-                '@type': 'OpeningHoursSpecification',
-                dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-                opens: '09:00',
-                closes: '19:00',
-              },
-            },
-          ],
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Contact', item: WWW + '/contact' },
-          ],
-        },
-      ],
-    },
+    freshness: false,
+    breadcrumb: [
+      { name: 'Home', item: WWW + '/' },
+      { name: 'Contact', item: WWW + '/contact' },
+    ],
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -396,27 +464,39 @@ const routes = [
     ogTitle: 'Property Services in Bangalore | Reeve',
     ogDescription: 'Property management, vacant property care, and tenant placement in Bangalore — one accountable Reeve contact, wherever you live.',
     canonical: BASE + '/property-services-bangalore',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Service',
-          '@id': WWW + '/property-services-bangalore#service',
-          name: 'Reeve Property Services in Bangalore',
-          serviceType: 'Property Services',
-          provider: ORG_REF,
-          areaServed: BENGALURU_AREA,
-          description: 'Reeve manages rented properties, looks after empty ones, and finds tenants in Bangalore. Ongoing services start at ₹2,000/month.',
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
-          ],
-        },
-      ],
+    freshness: true,
+    localBusiness: true,
+    service: {
+      '@type': 'Service',
+      '@id': WWW + '/property-services-bangalore#service',
+      name: 'Reeve Property Services in Bangalore',
+      serviceType: 'Property Services',
+      provider: LB_REF,
+      areaServed: BENGALURU_AREA,
+      description: 'Reeve manages rented properties, looks after empty ones, and finds tenants in Bangalore. Ongoing services start at ₹2,000/month.',
     },
+    breadcrumb: [
+      { name: 'Home', item: WWW + '/' },
+      { name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
+    ],
+    faqs: [
+      {
+        q: 'How long am I committing for?',
+        a: 'Property Management: 3-month minimum. Vacant Property Care: 6-month minimum. Find a Tenant: one-time service.',
+      },
+      {
+        q: 'Can I switch services later?',
+        a: "Yes. As your property’s situation changes, you can move to the Reeve service that fits it. We’ll help you work out the right next step.",
+      },
+      {
+        q: 'Do you serve my area?',
+        a: "Reeve serves most areas across Bangalore. We’ll confirm coverage based on your exact property location.",
+      },
+      {
+        q: 'What happens after I enquire?',
+        a: "We’ll review your property and location and get back to you within a day. For Property Management and Vacant Property Care, the next step can include a free property assessment before you commit.",
+      },
+    ],
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -452,28 +532,48 @@ const routes = [
     ogTitle: 'Property Management in Bangalore | Reeve',
     ogDescription: 'Ongoing property management in Bangalore — tenant communication, visits, repairs and records through one accountable Reeve contact.',
     canonical: BASE + '/property-management-bangalore',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Service',
-          '@id': WWW + '/property-management-bangalore#service',
-          name: 'Reeve Managed — Property Management in Bangalore',
-          serviceType: 'Property Management',
-          provider: ORG_REF,
-          areaServed: BENGALURU_AREA,
-          description: 'Reeve handles tenant communication, property visits, repairs and records in Bangalore through one accountable Reeve contact, wherever you live.',
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
-            { '@type': 'ListItem', position: 3, name: 'Property Management', item: WWW + '/property-management-bangalore' },
-          ],
-        },
-      ],
+    freshness: true,
+    localBusiness: true,
+    service: {
+      '@type': 'Service',
+      '@id': WWW + '/property-management-bangalore#service',
+      name: 'Reeve Managed — Property Management in Bangalore',
+      serviceType: 'Property Management',
+      provider: LB_REF,
+      areaServed: BENGALURU_AREA,
+      description: 'Reeve handles tenant communication, property visits, repairs and records in Bangalore through one accountable Reeve contact, wherever you live.',
     },
+    breadcrumb: [
+      { name: 'Home', item: WWW + '/' },
+      { name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
+      { name: 'Property Management', item: WWW + '/property-management-bangalore' },
+    ],
+    faqs: [
+      {
+        q: 'What happens when my tenant moves out?',
+        a: 'When the tenant returns the keys and the property becomes physically vacant, Reeve Managed moves to the applicable empty-property rate from that point. Management continues without needing a new management contract. If the owner wants another tenant, Reeve can also begin tenant finding.',
+      },
+      {
+        q: 'How often will Reeve visit my property?',
+        a: 'Reeve Managed includes four scheduled property inspections each year, plus two additional on-request inspections. Move-in and move-out condition records are handled when relevant, and repair/maintenance visits are coordinated as needed.',
+      },
+      {
+        q: "What happens if a repair needs my approval and I don’t respond?",
+        a: "Work above the owner’s approval threshold waits for written approval. The default threshold is ₹3,000, and a different threshold can be agreed during onboarding. Vendor costs are passed through at actuals with zero Reeve markup.",
+      },
+      {
+        q: 'Do you hold my rent or security deposit?',
+        a: 'No. Rent and security deposit move directly between the tenant and owner. Reeve can confirm receipt status and follow up where needed, but does not take custody of the money.',
+      },
+      {
+        q: 'Can Reeve find my next tenant?',
+        a: "Yes. Tenant finding for Reeve Managed clients costs ₹15,000, with ₹0 upfront. The fee is charged when the tenant’s token advance reaches the owner. Unlimited viewings are included, and same-tenant renewal is free.",
+      },
+      {
+        q: "I don’t live in Bangalore. How does Reeve Managed work for me?",
+        a: 'You do not need to be in Bangalore for day-to-day management. Reeve handles local property visits, tenant communication and repair coordination. Owner decisions and written approvals can happen remotely, property records are available remotely, and you have one Reeve point of contact.',
+      },
+    ],
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -511,28 +611,48 @@ const routes = [
     ogTitle: 'Vacant Property Care in Bangalore | Reeve',
     ogDescription: 'Care for vacant properties in Bangalore — monthly visits, preventive checks, and coordinated upkeep by Reeve.',
     canonical: BASE + '/vacant-property-care-bangalore',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Service',
-          '@id': WWW + '/vacant-property-care-bangalore#service',
-          name: 'Reeve Watch — Vacant Property Care in Bangalore',
-          serviceType: 'Vacant Property Care',
-          provider: ORG_REF,
-          areaServed: BENGALURU_AREA,
-          description: 'Reeve looks after empty homes in Bangalore with monthly visits, preventive checks, and coordination of anything that needs attention.',
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
-            { '@type': 'ListItem', position: 3, name: 'Vacant Property Care', item: WWW + '/vacant-property-care-bangalore' },
-          ],
-        },
-      ],
+    freshness: true,
+    localBusiness: true,
+    service: {
+      '@type': 'Service',
+      '@id': WWW + '/vacant-property-care-bangalore#service',
+      name: 'Reeve Watch — Vacant Property Care in Bangalore',
+      serviceType: 'Vacant Property Care',
+      provider: LB_REF,
+      areaServed: BENGALURU_AREA,
+      description: 'Reeve looks after empty homes in Bangalore with monthly visits, preventive checks, and coordination of anything that needs attention.',
     },
+    breadcrumb: [
+      { name: 'Home', item: WWW + '/' },
+      { name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
+      { name: 'Vacant Property Care', item: WWW + '/vacant-property-care-bangalore' },
+    ],
+    faqs: [
+      {
+        q: 'How often do you visit?',
+        a: 'Once every month — 12 scheduled visits a year, each added to your dated property record.',
+      },
+      {
+        q: 'What happens if you find a problem?',
+        a: 'We tell you what we found and what needs attention. If work is needed, we can coordinate the next step with your approval.',
+      },
+      {
+        q: 'Can you arrange cleaning?',
+        a: 'Yes. Cleaning can be arranged during a monthly visit if requested. Cleaner and material costs are billed at actuals.',
+      },
+      {
+        q: 'How do repair approvals work?',
+        a: 'Nothing above ₹3,000 is spent without your written approval. Vendor bills are passed through at actual cost, with no Reeve markup.',
+      },
+      {
+        q: 'What if I decide to rent the property?',
+        a: 'You can move from Vacant Property Care to Reeve Managed without starting the property setup again. Tenant placement inside Managed is ₹15,000 with ₹0 upfront.',
+      },
+      {
+        q: 'Is Reeve Watch a security service?',
+        a: 'No. This is scheduled property care and monitoring, not guarding or an alarm service, and it does not guarantee against break-in, encroachment, damage or loss.',
+      },
+    ],
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -563,28 +683,40 @@ const routes = [
     ogTitle: 'Find a Tenant in Bangalore | Reeve',
     ogDescription: 'One-time tenant placement in Bangalore — listing, viewings, negotiation, agreement and documented handover by Reeve.',
     canonical: BASE + '/find-tenant-bangalore',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Service',
-          '@id': WWW + '/find-tenant-bangalore#service',
-          name: 'Reeve Let — Tenant Placement in Bangalore',
-          serviceType: 'Tenant Placement',
-          provider: ORG_REF,
-          areaServed: BENGALURU_AREA,
-          description: 'Reeve finds a tenant for your Bangalore property with professional listing, Reeve-conducted viewings, negotiation, agreement and documented handover.',
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
-            { '@type': 'ListItem', position: 3, name: 'Find a Tenant', item: WWW + '/find-tenant-bangalore' },
-          ],
-        },
-      ],
+    freshness: true,
+    localBusiness: true,
+    service: {
+      '@type': 'Service',
+      '@id': WWW + '/find-tenant-bangalore#service',
+      name: 'Reeve Let — Tenant Placement in Bangalore',
+      serviceType: 'Tenant Placement',
+      provider: LB_REF,
+      areaServed: BENGALURU_AREA,
+      description: 'Reeve finds a tenant for your Bangalore property with professional listing, Reeve-conducted viewings, negotiation, agreement and documented handover.',
     },
+    breadcrumb: [
+      { name: 'Home', item: WWW + '/' },
+      { name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
+      { name: 'Find a Tenant', item: WWW + '/find-tenant-bangalore' },
+    ],
+    faqs: [
+      {
+        q: 'Do I need to be in Bangalore for the viewings?',
+        a: 'No. Reeve schedules and conducts the viewings, so you do not need to attend. Reeve Let can work for owners in Bangalore, elsewhere in India or overseas.',
+      },
+      {
+        q: 'Do you handle cleaning or repairs before the property is listed?',
+        a: 'No. Reeve Let covers tenant placement. Cleaning, repairs and other property preparation are not included in the service.',
+      },
+      {
+        q: 'Do you cover my area in Bangalore?',
+        a: "Reeve operates across Bangalore. We serve some areas directly and assess others individually — tell us where your property is and we’ll confirm within a day.",
+      },
+      {
+        q: 'What if I want Reeve to manage the property after the tenant is placed?',
+        a: 'Then Property Management is the better fit. Reeve Managed continues after move-in with tenant communication, property visits, repairs and records.',
+      },
+    ],
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -615,28 +747,36 @@ const routes = [
     ogTitle: 'Khata Transfer in Bangalore | Reeve',
     ogDescription: 'Khata transfer and property record corrections in Bangalore — Reeve helps when the recorded owner is wrong or the record cannot be matched cleanly.',
     canonical: BASE + '/khata-transfer-bangalore',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Service',
-          '@id': WWW + '/khata-transfer-bangalore#service',
-          name: 'Khata Transfer & Mutation in Bangalore',
-          serviceType: 'Property Record Transfer',
-          provider: ORG_REF,
-          areaServed: BENGALURU_AREA,
-          description: 'Reeve helps with Khata transfer and mutation in Bangalore when the recorded owner is wrong, an application has come back, ownership changed through inheritance, or the property record cannot be found or matched cleanly.',
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
-            { '@type': 'ListItem', position: 3, name: 'Khata Transfer', item: WWW + '/khata-transfer-bangalore' },
-          ],
-        },
-      ],
+    freshness: true,
+    localBusiness: true,
+    service: {
+      '@type': 'Service',
+      '@id': WWW + '/khata-transfer-bangalore#service',
+      name: 'Khata Transfer & Mutation in Bangalore',
+      serviceType: 'Property Record Transfer',
+      provider: LB_REF,
+      areaServed: BENGALURU_AREA,
+      description: 'Reeve helps with Khata transfer and mutation in Bangalore when the recorded owner is wrong, an application has come back, ownership changed through inheritance, or the property record cannot be found or matched cleanly.',
     },
+    breadcrumb: [
+      { name: 'Home', item: WWW + '/' },
+      { name: 'Property Services in Bangalore', item: WWW + '/property-services-bangalore' },
+      { name: 'Khata Transfer', item: WWW + '/khata-transfer-bangalore' },
+    ],
+    faqs: [
+      {
+        q: 'Do I need to visit a government office for Khata work?',
+        a: 'Many Khata-related steps are designed to be handled through the current online or faceless route, so a routine case may not require a government-office visit. Non-standard cases can still require legitimate document retrieval, authorised actions, professional input or an official follow-up or escalation route. Reeve coordinates those steps where relevant; its role is to clarify and follow the correct process, not to provide special access to an office.',
+      },
+      {
+        q: 'Can Reeve help if I live outside India?',
+        a: 'Yes. Reeve can coordinate remotely with owners outside India, review available records, identify what is missing and organise India-side follow-up where appropriate. Some steps may still depend on valid authentication, original or India-side documents, authorised representation or professional input. If the Khata issue is part of a broader property matter, see NRI Property Services.',
+      },
+      {
+        q: 'How does Reeve price Khata-related work?',
+        a: 'Reeve first reviews the property, records and issue involved. Once the work required is clear, we explain the scope and provide a quote before you decide whether to proceed.',
+      },
+    ],
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -674,27 +814,46 @@ const routes = [
     ogTitle: 'NRI Property Services in India | Reeve',
     ogDescription: 'One point of contact in India for your property — NRI property sale, rent and TDS, documents and coordination by Reeve.',
     canonical: BASE + '/nri-property-services-india',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Service',
-          '@id': WWW + '/nri-property-services-india#service',
-          name: 'NRI Property Services in India',
-          serviceType: 'NRI Property Services',
-          provider: ORG_REF,
-          areaServed: INDIA_AREA,
-          description: 'Reeve is one point of contact in India for an NRI-owned property — sale coordination, rent and TDS, documents and professionals.',
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'NRI Property Services in India', item: WWW + '/nri-property-services-india' },
-          ],
-        },
-      ],
+    freshness: true,
+    service: {
+      '@type': 'Service',
+      '@id': WWW + '/nri-property-services-india#service',
+      name: 'NRI Property Services in India',
+      serviceType: 'NRI Property Services',
+      provider: ORG_REF,
+      areaServed: INDIA_AREA,
+      description: 'Reeve is one point of contact in India for an NRI-owned property — sale coordination, rent and TDS, documents and professionals.',
     },
+    breadcrumb: [
+      { name: 'Home', item: WWW + '/' },
+      { name: 'NRI Property Services in India', item: WWW + '/nri-property-services-india' },
+    ],
+    faqs: [
+      {
+        q: 'Can Reeve help if my property is outside Bangalore?',
+        a: 'Yes, depending on what needs to be done. Reeve can coordinate sale documentation and tax work, rent/TDS, legal and professional work, and property-document matters across India through appropriate independent professionals. Direct property management, vacant care, tenant placement, khata work and physical sale execution are currently limited to Bangalore.',
+      },
+      {
+        q: 'Do I need to travel to India?',
+        a: 'Not necessarily. Many property matters can be coordinated remotely, and an authorised representative or professional may be able to handle parts of some processes. Other transactions or authorities may require your involvement or presence. Reeve first reviews the situation and explains what is actually required.',
+      },
+      {
+        q: "What if I don’t know which service I need?",
+        a: "That’s completely fine. You don’t need to diagnose the problem before contacting Reeve. Tell us what’s happening, where the property is and what you’re trying to achieve. We’ll work out what kind of coordination is involved.",
+      },
+      {
+        q: 'Can Reeve help with inherited or co-owned property?',
+        a: "Yes, we can coordinate these situations. Depending on the circumstances, that may involve document review, succession or ownership documentation, professional legal work, record updates, ongoing management or eventual sale support. The exact steps depend on the property’s ownership and documentation.",
+      },
+      {
+        q: 'Can Reeve coordinate several properties or property matters at once?',
+        a: "Yes. The coordination model is designed to give you one point of contact even when several professionals or tasks are involved. Physical property work is limited to Reeve’s Bangalore service area, while eligible professional and documentation coordination can extend across India.",
+      },
+      {
+        q: 'How does Reeve decide what the service will cost?',
+        a: "We first look at the situation and the work actually required. We then explain the scope and provide a quote before you decide whether to proceed. We don’t publish a fixed NRI-service price because the documents, professionals and processes involved vary substantially between properties.",
+      },
+    ],
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -729,28 +888,21 @@ const routes = [
     ogTitle: 'NRI Property Sale in India | Reeve',
     ogDescription: 'One point of coordination for an NRI property sale in India — sale readiness, documents, professionals, buyers and execution.',
     canonical: BASE + '/nri-property-sale-india',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Service',
-          '@id': WWW + '/nri-property-sale-india#service',
-          name: 'NRI Property Sale in India',
-          serviceType: 'NRI Property Sale Coordination',
-          provider: ORG_REF,
-          areaServed: INDIA_AREA,
-          description: 'Reeve coordinates an NRI property sale in India — sale readiness, documents, professionals, buyers and execution — as one point of contact.',
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'NRI Property Services in India', item: WWW + '/nri-property-services-india' },
-            { '@type': 'ListItem', position: 3, name: 'NRI Property Sale', item: WWW + '/nri-property-sale-india' },
-          ],
-        },
-      ],
+    freshness: true,
+    service: {
+      '@type': 'Service',
+      '@id': WWW + '/nri-property-sale-india#service',
+      name: 'NRI Property Sale in India',
+      serviceType: 'NRI Property Sale Coordination',
+      provider: ORG_REF,
+      areaServed: INDIA_AREA,
+      description: 'Reeve coordinates an NRI property sale in India — sale readiness, documents, professionals, buyers and execution — as one point of contact.',
     },
+    breadcrumb: [
+      { name: 'Home', item: WWW + '/' },
+      { name: 'NRI Property Services in India', item: WWW + '/nri-property-services-india' },
+      { name: 'NRI Property Sale', item: WWW + '/nri-property-sale-india' },
+    ],
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -786,28 +938,21 @@ const routes = [
     ogTitle: 'NRI Rent & TDS in India | Reeve',
     ogDescription: 'NRI rent and TDS in India — Reeve makes sure the rent, withholding and records line up properly.',
     canonical: BASE + '/nri-rent-tds-india',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Service',
-          '@id': WWW + '/nri-rent-tds-india#service',
-          name: 'NRI Rent & TDS in India',
-          serviceType: 'NRI Rent & TDS Coordination',
-          provider: ORG_REF,
-          areaServed: INDIA_AREA,
-          description: 'Reeve helps NRIs renting out property in India make sure the rent, withholding (TDS) and records line up properly.',
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: WWW + '/' },
-            { '@type': 'ListItem', position: 2, name: 'NRI Property Services in India', item: WWW + '/nri-property-services-india' },
-            { '@type': 'ListItem', position: 3, name: 'NRI Rent & TDS', item: WWW + '/nri-rent-tds-india' },
-          ],
-        },
-      ],
+    freshness: true,
+    service: {
+      '@type': 'Service',
+      '@id': WWW + '/nri-rent-tds-india#service',
+      name: 'NRI Rent & TDS in India',
+      serviceType: 'NRI Rent & TDS Coordination',
+      provider: ORG_REF,
+      areaServed: INDIA_AREA,
+      description: 'Reeve helps NRIs renting out property in India make sure the rent, withholding (TDS) and records line up properly.',
     },
+    breadcrumb: [
+      { name: 'Home', item: WWW + '/' },
+      { name: 'NRI Property Services in India', item: WWW + '/nri-property-services-india' },
+      { name: 'NRI Rent & TDS', item: WWW + '/nri-rent-tds-india' },
+    ],
     bodyHtml: `
 <div style="font-family:system-ui,sans-serif">
   <header>
@@ -845,4 +990,4 @@ for (const route of routes) {
   written++;
 }
 
-console.log(`\n✓ prerender complete — ${written} routes written`);
+console.log(`\n✓ prerender complete — ${written} routes written (build date ${LAST_UPDATED_ISO} IST)`);
