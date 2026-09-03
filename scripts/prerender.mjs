@@ -236,6 +236,15 @@ const routes = [
       <h2>Different by Design</h2>
       <p>Built for transparency — explore property details and connect directly with listers.</p>
     </section>
+    <section aria-label="How the marketplace works">
+      <h2>The marketplace comes first. The business model follows.</h2>
+      <ul>
+        <li>The core marketplace is free — browse, list, request contact and connect with no marketplace access fee.</li>
+        <li>Organic ranking cannot be bought — payment does not improve a listing's position in organic results.</li>
+        <li>Participation is open — owners, brokers, property managers and builders can all participate, and the role declared on each listing is shown to users.</li>
+        <li>Paid services stay optional — using Reeve Managed, Reeve Watch or Reeve Let is never required to use the core marketplace.</li>
+      </ul>
+    </section>
     <section aria-label="Compact Closing Action">
       <h2>Ready to find your next home?</h2>
       <a href="/search">Search Properties</a>
@@ -478,7 +487,16 @@ const routes = [
   <main>
     <section aria-label="Property management in Bangalore">
       <h1>Property Management in Bangalore</h1>
-      <p>Reeve handles tenant communication, property visits, repairs and records — through one accountable Reeve contact, wherever you live.</p>
+      <p>Reeve handles tenant communication, property visits, repairs and records — through one accountable Reeve contact, wherever you live. You do not need to be in Bangalore for day-to-day management.</p>
+      <p>Ongoing management starts at ₹2,000/month when the property is empty and ₹3,000/month when it is rented. It begins with a free property assessment.</p>
+      <h2>What Reeve Managed includes</h2>
+      <ul>
+        <li>Four scheduled property inspections each year, plus two additional on-request inspections, with dated photographs.</li>
+        <li>Move-in and move-out condition records.</li>
+        <li>Tenant communication, maintenance and access coordination, and renewal negotiation.</li>
+        <li>Repair coordination with vendor bills at actuals — Reeve markup ₹0; work above ₹3,000 needs written owner approval.</li>
+        <li>Tenant finding for Reeve Managed clients at ₹15,000 with ₹0 upfront, charged when the tenant is placed.</li>
+      </ul>
       <p>See all <a href="/property-services-bangalore">Bangalore property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
     </section>
   </main>
@@ -529,6 +547,8 @@ const routes = [
     <section aria-label="Vacant property care in Bangalore">
       <h1>Vacant Property Care in Bangalore</h1>
       <p>We visit every month, run preventive checks and coordinate anything that needs attention.</p>
+      <p>Reeve Watch is 12 scheduled visits a year — one every month — each added to a dated property record covering what was checked, what changed and what happened next. Each visit includes room checks and a meter reading.</p>
+      <p>Vacant Property Care starts at ₹2,000/month, with a minimum term of 6 months; Watch begins after the first six-month payment.</p>
       <p>See all <a href="/property-services-bangalore">Bangalore property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
     </section>
   </main>
@@ -578,7 +598,9 @@ const routes = [
   <main>
     <section aria-label="Find a tenant in Bangalore">
       <h1>Find a Tenant for Your Bangalore Property</h1>
-      <p>Professional listing, Reeve-conducted viewings, negotiation, agreement and documented handover — whether you're in Bangalore or abroad.</p>
+      <p>Professional listing, Reeve-conducted viewings, negotiation, agreement and documented handover — whether you're in Bangalore or abroad. Reeve schedules and conducts the viewings, so you do not need to attend.</p>
+      <p>Reeve Let is a fixed ₹20,000 placement fee, not linked to your property's rent: ₹5,000 to start (when photography and listing work begins) and ₹15,000 when the tenant gets placed. The ₹5,000 becomes non-refundable once the photography and listing have been delivered.</p>
+      <p>The rental agreement and e-stamping are included in the Reeve Let fee. Cleaning, repairs and other property preparation are not included.</p>
       <p>See all <a href="/property-services-bangalore">Bangalore property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
     </section>
   </main>
@@ -630,6 +652,14 @@ const routes = [
       <h1>Khata Transfer in Bangalore</h1>
       <p>When the property record doesn't match, the simple Khata process stops being simple.</p>
       <p>Reeve helps when the recorded owner is wrong, an application has come back, ownership changed through inheritance, or the existing property record cannot be found or matched cleanly.</p>
+      <h2>Khata, mutation, title and A/B status are different things</h2>
+      <ul>
+        <li>Khata (and eKhata, its digital form) is the municipal property record.</li>
+        <li>Mutation is updating that record after an ownership change.</li>
+        <li>Khata is not proof of title.</li>
+        <li>eKhata does not turn B-Khata into A-Khata.</li>
+      </ul>
+      <p>Reeve reviews the property, records and issue involved, then explains the scope and provides a quote before you decide whether to proceed. Reeve can also coordinate remotely with owners outside India.</p>
       <p>See all <a href="/property-services-bangalore">Bangalore property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
     </section>
   </main>
@@ -679,6 +709,7 @@ const routes = [
     <section aria-label="NRI property services in India">
       <h1>NRI Property Services in India</h1>
       <p>One point of contact in India for your property.</p>
+      <p>Remote professional, document and tax coordination is available across India. Photography, viewings and physical, on-ground execution are currently Bangalore-only.</p>
       <h2>Choose a service</h2>
       <ul>
         <li><a href="/nri-property-sale-india">NRI Property Sale — documents, tax &amp; sale coordination</a></li>
@@ -734,6 +765,13 @@ const routes = [
     <section aria-label="NRI property sale in India">
       <h1>Sell your property in India, even when you live abroad.</h1>
       <p>One point of coordination for sale readiness, documents, professionals, buyers and execution.</p>
+      <h2>Who handles what in an NRI property sale</h2>
+      <ul>
+        <li>Reeve coordinates sale readiness and document collection, the relevant professionals, and the buyer process — keeping the people, documents and next steps connected.</li>
+        <li>Licensed professionals advise; Reeve does not replace them.</li>
+        <li>Sale-document and tax coordination is available across India; photography, viewings and on-ground buyer execution are in Bangalore.</li>
+      </ul>
+      <p>Sale readiness typically covers title-document availability, the ownership chain, an Encumbrance Certificate where applicable, Khata / mutation and municipal or revenue records, and approved plans.</p>
       <p>See all <a href="/nri-property-services-india">NRI property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
     </section>
   </main>
@@ -784,6 +822,8 @@ const routes = [
     <section aria-label="NRI rent and TDS in India">
       <h1>NRI Rent &amp; TDS in India</h1>
       <p>Renting out property in India while living abroad? Make sure the rent, withholding and records line up properly.</p>
+      <p>Reeve coordinates the tenant, CA, records, lower-deduction applications, annual reconciliation and related rental-tax work for NRI property owners across India. Reeve reviews the property, rental history and work required before confirming scope and quote.</p>
+      <p>The tenant, the CA and licensed professionals remain responsible for their own statutory obligations; Reeve coordinates rather than replaces them.</p>
       <p>See all <a href="/nri-property-services-india">NRI property services</a>, or <a href="/contact">talk to Reeve</a>.</p>
     </section>
   </main>
