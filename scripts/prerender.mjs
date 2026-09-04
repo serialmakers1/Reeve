@@ -251,9 +251,6 @@ function faqBodyHtml(faqs) {
 }
 
 // ── Customer Stories (testimonials) ──────────────────────────────────────────
-// ⚠️ PROTOTYPE CONTENT — hypothetical, NOT verified reviews. Replace with real,
-// consented testimonials before production. Do NOT add Review/AggregateRating
-// schema, stars, or "Verified" badges.
 //
 // This is a byte-identical copy (text + order) of src/data/testimonials.ts. The
 // React component is the canonical source; this static copy exists only so the
