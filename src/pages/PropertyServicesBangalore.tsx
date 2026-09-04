@@ -2,6 +2,7 @@
 import Layout from "@/components/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import PropertyEnquiryForm from "@/components/property-services/PropertyEnquiryForm";
+import TestimonialsSection from "@/components/TestimonialsSection";
 
 const SERIF = "'Instrument Serif', Georgia, serif";
 const SANS = "'DM Sans', system-ui, sans-serif";
@@ -1694,6 +1695,7 @@ export default function PropertyServicesBangalore() {
 
       <ProofSection />
       <CompareSection />
+      <TestimonialsSection />
       <QuestionsSection />
       <EnquirySection />
       <StickyEnquiryCTA />

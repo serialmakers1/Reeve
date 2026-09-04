@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Lock, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
+import TestimonialsSection from "@/components/TestimonialsSection";
 
 const FONT_SERIF = "'Instrument Serif', Georgia, serif";
 const FONT_SANS  = "'DM Sans', system-ui, sans-serif";
@@ -552,6 +553,9 @@ export default function Index() {
 
           </div>
         </section>
+
+        {/* Customer Stories — social proof after services, before final CTA */}
+        <TestimonialsSection />
 
         {/* Section 5 — Compact Closing Action */}
         <section

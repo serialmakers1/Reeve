@@ -250,6 +250,93 @@ function faqBodyHtml(faqs) {
   return `\n<section aria-label="Frequently asked questions">\n  <h2>Frequently asked questions</h2>\n${items}\n</section>`;
 }
 
+// ── Customer Stories (testimonials) ──────────────────────────────────────────
+// ⚠️ PROTOTYPE CONTENT — hypothetical, NOT verified reviews. Replace with real,
+// consented testimonials before production. Do NOT add Review/AggregateRating
+// schema, stars, or "Verified" badges.
+//
+// This is a byte-identical copy (text + order) of src/data/testimonials.ts. The
+// React component is the canonical source; this static copy exists only so the
+// same stories appear in the prerendered HTML for crawlers/GEO. If you edit one,
+// edit both.
+const TESTIMONIALS_COPY = {
+  eyebrow: 'CUSTOMER STORIES',
+  heading: 'What property owners say about Reeve',
+  supporting: 'Experiences from property owners in Bangalore, elsewhere in India and overseas.',
+};
+
+const TESTIMONIALS = [
+  { service: 'REEVE MANAGED', name: 'Neha R.', initials: 'NR', avatarVariant: 1, role: 'Property Owner', ownerLocation: 'Bangalore', propertyType: '2 BHK', propertyLocation: 'Whitefield, Bangalore', quote: 'I had no issue paying for property management, I just wanted to know what I was paying for. With my flat in Whitefield, every repair now comes with the vendor bill and photos. Once a plumbing job crossed ₹3,000, they asked me before doing it. That sounds basic, but after my earlier experience it made a big difference.' },
+  { service: 'NRI PROPERTY SALE', name: 'Sameer P.', initials: 'SP', avatarVariant: 5, role: 'NRI Property Owner', ownerLocation: 'Dubai', propertyType: 'Apartment', propertyLocation: 'Pune, Maharashtra', quote: 'I was selling a flat in Pune while living in Dubai and thought the main problem would be finding a buyer. The document review actually found an old municipal record issue first. Reeve coordinated with the advocate and CA and kept the paperwork moving from India. It took some time to clear, but I knew what was pending instead of just hearing ‘it’s in process.’' },
+  { service: 'REEVE LET', name: 'Rohan D.', initials: 'RD', avatarVariant: 2, role: 'Property Owner', ownerLocation: 'Bangalore', propertyType: '2 BHK', propertyLocation: 'Koramangala, Bangalore', quote: 'I didn’t want to pay a broker one month’s rent just for bringing a tenant. Reeve photographed my Koramangala apartment, handled the enquiries and did the viewings, while I still chose who I wanted to rent to. The first interested family backed out, so it took a little longer than we hoped, but the updates were regular and the final handover was properly recorded.' },
+  { service: 'KHATA & MUTATION', name: 'Ananya S.', initials: 'AS', avatarVariant: 5, role: 'Property Owner', ownerLocation: 'Mumbai', propertyType: 'Apartment', propertyLocation: 'Jayanagar, Bangalore', quote: 'My Khata application had already come back twice because my name was written differently across the old record and sale deed. Reeve didn’t promise a shortcut. They first explained what was mismatching, coordinated the correction documents and followed the resubmission. The authority still took its own time, but I stopped guessing what the rejection actually meant.' },
+  { service: 'REEVE WATCH', name: 'Priya N.', initials: 'PN', avatarVariant: 4, role: 'NRI Property Owner', ownerLocation: 'London', propertyType: '2 BHK', propertyLocation: 'Indiranagar, Bangalore', quote: 'Our Indiranagar flat stays locked most of the year because we live in London. On one monthly visit, the photos showed a new seepage patch near the balcony door that obviously wasn’t there the previous month. Reeve got a quote and asked before arranging the repair. For me the useful part is having twelve dated checks, not just someone saying they visited.' },
+  { service: 'NRI RENT & TDS', name: 'Rahul B.', initials: 'RB', avatarVariant: 1, role: 'NRI Landlord', ownerLocation: 'Toronto', propertyType: 'Apartment', propertyLocation: 'Chennai, Tamil Nadu', quote: 'We had been receiving rent from our Chennai apartment for years, but the TDS side was honestly a mess. The tenant had some records, our CA had others, and I wasn’t sure what was missing. Reeve got everyone on the same thread, helped reconstruct the documents and coordinated the CA work. It wasn’t instant, but at least the numbers finally matched.' },
+  { service: 'REEVE MANAGED', name: 'Kunal M.', initials: 'KM', avatarVariant: 2, role: 'Property Owner', ownerLocation: 'Mumbai', propertyType: '3 BHK', propertyLocation: 'HSR Layout, Bangalore', quote: 'I live in Mumbai and the apartment is in HSR Layout, so small things used to become long WhatsApp chains with the tenant and society. Now I get one monthly statement even when nothing happened, and the quarterly inspection photos are all in one place. I don’t have to keep asking whether someone actually visited.' },
+  { service: 'NRI PROPERTY SALE', name: 'Nisha V.', initials: 'NV', avatarVariant: 6, role: 'NRI Property Owner', ownerLocation: 'London', propertyType: 'Apartment', propertyLocation: 'Indiranagar, Bangalore', quote: 'I’m in London and the property is in Bangalore. What helped most was having one person coordinating the photographer, buyer visits, advocate and CA instead of me calling everyone separately. I still decided the price and which offer to take. There were a few document questions before registration, but they were raised early rather than at the last minute.' },
+  { service: 'REEVE LET', name: 'Kavita A.', initials: 'KA', avatarVariant: 3, role: 'NRI Property Owner', ownerLocation: 'Dubai', propertyType: '2 BHK', propertyLocation: 'Whitefield, Bangalore', quote: 'I’m based in Dubai and couldn’t fly to Bangalore just to show the apartment to people. The team handled the listing and viewings, sent me the serious options, and I made the final tenant decision from here. The agreement and move-in record were also taken care of. It felt like I was still in control without physically being there.' },
+  { service: 'REEVE MANAGED', name: 'Arjun S.', initials: 'AS', avatarVariant: 3, role: 'NRI Property Owner', ownerLocation: 'Singapore', propertyType: '2 BHK', propertyLocation: 'Sarjapur Road, Bangalore', quote: 'Managing the flat from Singapore was getting tiring because every tenant issue ended up with my brother in Bangalore. Reeve took over the day-to-day communication and repairs, but the rent still comes straight to me. I especially like that they don’t handle the deposit. I can see what is happening without putting the money through another company.' },
+  { service: 'KHATA & MUTATION', name: 'Deepak R.', initials: 'DR', avatarVariant: 6, role: 'NRI Property Owner', ownerLocation: 'Dubai', propertyType: 'Family property', propertyLocation: 'JP Nagar, Bangalore', quote: 'I inherited the JP Nagar property with my sister and all of us agreed on what needed to be done, but the municipal record was still in our father’s name. Reeve reviewed the deed, old Khata and tax papers, then coordinated the steps and advocate input where needed. There was some back and forth on documents, but we had one person tracking it throughout.' },
+  { service: 'REEVE MANAGED', name: 'Ritu K.', initials: 'RK', avatarVariant: 4, role: 'Property Owner', ownerLocation: 'Delhi', propertyType: '3 BHK', propertyLocation: 'Bellandur, Bangalore', quote: 'My tenant moved out earlier than expected and I assumed I would need to cancel management and start again later. Instead, the monthly rate dropped when the flat became empty and the same team continued looking after it. They later handled the tenant search too. There was no new onboarding, which saved a lot of unnecessary back and forth.' },
+];
+
+// Same diagonal avatar palettes as src/data/testimonials.ts (avatarVariant → [from,to]).
+const AVATAR_PALETTES = {
+  1: ['#4F46E5', '#7C3AED'], 2: ['#0284C7', '#4F46E5'], 3: ['#0F766E', '#14B8A6'],
+  4: ['#059669', '#10B981'], 5: ['#EA580C', '#F59E0B'], 6: ['#E11D48', '#8B5CF6'],
+};
+
+// Insertion marker placed in each target route's bodyHtml at the same semantic
+// position the React page renders <TestimonialsSection /> — buildPage swaps it.
+const TESTIMONIALS_MARKER = '<!--TESTIMONIALS-->';
+
+/**
+ * Static, crawler-readable Customer Stories block. Mirrors the React component's
+ * essential structure/geometry (section background, container, header, a
+ * horizontal row of white cards with figure/blockquote/figcaption) so first
+ * paint and the React state share roughly the same layout (minimises CLS).
+ * No interactivity/animation/observers — those stay React-only. No schema.
+ */
+function testimonialsBodyHtml() {
+  const cards = TESTIMONIALS.map((t, i) => {
+    const [from, to] = AVATAR_PALETTES[t.avatarVariant] || AVATAR_PALETTES[1];
+    return `
+          <div role="group" aria-roledescription="slide" aria-label="${i + 1} of ${TESTIMONIALS.length}" class="reeve-story-slide">
+            <figure style="display:flex;flex-direction:column;height:100%;width:100%;margin:0;background:#FFFFFF;border:1px solid rgba(15,23,42,0.08);border-radius:20px;padding:22px;box-shadow:0 8px 30px rgba(15,23,42,0.06)">
+              <span style="display:inline-block;align-self:flex-start;background:#EEF2FF;color:#4338CA;border:1px solid #E0E7FF;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:0.05em">${esc(t.service)}</span>
+              <blockquote class="text-[16px] sm:text-[17px]" style="margin:16px 0 0;color:#1E293B;line-height:1.62">${esc(t.quote)}</blockquote>
+              <figcaption style="margin-top:auto;display:flex;align-items:center;gap:12px;padding-top:24px;color:#64748B;font-size:13px;line-height:1.45">
+                <span aria-hidden="true" class="h-12 w-12 sm:h-[52px] sm:w-[52px]" style="display:grid;place-items:center;flex:0 0 auto;border-radius:15px;color:#fff;font-size:15px;font-weight:700;background:linear-gradient(140deg,${from},${to})">${esc(t.initials)}</span>
+                <span style="min-width:0">
+                  <span style="display:block;color:#0F172A;font-size:15px;font-weight:700">${esc(t.name)}</span>
+                  <span style="display:block">${esc(t.role)} · ${esc(t.ownerLocation)}</span>
+                  <span style="display:block">${esc(t.propertyType)} · ${esc(t.propertyLocation)}</span>
+                </span>
+              </figcaption>
+            </figure>
+          </div>`;
+  }).join('');
+
+  // Reuses the same responsive carousel classes + container/padding/typography as
+  // the React component (incl. the mobile right-gutter bleed for the next-card peek,
+  // responsive H2/body/quote/avatar sizes, and reserved bottom-control height) so
+  // first paint and React share layout at every width (minimises CLS). Inter font is
+  // set explicitly since the surrounding route shell uses system-ui.
+  return `
+    <section aria-labelledby="testimonial-heading" style="font-family:'Inter',system-ui,sans-serif;background:linear-gradient(135deg,#F5F3FF 0%,#F8FAFC 48%,#ECFEFF 100%),#F8FAFC">
+      <div class="mx-auto max-w-[1240px] px-5 py-16 sm:px-8 sm:py-20 lg:px-10 lg:py-24">
+        <p style="margin:0;color:#4F46E5;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase">${esc(TESTIMONIALS_COPY.eyebrow)}</p>
+        <h2 id="testimonial-heading" class="text-[28px] sm:text-[clamp(2rem,3vw,2.625rem)]" style="margin:8px 0 0;color:#0F172A;font-weight:700;line-height:1.15">${esc(TESTIMONIALS_COPY.heading)}</h2>
+        <p class="text-[16px] sm:text-[17px]" style="margin:12px 0 0;max-width:760px;color:#64748B;line-height:1.52">${esc(TESTIMONIALS_COPY.supporting)}</p>
+        <div role="region" aria-roledescription="carousel" aria-label="Customer stories" style="margin-top:40px">
+          <div class="reeve-story-track no-scrollbar -mr-5 py-4 pr-5 sm:mr-0 sm:pr-0">${cards}
+          </div>
+        </div>
+        <div aria-hidden="true" style="margin-top:32px;height:44px"></div>
+      </div>
+    </section>`;
+}
+
 /**
  * Build a complete HTML page by patching the Vite-built shell.
  */
@@ -294,6 +381,11 @@ function buildPage(route) {
   // Body content: base body + optional FAQ Q&A + optional crawler-only freshness line.
   // Everything lives inside #root, so React's createRoot() replaces it on mount.
   let inner = bodyHtml;
+  // Swap the testimonials marker (present only on the three target routes) for the
+  // static Customer Stories block, so prerender order matches the React page.
+  inner = inner.includes(TESTIMONIALS_MARKER)
+    ? inner.replace(TESTIMONIALS_MARKER, testimonialsBodyHtml())
+    : inner;
   if (faqs && faqs.length) inner += faqBodyHtml(faqs);
   if (freshness) {
     inner += `\n  <p data-prerender-freshness>Last updated: ${esc(LAST_UPDATED_HUMAN)}</p>`;
@@ -360,6 +452,7 @@ const routes = [
         <li>Paid services stay optional — using Reeve Managed, Reeve Watch or Reeve Let is never required to use the core marketplace.</li>
       </ul>
     </section>
+    <!--TESTIMONIALS-->
     <section aria-label="Compact Closing Action">
       <h2>Ready to find your next home?</h2>
       <a href="/search">Search Properties</a>
@@ -520,6 +613,7 @@ const routes = [
       </ul>
       <a href="/contact">Talk to Reeve</a>
     </section>
+    <!--TESTIMONIALS-->
   </main>
 </div>`,
   },
@@ -876,6 +970,7 @@ const routes = [
       </ul>
       <a href="/contact">Talk to Reeve</a>
     </section>
+    <!--TESTIMONIALS-->
   </main>
 </div>`,
   },
