@@ -105,3 +105,75 @@ html {
   animation: fadeUp 0.5s ease-out forwards;
   opacity: 0;
 }
+
+/* ── Reeve Customer Stories carousel ────────────────────────────────────────
+   Layout-only helpers for <TestimonialsSection />. Visual/animation state is
+   driven inline by the component; these express what Tailwind cannot cleanly
+   do (hidden scrollbar, breakpoint-specific card widths, scroll snap, and
+   hover gating on fine-pointer devices only). */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.reeve-story-track {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;       /* mobile: natural per-card heights */
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.reeve-story-slide {
+  flex: 0 0 auto;
+  display: flex;                 /* let inner <figure> stretch to equal height */
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;      /* allow fast multi-card swipes */
+  width: 85vw;
+  max-width: 360px;
+}
+
+@media (min-width: 768px) {
+  .reeve-story-track { gap: 20px; align-items: stretch; } /* tablet/desktop: equal-height */
+  .reeve-story-slide { width: calc((100% - 40px) / 2.3); max-width: none; } /* 2 full + partial */
+}
+
+@media (min-width: 1024px) {
+  .reeve-story-track { gap: 24px; }
+  .reeve-story-slide { width: calc((100% - 48px) / 3); }                    /* exactly 3 full */
+}
+
+@media (min-width: 1280px) {
+  .reeve-story-slide { width: clamp(340px, calc((100% - 72px) / 3.15), 380px); } /* 3 + ~15% peek */
+}
+
+/* Hover polish only on genuine hover-capable fine pointers, so a tap on
+   touch devices never leaves a card raised or an avatar enlarged. */
+@media (hover: hover) and (pointer: fine) {
+  .reeve-story-card {
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+  .reeve-story-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px rgba(15, 23, 42, 0.10);
+  }
+  .reeve-story-card:hover .reeve-story-avatar {
+    transform: scale(1.03);
+  }
+  .reeve-story-avatar { transition: transform 180ms ease; }
+  .reeve-story-arrow { transition: background-color 160ms ease, box-shadow 160ms ease, color 160ms ease; }
+  .reeve-story-arrow:not(:disabled):hover {
+    background-color: #eef2ff;
+    color: #4338ca;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reeve-story-card,
+  .reeve-story-card:hover,
+  .reeve-story-avatar,
+  .reeve-story-card:hover .reeve-story-avatar {
+    transform: none !important;
+    transition: none !important;
+  }
+}

@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { Globe, MapPin, Home, Shield, Users, BookOpen, Sparkles, Building2, FileText, Search, ChevronDown, FolderOpen, AlertTriangle, Percent, ScrollText, UserRound, Scale, Landmark } from "lucide-react";
 import Layout from "@/components/Layout";
 import PropertyEnquiryForm from "@/components/property-services/PropertyEnquiryForm";
+import TestimonialsSection from "@/components/TestimonialsSection";
 
 const SERIF = "'Instrument Serif', Georgia, serif";
 const SANS = "'DM Sans', system-ui, sans-serif";
@@ -2306,6 +2307,7 @@ export default function NriPropertyServicesIndia() {
       <NriCoordinatorBand />
       <NriPropertyGuideSection />
       <WhoDoesWhatSection />
+      <TestimonialsSection />
       <NriFaqSection />
 
       {/* Band 6: Enquiry */}
