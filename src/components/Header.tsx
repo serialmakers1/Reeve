@@ -21,12 +21,13 @@ const BANGALORE_SERVICES = [
   { label: "Reeve Managed",    helper: "Ongoing property management",  to: "/property-management-bangalore" },
   { label: "Reeve Watch",      helper: "Care for vacant properties",   to: "/vacant-property-care-bangalore" },
   { label: "Reeve Let",        helper: "One-time tenant placement",    to: "/find-tenant-bangalore" },
-  { label: "Khata & Mutation", helper: "Property record transfers",    to: "/khata-transfer-bangalore" },
 ];
 
+// Khata & Mutation is grouped under NRI navigation; its existing URL remains /khata-transfer-bangalore.
 const NRI_SERVICES = [
   { label: "NRI Property Sale", helper: "Documents, tax & sale coordination", to: "/nri-property-sale-india" },
   { label: "NRI Rent & TDS",    helper: "Withholding on Indian rent",          to: "/nri-rent-tds-india" },
+  { label: "Khata & Mutation",  helper: "Property record transfers",           to: "/khata-transfer-bangalore" },
 ];
 
 const SERVICE_PATHS = [
@@ -160,7 +161,7 @@ const Header = () => {
                   >
                     Property Services
                     <ChevronDown
-                      className={`h-3.5 w-3.5 transition-transform duration-150 motion-reduce:transition-none ${servicesOpen ? "rotate-180" : ""}`}
+                      className={`h-3.5 w-3.5 transition-transform duration-[180ms] motion-reduce:transition-none ${servicesOpen ? "rotate-180" : ""}`}
                       aria-hidden="true"
                     />
                   </button>
@@ -176,10 +177,10 @@ const Header = () => {
                   sideOffset={10}
                   avoidCollisions
                   collisionPadding={16}
-                  className="w-[680px] max-w-[calc(100vw-32px)] rounded-[13px] border border-[#E8E6E1] bg-[#FFFDFC] p-0
+                  className="w-[680px] max-w-[calc(100vw-32px)] rounded-[13px] border border-[#DCE8FF] bg-[#FFFDFC] p-0
                              shadow-[0_14px_36px_rgba(10,22,40,0.14)] max-h-[80vh] overflow-y-auto
-                             data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1
-                             data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1
+                             data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1 data-[state=open]:duration-[180ms]
+                             data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1 data-[state=closed]:duration-[130ms]
                              motion-reduce:animate-none"
                   onMouseEnter={handleServicesEnter}
                   onMouseLeave={handleServicesLeave}
@@ -200,9 +201,9 @@ const Header = () => {
                           onClick={() => setServicesOpen(false)}
                           aria-current={location.pathname === "/property-services-bangalore" ? "page" : undefined}
                           className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 cursor-pointer select-none
-                            border border-[#E8E6E1] transition-colors duration-150 focus-visible:outline-none
-                            data-[highlighted]:bg-[#F7F9FC]
-                            ${location.pathname === "/property-services-bangalore" ? "bg-[#F2F6FF]" : "bg-[#F7F9FC]"}`}
+                            border transition-colors duration-150 focus-visible:outline-none
+                            hover:bg-[#EAF2FF] hover:border-[#C9DDFF] data-[highlighted]:bg-[#EAF2FF] data-[highlighted]:border-[#C9DDFF]
+                            ${location.pathname === "/property-services-bangalore" ? "bg-[#EAF2FF] border-[#C9DDFF]" : "bg-[#F4F8FF] border-[#DCE8FF]"}`}
                         >
                           <span className="flex items-center justify-between gap-1">
                             <span className={`text-sm font-semibold leading-snug transition-colors duration-150
@@ -216,12 +217,12 @@ const Header = () => {
                             />
                           </span>
                           <span className="text-[12px] text-[#69758B] leading-[1.35]">
-                            Compare Managed, Watch, Let &amp; Khata
+                            Compare Managed, Watch &amp; Let
                           </span>
                         </Link>
                       </DropdownMenuItem>
 
-                      <div className="h-px bg-[#E8E6E1] my-2" />
+                      <div className="h-px bg-[#DCE8FF] my-2" />
 
                       {/* Bangalore service rows */}
                       {BANGALORE_SERVICES.map(svc => (
@@ -232,8 +233,8 @@ const Header = () => {
                             aria-current={location.pathname === svc.to ? "page" : undefined}
                             className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 cursor-pointer select-none
                               transition-colors duration-150 focus-visible:outline-none
-                              hover:bg-[#F7F9FC] data-[highlighted]:bg-[#F7F9FC]
-                              ${location.pathname === svc.to ? "bg-[#F2F6FF]" : ""}`}
+                              hover:bg-[#EAF2FF] data-[highlighted]:bg-[#EAF2FF]
+                              ${location.pathname === svc.to ? "bg-[#EAF2FF]" : ""}`}
                           >
                             <span className={`text-sm font-semibold leading-snug transition-colors duration-150
                               group-hover:text-[#0057F2] group-data-[highlighted]:text-[#0057F2]
@@ -249,7 +250,7 @@ const Header = () => {
                     </div>
 
                     {/* 1px vertical divider */}
-                    <div className="w-px bg-[#E8E6E1] my-3 self-stretch flex-shrink-0" />
+                    <div className="w-px bg-[#DCE8FF] my-3 self-stretch flex-shrink-0" />
 
                     {/* Right column: ANYWHERE IN INDIA */}
                     <div className="flex-1 p-3 flex flex-col gap-0.5">
@@ -265,9 +266,9 @@ const Header = () => {
                           onClick={() => setServicesOpen(false)}
                           aria-current={location.pathname === "/nri-property-services-india" ? "page" : undefined}
                           className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 cursor-pointer select-none
-                            border border-[#E8E6E1] transition-colors duration-150 focus-visible:outline-none
-                            data-[highlighted]:bg-[#F7F9FC]
-                            ${location.pathname === "/nri-property-services-india" ? "bg-[#F2F6FF]" : "bg-[#F7F9FC]"}`}
+                            border transition-colors duration-150 focus-visible:outline-none
+                            hover:bg-[#EAF2FF] hover:border-[#C9DDFF] data-[highlighted]:bg-[#EAF2FF] data-[highlighted]:border-[#C9DDFF]
+                            ${location.pathname === "/nri-property-services-india" ? "bg-[#EAF2FF] border-[#C9DDFF]" : "bg-[#F4F8FF] border-[#DCE8FF]"}`}
                         >
                           <span className="flex items-center justify-between gap-1">
                             <span className={`text-sm font-semibold leading-snug transition-colors duration-150
@@ -286,7 +287,7 @@ const Header = () => {
                         </Link>
                       </DropdownMenuItem>
 
-                      <div className="h-px bg-[#E8E6E1] my-2" />
+                      <div className="h-px bg-[#DCE8FF] my-2" />
 
                       {/* NRI service rows */}
                       {NRI_SERVICES.map(svc => (
@@ -297,8 +298,8 @@ const Header = () => {
                             aria-current={location.pathname === svc.to ? "page" : undefined}
                             className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 cursor-pointer select-none
                               transition-colors duration-150 focus-visible:outline-none
-                              hover:bg-[#F7F9FC] data-[highlighted]:bg-[#F7F9FC]
-                              ${location.pathname === svc.to ? "bg-[#F2F6FF]" : ""}`}
+                              hover:bg-[#EAF2FF] data-[highlighted]:bg-[#EAF2FF]
+                              ${location.pathname === svc.to ? "bg-[#EAF2FF]" : ""}`}
                           >
                             <span className={`text-sm font-semibold leading-snug transition-colors duration-150
                               group-hover:text-[#0057F2] group-data-[highlighted]:text-[#0057F2]
@@ -431,11 +432,11 @@ const Header = () => {
               aria-expanded={isMobileServicesOpen}
               aria-controls="mobile-services-submenu"
               className={`w-full min-h-[44px] flex items-center justify-between py-3 text-sm font-medium transition-colors duration-150
-                ${isServiceActive ? "text-[#0057F2]" : "text-gray-600 hover:text-[#0A1628]"}`}
+                ${isServiceActive || isMobileServicesOpen ? "text-[#0057F2]" : "text-gray-600 hover:text-[#0A1628]"}`}
             >
               Property Services
               <ChevronDown
-                className={`h-4 w-4 transition-transform duration-150 motion-reduce:transition-none ${isMobileServicesOpen ? "rotate-180" : ""}`}
+                className={`h-4 w-4 transition-transform duration-[180ms] motion-reduce:transition-none ${isMobileServicesOpen ? "rotate-180" : ""}`}
                 aria-hidden="true"
               />
             </button>
@@ -444,102 +445,100 @@ const Header = () => {
             <div
               id="mobile-services-submenu"
               aria-hidden={!isMobileServicesOpen}
-              className={`grid transition-[grid-template-rows] duration-150 ease-out motion-reduce:transition-none
+              className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none
                 ${isMobileServicesOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
             >
               {/* Fade + vertical reveal */}
-              <div className={`overflow-hidden transition-[opacity,transform] duration-150 ease-out
+              <div className={`overflow-hidden transition-[opacity,transform] duration-[180ms] ease-out
                 motion-reduce:transition-none motion-reduce:transform-none
                 ${isMobileServicesOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"}`}>
-                <div className="ml-4 border-l border-[#E8E6E1] pl-4 pb-3 pt-1">
+                <div className="ml-4 border-l border-[#DCE8FF] pl-4 pb-3 pt-1">
 
-                  {/* ── ANYWHERE IN INDIA first on mobile ── */}
+                  {/* ── IN BANGALORE first on mobile — geo label lives on the desktop mega-menu only ── */}
                   <div className="pb-1">
-                    <div className="pt-1 pb-2.5">
-                      <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#0A1628]">ANYWHERE IN INDIA</p>
-                      <p className="text-[12px] text-[#69758B] leading-[1.35] mt-[3px]">Coordinated remotely</p>
-                    </div>
-
-                    {/* NRI hub */}
-                    <Link
-                      to="/nri-property-services-india"
-                      onClick={closeMobileMenu}
-                      tabIndex={isMobileServicesOpen ? 0 : -1}
-                      aria-current={location.pathname === "/nri-property-services-india" ? "page" : undefined}
-                      className={`flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 mb-1 border border-[#E8E6E1]
-                        transition-colors duration-150
-                        ${location.pathname === "/nri-property-services-india" ? "bg-[#F2F6FF]" : "bg-[#F7F9FC]"}`}
-                    >
-                      <span className="flex items-center justify-between gap-1">
-                        <span className={`text-sm font-semibold leading-snug ${location.pathname === "/nri-property-services-india" ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
-                          All NRI property services
-                        </span>
-                        <ArrowRight className="h-3.5 w-3.5 text-[#0057F2] flex-shrink-0" aria-hidden="true" />
-                      </span>
-                      <span className="text-[12px] text-[#69758B] leading-[1.35]">Help me find the right NRI route</span>
-                    </Link>
-
-                    {/* NRI services */}
-                    {NRI_SERVICES.map(svc => (
-                      <Link
-                        key={svc.to}
-                        to={svc.to}
-                        onClick={closeMobileMenu}
-                        tabIndex={isMobileServicesOpen ? 0 : -1}
-                        aria-current={location.pathname === svc.to ? "page" : undefined}
-                        className={`flex flex-col gap-0.5 py-2.5 min-h-[44px] transition-colors duration-150
-                          ${location.pathname === svc.to ? "text-[#0057F2]" : "text-gray-700 hover:text-[#0A1628]"}`}
-                      >
-                        <span className="text-sm font-semibold leading-snug">{svc.label}</span>
-                        <span className="text-[12px] text-[#69758B] leading-[1.35]">{svc.helper}</span>
-                      </Link>
-                    ))}
-                  </div>
-
-                  {/* Divider between geographic groups */}
-                  <div className="h-px bg-[#E8E6E1] my-3" />
-
-                  {/* ── IN BANGALORE second on mobile ── */}
-                  <div>
-                    <div className="pt-1 pb-2.5">
-                      <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#0A1628]">IN BANGALORE</p>
-                      <p className="text-[12px] text-[#69758B] leading-[1.35] mt-[3px]">We come to the property</p>
-                    </div>
-
                     {/* Bangalore hub */}
                     <Link
                       to="/property-services-bangalore"
                       onClick={closeMobileMenu}
                       tabIndex={isMobileServicesOpen ? 0 : -1}
                       aria-current={location.pathname === "/property-services-bangalore" ? "page" : undefined}
-                      className={`flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 mb-1 border border-[#E8E6E1]
-                        transition-colors duration-150
-                        ${location.pathname === "/property-services-bangalore" ? "bg-[#F2F6FF]" : "bg-[#F7F9FC]"}`}
+                      className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 mb-1 border
+                        transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0057F2]
+                        hover:bg-[#EAF2FF] hover:border-[#C9DDFF] focus-visible:bg-[#EAF2FF] focus-visible:border-[#C9DDFF]
+                        ${location.pathname === "/property-services-bangalore" ? "bg-[#EAF2FF] border-[#C9DDFF]" : "bg-[#F4F8FF] border-[#DCE8FF]"}`}
                     >
                       <span className="flex items-center justify-between gap-1">
                         <span className={`text-sm font-semibold leading-snug ${location.pathname === "/property-services-bangalore" ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
                           All Bangalore property services
                         </span>
-                        <ArrowRight className="h-3.5 w-3.5 text-[#0057F2] flex-shrink-0" aria-hidden="true" />
+                        <ArrowRight className="h-3.5 w-3.5 text-[#0057F2] flex-shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:group-hover:translate-x-0" aria-hidden="true" />
                       </span>
-                      <span className="text-[12px] text-[#69758B] leading-[1.35]">Compare Managed, Watch, Let &amp; Khata</span>
+                      <span className="text-[12px] text-[#69758B] leading-[1.35]">Compare Managed, Watch &amp; Let</span>
                     </Link>
 
-                    {/* Bangalore services */}
-                    {BANGALORE_SERVICES.map(svc => (
-                      <Link
-                        key={svc.to}
-                        to={svc.to}
-                        onClick={closeMobileMenu}
-                        tabIndex={isMobileServicesOpen ? 0 : -1}
-                        aria-current={location.pathname === svc.to ? "page" : undefined}
-                        className={`flex flex-col gap-0.5 py-2.5 min-h-[44px] transition-colors duration-150
-                          ${location.pathname === svc.to ? "text-[#0057F2]" : "text-gray-700 hover:text-[#0A1628]"}`}
-                      >
-                        <span className="text-sm font-semibold leading-snug">{svc.label}</span>
-                        <span className="text-[12px] text-[#69758B] leading-[1.35]">{svc.helper}</span>
-                      </Link>
-                    ))}
+                    {/* Bangalore services — indented under the hub */}
+                    <div className="pl-3">
+                      {BANGALORE_SERVICES.map(svc => (
+                        <Link
+                          key={svc.to}
+                          to={svc.to}
+                          onClick={closeMobileMenu}
+                          tabIndex={isMobileServicesOpen ? 0 : -1}
+                          aria-current={location.pathname === svc.to ? "page" : undefined}
+                          className={`flex flex-col gap-0.5 rounded-[9px] px-2 py-2.5 min-h-[44px] transition-colors duration-150
+                            focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0057F2] focus-visible:bg-[#EAF2FF] focus-visible:text-[#0057F2]
+                            ${location.pathname === svc.to ? "bg-[#EAF2FF] text-[#0057F2]" : "text-gray-700 hover:bg-[#EAF2FF] hover:text-[#0057F2]"}`}
+                        >
+                          <span className="text-sm font-semibold leading-snug">{svc.label}</span>
+                          <span className="text-[12px] text-[#69758B] leading-[1.35]">{svc.helper}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Divider between geographic groups */}
+                  <div className="h-px bg-[#DCE8FF] my-3" />
+
+                  {/* ── ANYWHERE IN INDIA second on mobile — geo label lives on the desktop mega-menu only ── */}
+                  <div>
+                    {/* NRI hub */}
+                    <Link
+                      to="/nri-property-services-india"
+                      onClick={closeMobileMenu}
+                      tabIndex={isMobileServicesOpen ? 0 : -1}
+                      aria-current={location.pathname === "/nri-property-services-india" ? "page" : undefined}
+                      className={`group flex flex-col gap-0.5 rounded-[9px] px-3 py-2.5 mb-1 border
+                        transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0057F2]
+                        hover:bg-[#EAF2FF] hover:border-[#C9DDFF] focus-visible:bg-[#EAF2FF] focus-visible:border-[#C9DDFF]
+                        ${location.pathname === "/nri-property-services-india" ? "bg-[#EAF2FF] border-[#C9DDFF]" : "bg-[#F4F8FF] border-[#DCE8FF]"}`}
+                    >
+                      <span className="flex items-center justify-between gap-1">
+                        <span className={`text-sm font-semibold leading-snug ${location.pathname === "/nri-property-services-india" ? "text-[#0057F2]" : "text-[#0A1628]"}`}>
+                          All NRI property services
+                        </span>
+                        <ArrowRight className="h-3.5 w-3.5 text-[#0057F2] flex-shrink-0 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:group-hover:translate-x-0" aria-hidden="true" />
+                      </span>
+                      <span className="text-[12px] text-[#69758B] leading-[1.35]">Help me find the right NRI route</span>
+                    </Link>
+
+                    {/* NRI services — indented under the hub */}
+                    <div className="pl-3">
+                      {NRI_SERVICES.map(svc => (
+                        <Link
+                          key={svc.to}
+                          to={svc.to}
+                          onClick={closeMobileMenu}
+                          tabIndex={isMobileServicesOpen ? 0 : -1}
+                          aria-current={location.pathname === svc.to ? "page" : undefined}
+                          className={`flex flex-col gap-0.5 rounded-[9px] px-2 py-2.5 min-h-[44px] transition-colors duration-150
+                            focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0057F2] focus-visible:bg-[#EAF2FF] focus-visible:text-[#0057F2]
+                            ${location.pathname === svc.to ? "bg-[#EAF2FF] text-[#0057F2]" : "text-gray-700 hover:bg-[#EAF2FF] hover:text-[#0057F2]"}`}
+                        >
+                          <span className="text-sm font-semibold leading-snug">{svc.label}</span>
+                          <span className="text-[12px] text-[#69758B] leading-[1.35]">{svc.helper}</span>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
 
                 </div>
