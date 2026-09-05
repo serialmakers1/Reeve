@@ -260,15 +260,16 @@ export default async function handler(request: Request): Promise<Response> {
     ip_postal_code:    request.headers.get("x-vercel-ip-postal-code") ?? null,
   };
 
-  // Insert via service role — apikey header only (sb_secret_* keys are not JWTs)
+  // Insert via service role — apikey header only (sb_secret_* keys are not JWTs).
+  // Return only the inserted id/created_at so we can populate the notification.
   const dbRes = await fetch(
-    `${supabaseUrl}/rest/v1/property_service_enquiries`,
+    `${supabaseUrl}/rest/v1/property_service_enquiries?select=id,created_at`,
     {
       method: "POST",
       headers: {
         apikey:           serviceRoleKey,
         "Content-Type":   "application/json",
-        Prefer:           "return=minimal",
+        Prefer:           "return=representation",
       },
       body: JSON.stringify(row),
     }
@@ -278,6 +279,85 @@ export default async function handler(request: Request): Promise<Response> {
     const errText = await dbRes.text().catch(() => "(unreadable)");
     console.error("Supabase insert failed", dbRes.status, errText);
     return json({ error: "Could not save enquiry" }, 500);
+  }
+
+  // DB insert succeeded — the enquiry is authoritatively saved from here on.
+  // Everything below is best-effort notification and MUST NOT convert a saved
+  // enquiry into a customer-facing failure.
+
+  // Parse the returned representation defensively.
+  const rep: unknown = await dbRes.json().catch(() => null);
+  const inserted =
+    Array.isArray(rep) && rep[0] && typeof rep[0] === "object"
+      ? (rep[0] as { id?: unknown; created_at?: unknown })
+      : null;
+  const insertedId = typeof inserted?.id === "string" ? inserted.id : null;
+  const insertedCreatedAt =
+    typeof inserted?.created_at === "string" ? inserted.created_at : null;
+
+  if (!insertedId || !insertedCreatedAt) {
+    // Saved, but representation unexpectedly missing/malformed — skip notify.
+    console.warn("enquiry_persisted_no_representation");
+    return json({ success: true });
+  }
+
+  // Best-effort authenticated n8n notification. These env vars are OPTIONAL
+  // notification dependencies — deliberately NOT part of the hard env guard.
+  const n8nBaseUrl = process.env.N8N_WEBHOOK_BASE_URL;
+  const n8nSecret  = process.env.N8N_WEBHOOK_SECRET;
+
+  if (!n8nBaseUrl || !n8nSecret) {
+    console.warn("n8n_notify_skipped_missing_env", { enquiry_id: insertedId });
+    return json({ success: true });
+  }
+
+  // Explicit allow-listed payload built from validated data — never the DB row,
+  // never any IP/geo field, never the Turnstile token or any secret.
+  const webhookPayload = {
+    event:             "property_service_enquiry_created",
+    enquiry_id:        insertedId,
+    created_at:        insertedCreatedAt,
+    service_choice:    data.serviceChoice,
+    building_street:   data.buildingStreet ?? null,
+    locality_area:     data.localityArea,
+    property_type:     data.propertyType,
+    name:              data.name,
+    phone:             data.phone,
+    email:             data.email,
+    preferred_contact: data.preferredContact,
+    based_in:          data.basedIn,
+    notes:             data.notes ?? null,
+    sale_readiness:
+      data.serviceChoice === "nri_property_sale" ? data.saleReadiness ?? null : null,
+    rent_tds_check:
+      data.serviceChoice === "nri_rent_tds" ? data.rentTdsCheck ?? null : null,
+  };
+
+  const webhookUrl = `${n8nBaseUrl.replace(/\/+$/, "")}/property-service-enquiry`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const nRes = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        Authorization:  `Bearer ${n8nSecret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(webhookPayload),
+      signal: controller.signal,
+    });
+    if (!nRes.ok) {
+      // Log only safe stage/status/enquiry-id — no headers, secrets, payload, PII, or body.
+      console.warn("n8n_notify_non_2xx", {
+        status: nRes.status,
+        enquiry_id: insertedId,
+      });
+    }
+  } catch {
+    // Timeout / network error — never surface to the customer path.
+    console.warn("n8n_notify_error", { enquiry_id: insertedId });
+  } finally {
+    clearTimeout(timeout);
   }
 
   return json({ success: true });
