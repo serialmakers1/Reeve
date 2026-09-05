@@ -91,13 +91,25 @@ function baseBody(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function req(body: unknown): Request {
+function req(body: unknown, geoHeaders: Record<string, string> = {}): Request {
   return new Request("https://app.test/api/submit-property-enquiry", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...geoHeaders },
     body: JSON.stringify(body),
   });
 }
+
+const GEO_HEADERS = {
+  "x-vercel-ip-country": "IN",
+  "x-vercel-ip-country-region": "KA",
+  "x-vercel-ip-city": "Bengaluru",
+  "x-vercel-ip-timezone": "Asia/Kolkata",
+  "x-vercel-ip-postal-code": "560001",
+  // Excluded fields — present on the request but must NOT reach the webhook.
+  "x-real-ip": "203.0.113.9",
+  "x-vercel-ip-latitude": "12.97",
+  "x-vercel-ip-longitude": "77.59",
+};
 
 function n8nPayload() {
   const call = n8nCalls()[0];
@@ -152,24 +164,47 @@ describe("submit-property-enquiry — n8n notification", () => {
     expect(n8nCalls()[0].url).toBe(N8N_URL);
   });
 
-  it("excludes all IP/geo and Turnstile fields from the payload", async () => {
+  it("includes coarse geo context from the Vercel request headers / decoded ipCity", async () => {
     mockFetch();
-    await handler(req(baseBody()));
+    await handler(req(baseBody(), GEO_HEADERS));
+    const p = n8nPayload();
+    expect(p.ip_country).toBe("IN");
+    expect(p.ip_region).toBe("KA");
+    expect(p.ip_city).toBe("Bengaluru");
+    expect(p.ip_timezone).toBe("Asia/Kolkata");
+    expect(p.ip_postal_code).toBe("560001");
+  });
+
+  it("missing geo headers produce null geo values without affecting submission", async () => {
+    mockFetch();
+    const res = await handler(req(baseBody())); // no geo headers
+    await expect(res.json()).resolves.toEqual({ success: true });
+    const p = n8nPayload();
+    expect(p.ip_country).toBeNull();
+    expect(p.ip_region).toBeNull();
+    expect(p.ip_city).toBeNull();
+    expect(p.ip_timezone).toBeNull();
+    expect(p.ip_postal_code).toBeNull();
+  });
+
+  it("excludes request_ip / lat / long / Turnstile / secrets from the payload", async () => {
+    mockFetch();
+    await handler(req(baseBody(), GEO_HEADERS));
     const p = n8nPayload();
     for (const k of [
       "request_ip",
-      "ip_country",
-      "ip_region",
-      "ip_city",
       "ip_latitude",
       "ip_longitude",
-      "ip_timezone",
-      "ip_postal_code",
       "turnstileToken",
       "turnstile_token",
     ]) {
       expect(p).not.toHaveProperty(k);
     }
+    // No secret leaks through the payload body.
+    const bodyStr = n8nCalls()[0].init!.body as string;
+    expect(bodyStr).not.toContain(N8N_SECRET);
+    expect(bodyStr).not.toContain(process.env.SUPABASE_SECRET_KEY!);
+    expect(bodyStr).not.toContain("203.0.113.9");
   });
 
   it("NRI Sale includes only sale_readiness", async () => {
