@@ -1198,7 +1198,7 @@ export default function PropertyEnquiryForm({
               required
               autoComplete="tel"
               disabled={isLocked}
-              placeholder="+91 98765 43210"
+              placeholder="(+91) 98765 43210 - Country Code followed by number"
               value={formData.phone}
               onChange={(e) => setField("phone", e.target.value)}
               onBlur={() => handleBlur("phone")}
