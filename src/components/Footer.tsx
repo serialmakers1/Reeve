@@ -63,11 +63,6 @@ const Footer = () => {
                   Reeve Let
                 </Link>
               </li>
-              <li>
-                <Link to="/khata-transfer-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
-                  Khata &amp; Mutation
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -88,6 +83,11 @@ const Footer = () => {
               <li>
                 <Link to="/nri-rent-tds-india" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
                   NRI Rent &amp; TDS
+                </Link>
+              </li>
+              <li>
+                <Link to="/khata-transfer-bangalore" className="text-gray-400 text-sm hover:text-white transition-colors duration-150">
+                  Khata &amp; Mutation
                 </Link>
               </li>
             </ul>
