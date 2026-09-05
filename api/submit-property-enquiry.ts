@@ -312,7 +312,9 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   // Explicit allow-listed payload built from validated data — never the DB row,
-  // never any IP/geo field, never the Turnstile token or any secret.
+  // never the raw IP/lat/long, the Turnstile token, or any secret. Coarse geo
+  // context (country/region/city/timezone/postal) is included so n8n can render
+  // it in the notification; it reuses the already-decoded/validated values.
   const webhookPayload = {
     event:             "property_service_enquiry_created",
     enquiry_id:        insertedId,
@@ -331,6 +333,11 @@ export default async function handler(request: Request): Promise<Response> {
       data.serviceChoice === "nri_property_sale" ? data.saleReadiness ?? null : null,
     rent_tds_check:
       data.serviceChoice === "nri_rent_tds" ? data.rentTdsCheck ?? null : null,
+    ip_country:     request.headers.get("x-vercel-ip-country") ?? null,
+    ip_region:      request.headers.get("x-vercel-ip-country-region") ?? null,
+    ip_city:        ipCity,
+    ip_timezone:    request.headers.get("x-vercel-ip-timezone") ?? null,
+    ip_postal_code: request.headers.get("x-vercel-ip-postal-code") ?? null,
   };
 
   const webhookUrl = `${n8nBaseUrl.replace(/\/+$/, "")}/property-service-enquiry`;
