@@ -310,13 +310,12 @@ Deno.serve(async (req: Request) => {
       return json({ error: "request_already_active" }, 409);
     }
 
-    let triggerMessage = errBody;
-    try {
-      const parsed = JSON.parse(errBody);
-      if (parsed?.message) triggerMessage = parsed.message;
-    } catch { /* leave raw */ }
-
-    return json({ error: "trigger_violation", message: triggerMessage }, 422);
+    // SEC-005: the stable `trigger_violation` code only — never the PostgREST/Postgres
+    // failure text. It previously carried `message` (the parsed `message` field, or the
+    // whole raw body when it was not JSON), which the client renders directly in a toast
+    // (RequestContactPanel.tsx), exposing constraint/trigger/table/column internals.
+    // The caller already falls back to its own static copy when `message` is absent.
+    return json({ error: "trigger_violation" }, 422);
 
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
