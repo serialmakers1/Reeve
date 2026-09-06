@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       callback_requests: {
@@ -2873,188 +2898,6 @@ export type Database = {
         Returns: string
       }
       run_stale_listing_sweep: { Args: never; Returns: number }
-      search_compact_properties_v3: {
-        Args: {
-          p_amenities?: string[]
-          p_availability_confirmed_within_days?: number
-          p_available_by?: string
-          p_bhk?: string[]
-          p_cursor_availability_confirmed_at?: string
-          p_cursor_id?: string
-          p_cursor_listed_at?: string
-          p_cursor_price_amount?: number
-          p_distance_km?: number
-          p_furnishing?: string[]
-          p_geo_place_ids?: string[]
-          p_has_experience_feedback?: boolean
-          p_has_video_walkthrough?: boolean
-          p_khata_type?: string[]
-          p_limit?: number
-          p_listed_within_days?: number
-          p_listing_type: Database["public"]["Enums"]["property_listing_type"]
-          p_max_annual_increase?: number
-          p_max_carpet_area?: number
-          p_max_deposit?: number
-          p_max_lock_in_months?: number
-          p_max_move_in_charges?: number
-          p_max_notice_days?: number
-          p_max_price?: number
-          p_max_rent_brokerage_fixed?: number
-          p_max_sale_brokerage_pct?: number
-          p_max_super_built_up?: number
-          p_min_carpet_area?: number
-          p_min_price?: number
-          p_min_response_rate?: number
-          p_min_super_built_up?: number
-          p_negotiable?: boolean
-          p_parking_2w?: string[]
-          p_parking_4w?: string[]
-          p_pet_policy?: string[]
-          p_possession_before?: string
-          p_possession_status?: string[]
-          p_property_tax_paid?: boolean
-          p_property_type?: string
-          p_rera_disclosed?: boolean
-          p_sort?: string
-          p_zero_rent_brokerage?: boolean
-        }
-        Returns: {
-          availability_confirmed_at: string
-          bathrooms: number
-          bhk: string
-          building_age_years: number
-          building_name: string
-          carpet_area_sqft: number
-          city: string
-          experience_feedback: Json
-          floor_number: number
-          furnishing: string
-          latitude: number
-          listed_at: string
-          lister_role: string
-          listing_type: string
-          locality: string
-          location_mode: string
-          lock_in_months: number
-          longitude: number
-          notice_period_days: number
-          owner_id: string
-          parking_2w: string
-          parking_2w_count: number
-          parking_4w: string
-          parking_4w_count: number
-          pet_policy: string
-          photo_count: number
-          possession_date: string
-          possession_status: string
-          price_amount: number
-          price_kind: string
-          price_negotiable: boolean
-          primary_image_url: string
-          property_id: string
-          property_type: string
-          rent_brokerage_fixed_amount: number
-          rent_brokerage_months: number
-          rent_brokerage_type: string
-          response_handled_count: number
-          response_rate_pct: number
-          sale_brokerage_pct: number
-          security_deposit_amount: number
-          super_built_up_sqft: number
-          total_count: number
-          total_floors: number
-          youtube_walkthrough_url: string
-        }[]
-      }
-      search_compact_properties_v4: {
-        Args: {
-          p_amenities?: string[]
-          p_availability_confirmed_within_days?: number
-          p_available_by?: string
-          p_bhk?: string[]
-          p_cursor_availability_confirmed_at?: string
-          p_cursor_id?: string
-          p_cursor_listed_at?: string
-          p_cursor_price_amount?: number
-          p_distance_km?: number
-          p_furnishing?: string[]
-          p_geo_place_ids?: string[]
-          p_has_video_walkthrough?: boolean
-          p_khata_type?: string[]
-          p_limit?: number
-          p_listed_within_days?: number
-          p_listing_type: Database["public"]["Enums"]["property_listing_type"]
-          p_max_annual_increase?: number
-          p_max_carpet_area?: number
-          p_max_deposit?: number
-          p_max_lock_in_months?: number
-          p_max_move_in_charges?: number
-          p_max_notice_days?: number
-          p_max_price?: number
-          p_max_rent_brokerage_fixed?: number
-          p_max_sale_brokerage_pct?: number
-          p_max_super_built_up?: number
-          p_min_carpet_area?: number
-          p_min_price?: number
-          p_min_super_built_up?: number
-          p_negotiable?: boolean
-          p_parking_2w?: string[]
-          p_parking_4w?: string[]
-          p_pet_policy?: string[]
-          p_possession_before?: string
-          p_possession_status?: string[]
-          p_property_tax_paid?: boolean
-          p_property_type?: string
-          p_rera_disclosed?: boolean
-          p_sort?: string
-          p_zero_rent_brokerage?: boolean
-        }
-        Returns: {
-          availability_confirmed_at: string
-          bathrooms: number
-          bhk: string
-          building_age_years: number
-          building_name: string
-          carpet_area_sqft: number
-          city: string
-          floor_number: number
-          furnishing: string
-          latitude: number
-          listed_at: string
-          lister_role: string
-          listing_type: string
-          locality: string
-          location_mode: string
-          lock_in_months: number
-          longitude: number
-          notice_period_days: number
-          owner_id: string
-          parking_2w: string
-          parking_2w_count: number
-          parking_4w: string
-          parking_4w_count: number
-          pet_policy: string
-          photo_count: number
-          possession_date: string
-          possession_status: string
-          price_amount: number
-          price_kind: string
-          price_negotiable: boolean
-          primary_image_url: string
-          property_id: string
-          property_type: string
-          rent_brokerage_fixed_amount: number
-          rent_brokerage_months: number
-          rent_brokerage_type: string
-          response_handled_count: number
-          response_rate_pct: number
-          sale_brokerage_pct: number
-          security_deposit_amount: number
-          super_built_up_sqft: number
-          total_floors: number
-          youtube_walkthrough_url: string
-        }[]
-      }
       search_compact_properties_v5: {
         Args: {
           p_amenities?: string[]
@@ -3328,12 +3171,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3357,11 +3200,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3382,11 +3225,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3407,11 +3250,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3424,11 +3267,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3438,6 +3281,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       appliance_condition: [
