@@ -51,6 +51,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Avoid `CASCADE` unless specifically investigated and justified.
 - Prefer `.maybeSingle()` only when zero rows is valid; never on unfiltered multi-row queries.
 - Edge Functions must return stable user-safe errors; never expose raw DB/PostgREST/provider/runtime error text. Log only non-sensitive stage/status context.
+- Caller-supplied ids interpolated into PostgREST URLs must pass the anchored `UUID_REGEX` first (SEC-003); an unvalidated `&` injects filters that can silently empty a later guard query.
 
 ## Supabase Advisor / Audit Baseline — Aug 2026
 - Classify findings as actionable, accepted/intentional, deferred pending scale/evidence, or regression/new.

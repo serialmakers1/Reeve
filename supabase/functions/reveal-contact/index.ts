@@ -12,6 +12,13 @@
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const N8N_REVEAL_WEBHOOK = "https://n8n.reeve.in/webhook/contact-reveal";
 
+// SEC-003: contact_request_id is interpolated into raw PostgREST query strings below,
+// including the guarded approval PATCH (`?id=eq.<id>&status=eq.pending`). An unvalidated
+// value can append or truncate filters — a trailing `#` drops the `status=eq.pending`
+// race guard. The anchors matter: this admits only [0-9a-f-], so no query delimiter
+// can survive. Same guard as resend-reveal / upload- / delete-property-image.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -55,6 +62,7 @@ Deno.serve(async (req: Request) => {
     try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
     const crId = body?.contact_request_id;
     if (!crId || typeof crId !== "string") return json({ error: "Missing contact_request_id" }, 400);
+    if (!UUID_REGEX.test(crId)) return json({ error: "Invalid contact_request_id" }, 400);
 
     const srHeaders = { "apikey": serviceRoleKey, "Authorization": `Bearer ${serviceRoleKey}` };
 

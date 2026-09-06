@@ -6,6 +6,14 @@
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const N8N_RESEND_WEBHOOK = "https://n8n.reeve.in/webhook/contact-resend-reveal";
 
+// SEC-003: contact_request_id is interpolated into raw PostgREST query strings below.
+// An unvalidated value containing `&` injects extra filters — e.g. `<uuid>&id=eq.<uuid>`
+// leaves the request lookup valid but adds `email_send_log.id = <uuid>` to the rate-limit
+// queries, which then return a valid empty 200 (so the fail-closed branches never fire)
+// and silently bypass the 1/hour + 5/day gates. The anchors matter: this admits only
+// [0-9a-f-], so no query delimiter can survive.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -56,6 +64,7 @@ Deno.serve(async (req: Request) => {
     try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
     const crId = body?.contact_request_id;
     if (!crId || typeof crId !== "string") return json({ error: "Missing contact_request_id" }, 400);
+    if (!UUID_REGEX.test(crId)) return json({ error: "Invalid contact_request_id" }, 400);
 
     const srHeaders = { "apikey": serviceRoleKey, "Authorization": `Bearer ${serviceRoleKey}` };
 
