@@ -55,7 +55,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 ## Supabase Advisor / Audit Baseline — Aug 2026
 - Classify findings as actionable, accepted/intentional, deferred pending scale/evidence, or regression/new.
 - Closed categories that should remain zero: `auth_rls_initplan`, `function_search_path_mutable`. Any future finding here is a regression/new issue.
-- Accepted: reviewed authenticated/anon SECURITY DEFINER executable findings; intentional multi-permissive policy cases; `rls_enabled_no_policy` on the four documented deny-all tables; `auth_leaked_password_protection` while Email provider is disabled.
+- Accepted: reviewed authenticated/anon SECURITY DEFINER executable findings; intentional multi-permissive policy cases; `rls_enabled_no_policy` on the documented deny-all tables; `auth_leaked_password_protection` while Email provider is disabled.
 - Deferred: remaining `unindexed_foreign_keys` until scale/query evidence justifies them; `unused_index` until meaningful production usage exists.
 - Never change working authorization, add dummy policies, revoke legitimate RPC access, add low-value indexes, drop indexes, or enable unused auth features merely to silence advisors.
 - Re-open accepted/deferred items only for new objects, ACL/policy/config drift, materially changed table size/query patterns, or changed product requirements.
@@ -70,7 +70,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - Deleting a `property_images` row enqueues durable R2 cleanup (`pending_r2_deletions`, service-role only) via an AFTER DELETE trigger; R2-delete failures are retained there and never reverse the authoritative DB delete.
 - 15-photo max is enforced server-side (soft): `upload-property-image` rejects when live count ≥15 (fail-closed); `submit_property_edit_request` rejects when live + distinct staged additions >15 (`PHOTO_LIMIT_REACHED`). Brief multi-tab overshoot is accepted.
 - Image lifecycle cleanup all feeds `pending_r2_deletions` (one queue): reject/supersede/withdraw + archive + hard-delete enqueue staged/live keys; archive also deletes live rows DB-first; `unlisted` retains images. The internal `cleanup-property-images` worker (secret-gated) re-checks live references (fail-closed) before each R2 delete and reconciles R2-only orphans older than 7 days.
-- Intentional RLS-deny-all tables with no permissive policy: `comment_allowlist`, `comment_blocklist`, `pseudonym_adjectives`, `pseudonym_nouns`. Do not add fake `USING(false)` policies.
+- Intentional RLS-deny-all tables with no permissive policy: `comment_allowlist`, `comment_blocklist`, `pseudonym_adjectives`, `pseudonym_nouns`, `pending_r2_deletions`. Do not add fake `USING(false)` policies.
 - Function EXECUTE ACLs were comprehensively audited/hardened. Preserve per-function grants; new functions or ACL drift require fresh review.
 - Trigger/internal functions should not become callable for convenience. RLS helpers such as `is_admin()` / `is_property_owner(...)` have deliberate EXECUTE needs.
 - When defining/redefining SECURITY DEFINER functions, review owner, security mode, `search_path`, and EXECUTE ACLs together.
@@ -89,7 +89,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - No supported password login/signup/reset/update flow exists. A legacy admin may still have an old encrypted password in `auth.users`; do not manually alter Supabase Auth internals.
 - All attacker-controlled `returnTo` values must pass through `getSafeReturnTo()` in `src/lib/authUtils.ts`; same-origin internal routes only, sanitize before storage and again before navigation.
 - `public.users.pseudonym` is UNIQUE, permanent, system-assigned, shown on `/me` only, never `/u/:userId`.
-- Profile Name is read-only from `public.users.full_name`; no client write. `last_login_at` is written only through `touch_last_login()` on `SIGNED_IN`.
+- Browser roles have NO UPDATE on `public.users`; on `public.profiles` only `emergency_contact_*`, `updated_at`, `is_public` (SEC-001, Sep 2026). Name/photo are Auth-owned; `bio` goes through `update_profile_bio`, `last_login_at` through `touch_last_login()`. A new browser-writable column needs an explicit GRANT.
 - Never add auth-transaction triggers that sync `public.*`; use post-login RPCs. `prevent_user_privilege_escalation` protects role/verification/provider/active fields.
 - `public.users.phone` may be null for Google-first users; use scoped `get_phone_fallback(user_id)` where required. n8n never queries `auth.*` directly.
 
