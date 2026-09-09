@@ -132,6 +132,7 @@ const ORGANIZATION = {
   sameAs: [
     'https://www.linkedin.com/company/reeve-pm/',
     'https://x.com/reeve_pm',
+    'https://www.trustpilot.com/review/reeve.in',
   ],
   contactPoint: [
     {
@@ -184,6 +185,7 @@ const LOCAL_BUSINESS = {
   email: 'support@reeve.in',
   areaServed: BENGALURU_AREA,
   description: LB_DESCRIPTION,
+  sameAs: ['https://share.google/a2Hm9cYDZuqqAWm00'],
 };
 
 // ── Node builders ───────────────────────────────────────────────────────────
