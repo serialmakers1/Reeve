@@ -1,3 +1,5 @@
+import { getOwnedR2ObjectKey } from "./r2ObjectKey.ts";
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -9,7 +11,6 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const R2_ENDPOINT = "https://731bf5e6253cfe9a3ae733dbe3ac5dea.r2.cloudflarestorage.com";
 const R2_BUCKET = "property-images";
-const R2_PUBLIC_URL = "https://images.reeve.in";
 
 // ── AWS SigV4 helpers ──────────────────────────────────────────────────────────
 
@@ -298,8 +299,11 @@ Deno.serve(async (req: Request) => {
 
     // ── Staged-delete mode: remove an abandoned R2 object (never a live row). ──
     if (stagedUrl) {
-      const propPrefix = `${R2_PUBLIC_URL}/properties/${propertyId}/`;
-      if (!stagedUrl.startsWith(propPrefix)) {
+      // SEC-AUDIT-01: bind the deleted R2 object to this property via the shared
+      // validator (same rule as the normal branch + the DB CHECK). A null result means
+      // the URL is not a canonical object under properties/<propertyId>/photos/.
+      const objectKey = getOwnedR2ObjectKey(stagedUrl, propertyId);
+      if (!objectKey) {
         return new Response(JSON.stringify({ success: false, error: "URL is not under this property's storage path" }), {
           status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         });
@@ -342,7 +346,6 @@ Deno.serve(async (req: Request) => {
           status: 409, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         });
       }
-      const objectKey = stagedUrl.replace(`${R2_PUBLIC_URL}/`, "");
       // Durably record the cleanup BEFORE relying on R2. If the enqueue itself
       // fails we must NOT pretend deletion succeeded (there would be no recovery record).
       const enqueued = await enqueueOutbox(objectKey, srHeaders);
@@ -387,6 +390,20 @@ Deno.serve(async (req: Request) => {
     // property must be supplied so property A's status/rules never apply to B's image.
     // Runs before any status branch, DB delete, RPC, or R2 delete.
     if (imageRow.property_id !== propertyId) {
+      return new Response(JSON.stringify({ success: false, error: "Image does not belong to this property" }), {
+        status: 403, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+
+    // SEC-AUDIT-01: bind the physical R2 object identity to the authorized property.
+    // The row→property check above proves the DB ROW belongs to this property; it does
+    // NOT prove the stored url's OBJECT does. Derive the delete key from the url only if
+    // it provably lives under properties/<propertyId>/photos/<canonical> (URL.pathname
+    // based; no query/fragment). Runs BEFORE any status branch, DB delete, RPC, or R2
+    // delete, so a foreign/malformed url fails closed with no destructive effect.
+    const validatedObjectKey = getOwnedR2ObjectKey(imageRow.url ?? "", propertyId);
+    if (!validatedObjectKey) {
+      console.error("R2_KEY_PROPERTY_BINDING_FAILED");
       return new Response(JSON.stringify({ success: false, error: "Image does not belong to this property" }), {
         status: 403, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });
@@ -457,7 +474,7 @@ Deno.serve(async (req: Request) => {
     // pending_r2_deletions within the delete transaction, so an R2 failure here is
     // durably recoverable: clear the outbox row on success, retain it on failure.
     // The application delete already succeeded either way.
-    const objectKey = (imageRow.url ?? "").replace(`${R2_PUBLIC_URL}/`, "");
+    const objectKey = validatedObjectKey;
     let storageCleanupPending = false;
     if (objectKey) {
       const r2 = await deleteFromR2(objectKey);
