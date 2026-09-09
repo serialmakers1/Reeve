@@ -65,6 +65,12 @@ function errResp(error: string, status = 400): Response {
   return json({ error }, status);
 }
 
+// SEC-AUDIT-04: property_id is interpolated raw into service-role PostgREST URLs
+// (loadProperty/roadIdsForProperty/etc.). Validate the canonical UUID shape before any
+// such fetch so a value carrying `&`/`=`/`?` cannot inject additional filters.
+// Same anchored pattern as upload-property-image / delete-property-image / SEC-003 fixes.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // haversine metres (mirror of client geoPlausibility)
 function haversine(a: LatLng, b: LatLng): number {
   const R = 6371000, toRad = (d: number) => (d * Math.PI) / 180;
@@ -362,6 +368,8 @@ Deno.serve(async (req: Request) => {
     const mode: string = body.mode ?? "";
     const propertyId: string = body.property_id ?? "";
     if (!propertyId) return errResp("property_id_required", 400);
+    // SEC-AUDIT-04: reject non-canonical UUIDs before any service-role property fetch/RPC.
+    if (!UUID_REGEX.test(propertyId)) return errResp("invalid_property_id", 400);
 
     const prop = await loadProperty(propertyId);
     if (!prop) return errResp("property_not_found", 404);

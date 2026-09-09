@@ -23,6 +23,12 @@ function json(body: unknown, status: number): Response {
   });
 }
 
+// SEC-AUDIT-04: property_id is interpolated raw into service-role PostgREST URLs below
+// (`properties?id=eq.<id>`). Validate the canonical UUID shape before any such fetch so a
+// value carrying `&`/`=`/`?` cannot inject additional filters (blind-oracle primitive).
+// Same anchored pattern as upload-property-image / delete-property-image / SEC-003 fixes.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type PrefRow = Record<string, unknown>;
 
 function isMissing(v: unknown): boolean {
@@ -131,6 +137,10 @@ Deno.serve(async (req: Request) => {
     const propertyId = body?.property_id;
     if (!propertyId || typeof propertyId !== "string") {
       return json({ error: "Missing property_id" }, 400);
+    }
+    // SEC-AUDIT-04: reject non-canonical UUIDs before the service-role property fetch.
+    if (!UUID_REGEX.test(propertyId)) {
+      return json({ error: "Invalid property_id" }, 400);
     }
     const tenantMessage = typeof body?.tenant_message === "string" ? body.tenant_message : null;
     // Unicode-safe length check: Array.from counts code points, matching PostgreSQL char_length()
