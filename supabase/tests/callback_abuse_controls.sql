@@ -95,13 +95,16 @@ BEGIN
   INSERT INTO _r VALUES('12d update created_at pinned', v_stored > now() - interval '5 minutes',
     format('stored=%s', v_stored));
 
-  -- 16/17. updated_at still bumps on UPDATE (shared trigger intact).
-  SELECT updated_at INTO v_upd_before FROM public.callback_requests WHERE user_id = v_uid;
-  PERFORM pg_sleep(0.01);
-  UPDATE public.callback_requests SET admin_notes = 'x' WHERE user_id = v_uid;
+  -- 16/17. updated_at trigger refreshes the column on UPDATE (shared trigger intact).
+  -- NOTE: now() is the transaction-start time and is constant within this single test
+  -- transaction, so two UPDATEs cannot show a strict increase. Instead, an UPDATE that TRIES to
+  -- write a stale updated_at must be overridden by the trigger back to the transaction time —
+  -- that override is the proof the trigger fired.
+  UPDATE public.callback_requests SET updated_at = now() - interval '1 day', admin_notes = 'x'
+    WHERE user_id = v_uid;
   SELECT updated_at INTO v_upd_after FROM public.callback_requests WHERE user_id = v_uid;
-  INSERT INTO _r VALUES('16 updated_at still bumps', v_upd_after > v_upd_before,
-    format('before=%s after=%s', v_upd_before, v_upd_after));
+  INSERT INTO _r VALUES('16 updated_at trigger overrides stale', v_upd_after > now() - interval '1 hour',
+    format('stored=%s (stale value discarded)', v_upd_after));
 
   -- 9/10. Quota: 3 creations in 24h allowed, 4th rejected CALLBACK_RATE_LIMITED (P0001).
   DELETE FROM public.callback_requests WHERE user_id = v_uid;
