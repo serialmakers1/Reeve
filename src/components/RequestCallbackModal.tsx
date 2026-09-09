@@ -592,9 +592,24 @@ const RequestCallbackModal: React.FC<RequestCallbackModalProps> = ({
       if (error) throw error;
       setSuccess(true);
     } catch (err: any) {
-      setSubmitError(
-        err?.message || "Something went wrong. Please try again."
-      );
+      // Map server-side abuse-control rejections (SEC-AUDIT-05) to friendly copy.
+      // - 23505: one-active partial unique index (callback_requests_one_active_per_user).
+      // - CALLBACK_RATE_LIMITED (P0001): per-user rolling-24h quota trigger.
+      const code = err?.code;
+      const rawMessage = err?.message ?? "";
+      if (code === "23505") {
+        setSubmitError(
+          "You already have a callback scheduled. We'll be in touch soon."
+        );
+      } else if (rawMessage.includes("CALLBACK_RATE_LIMITED")) {
+        setSubmitError(
+          "You've reached the limit of callback requests for now. Please try again later."
+        );
+      } else {
+        setSubmitError(
+          rawMessage || "Something went wrong. Please try again."
+        );
+      }
     } finally {
       setSubmitting(false);
     }
