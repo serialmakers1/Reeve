@@ -31,6 +31,33 @@ export function getSafeReturnTo(
   }
 }
 
+/**
+ * Extracts an OAuth/identity-link `error_description` from a callback URL.
+ *
+ * Supabase redirects back with an error when `linkIdentity`/`signInWithOAuth`
+ * fails (e.g. "Identity is already linked to another user"). Under PKCE the
+ * error arrives in the query string (`?error=...&error_description=...`); the
+ * legacy implicit flow used the hash (`#error=...`). Reads both, query first,
+ * so the caller behaves correctly regardless of flow shape.
+ *
+ * @returns the decoded `error_description`, or `null` when neither location
+ *   carries one.
+ */
+export function getOAuthErrorDescription(
+  search: string | null | undefined,
+  hash: string | null | undefined,
+): string | null {
+  const fromQuery = (search ?? "").includes("error_description=");
+  const fromHash = (hash ?? "").includes("error_description=");
+  if (!fromQuery && !fromHash) return null;
+
+  const params = fromQuery
+    ? new URLSearchParams(search as string)
+    : new URLSearchParams((hash as string).replace(/^#/, ""));
+  const description = params.get("error_description") ?? "";
+  return description || null;
+}
+
 /** Redirect based on user role after login */
 export function getDefaultRouteForRole(role: string | null | undefined): string {
   switch (role) {
