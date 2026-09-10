@@ -81,6 +81,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 - `favourites.property_id` is intentionally indexed by `idx_favourites_property_id`; `(user_id, property_id)` does not cover property_id-leading lookups.
 - Do not add every FK advisor index or drop an index solely because it is reported unused; usage statistics are sparse and new indexes may initially show zero scans.
 - Migrations should be single-purpose; enum values must be committed before later use; BEFORE triggers fire alphabetically.
+- Property status/system operations must not implicitly grant canonical-location authority (F-02, Sep 2026): `enforce_canonical_location_lock` trusts only operation-specific `reeve.system_action` values (`geo_apply_v2`/`geo_confirm`/`geo_finalize`/`geo_discovery`/`building_name`), never any non-empty value (e.g. `status_change`); location trust is per-operation, not "non-empty = trusted".
 - Property images use Cloudflare R2, not Supabase Storage.
 - New property photos/floor plans are browser-preprocessed once via `processPhotoForUpload` (HEIC→JPEG, ≤1280px, q0.70, EXIF-stripped, WebP-preferred with format-safe fallback, ≤10 MB) before the existing Edge upload; owner and admin paths share it.
 - Image delivery: Search cards render only the cover URL (first/LCP card eager+`fetchPriority="high"`, others lazy); new R2 uploads set `Cache-Control: public, max-age=31536000, immutable` (unsigned header; keys are immutable UUIDs).
