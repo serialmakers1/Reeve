@@ -1,3 +1,9 @@
+## [2026-09-10] security | SEC-AUDIT-06 — verify-phone-otp: strip PII/OTP/Auth-response from logs (logging-only) [10:00 IST]
+
+**Not yet deployed — user must run `supabase functions deploy verify-phone-otp --project-ref tfutuqqcxqqbirnsdpvz`.**
+
+Removed sensitive values from `supabase/functions/verify-phone-otp/index.ts` console logs while keeping every `STEP*`/`VERIFY_PHONE_*` marker + HTTP status/attempt/booleans: full phone (`STEP2_BODY`, `STEP4_PRE_PATCH`), first-2 OTP digits (`STEP2_BODY`), GoTrue `/auth/v1/verify` body incl. access-token fragment (`STEP3_VERIFY`), Admin user object w/ email/phone/metadata (`STEP4_PATCH_RESULT`), real user UUIDs (`STEP1_JWT_OK`/`STEP4_AGE_CHECK`/delete logs), admin URL, and raw DELETE error bodies. All `Response.text()` reads preserved verbatim (bare statements where the value is no longer used) so Auth/network execution is statement-identical apart from log args. No change to auth logic, request/response contract, `verify_jwt=false`, DB, migrations, types, or frontend. Verified: `deno check` ✓, `tsc -p tsconfig.app.json --noEmit` 0 diagnostics, `npm run test` 1065 passed, `npm run build` ✓. Diagnosis confirmed severity LOW (logs need privileged project access; token fragment truncated/non-reusable) but violated the log-only-non-sensitive-context principle.
+
 ## [2026-08-31] fix | Fixed ListProperty accordion section viewport positioning [15:30 IST]
 
 ## [2026-08-27] perf | Group 1 Phase 1 — Remove total count, response-rate filter, experience feedback from Search RPC

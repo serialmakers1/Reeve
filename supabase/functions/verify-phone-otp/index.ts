@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Unauthorized" }, 401);
     }
 
-    console.log('STEP1_JWT_OK', { googleUserId });
+    console.log('STEP1_JWT_OK');
 
     // ── 2. Parse and validate body ────────────────────────────────────────────
     let body: { phone?: string; token?: string };
@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Invalid token format" }, 400);
     }
 
-    console.log('STEP2_BODY', { phone, otp: otp.substring(0, 2) + '****' });
+    console.log('STEP2_BODY');
 
     // ── 3. Verify OTP via Supabase Auth ───────────────────────────────────────
     // Returns a session for the phone-only user — extract their ID for cleanup,
@@ -98,10 +98,7 @@ Deno.serve(async (req: Request) => {
     });
 
     const verifyBody = await verifyRes.text();
-    console.log('STEP3_VERIFY', {
-      status: verifyRes.status,
-      body: verifyBody.substring(0, 200),
-    });
+    console.log('STEP3_VERIFY', { status: verifyRes.status });
 
     if (!verifyRes.ok) {
       return json({ error: "Invalid or expired OTP" }, 400);
@@ -117,7 +114,7 @@ Deno.serve(async (req: Request) => {
     if (phoneUserId && phoneUserId !== googleUserId) {
       const createdAt = verifyData?.user?.created_at;
       const ageMs = createdAt ? Date.now() - new Date(createdAt).getTime() : Infinity;
-      console.log('STEP4_AGE_CHECK', { phoneUserId, createdAt, ageMs });
+      console.log('STEP4_AGE_CHECK', { ageMs });
       if (ageMs > SPURIOUS_ROW_MAX_AGE_MS) {
         return json({ error: "This phone number is already registered to another account." }, 409);
       }
@@ -127,7 +124,7 @@ Deno.serve(async (req: Request) => {
     // Must happen BEFORE the PUT — the PUT sets phone on the Google user, which
     // would collide with the phone already on the spurious row (unique constraint).
     if (phoneUserId && phoneUserId !== googleUserId) {
-      console.log(`verify-phone-otp: deleting spurious phone user ${phoneUserId} before PUT`);
+      console.log('verify-phone-otp: deleting spurious phone user before PUT');
       const deleteRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${phoneUserId}`, {
         method: "DELETE",
         headers: {
@@ -136,9 +133,10 @@ Deno.serve(async (req: Request) => {
         },
       });
       if (!deleteRes.ok) {
-        console.error(`verify-phone-otp: failed to delete phone user ${phoneUserId}`, await deleteRes.text().catch(() => ""));
+        await deleteRes.text().catch(() => "");
+        console.error('verify-phone-otp: failed to delete phone user', { status: deleteRes.status });
       } else {
-        console.log(`verify-phone-otp: deleted spurious phone user ${phoneUserId}`);
+        console.log('verify-phone-otp: deleted spurious phone user');
       }
 
       // Also delete the public.users row the handle_user_updated trigger created
@@ -155,19 +153,16 @@ Deno.serve(async (req: Request) => {
         }
       );
       if (!deletePublicRes.ok) {
-        console.error(`verify-phone-otp: failed to delete public.users row for ${phoneUserId}`, await deletePublicRes.text().catch(() => ""));
+        await deletePublicRes.text().catch(() => "");
+        console.error('verify-phone-otp: failed to delete public.users row', { status: deletePublicRes.status });
       } else {
-        console.log(`verify-phone-otp: deleted public.users row for spurious phone user ${phoneUserId}`);
+        console.log('verify-phone-otp: deleted public.users row for spurious phone user');
       }
     }
 
     // ── 6. Link phone to the original Google OAuth user via Admin API ──────────
     // PUT sets phone + phone_confirm: true without touching the caller's session.
-    console.log('STEP4_PRE_PATCH', {
-      googleUserId,
-      phone,
-      patchUrl: SUPABASE_URL + '/auth/v1/admin/users/' + googleUserId,
-    });
+    console.log('STEP4_PRE_PATCH');
 
     const patchRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${googleUserId}`, {
       method: "PUT",
@@ -179,11 +174,8 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({ phone, phone_confirm: true }),
     });
 
-    const patchBody = await patchRes.text();
-    console.log('STEP4_PATCH_RESULT', {
-      status: patchRes.status,
-      body: patchBody.substring(0, 300),
-    });
+    await patchRes.text();
+    console.log('STEP4_PATCH_RESULT', { status: patchRes.status });
 
     if (!patchRes.ok) {
       console.error("VERIFY_PHONE_PATCH_FAILED", { status: patchRes.status });
