@@ -87,6 +87,7 @@ React 18 + TypeScript (Vite 7 + SWC) · Tailwind 3 + shadcn/ui (Radix) · Supaba
 
 ## Auth Architecture
 - Active providers: Phone ENABLED (MSG91 OTP), Google ENABLED (OAuth), Email DISABLED.
+- Browser Supabase client is PKCE (`flowType:'pkce'`, not the auth-js `implicit` default); Google sign-in/linking return via `?code=` (+ browser-held verifier), never a token-bearing `#access_token` fragment. Closes OAuth-credential leak into PostHog URL telemetry (F-01) and implicit-callback session injection / login-CSRF (F-04). Keep `detectSessionInUrl:true` for auto-exchange; never revert to implicit or add an implicit fallback.
 - No supported password login/signup/reset/update flow exists. A legacy admin may still have an old encrypted password in `auth.users`; do not manually alter Supabase Auth internals.
 - All attacker-controlled `returnTo` values must pass through `getSafeReturnTo()` in `src/lib/authUtils.ts`; same-origin internal routes only, sanitize before storage and again before navigation.
 - `public.users.pseudonym` is UNIQUE, permanent, system-assigned, shown on `/me` only, never `/u/:userId`.

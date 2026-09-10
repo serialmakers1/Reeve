@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, CheckCircle2, Circle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
-import { getSafeReturnTo } from "@/lib/authUtils";
+import { getSafeReturnTo, getOAuthErrorDescription } from "@/lib/authUtils";
 
 // D-172: reason-banner copy shown when /profile is reached via VerificationGate.
 const REASON_COPY: Record<string, { headline: string; body: string[]; hint: string }> = {
@@ -129,15 +129,17 @@ export default function Profile() {
     };
   }, []);
 
-  // Mount-time hash-error check — runs before onAuthStateChange strips the hash.
-  // Supabase redirects back with error fragments when linkIdentity fails
-  // (e.g. #error=oauthError&error_description=Identity+is+already+linked+to+another+user).
+  // Mount-time link-error check — runs before onAuthStateChange strips the URL.
+  // Supabase redirects back with an error when linkIdentity fails (e.g.
+  // "Identity is already linked to another user"). Under PKCE the error arrives
+  // as query params (?error=...&error_description=...); the legacy implicit flow
+  // used the hash (#error=...). Read both (query takes precedence) so the check
+  // is correct regardless of flow shape.
   useEffect(() => {
-    const hash = window.location.hash;
-    if (!hash || !hash.includes("error_description=")) return;
-
-    const params = new URLSearchParams(hash.slice(1));
-    const description = params.get("error_description") ?? "";
+    const description = getOAuthErrorDescription(
+      window.location.search,
+      window.location.hash,
+    );
     if (!description) return;
 
     const message = description.toLowerCase().includes("already linked")

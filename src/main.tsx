@@ -46,6 +46,12 @@ if (import.meta.env.PROD && import.meta.env.VITE_POSTHOG_KEY) {
   posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
     api_host: import.meta.env.VITE_POSTHOG_HOST ?? "https://eu.i.posthog.com",
     defaults: "2026-05-30",
+    // Strip URL fragments from all auto-captured URL properties ($current_url,
+    // $session_entry_url, etc.). Defence-in-depth for F-01: the `defaults` date is
+    // before the 2026-06-25 cutoff that would enable this implicitly, so set it
+    // explicitly. Does not disable analytics/replay or affect navigation (Reeve
+    // uses BrowserRouter, not hash routing).
+    disable_capture_url_hashes: true,
     person_profiles: "identified_only",
     capture_pageview: "history_change",
     capture_pageleave: true,

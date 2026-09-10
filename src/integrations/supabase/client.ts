@@ -24,6 +24,13 @@ export const supabase = createClient<Database, "public">(SUPABASE_URL, SUPABASE_
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    // PKCE (not the auth-js default 'implicit'): Google sign-in (Login.tsx) and
+    // Google linking (Profile.tsx) return via `?code=` + a browser-held verifier
+    // instead of a token-bearing `#access_token=...` fragment. Closes the OAuth
+    // credential leak into PostHog URL telemetry (F-01) and the implicit-callback
+    // session-injection / login-CSRF vector (F-04). `detectSessionInUrl` stays on
+    // so auth-js auto-exchanges the code; does not affect phone OTP.
+    flowType: 'pkce',
     storageKey: 'reeve-auth',
     lock: noOpLock,
   }
