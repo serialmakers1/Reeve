@@ -905,26 +905,16 @@ export type Database = {
           id: string
           o_accuracy: string | null
           o_progress: string | null
-          o_q1_communication: string | null
-          o_q2_visit: string | null
-          o_q3_deal_again: string | null
           o_reach: string | null
           o_respect: string | null
-          o_review_text: string | null
-          o_submitted_at: string | null
           o_trust: string | null
           o_v2_submitted_at: string | null
           owner_id: string
           property_id: string
           t_accuracy: string | null
           t_progress: string | null
-          t_q1_communication: string | null
-          t_q2_visit: string | null
-          t_q3_deal_again: string | null
           t_reach: string | null
           t_respect: string | null
-          t_review_text: string | null
-          t_submitted_at: string | null
           t_trust: string | null
           t_v2_submitted_at: string | null
           tenant_id: string
@@ -938,26 +928,16 @@ export type Database = {
           id?: string
           o_accuracy?: string | null
           o_progress?: string | null
-          o_q1_communication?: string | null
-          o_q2_visit?: string | null
-          o_q3_deal_again?: string | null
           o_reach?: string | null
           o_respect?: string | null
-          o_review_text?: string | null
-          o_submitted_at?: string | null
           o_trust?: string | null
           o_v2_submitted_at?: string | null
           owner_id: string
           property_id: string
           t_accuracy?: string | null
           t_progress?: string | null
-          t_q1_communication?: string | null
-          t_q2_visit?: string | null
-          t_q3_deal_again?: string | null
           t_reach?: string | null
           t_respect?: string | null
-          t_review_text?: string | null
-          t_submitted_at?: string | null
           t_trust?: string | null
           t_v2_submitted_at?: string | null
           tenant_id: string
@@ -971,26 +951,16 @@ export type Database = {
           id?: string
           o_accuracy?: string | null
           o_progress?: string | null
-          o_q1_communication?: string | null
-          o_q2_visit?: string | null
-          o_q3_deal_again?: string | null
           o_reach?: string | null
           o_respect?: string | null
-          o_review_text?: string | null
-          o_submitted_at?: string | null
           o_trust?: string | null
           o_v2_submitted_at?: string | null
           owner_id?: string
           property_id?: string
           t_accuracy?: string | null
           t_progress?: string | null
-          t_q1_communication?: string | null
-          t_q2_visit?: string | null
-          t_q3_deal_again?: string | null
           t_reach?: string | null
           t_respect?: string | null
-          t_review_text?: string | null
-          t_submitted_at?: string | null
           t_trust?: string | null
           t_v2_submitted_at?: string | null
           tenant_id?: string
@@ -2677,20 +2647,6 @@ export type Database = {
           last_7d_responded: number
         }[]
       }
-      get_pending_ratings_for_me: {
-        Args: never
-        Returns: {
-          building_name: string
-          contact_request_id: string
-          counterparty_name: string
-          i_am: string
-          locality: string
-          other_submitted: boolean
-          property_id: string
-          window_closes_at: string
-          window_opens_at: string
-        }[]
-      }
       get_pending_requests_for_digest: {
         Args: never
         Returns: {
@@ -2756,7 +2712,6 @@ export type Database = {
           unanswered_count: number
         }[]
       }
-      get_user_rating_summary: { Args: { p_user_id: string }; Returns: Json }
       get_user_rating_summary_v2: { Args: { p_user_id: string }; Returns: Json }
       get_user_role: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
@@ -3011,16 +2966,6 @@ export type Database = {
           p_property_id: string
         }
         Returns: string
-      }
-      submit_rating: {
-        Args: {
-          p_contact_request_id: string
-          p_q1: string
-          p_q2: string
-          p_q3: string
-          p_review_text?: string
-        }
-        Returns: Json
       }
       submit_rating_v2: {
         Args: {
