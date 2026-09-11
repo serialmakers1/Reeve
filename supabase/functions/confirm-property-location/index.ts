@@ -17,6 +17,7 @@ import {
   buildCityEvidenceSet,
   type CityCandidate,
 } from "./geoClassify.ts";
+import { interpretQuotaResult } from "./quota.ts";
 import {
   mapFactual,
   indiaStatus,
@@ -406,6 +407,25 @@ Deno.serve(async (req: Request) => {
         ? [...new Set((body.extra_place_ids as unknown[]).filter((x): x is string => typeof x === "string" && x.length > 0))]
         : [];
       if (extraIds.length > MAX_EXTRA_PLACES) return errResp("too_many_extra_places", 400);
+
+      // F-03: per-user quota guard — runs AFTER auth/ownership/status/input validation and BEFORE the
+      // first Google call (engineResolve). Only a strict TRUE proceeds; over-quota → 429, and any
+      // RPC failure or malformed/non-boolean result FAILS CLOSED to 503 with zero provider calls.
+      // Identity is the JWT-derived user.id (never client-supplied); the DB function is service-role
+      // only. No property/location/status write occurs here.
+      let quotaBody: unknown = null;
+      let quotaOk = false;
+      try {
+        const qr = await srRpc("consume_location_resolution_quota", { p_user_id: user.id });
+        quotaOk = qr.ok;
+        quotaBody = await qr.json().catch(() => null);
+      } catch (e) {
+        console.error("location_quota_rpc_error", (e as Error).message);
+        quotaOk = false;
+      }
+      const quotaDecision = interpretQuotaResult(quotaOk, quotaBody);
+      if (quotaDecision === "rate_limited") return errResp("LOCATION_RATE_LIMITED", 429);
+      if (quotaDecision !== "allow") return errResp("location_quota_unavailable", 503);
 
       const { place, placeFetchFailed, rg } = await engineResolve(placeId, pin);
       if (rg.status === "transient") {
