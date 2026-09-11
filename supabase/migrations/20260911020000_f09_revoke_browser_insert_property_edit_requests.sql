@@ -1,0 +1,17 @@
+-- F-09: property_edit_requests is written only via the SECURITY DEFINER RPC
+-- submit_property_edit_request (owner=postgres). No legitimate browser/runtime
+-- path INSERTs directly. Remove the unused, RLS-only-gated direct write path so
+-- the RPC becomes the sole way a browser can create an edit request.
+--
+-- No column-level or PUBLIC INSERT grants exist on this table (verified live:
+-- relacl grants INSERT to anon/authenticated only, attacl is NULL on all
+-- columns), so a single table-level REVOKE fully removes effective direct INSERT.
+--
+-- Unaffected by design:
+--   * submit_property_edit_request / approve_edit_request / reject_edit_request /
+--     cancel_pending_edit_request are SECURITY DEFINER owned by postgres and
+--     insert/update as postgres, independent of this browser grant.
+--   * service_role INSERT is retained (server-only, not browser-reachable).
+--   * The edit_requests_insert_owner RLS policy is intentionally left in place
+--     (now inert); SELECT policies are untouched.
+REVOKE INSERT ON TABLE public.property_edit_requests FROM anon, authenticated;
