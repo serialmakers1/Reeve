@@ -9,6 +9,8 @@
 // - caller must be the owner_id on the contact_request. Verified via JWT.
 // - DB state is source of truth: approval succeeds regardless of n8n outcome.
 
+import { isApprovedTransitionProof } from "./approvalProof.ts";
+
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const N8N_REVEAL_WEBHOOK = "https://n8n.reeve.in/webhook/contact-reveal";
 
@@ -82,17 +84,39 @@ Deno.serve(async (req: Request) => {
 
     // 5. UPDATE status → approved (guarded on OLD.status=pending for idempotence)
     //    DB is source of truth: happens BEFORE any n8n call.
+    //
+    //    F-08: `updateRes.ok` alone is NOT proof this invocation transitioned a
+    //    row — a conditional PATCH matching ZERO rows (e.g. the tenant withdrew
+    //    first, pending→withdrawn) still returns 2xx. Request the changed row back
+    //    (return=representation, select=id,status) and require EXACTLY one row with
+    //    the expected id now "approved" before any PII load/log/dispatch. Anything
+    //    else fails closed with 409 and stops here. crId is UUID-validated above,
+    //    so the appended &select cannot be filter-injected (SEC-003).
     const updateRes = await fetch(
-      `${supabaseUrl}/rest/v1/contact_requests?id=eq.${crId}&status=eq.pending`,
+      `${supabaseUrl}/rest/v1/contact_requests?id=eq.${crId}&status=eq.pending&select=id,status`,
       {
         method: "PATCH",
-        headers: { ...srHeaders, "Content-Type": "application/json" },
+        headers: { ...srHeaders, "Content-Type": "application/json", "Prefer": "return=representation" },
         body: JSON.stringify({ status: "approved" }),
       },
     );
     if (!updateRes.ok) {
       console.error("APPROVE_UPDATE_ERROR", { status: updateRes.status });
       return json({ error: "Failed to mark approved" }, 500);
+    }
+    let updatedRows: unknown;
+    try {
+      updatedRows = await updateRes.json();
+    } catch (err) {
+      console.error("APPROVE_UPDATE_PARSE_ERROR", { error: err instanceof Error ? err.message : String(err) });
+      return json({ error: "invalid_status_transition" }, 409);
+    }
+    if (!isApprovedTransitionProof(updatedRows, crId)) {
+      // Zero rows / unexpected shape: the request was no longer pending when the
+      // PATCH ran (withdrawn/declined/auto-cancelled/already-approved). Stop before
+      // any PII query, email_send_log write, or n8n dispatch.
+      console.warn("APPROVE_NO_ROW_TRANSITIONED", { crId });
+      return json({ error: "invalid_status_transition" }, 409);
     }
 
     // 6. Gather notification payload data (service_role — values never leave via HTTP body)
