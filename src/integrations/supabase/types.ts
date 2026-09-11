@@ -2228,6 +2228,10 @@ export type Database = {
           property_id: string
         }[]
       }
+      consume_location_resolution_quota: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
       decline_contact_request: {
         Args: {
           p_id: string
