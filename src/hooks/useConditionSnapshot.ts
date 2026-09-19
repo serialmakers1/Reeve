@@ -2,12 +2,11 @@
  * useConditionSnapshot — Computes derived conditions for ALL rooms and writes
  * them as a snapshot to the DB (via queueRoomPatch) and in-memory (via setRooms).
  *
- * Called at two points:
- *   1. handleMarkCompleted — before status update
- *   2. ExportReportDialog onBeforeExport — before PDF generation
+ * Called before PDF export (ExportReportDialog onBeforeExport).
  *
- * The in-memory setRooms update ensures the PDF payload (payloadBase.rooms) has
- * the correct derived _condition columns, since RoomsSection reads them directly.
+ * The in-memory setRooms update — and the returned rooms array — ensure the PDF
+ * payload has the correct derived _condition columns, since RoomsSection reads
+ * them directly.
  *
  * The ?? fallback keeps existing DB values for rooms not yet assessed in the
  * new entry format — prevents data loss for in-progress inspections.
@@ -88,7 +87,10 @@ export function useConditionSnapshot(
   setRooms: Dispatch<SetStateAction<LocalRoom[]>>,
   queueRoomPatch: (roomId: string, patch: Record<string, unknown>) => void,
 ) {
-  const writeConditionSnapshot = useCallback(async () => {
+  const writeConditionSnapshot = useCallback(async (): Promise<LocalRoom[]> => {
+    // Accumulate patches so callers (e.g. PDF export) can build from the exact
+    // snapshotted rooms, without waiting for a React re-render.
+    const patches = new Map<string, Record<string, unknown>>();
     for (const room of rooms) {
       const derived = deriveConditions(room);
       const rf = (room.room_features as Record<string, unknown>) ?? {};
@@ -130,12 +132,18 @@ export function useConditionSnapshot(
       const plNotes = concatenateEntryNotes(rf.plumbing_issues, "item", PLUMBING_ITEM_LABELS);
       if (plNotes !== null) patch.plumbing_notes = plNotes;
 
-      // Write to DB (queued) and update in-memory state
+      // Write to DB (queued) and record the patch for the returned snapshot.
       queueRoomPatch(room.id, patch);
-      setRooms((prev) =>
-        prev.map((r) => (r.id === room.id ? { ...r, ...patch } : r)),
-      );
+      patches.set(room.id, patch);
     }
+
+    // Apply all patches at once, both to state and to the returned array so the
+    // caller uses the same snapshotted rooms the DB now holds.
+    const updated = rooms.map((r) =>
+      patches.has(r.id) ? { ...r, ...patches.get(r.id) } : r,
+    );
+    setRooms(updated);
+    return updated;
   }, [rooms, setRooms, queueRoomPatch]);
 
   return { writeConditionSnapshot };

@@ -57,6 +57,8 @@ const ListingReviewQueue     = React.lazy(() => import("./pages/admin/ListingRev
 const ListingReviewDetail    = React.lazy(() => import("./pages/admin/ListingReviewDetail"));
 const Callbacks              = React.lazy(() => import("./pages/admin/Callbacks"));
 const CommentModeration      = React.lazy(() => import("./pages/admin/CommentModeration"));
+const InspectionsList        = React.lazy(() => import("./pages/admin/Inspections"));
+const InspectionForm         = React.lazy(() => import("./pages/admin/InspectionForm"));
 
 // ── QueryClient ───────────────────────────────────────────────────────────────
 const queryClient = new QueryClient({
@@ -137,6 +139,8 @@ function AppInner() {
         <Route path="/admin/listing-reviews/:type/:id" element={<ListingReviewDetail />} />
         <Route path="/admin/callbacks" element={<Callbacks />} />
         <Route path="/admin/comment-moderation" element={<CommentModeration />} />
+        <Route path="/admin/inspections" element={<InspectionsList />} />
+        <Route path="/admin/inspections/:inspectionId" element={<InspectionForm />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

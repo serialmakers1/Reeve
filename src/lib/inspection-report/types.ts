@@ -1,6 +1,4 @@
 import type {
-  PropertyRecord,
-  InspectionRecord,
   LocalRoom,
   LocalAppliance,
   DamageItem,
@@ -9,6 +7,37 @@ import type {
 // ── Report types ─────────────────────────────────────────────────────────────
 
 export type ReportType = 'PBR' | 'MIR' | 'BIR' | 'MOCR';
+
+/** The single ordered list of report/inspection types. Shared by the form and export dialog. */
+export const REPORT_TYPES: ReportType[] = ['PBR', 'MIR', 'BIR', 'MOCR'];
+
+/**
+ * Report-safe manual property details. Only factual property information — never
+ * owner contact details and never any tenant data.
+ */
+export interface ReportProperty {
+  building_name: string | null;
+  flat_number: string | null;
+  full_address: string | null;
+  locality: string | null;
+  city: string | null;
+  pincode: string | null;
+  floor: string | null;
+  bhk: string | null;
+  bathrooms: number | null;
+  balconies: number | null;
+}
+
+/**
+ * Report-safe inspection metadata. Deliberately excludes owner contacts, all
+ * tenant fields, and the removed status/scheduling/mode columns.
+ */
+export interface ReportInspectionMeta {
+  id: string;
+  inspection_date: string | null;
+  general_observations: string | null;
+  inspector_notes: string | null;
+}
 
 export type SignatureRole = 'owner' | 'tenant' | 'inspector';
 
@@ -129,8 +158,8 @@ export type UtilityGroup =
 export interface ReportPayload {
   reportType: ReportType;
   inspectorName: string;
-  property: PropertyRecord;
-  inspection: InspectionRecord;
+  property: ReportProperty;
+  inspection: ReportInspectionMeta;
   rooms: LocalRoom[];
   appliances: LocalAppliance[];
   damages: DamageItem[];

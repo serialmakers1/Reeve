@@ -72,7 +72,7 @@ export function CoverBlock({ payload }: Props) {
   const meta = REPORT_TYPE_META[reportType];
 
   const address = [
-    property.lister_flat_number ? `Flat ${property.lister_flat_number}` : null,
+    property.flat_number ? `Flat ${property.flat_number}` : null,
     property.building_name,
     property.locality,
   ]
@@ -87,10 +87,9 @@ export function CoverBlock({ payload }: Props) {
       <View style={s.grid}>
         <Field label="Property" value={address} />
         <Field label="Owner" value={ownerName} />
-        <Field label="Inspection Date" value={formatINDate(inspection.actual_date ?? inspection.scheduled_date)} />
+        <Field label="Inspection Date" value={formatINDate(inspection.inspection_date)} />
         <Field label="Inspector" value={inspectorName} />
         <Field label="BHK" value={formatBhk(property.bhk)} />
-        <Field label="Status" value={inspection.status} />
         <Field label="Generated" value={formatINDateTimeIST(generatedAt)} />
         <Field label="Inspection Ref" value={inspection.id.slice(0, 8).toUpperCase()} />
       </View>

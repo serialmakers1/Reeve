@@ -1742,65 +1742,107 @@ export type Database = {
       }
       property_inspections: {
         Row: {
-          actual_date: string | null
+          balconies: number | null
+          bathrooms: number | null
+          bhk: string | null
+          building_name: string | null
+          city: string | null
           created_at: string
+          flat_number: string | null
+          floor: string | null
+          full_address: string | null
           general_observations: string | null
+          google_maps_url: string | null
           id: string
+          inspection_date: string | null
           inspection_summary: Json | null
+          inspection_type: string | null
           inspector_notes: string | null
           inspector_user_id: string
           key_return_summary: Json | null
+          locality: string | null
           media_drive_link: string | null
-          mode: Database["public"]["Enums"]["inspection_mode"] | null
-          owner_signed_off: boolean
-          pbr_generated_at: string | null
+          owner_alternate_phone: string | null
+          owner_email: string | null
+          owner_name: string | null
+          owner_phone: string | null
+          pincode: string | null
           pre_existing_damages: Json | null
-          property_id: string
-          scheduled_date: string | null
-          status: Database["public"]["Enums"]["inspection_status"]
           structural_observations: Json | null
+          tenant_alternate_phone: string | null
+          tenant_email: string | null
+          tenant_name: string | null
+          tenant_phone: string | null
           updated_at: string
           utilities_overview: Json | null
         }
         Insert: {
-          actual_date?: string | null
+          balconies?: number | null
+          bathrooms?: number | null
+          bhk?: string | null
+          building_name?: string | null
+          city?: string | null
           created_at?: string
+          flat_number?: string | null
+          floor?: string | null
+          full_address?: string | null
           general_observations?: string | null
+          google_maps_url?: string | null
           id?: string
+          inspection_date?: string | null
           inspection_summary?: Json | null
+          inspection_type?: string | null
           inspector_notes?: string | null
           inspector_user_id: string
           key_return_summary?: Json | null
+          locality?: string | null
           media_drive_link?: string | null
-          mode?: Database["public"]["Enums"]["inspection_mode"] | null
-          owner_signed_off?: boolean
-          pbr_generated_at?: string | null
+          owner_alternate_phone?: string | null
+          owner_email?: string | null
+          owner_name?: string | null
+          owner_phone?: string | null
+          pincode?: string | null
           pre_existing_damages?: Json | null
-          property_id: string
-          scheduled_date?: string | null
-          status?: Database["public"]["Enums"]["inspection_status"]
           structural_observations?: Json | null
+          tenant_alternate_phone?: string | null
+          tenant_email?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
           updated_at?: string
           utilities_overview?: Json | null
         }
         Update: {
-          actual_date?: string | null
+          balconies?: number | null
+          bathrooms?: number | null
+          bhk?: string | null
+          building_name?: string | null
+          city?: string | null
           created_at?: string
+          flat_number?: string | null
+          floor?: string | null
+          full_address?: string | null
           general_observations?: string | null
+          google_maps_url?: string | null
           id?: string
+          inspection_date?: string | null
           inspection_summary?: Json | null
+          inspection_type?: string | null
           inspector_notes?: string | null
           inspector_user_id?: string
           key_return_summary?: Json | null
+          locality?: string | null
           media_drive_link?: string | null
-          mode?: Database["public"]["Enums"]["inspection_mode"] | null
-          owner_signed_off?: boolean
-          pbr_generated_at?: string | null
+          owner_alternate_phone?: string | null
+          owner_email?: string | null
+          owner_name?: string | null
+          owner_phone?: string | null
+          pincode?: string | null
           pre_existing_damages?: Json | null
-          property_id?: string
-          scheduled_date?: string | null
-          status?: Database["public"]["Enums"]["inspection_status"]
           structural_observations?: Json | null
+          tenant_alternate_phone?: string | null
+          tenant_email?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
           updated_at?: string
           utilities_overview?: Json | null
         }
@@ -1810,13 +1852,6 @@ export type Database = {
             columns: ["inspector_user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "property_inspections_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
@@ -3062,8 +3097,6 @@ export type Database = {
         | "withdrawn"
         | "auto_cancelled"
       furnishing_type: "unfurnished" | "semi_furnished" | "fully_furnished"
-      inspection_mode: "in_person" | "virtual"
-      inspection_status: "scheduled" | "in_progress" | "completed"
       parking_availability: "none" | "covered" | "uncovered" | "both"
       property_listing_type: "rent" | "sale"
       property_status:
@@ -3274,8 +3307,6 @@ export const Constants = {
         "auto_cancelled",
       ],
       furnishing_type: ["unfurnished", "semi_furnished", "fully_furnished"],
-      inspection_mode: ["in_person", "virtual"],
-      inspection_status: ["scheduled", "in_progress", "completed"],
       parking_availability: ["none", "covered", "uncovered", "both"],
       property_listing_type: ["rent", "sale"],
       property_status: [

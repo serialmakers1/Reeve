@@ -54,7 +54,7 @@ export async function generateReportPdf(
 
   // 7. Trigger download.
   const date = formatFilenameDate(payload.generatedAt);
-  const shortId = payload.property.id.slice(0, 8);
+  const shortId = payload.inspection.id.slice(0, 8);
   const filename = `${payload.reportType}_${shortId}_${date}.pdf`;
   saveAs(blob, filename);
 }

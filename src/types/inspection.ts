@@ -14,48 +14,62 @@
  * Do NOT import these types from @/pages/admin/InspectionForm.
  */
 
-// ── Relation helpers ──────────────────────────────────────────────────────────
-
-type OwnerRelation = { full_name: string | null } | { full_name: string | null }[] | null;
-
 // ── Database-backed record types ──────────────────────────────────────────────
 
-export type PropertyRecord = {
-  id: string;
-  building_name: string;
-  lister_flat_number: string | null;
-  floor_number: number | null;
-  locality: string | null;
-  bhk: string;
-  balconies: number | null;
-  owner_full_name: string | null;
-};
+/**
+ * Inspection type values, matching the report/PDF `ReportType` contract
+ * (src/lib/inspection-report/types.ts) and the DB CHECK constraint on
+ * property_inspections.inspection_type. Kept as a plain string in InspectionRecord
+ * since the column is a nullable free-text column with a CHECK; the export/report
+ * layer narrows to the ReportType union.
+ */
+export type InspectionType = "PBR" | "MIR" | "BIR" | "MOCR";
 
+/**
+ * Standalone, fully-manual inspection record (migration
+ * 20260919000000_inspections_standalone_manual_model). No marketplace property
+ * link, no status/scheduling/mode workflow. All business fields are optional so an
+ * admin may start an inspection and finish it later. `id`, `inspector_user_id`,
+ * `created_at`, `updated_at` are the only always-present system fields.
+ */
 export type InspectionRecord = {
   id: string;
-  property_id: string;
   inspector_user_id: string;
-  status: "scheduled" | "in_progress" | "completed";
-  mode: "in_person" | "virtual" | null;
-  scheduled_date: string | null;
-  actual_date: string | null;
+  inspection_date: string | null;
+  inspection_type: InspectionType | null;
+  // Manual property details
+  building_name: string | null;
+  flat_number: string | null;
+  full_address: string | null;
+  locality: string | null;
+  city: string | null;
+  pincode: string | null;
+  floor: string | null;
+  bhk: string | null;
+  bathrooms: number | null;
+  balconies: number | null;
+  google_maps_url: string | null;
+  // Owner — admin-only (owner_name may appear in reports; contacts never do)
+  owner_name: string | null;
+  owner_phone: string | null;
+  owner_alternate_phone: string | null;
+  owner_email: string | null;
+  // Tenant — admin-only (never enters the report payload)
+  tenant_name: string | null;
+  tenant_phone: string | null;
+  tenant_alternate_phone: string | null;
+  tenant_email: string | null;
+  // Inspection content
   general_observations: string | null;
   pre_existing_damages: unknown;
   inspector_notes: string | null;
   media_drive_link: string | null;
-  pbr_generated_at: string | null;
   utilities_overview: unknown;
   structural_observations: unknown;
-  /**
-   * Pending DB migration: ADD COLUMN inspection_summary JSONB on property_inspections.
-   * Until migration runs, Supabase silently ignores writes to this field.
-   */
   inspection_summary?: Record<string, unknown> | null;
-  /**
-   * Pending DB migration: ADD COLUMN key_return_summary JSONB on property_inspections.
-   * Until migration runs, Supabase silently ignores writes to this field.
-   */
   key_return_summary?: Record<string, unknown>[] | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type RoomRecord = {
@@ -100,11 +114,7 @@ export type LocalAppliance = {
   notes: string | null;
   serial_number: string | null;
   last_service_date: string | null;
-  /**
-   * Optional room/area label for where this appliance is located.
-   * Pending DB migration: ADD COLUMN location TEXT on inspection_appliances.
-   * Until migration runs, Supabase silently ignores writes to this field.
-   */
+  /** Optional room/area label for where this appliance is located. */
   location?: string | null;
   is_local_only?: boolean;
 };
@@ -139,14 +149,7 @@ export type DamageItem = {
 
 export type SaveState = "saving" | "saved" | "failed";
 
-/**
- * Room type values stored in the DB `room_type` enum.
- * NOTE: `dining_room` is declared here for upcoming use but requires a
- * DB migration before it can be inserted:
- *   ALTER TYPE room_type ADD VALUE 'dining_room';
- * Until the migration is applied, any INSERT with room_type = 'dining_room'
- * will be rejected by Postgres.
- */
+/** Room type values stored in the DB `room_type` enum. */
 export type RoomTypeOption =
   | "living_room"
   | "bedroom"
@@ -161,16 +164,10 @@ export type RoomTypeOption =
   | "home_office"
   | "servant_quarter"
   | "store_room"
-  | "dining_room" // ← requires DB migration: ALTER TYPE room_type ADD VALUE 'dining_room'
+  | "dining_room"
   | "other";
 
 // ── Display constants ─────────────────────────────────────────────────────────
-
-export const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  scheduled:   { label: "Scheduled",   className: "border-border bg-muted text-muted-foreground" },
-  in_progress: { label: "In Progress", className: "border-primary/20 bg-accent text-accent-foreground" },
-  completed:   { label: "Completed",   className: "border-primary/20 bg-primary/10 text-primary" },
-};
 
 export const ROOM_TYPE_LABELS: Record<RoomTypeOption, string> = {
   living_room:     "Living Room",
@@ -265,10 +262,7 @@ export const APPLIANCE_OWNERSHIP_OPTIONS = [
  * Default room layout per BHK configuration.
  * Order: Living → Dining (2BHK+) → Kitchen → [Balconies injected here by buildDefaultRooms] → Bedrooms → Bathrooms.
  *
- * Balconies are NOT listed here — buildDefaultRooms injects them dynamically from propertyData.balconies.
- *
- * `dining_room` requires a DB migration before rooms can be created for 2BHK+:
- *   ALTER TYPE room_type ADD VALUE 'dining_room';
+ * Balconies are NOT listed here — buildDefaultRooms injects them dynamically from the inspection's `balconies`.
  */
 export const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; room_label: string }>> = {
   studio: [
@@ -334,11 +328,6 @@ export const ROOM_DEFAULTS: Record<string, Array<{ room_type: RoomTypeOption; ro
 export function emptyToNull(value: string | null | number | undefined) {
   if (value === undefined || value === null || value === "") return null;
   return value;
-}
-
-export function getOwnerName(owner: OwnerRelation) {
-  if (Array.isArray(owner)) return owner[0]?.full_name ?? "—";
-  return owner?.full_name ?? "—";
 }
 
 export function shortId(id: string) {
