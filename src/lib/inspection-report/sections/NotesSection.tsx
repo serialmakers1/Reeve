@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { BRAND, styles } from '../styles';
-import type { InspectionRecord } from '@/types/inspection';
+import type { ReportInspectionMeta } from '../types';
 
 const s = StyleSheet.create({
   section: { marginBottom: 20 },
@@ -28,7 +28,7 @@ const s = StyleSheet.create({
 });
 
 interface Props {
-  inspection: InspectionRecord;
+  inspection: ReportInspectionMeta;
 }
 
 export function NotesSection({ inspection }: Props) {

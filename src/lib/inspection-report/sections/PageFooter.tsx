@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { BRAND } from '../styles';
-import { formatINDateTimeIST, shortPropertyId } from '../formatters';
+import { formatINDateTimeIST, shortPropertyId as shortRefId } from '../formatters';
 
 const s = StyleSheet.create({
   footer: {
@@ -24,13 +24,13 @@ const s = StyleSheet.create({
 });
 
 interface Props {
-  propertyId: string;
+  inspectionId: string;
   buildingName: string | null;
   generatedAt: Date;
 }
 
-export function PageFooter({ propertyId, buildingName, generatedAt }: Props) {
-  const left = `${shortPropertyId(propertyId)}${buildingName ? ' · ' + buildingName : ''}`;
+export function PageFooter({ inspectionId, buildingName, generatedAt }: Props) {
+  const left = `${shortRefId(inspectionId)}${buildingName ? ' · ' + buildingName : ''}`;
   const right = `Generated ${formatINDateTimeIST(generatedAt)}`;
   return (
     <View style={s.footer} fixed>

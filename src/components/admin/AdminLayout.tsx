@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Building2, ClipboardCheck, Menu, User, ChevronDown, Phone, ExternalLink, Search, PlusSquare, LayoutDashboard, UserCircle, ShieldAlert } from "lucide-react";
+import { Building2, ClipboardCheck, ClipboardList, Menu, User, ChevronDown, Phone, ExternalLink, Search, PlusSquare, LayoutDashboard, UserCircle, ShieldAlert } from "lucide-react";
 import { useReviewQueueBadge } from "@/pages/admin/commentModeration/useCommentModeration";
 import {
   DropdownMenu,
@@ -18,6 +18,7 @@ import {
 const NAV_ITEMS = [
   { label: "Properties", path: "/admin/properties", icon: Building2 },
   { label: "Listing Reviews", path: "/admin/listing-reviews", icon: ClipboardCheck },
+  { label: "Inspections", path: "/admin/inspections", icon: ClipboardList },
   { label: "Callbacks", path: "/admin/callbacks", icon: Phone },
   { label: "Comment Moderation", path: "/admin/comment-moderation", icon: ShieldAlert },
 ];

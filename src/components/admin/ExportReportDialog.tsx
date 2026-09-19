@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -13,11 +13,11 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { REPORT_TYPE_META } from '@/lib/inspection-report/types';
+import { REPORT_TYPE_META, REPORT_TYPES } from '@/lib/inspection-report/types';
 import type { ReportType, UtilityKey } from '@/lib/inspection-report/types';
 import type {
-  PropertyRecord,
   InspectionRecord,
+  InspectionType,
   LocalRoom,
   LocalAppliance,
   DamageItem,
@@ -27,23 +27,27 @@ type Stage = 'idle' | 'flushing' | 'recording' | 'preparing' | 'rendering' | 'do
 
 const ACTIVE_STAGES: Stage[] = ['flushing', 'recording', 'preparing', 'rendering'];
 
-const REPORT_TYPES: ReportType[] = ['PBR', 'MIR', 'BIR', 'MOCR'];
-
 export interface ExportReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payloadBase: {
-    property: PropertyRecord;
     inspection: InspectionRecord;
     rooms: LocalRoom[];
     appliances: LocalAppliance[];
     damages: DamageItem[];
     utilitiesOverview: Partial<Record<UtilityKey, unknown>>;
-    ownerName: string;
-    mediaDriveLink?: string | null;
   };
+  /** Persisted inspection_type, used to preselect the report type (may be null). */
+  inspectionType: InspectionType | null;
+  /** Persist the chosen type back to the inspection (single source of truth). */
+  onSelectInspectionType: (type: InspectionType) => void;
   flushPendingSaves: () => Promise<void>;
-  onBeforeExport?: () => Promise<void>;
+  /**
+   * Runs after edits are flushed and before the payload is built. May return the
+   * freshly snapshotted rooms so the PDF is built from them (not the pre-snapshot
+   * rooms captured in payloadBase).
+   */
+  onBeforeExport?: () => Promise<LocalRoom[] | void>;
 }
 
 function buttonLabel(stage: Stage): string {
@@ -65,18 +69,34 @@ export function ExportReportDialog({
   open,
   onOpenChange,
   payloadBase,
+  inspectionType,
+  onSelectInspectionType,
   flushPendingSaves,
   onBeforeExport,
 }: ExportReportDialogProps) {
   const { toast } = useToast();
-  const [reportType, setReportType] = useState<ReportType>('PBR');
+  // Preselect the persisted type; no silent default when none is saved yet —
+  // the admin must explicitly classify the inspection before generating.
+  const [reportType, setReportType] = useState<ReportType | null>(inspectionType);
   const [inspectorName, setInspectorName] = useState('');
   const [stage, setStage] = useState<Stage>('idle');
   const [error, setError] = useState<string | null>(null);
   const hasGeneratedBefore = useRef(false);
 
   const isGenerating = isActiveStage(stage);
-  const canGenerate = !isGenerating && stage !== 'done' && inspectorName.trim().length > 0;
+  const canGenerate =
+    !isGenerating && stage !== 'done' && inspectorName.trim().length > 0 && reportType !== null;
+
+  function handleSelectType(type: ReportType) {
+    setReportType(type);
+    // Persist immediately so the inspection row stays the single source of truth.
+    onSelectInspectionType(type);
+  }
+
+  // Sync the preselection to the persisted type each time the dialog opens.
+  useEffect(() => {
+    if (open) setReportType(inspectionType);
+  }, [open, inspectionType]);
 
   function guardedOpenChange(nextOpen: boolean) {
     // Block close while generation is in progress.
@@ -93,30 +113,40 @@ export function ExportReportDialog({
 
   async function handleGenerate() {
     setError(null);
-    if (!inspectorName.trim()) return;
+    if (!inspectorName.trim() || reportType === null) return;
+    const selectedType = reportType;
 
     try {
       setStage('flushing');
       await flushPendingSaves();
-      // Write derived condition snapshot + flush those patches before PDF generation
-      if (onBeforeExport) await onBeforeExport();
+      // Write derived condition snapshot + flush those patches before PDF generation.
+      // Use the rooms it returns so the PDF reflects the just-written snapshot.
+      let rooms = payloadBase.rooms;
+      if (onBeforeExport) {
+        const snapshotRooms = await onBeforeExport();
+        if (snapshotRooms) rooms = snapshotRooms;
+      }
 
       setStage('recording');
       setStage(hasGeneratedBefore.current ? 'rendering' : 'preparing');
 
-      const { generateReportPdf } = await import('@/lib/inspection-report/generate');
-      await generateReportPdf(
-        {
-          ...payloadBase,
-          reportType,
-          inspectorName: inspectorName.trim(),
-          generatedAt: new Date(),
-          inspectionSummary: payloadBase.inspection.inspection_summary,
-          keyReturnSummary: payloadBase.inspection.key_return_summary,
-        },
-        supabase,
-        flushPendingSaves,
-      );
+      const [{ generateReportPdf }, { buildReportPayload }] = await Promise.all([
+        import('@/lib/inspection-report/generate'),
+        import('@/lib/inspection-report/buildReportPayload'),
+      ]);
+      // Sanitized allow-listed payload — owner contacts and all tenant data are
+      // excluded at construction, never reaching the rendered PDF.
+      const payload = buildReportPayload({
+        inspection: payloadBase.inspection,
+        rooms,
+        appliances: payloadBase.appliances,
+        damages: payloadBase.damages,
+        utilitiesOverview: payloadBase.utilitiesOverview,
+        reportType: selectedType,
+        inspectorName: inspectorName.trim(),
+        generatedAt: new Date(),
+      });
+      await generateReportPdf(payload, supabase, flushPendingSaves);
 
       hasGeneratedBefore.current = true;
       setStage('done');
@@ -147,9 +177,14 @@ export function ExportReportDialog({
           {/* Report Type */}
           <div className="space-y-3">
             <Label className="text-sm font-semibold">Report Type</Label>
+            {reportType === null && (
+              <p className="text-xs text-muted-foreground">
+                Choose a report type to classify this inspection before generating.
+              </p>
+            )}
             <RadioGroup
-              value={reportType}
-              onValueChange={(v) => setReportType(v as ReportType)}
+              value={reportType ?? undefined}
+              onValueChange={(v) => handleSelectType(v as ReportType)}
               className="grid grid-cols-1 gap-2"
               disabled={isGenerating}
             >

@@ -1,34 +1,33 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { UtilityKey } from "@/lib/inspection-report/types";
 import {
-  type PropertyRecord,
   type InspectionRecord,
+  type InspectionType,
   type RoomRecord,
   type LocalRoom,
   type LocalAppliance,
   type DamageItem,
   type SaveState,
   type RoomTypeOption,
-  STATUS_CONFIG,
   ROOM_TYPE_LABELS,
   ROOM_CONDITION_OPTIONS,
   FURNITURE_ITEM_OPTIONS,
   ROOM_DEFAULTS,
   emptyToNull,
-  shortId,
   getSuggestedRoomLabel,
   getConditionDotClass,
   getWorstCondition,
 } from "@/types/inspection";
 import { useInspectionSave } from "@/hooks/useInspectionSave";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Check, ChevronDown, Download, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Download, Plus, Trash2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { ExportReportDialog } from "@/components/admin/ExportReportDialog";
 import { UtilitiesCard } from "@/components/admin/inspection/UtilitiesCard";
 import { ApplianceInventory } from "@/components/admin/inspection/ApplianceInventory";
 import { DamageLog } from "@/components/admin/inspection/DamageLog";
 import { ObservationsCard } from "@/components/admin/inspection/ObservationsCard";
+import { InspectionDetailsCard } from "@/components/admin/inspection/InspectionDetailsCard";
 import { InspectionSummaryCard } from "@/components/admin/inspection/InspectionSummaryCard";
 import { KeyReturnCard } from "@/components/admin/inspection/KeyReturnCard";
 import { CompletionWarnings, checkCompletionWarnings } from "@/components/admin/inspection/CompletionWarnings";
@@ -44,12 +43,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -78,7 +75,8 @@ import {
 
 function buildDefaultRooms(bhk: string, inspectionId: string, balconyCount: number) {
   const base = ROOM_DEFAULTS[bhk] ?? [];
-  const count = balconyCount || 1;
+  // Respect an explicit 0; never invent a balcony when unknown/null.
+  const count = balconyCount ?? 0;
 
   // Balconies are injected between pre-balcony rooms (living/dining/kitchen)
   // and post-balcony rooms (bedrooms/bathrooms) to match walk-through order.
@@ -86,10 +84,12 @@ function buildDefaultRooms(bhk: string, inspectionId: string, balconyCount: numb
   const preBalcony  = base.filter((r) => !AFTER_BALCONIES.has(r.room_type));
   const postBalcony = base.filter((r) => AFTER_BALCONIES.has(r.room_type));
 
-  const balconyRooms = Array.from({ length: count }, (_, i) => ({
-    room_type: "balcony" as const,
-    room_label: count > 1 ? `Balcony ${i + 1}` : "Balcony",
-  }));
+  const balconyRooms = count > 0
+    ? Array.from({ length: count }, (_, i) => ({
+        room_type: "balcony" as const,
+        room_label: count > 1 ? `Balcony ${i + 1}` : "Balcony",
+      }))
+    : [];
 
   const ordered = [...preBalcony, ...balconyRooms, ...postBalcony];
   return ordered.map((room, index) => ({
@@ -101,13 +101,12 @@ function buildDefaultRooms(bhk: string, inspectionId: string, balconyCount: numb
 }
 
 export default function InspectionForm() {
-  const { propertyId } = useParams();
+  const { inspectionId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { loading: authLoading } = useRequireAuth({ requireAdmin: true });
 
   const [loading, setLoading] = useState(true);
-  const [property, setProperty] = useState<PropertyRecord | null>(null);
   const [inspection, setInspection] = useState<InspectionRecord | null>(null);
   const [rooms, setRooms] = useState<LocalRoom[]>([]);
   const [appliances, setAppliances] = useState<LocalAppliance[]>([]);
@@ -115,7 +114,6 @@ export default function InspectionForm() {
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [newRoomType, setNewRoomType] = useState<RoomTypeOption | "">("");
   const [newRoomLabel, setNewRoomLabel] = useState("");
-  const [submittingCompletion, setSubmittingCompletion] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [completionWarnings, setCompletionWarnings] = useState<string[]>([]);
   const [showCompletionWarnings, setShowCompletionWarnings] = useState(false);
@@ -125,6 +123,8 @@ export default function InspectionForm() {
   const [pendingDeleteFurniture, setPendingDeleteFurniture] = useState<{ roomId: string; idx: number } | null>(null);
 
   const inspectionRef = useRef<InspectionRecord | null>(null);
+  // Guards against concurrent/duplicate default-room inserts.
+  const generatingRoomsRef = useRef(false);
 
   const {
     saveState,
@@ -136,8 +136,6 @@ export default function InspectionForm() {
     queueApplianceSave,
   } = useInspectionSave(inspection?.id, setAppliances);
 
-  const ownerName = useMemo(() => property?.owner_full_name ?? "—", [property]);
-
   const { writeConditionSnapshot } = useConditionSnapshot(rooms, setRooms, queueRoomPatch);
   useAutoPopulateDamages(rooms, damages, setDamages, queueInspectionPatch, scheduleSave);
   useAutoPopulateApplianceDamages(appliances, damages, setDamages, queueInspectionPatch);
@@ -147,77 +145,17 @@ export default function InspectionForm() {
   }, [inspection]);
 
   useEffect(() => {
-    if (authLoading || !propertyId) return;
+    if (authLoading || !inspectionId) return;
     void loadData();
-  }, [authLoading, propertyId]);
+  }, [authLoading, inspectionId]);
 
-  const loadData = async () => {
-    if (!propertyId) return;
-
-    setLoading(true);
-    try {
-      const [propertyRes, inspectionRes] = await Promise.all([
-        supabase.rpc("get_admin_property", { p_property_id: propertyId })
-          .then(({ data: rows, error }) => ({ data: (rows ?? [])[0] ?? null, error })),
-        supabase
-          .from("property_inspections")
-          .select("*")
-          .eq("property_id", propertyId)
-          .maybeSingle(),
-      ]);
-
-      if (propertyRes.error) throw propertyRes.error;
-      if (inspectionRes.error) throw inspectionRes.error;
-
-      const propertyData = propertyRes.data as unknown as PropertyRecord | null;
-      const inspectionData = inspectionRes.data as unknown as InspectionRecord | null;
-
-      setProperty(propertyData);
-      setInspection(inspectionData);
-      inspectionRef.current = inspectionData;
-      setUtilitiesOverview((inspectionData?.utilities_overview as Record<string, any>) ?? {});
-
-      if (!inspectionData) {
-        setRooms([]);
-        setAppliances([]);
-        setDamages([]);
-        return;
-      }
-
-      const [roomsRes, appliancesRes] = await Promise.all([
-        supabase
-          .from("inspection_rooms")
-          .select("*")
-          .eq("inspection_id", inspectionData.id)
-          .order("sort_order"),
-        supabase
-          .from("inspection_appliances")
-          .select("*")
-          .eq("inspection_id", inspectionData.id),
-      ]);
-
-      if (roomsRes.error) throw roomsRes.error;
-      if (appliancesRes.error) throw appliancesRes.error;
-
-      let roomRows = (roomsRes.data ?? []) as RoomRecord[];
-      let generatedRoomIds = new Set<string>();
-
-      if (roomRows.length === 0 && propertyData?.bhk) {
-        const defaultRooms = buildDefaultRooms(propertyData.bhk, inspectionData.id, propertyData.balconies ?? 1);
-        if (defaultRooms.length > 0) {
-          const insertedRoomsRes = await supabase
-            .from("inspection_rooms")
-            .insert(defaultRooms as any)
-            .select("*")
-            .order("sort_order");
-
-          if (insertedRoomsRes.error) throw insertedRoomsRes.error;
-          roomRows = (insertedRoomsRes.data ?? []) as RoomRecord[];
-          generatedRoomIds = new Set(roomRows.map((room) => room.id));
-        }
-      }
-
-      setRooms(
+  /**
+   * Normalize fetched room rows into LocalRoom (with legacy in-memory synthesis).
+   * `generatedRoomIds` marks freshly auto-generated rooms so they render as
+   * non-deletable defaults.
+   */
+  const hydrateRooms = (roomRows: RoomRecord[], generatedRoomIds: Set<string>) => {
+    setRooms(
         roomRows.map((room) => {
           const rf = ((room as any).room_features ?? {}) as Record<string, unknown>;
 
@@ -349,7 +287,123 @@ export default function InspectionForm() {
             furniture_items: (room as any).furniture_items ?? null,
           };
         }),
-      );
+    );
+  };
+
+  const mapDamages = (raw: unknown): DamageItem[] => {
+    const rawDamages = Array.isArray(raw) ? (raw as any[]) : [];
+    // Map legacy severity values (low/medium/high) to current DB values.
+    const mapSeverity = (v: string): DamageItem["severity"] => {
+      if (v === "low")    return "cosmetic";
+      if (v === "medium") return "repair_before_relet";
+      if (v === "high")   return "urgent_immediate";
+      if (v === "cosmetic" || v === "repair_before_relet" || v === "urgent_immediate") return v;
+      return "";
+    };
+    return rawDamages.map((item) => ({
+      localId: item.localId ?? crypto.randomUUID(),
+      location: item.location ?? "",
+      damage_type: item.damage_type ?? "",
+      severity: mapSeverity(item.severity ?? ""),
+      notes: item.notes ?? "",
+      recommended_action: item.recommended_action ?? null,
+      source_ref: item.source_ref ?? null,
+      is_auto_generated: item.is_auto_generated ?? false,
+    }));
+  };
+
+  /**
+   * Generate default rooms from the manual BHK/balconies — only when the
+   * inspection has zero rooms and the BHK exactly matches a known ROOM_DEFAULTS
+   * key. Guarded so concurrent calls cannot double-insert.
+   *
+   * `opts.knownEmpty` is set by loadData, which has just fetched the room rows
+   * for THIS inspection and knows there are none — so it must not consult the
+   * React `rooms` state (which can still hold a previously-loaded inspection's
+   * rooms during an A→B switch). The BHK-blur path omits it and keeps the live
+   * `rooms.length` guard.
+   */
+  const ensureDefaultRooms = async (
+    bhk: string | null,
+    balconies: number | null,
+    opts?: { knownEmpty?: boolean },
+  ) => {
+    const current = inspectionRef.current;
+    if (!current) return;
+    if (!opts?.knownEmpty && rooms.length > 0) return;
+    if (!bhk || !ROOM_DEFAULTS[bhk]) return;
+    if (generatingRoomsRef.current) return;
+
+    generatingRoomsRef.current = true;
+    try {
+      const defaultRooms = buildDefaultRooms(bhk, current.id, balconies ?? 0);
+      if (defaultRooms.length === 0) return;
+      const insertedRoomsRes = await supabase
+        .from("inspection_rooms")
+        .insert(defaultRooms as any)
+        .select("*")
+        .order("sort_order");
+      if (insertedRoomsRes.error) throw insertedRoomsRes.error;
+      const roomRows = (insertedRoomsRes.data ?? []) as RoomRecord[];
+      hydrateRooms(roomRows, new Set(roomRows.map((r) => r.id)));
+    } catch (error: any) {
+      toast({ title: "Failed to generate rooms", description: error.message, variant: "destructive" });
+    } finally {
+      generatingRoomsRef.current = false;
+    }
+  };
+
+  const loadData = async () => {
+    if (!inspectionId) return;
+
+    setLoading(true);
+    try {
+      const inspectionRes = await supabase
+        .from("property_inspections")
+        .select("*")
+        .eq("id", inspectionId)
+        .maybeSingle();
+
+      if (inspectionRes.error) throw inspectionRes.error;
+
+      const inspectionData = inspectionRes.data as unknown as InspectionRecord | null;
+
+      setInspection(inspectionData);
+      inspectionRef.current = inspectionData;
+      setUtilitiesOverview((inspectionData?.utilities_overview as Record<string, any>) ?? {});
+
+      if (!inspectionData) {
+        setRooms([]);
+        setAppliances([]);
+        setDamages([]);
+        return;
+      }
+
+      const [roomsRes, appliancesRes] = await Promise.all([
+        supabase
+          .from("inspection_rooms")
+          .select("*")
+          .eq("inspection_id", inspectionData.id)
+          .order("sort_order"),
+        supabase
+          .from("inspection_appliances")
+          .select("*")
+          .eq("inspection_id", inspectionData.id),
+      ]);
+
+      if (roomsRes.error) throw roomsRes.error;
+      if (appliancesRes.error) throw appliancesRes.error;
+
+      const roomRows = (roomsRes.data ?? []) as RoomRecord[];
+
+      if (roomRows.length > 0) {
+        hydrateRooms(roomRows, new Set());
+      } else {
+        // No rooms for THIS inspection — clear any stale state from a previously
+        // loaded inspection, then auto-generate defaults if the BHK is recognized.
+        setRooms([]);
+        await ensureDefaultRooms(inspectionData.bhk, inspectionData.balconies, { knownEmpty: true });
+      }
 
       setAppliances(
         ((appliancesRes.data ?? []) as any[]).map((appliance) => ({
@@ -359,31 +413,7 @@ export default function InspectionForm() {
         })),
       );
 
-      const rawDamages = Array.isArray(inspectionData.pre_existing_damages)
-        ? (inspectionData.pre_existing_damages as any[])
-        : [];
-
-      // Map legacy severity values (low/medium/high) to current DB values.
-      const mapSeverity = (v: string): DamageItem["severity"] => {
-        if (v === "low")    return "cosmetic";
-        if (v === "medium") return "repair_before_relet";
-        if (v === "high")   return "urgent_immediate";
-        if (v === "cosmetic" || v === "repair_before_relet" || v === "urgent_immediate") return v;
-        return "";
-      };
-
-      setDamages(
-        rawDamages.map((item) => ({
-          localId: item.localId ?? crypto.randomUUID(),
-          location: item.location ?? "",
-          damage_type: item.damage_type ?? "",
-          severity: mapSeverity(item.severity ?? ""),
-          notes: item.notes ?? "",
-          recommended_action: item.recommended_action ?? null,
-          source_ref: item.source_ref ?? null,
-          is_auto_generated: item.is_auto_generated ?? false,
-        })),
-      );
+      setDamages(mapDamages(inspectionData.pre_existing_damages));
     } catch (error: any) {
       toast({ title: "Failed to load inspection form", description: error.message, variant: "destructive" });
     } finally {
@@ -391,35 +421,15 @@ export default function InspectionForm() {
     }
   };
 
-  // Transition inspection status from "scheduled" → "in_progress" on first edit.
-  // Must be called by form helpers BEFORE they call any queue function.
-  // Sets inspectionRef.current to the transitioned record so queue functions
-  // reading the ref see the up-to-date status.
-  const markInspectionStarted = () => {
-    const currentInspection = inspectionRef.current;
-    if (!currentInspection || currentInspection.status !== "scheduled") return;
-
-    const nextInspection = { ...currentInspection, status: "in_progress" as const };
-    inspectionRef.current = nextInspection;
-    setInspection(nextInspection);
-    // Use the hook's queue function (no recursion — queueInspectionPatch no
-    // longer calls markInspectionStarted).
-    queueInspectionPatch({ status: "in_progress" });
-  };
-
   const updateInspectionField = (field: keyof InspectionRecord, value: unknown) => {
     if (!inspection) return;
     const nextInspection = { ...inspection, [field]: value };
     setInspection(nextInspection);
-    // Set ref BEFORE markInspectionStarted so it reads the field value when
-    // constructing the status-transition object.
     inspectionRef.current = nextInspection;
-    markInspectionStarted();
     queueInspectionPatch({ [field]: emptyToNull(value as string | null) });
   };
 
   const updateRoomField = (roomId: string, field: keyof RoomRecord, value: string) => {
-    markInspectionStarted();
     setRooms((current) => current.map((room) => (
       room.id === roomId ? { ...room, [field]: value || null } : room
     )));
@@ -427,7 +437,6 @@ export default function InspectionForm() {
   };
 
   const updateUtility = (key: UtilityKey, value: any) => {
-    markInspectionStarted();
     setUtilitiesOverview(prev => {
       const next = { ...prev, [key]: value };
       // queueInspectionPatch accumulates and calls scheduleSave internally.
@@ -437,7 +446,6 @@ export default function InspectionForm() {
   };
 
   const updateRoomFeature = (roomId: string, key: string, value: any) => {
-    markInspectionStarted();
     setRooms(current => current.map(room => {
       if (room.id !== roomId) return room;
       const next = { ...(room.room_features as Record<string, any> ?? {}), [key]: value };
@@ -447,7 +455,6 @@ export default function InspectionForm() {
   };
 
   const updateFurniture = (roomId: string, items: any[]) => {
-    markInspectionStarted();
     setRooms(current => current.map(room => {
       if (room.id !== roomId) return room;
       queueRoomPatch(roomId, { furniture_items: items });
@@ -517,7 +524,6 @@ export default function InspectionForm() {
   };
 
   const updateApplianceField = (applianceId: string, field: keyof LocalAppliance, value: string) => {
-    markInspectionStarted();
     let nextAppliance: LocalAppliance | null = null;
 
     setAppliances((current) => current.map((appliance) => {
@@ -549,7 +555,6 @@ export default function InspectionForm() {
   };
 
   const updateDamageItem = (localId: string, field: keyof DamageItem, value: string) => {
-    markInspectionStarted();
     setDamages((current) => {
       const next = current.map((item) => item.localId === localId ? { ...item, [field]: value } : item);
       queueInspectionPatch({ pre_existing_damages: next });
@@ -558,7 +563,6 @@ export default function InspectionForm() {
   };
 
   const handleAddDamageItem = () => {
-    markInspectionStarted();
     setDamages((current) => {
       const next: DamageItem[] = [
         ...current,
@@ -579,7 +583,6 @@ export default function InspectionForm() {
   };
 
   const handleDeleteDamageItem = (localId: string) => {
-    markInspectionStarted();
     setDamages((current) => {
       const next = current.filter((item) => item.localId !== localId);
       queueInspectionPatch({ pre_existing_damages: next });
@@ -587,43 +590,17 @@ export default function InspectionForm() {
     });
   };
 
-  const executeCompletion = async () => {
-    // Commit any pending debounced edits before the completion update fires.
-    // Without this, the 500ms debounce can fire after the completion update
-    // commits and overwrite status: "completed" back to "in_progress" (because
-    // markInspectionStarted may have written that into the pending patch).
-    // flushPendingSaves has its own internal try/catch and never throws.
-    await flushPendingSaves();
-    // Write derived condition snapshot before status update
-    await writeConditionSnapshot();
-    await flushPendingSaves(); // flush the snapshot patches
-    if (!inspection || !propertyId) return;
-    setSubmittingCompletion(true);
-    try {
-      const inspectionUpdate = await supabase
-        .from("property_inspections")
-        .update({ status: "completed" })
-        .eq("id", inspection.id);
-
-      if (inspectionUpdate.error) throw inspectionUpdate.error;
-
-      toast({ title: "Inspection marked as completed" });
-      await loadData();
-    } catch (error: any) {
-      toast({ title: "Failed to complete inspection", description: error.message, variant: "destructive" });
-    } finally {
-      setSubmittingCompletion(false);
-    }
-  };
-
-  const handleMarkCompleted = () => {
+  // Export is available at any time. Run the advisory completeness check first;
+  // warnings never block export — they just prompt the admin before opening the
+  // export dialog.
+  const handleExportClick = () => {
     if (!inspection) return;
     const warnings = checkCompletionWarnings(rooms, damages, inspection);
     if (warnings.length > 0) {
       setCompletionWarnings(warnings);
       setShowCompletionWarnings(true);
     } else {
-      void executeCompletion();
+      setExportDialogOpen(true);
     }
   };
 
@@ -639,32 +616,18 @@ export default function InspectionForm() {
     );
   }
 
-  if (!property) {
-    return (
-      <AdminLayout>
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-muted-foreground">Property not found.</p>
-          </CardContent>
-        </Card>
-      </AdminLayout>
-    );
-  }
-
   if (!inspection) {
     return (
       <AdminLayout>
         <Card>
           <CardContent className="p-6 space-y-4">
-            <p className="text-muted-foreground">Inspection record not found.</p>
+            <p className="text-muted-foreground">Inspection not found.</p>
             <Button variant="outline" onClick={() => navigate("/admin/inspections")}>Back to Inspections</Button>
           </CardContent>
         </Card>
       </AdminLayout>
     );
   }
-
-  const statusConfig = STATUS_CONFIG[inspection.status] ?? STATUS_CONFIG.scheduled;
 
   return (
     <AdminLayout>
@@ -673,96 +636,37 @@ export default function InspectionForm() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Inspection Form</h1>
-            <p className="text-sm text-muted-foreground">Complete the baseline property inspection and save as you go.</p>
+            <p className="text-sm text-muted-foreground">Complete the property inspection and save as you go.</p>
           </div>
-          <div
-            className={cn(
-              "shrink-0 text-sm font-medium",
-              saveState === "saving" && "text-muted-foreground",
-              saveState === "saved" && "text-primary",
-              saveState === "failed" && "cursor-pointer text-destructive",
-            )}
-            role={saveState === "failed" ? "button" : undefined}
-            tabIndex={saveState === "failed" ? 0 : undefined}
-            onClick={saveState === "failed" ? () => {
-              setSaveState("saving");
-              void flushPendingSaves();
-            } : undefined}
-          >
-            {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved ✓" : "Save failed — tap to retry"}
-          </div>
+          {saveState === "failed" ? (
+            <button
+              type="button"
+              className="shrink-0 text-sm font-medium text-destructive"
+              onClick={() => {
+                setSaveState("saving");
+                void flushPendingSaves();
+              }}
+            >
+              Save failed — tap to retry
+            </button>
+          ) : (
+            <div
+              className={cn(
+                "shrink-0 text-sm font-medium",
+                saveState === "saving" && "text-muted-foreground",
+                saveState === "saved" && "text-primary",
+              )}
+            >
+              {saveState === "saving" ? "Saving..." : "Saved ✓"}
+            </div>
+          )}
         </div>
 
-        <Card className="inspection-card">
-          <CardContent className="p-6">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Property ID</p>
-                <p className="font-mono text-sm">{shortId(property.id)}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Building & Locality</p>
-                <p className="text-sm font-medium">{property.building_name}{property.locality ? ` · ${property.locality}` : ""}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Floor & Flat Number</p>
-                <p className="text-sm font-medium">Floor {property.floor_number ?? "—"} · Flat {property.lister_flat_number ?? "—"}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">BHK</p>
-                <p className="text-sm font-medium">{property.bhk}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Owner Name</p>
-                <p className="text-sm font-medium">{ownerName}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Inspection Status</p>
-                <Badge variant="outline" className={statusConfig.className}>{statusConfig.label}</Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="inspection-card">
-          <CardContent className="grid gap-6 p-6 md:grid-cols-2">
-            <div className="space-y-3">
-              <Label>Inspection Mode</Label>
-              <RadioGroup
-                value={inspection.mode ?? ""}
-                onValueChange={(value) => updateInspectionField("mode", value)}
-                className="grid grid-cols-2 gap-3"
-              >
-                {[
-                  { value: "in_person", label: "In-Person" },
-                  { value: "virtual", label: "Virtual" },
-                ].map((option) => (
-                  <label
-                    key={option.value}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium",
-                      inspection.mode === option.value ? "border-primary bg-accent text-accent-foreground" : "border-border bg-background",
-                    )}
-                  >
-                    <RadioGroupItem value={option.value} />
-                    <span>{option.label}</span>
-                  </label>
-                ))}
-              </RadioGroup>
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="actual_date">Actual Inspection Date</Label>
-              <Input
-                id="actual_date"
-                type="date"
-                value={inspection.actual_date ?? ""}
-                onChange={(event) => updateInspectionField("actual_date", event.target.value || null)}
-                onBlur={(event) => updateInspectionField("actual_date", event.target.value || null)}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <InspectionDetailsCard
+          inspection={inspection}
+          updateInspectionField={updateInspectionField}
+          onBhkBlur={() => void ensureDefaultRooms(inspectionRef.current?.bhk ?? null, inspectionRef.current?.balconies ?? null)}
+        />
 
         <UtilitiesCard
           utilitiesOverview={utilitiesOverview}
@@ -1029,18 +933,7 @@ export default function InspectionForm() {
           </button>
 
           <div className="flex items-center gap-3">
-            {(inspection.status === "scheduled" || inspection.status === "in_progress") ? (
-              <Button type="button" onClick={handleMarkCompleted} disabled={submittingCompletion}>
-                {submittingCompletion ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Mark as Completed
-              </Button>
-            ) : null}
-
-            <Button
-              type="button"
-              onClick={() => setExportDialogOpen(true)}
-              disabled={!inspection || !property}
-            >
+            <Button type="button" onClick={handleExportClick}>
               <Download className="h-4 w-4" />
               Export Report
             </Button>
@@ -1052,19 +945,19 @@ export default function InspectionForm() {
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
         payloadBase={{
-          property,
           inspection,
           rooms,
           appliances,
           damages,
           utilitiesOverview,
-          ownerName,
-          mediaDriveLink: inspection.media_drive_link,
         }}
+        inspectionType={inspection.inspection_type}
+        onSelectInspectionType={(type) => updateInspectionField("inspection_type", type)}
         flushPendingSaves={flushPendingSaves}
         onBeforeExport={async () => {
-          await writeConditionSnapshot();
+          const snapshotRooms = await writeConditionSnapshot();
           await flushPendingSaves();
+          return snapshotRooms;
         }}
       />
 
@@ -1074,7 +967,7 @@ export default function InspectionForm() {
         onClose={() => setShowCompletionWarnings(false)}
         onConfirm={() => {
           setShowCompletionWarnings(false);
-          void executeCompletion();
+          setExportDialogOpen(true);
         }}
       />
 

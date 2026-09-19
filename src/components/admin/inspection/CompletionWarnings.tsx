@@ -26,9 +26,9 @@ export function CompletionWarnings({ open, onClose, onConfirm, warnings }: Compl
     <AlertDialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <AlertDialogContent className="max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle>Review Before Completing</AlertDialogTitle>
+          <AlertDialogTitle>Some inspection details are incomplete</AlertDialogTitle>
           <AlertDialogDescription>
-            The following items may need attention:
+            The following items may need attention. You can still export the report.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -43,7 +43,7 @@ export function CompletionWarnings({ open, onClose, onConfirm, warnings }: Compl
 
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onClose}>Go Back</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Complete Anyway</AlertDialogAction>
+          <AlertDialogAction onClick={onConfirm}>Export Anyway</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

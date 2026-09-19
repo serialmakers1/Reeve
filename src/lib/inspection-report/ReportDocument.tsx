@@ -24,20 +24,21 @@ interface Props {
 }
 
 export function ReportDocument({ payload }: Props) {
-  const { property, generatedAt, reportType } = payload;
+  const { property, inspection, generatedAt, reportType } = payload;
+  const buildingName = property.building_name ?? 'Inspection';
 
   return (
     <Document
-      title={`${reportType} — ${property.building_name}`}
+      title={`${reportType} — ${buildingName}`}
       author="Reeve Property Management"
-      subject={`Inspection Report: ${property.building_name}`}
+      subject={`Inspection Report: ${buildingName}`}
       creator="Reeve"
       producer="Reeve / @react-pdf/renderer"
     >
       <Page size="A4" style={[styles.page, BODY_PADDING]}>
         <PageHeader reportType={reportType} />
         <PageFooter
-          propertyId={property.id}
+          inspectionId={inspection.id}
           buildingName={property.building_name}
           generatedAt={generatedAt}
         />
