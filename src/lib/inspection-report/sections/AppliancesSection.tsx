@@ -1,69 +1,61 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
-import { BRAND, styles } from '../styles';
+import { BRAND } from '../styles';
 import { APPLIANCE_TYPE_LABELS, APPLIANCE_CONDITION_LABELS, APPLIANCE_OWNERSHIP_LABELS, labelOf } from '../applianceOptions';
+import { SectionHeading } from './PdfPrimitives';
+import { PdfIcon } from './PdfIcon';
 import type { LocalAppliance } from '@/types/inspection';
 
 const s = StyleSheet.create({
-  section: { marginBottom: 20 },
-  headerRow: {
-    flexDirection: 'row',
-    backgroundColor: BRAND.zebra,
-    borderBottomWidth: 1,
-    borderBottomColor: BRAND.border,
-  },
+  section: { marginBottom: 18 },
   row: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: BRAND.border,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: BRAND.white,
+    borderWidth: 1, borderColor: BRAND.borderSoft, borderRadius: 6,
+    paddingVertical: 6, paddingHorizontal: 8, marginBottom: 5,
   },
-  rowAlt: { backgroundColor: BRAND.zebra },
-  c1: { flex: 2, paddingVertical: 4, paddingHorizontal: 6 },
-  c2: { flex: 2, paddingVertical: 4, paddingHorizontal: 6 },
-  c3: { flex: 2, paddingVertical: 4, paddingHorizontal: 6 },
-  c4: { flex: 2, paddingVertical: 4, paddingHorizontal: 6 },
-  c5: { flex: 1, paddingVertical: 4, paddingHorizontal: 6 },
-  headerText: { fontSize: 8, fontWeight: 700, color: BRAND.mutedForeground },
-  cellText: { fontSize: 8, color: BRAND.foreground },
-  mutedText: { fontSize: 8, color: BRAND.mutedForeground },
+  rowAlt: { backgroundColor: BRAND.coolGray },
+  icon: { marginRight: 8 },
+  main: { flex: 3 },
+  name: { fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: BRAND.foreground },
+  meta: { fontSize: 8, color: BRAND.mutedForeground, marginTop: 1 },
+  ownership: { flex: 2, fontSize: 8.5, color: BRAND.foreground, paddingHorizontal: 6 },
+  condChip: { alignSelf: 'flex-start', borderRadius: 4, backgroundColor: BRAND.indigoTint, paddingVertical: 2, paddingHorizontal: 6 },
+  condText: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: BRAND.blue },
 });
 
 function ApplianceRow({ appliance, index }: { appliance: LocalAppliance; index: number }) {
   const name = labelOf(APPLIANCE_TYPE_LABELS, appliance.appliance_type);
   const label = appliance.custom_label ? `${name} (${appliance.custom_label})` : name;
-  const brand = [appliance.brand, appliance.model_number].filter(Boolean).join(' / ') || '—';
+  const brand = [appliance.brand, appliance.model_number].filter(Boolean).join(' / ');
+  const year = appliance.manufacturing_year ? String(appliance.manufacturing_year) : '';
+  const metaLine = [brand, year].filter(Boolean).join(' · ') || '—';
   const condition = labelOf(APPLIANCE_CONDITION_LABELS, appliance.condition);
   const ownership = labelOf(APPLIANCE_OWNERSHIP_LABELS, appliance.ownership);
-  const year = appliance.manufacturing_year ? String(appliance.manufacturing_year) : '—';
 
   return (
     <View style={[s.row, index % 2 === 1 ? s.rowAlt : {}]} wrap={false}>
-      <Text style={[s.c1, s.cellText]}>{label}</Text>
-      <Text style={[s.c2, s.cellText]}>{brand}</Text>
-      <Text style={[s.c3, s.cellText]}>{condition}</Text>
-      <Text style={[s.c4, s.cellText]}>{ownership}</Text>
-      <Text style={[s.c5, s.mutedText]}>{year}</Text>
+      <View style={s.icon}><PdfIcon name="appliance" size={13} color={BRAND.blue} /></View>
+      <View style={s.main}>
+        <Text style={s.name}>{label}</Text>
+        <Text style={s.meta}>{metaLine}</Text>
+      </View>
+      <Text style={s.ownership}>{ownership}</Text>
+      <View style={s.condChip}><Text style={s.condText}>{condition}</Text></View>
     </View>
   );
 }
 
-interface Props {
-  appliances: LocalAppliance[];
-}
-
-export function AppliancesSection({ appliances }: Props) {
+export function AppliancesSection({ appliances }: { appliances: LocalAppliance[] }) {
   // Optional section — omit entirely when nothing was recorded.
   if (appliances.length === 0) return null;
   return (
     <View style={s.section}>
-      <Text style={styles.sectionHeader}>Appliances & Fixtures</Text>
-      <View style={s.headerRow}>
-        <Text style={[s.c1, s.headerText]}>Appliance</Text>
-        <Text style={[s.c2, s.headerText]}>Brand / Model</Text>
-        <Text style={[s.c3, s.headerText]}>Condition</Text>
-        <Text style={[s.c4, s.headerText]}>Ownership</Text>
-        <Text style={[s.c5, s.headerText]}>Year</Text>
-      </View>
+      <SectionHeading
+        icon="appliance" title="Appliances & Fittings" accent={BRAND.blue}
+        id="sec-appliances" bookmark="Appliances & Fittings"
+        descriptor="Recorded appliances and their visible condition."
+      />
       {appliances.map((a, i) => (
         <ApplianceRow key={a.id} appliance={a} index={i} />
       ))}

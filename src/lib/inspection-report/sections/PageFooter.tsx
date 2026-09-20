@@ -6,16 +6,14 @@ import { formatINDateTimeIST, shortPropertyId as shortRefId } from '../formatter
 const s = StyleSheet.create({
   footer: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 28,
+    bottom: 0, left: 0, right: 0,
+    height: 26,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 40,
     borderTopWidth: 1,
     borderTopColor: BRAND.border,
-    backgroundColor: '#ffffff',
+    backgroundColor: BRAND.white,
   },
   col: { flex: 1 },
   colCenter: { flex: 1, alignItems: 'center' },
@@ -25,26 +23,23 @@ const s = StyleSheet.create({
 
 interface Props {
   inspectionId: string;
-  buildingName: string | null;
   generatedAt: Date;
 }
 
-export function PageFooter({ inspectionId, buildingName, generatedAt }: Props) {
-  const left = `${shortRefId(inspectionId)}${buildingName ? ' · ' + buildingName : ''}`;
-  const right = `Generated ${formatINDateTimeIST(generatedAt)}`;
+export function PageFooter({ inspectionId, generatedAt }: Props) {
   return (
     <View style={s.footer} fixed>
       <View style={s.col}>
-        <Text style={s.text}>{left}</Text>
+        <Text style={s.text}>Ref {shortRefId(inspectionId).toUpperCase()}</Text>
       </View>
       <View style={s.colCenter}>
         <Text
           style={s.text}
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
+          render={({ subPageNumber, subPageTotalPages }) => `Page ${subPageNumber} of ${subPageTotalPages}`}
         />
       </View>
       <View style={s.colRight}>
-        <Text style={s.text}>{right}</Text>
+        <Text style={s.text}>Generated {formatINDateTimeIST(generatedAt)}</Text>
       </View>
     </View>
   );
