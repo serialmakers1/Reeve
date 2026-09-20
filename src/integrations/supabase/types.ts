@@ -1762,12 +1762,14 @@ export type Database = {
           key_return_summary: Json | null
           locality: string | null
           media_drive_link: string | null
+          occupancy_status: string | null
           owner_alternate_phone: string | null
           owner_email: string | null
           owner_name: string | null
           owner_phone: string | null
           pincode: string | null
           pre_existing_damages: Json | null
+          service_context: string | null
           structural_observations: Json | null
           tenant_alternate_phone: string | null
           tenant_email: string | null
@@ -1797,12 +1799,14 @@ export type Database = {
           key_return_summary?: Json | null
           locality?: string | null
           media_drive_link?: string | null
+          occupancy_status?: string | null
           owner_alternate_phone?: string | null
           owner_email?: string | null
           owner_name?: string | null
           owner_phone?: string | null
           pincode?: string | null
           pre_existing_damages?: Json | null
+          service_context?: string | null
           structural_observations?: Json | null
           tenant_alternate_phone?: string | null
           tenant_email?: string | null
@@ -1832,12 +1836,14 @@ export type Database = {
           key_return_summary?: Json | null
           locality?: string | null
           media_drive_link?: string | null
+          occupancy_status?: string | null
           owner_alternate_phone?: string | null
           owner_email?: string | null
           owner_name?: string | null
           owner_phone?: string | null
           pincode?: string | null
           pre_existing_damages?: Json | null
+          service_context?: string | null
           structural_observations?: Json | null
           tenant_alternate_phone?: string | null
           tenant_email?: string | null

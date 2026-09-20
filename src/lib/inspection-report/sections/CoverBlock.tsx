@@ -4,6 +4,7 @@ import { BRAND } from '../styles';
 import { formatBhk } from '@/lib/propertyStatus';
 import { REPORT_TYPE_META } from '../types';
 import { formatINDate, formatINDateTimeIST } from '../formatters';
+import { SERVICE_CONTEXT_LABELS, OCCUPANCY_STATUS_LABELS } from '@/types/inspection';
 import type { ReportPayload } from '../types';
 
 const s = StyleSheet.create({
@@ -79,9 +80,15 @@ export function CoverBlock({ payload }: Props) {
     .filter(Boolean)
     .join(', ');
 
+  const serviceLabel = inspection.service_context
+    ? SERVICE_CONTEXT_LABELS[inspection.service_context]
+    : null;
+  const occupancyLabel = inspection.occupancy_status
+    ? OCCUPANCY_STATUS_LABELS[inspection.occupancy_status]
+    : null;
+
   return (
     <View style={s.cover}>
-      <Text style={s.reportType}>{reportType}</Text>
       <Text style={s.title}>{meta.title}</Text>
       <Text style={s.description}>{meta.description}</Text>
       <View style={s.grid}>
@@ -89,6 +96,8 @@ export function CoverBlock({ payload }: Props) {
         <Field label="Owner" value={ownerName} />
         <Field label="Inspection Date" value={formatINDate(inspection.inspection_date)} />
         <Field label="Inspector" value={inspectorName} />
+        {serviceLabel ? <Field label="Service" value={serviceLabel} /> : null}
+        {occupancyLabel ? <Field label="Occupancy" value={occupancyLabel} /> : null}
         <Field label="BHK" value={formatBhk(property.bhk)} />
         <Field label="Generated" value={formatINDateTimeIST(generatedAt)} />
         <Field label="Inspection Ref" value={inspection.id.slice(0, 8).toUpperCase()} />

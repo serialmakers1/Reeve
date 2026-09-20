@@ -35,7 +35,7 @@ export function ObservationsCard({ inspection, updateInspectionField }: Observat
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="media-drive-link">Photo & Video Walkthrough (Google Drive link)</Label>
+          <Label htmlFor="media-drive-link">Dated Photo & Evidence Folder (Google Drive link)</Label>
           <Input
             id="media-drive-link"
             type="url"
@@ -45,7 +45,7 @@ export function ObservationsCard({ inspection, updateInspectionField }: Observat
             onBlur={(event) => updateInspectionField("media_drive_link", event.target.value || null)}
           />
           <p className="text-xs text-muted-foreground">
-            Paste the Google Drive folder link containing photos and video walkthrough. Shown in the exported PDF.
+            Paste the dated Google Drive folder link containing the inspection photographs and evidence. Shown in the exported PDF as a separate evidence link.
           </p>
         </div>
       </div>

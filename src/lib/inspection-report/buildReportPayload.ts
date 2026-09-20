@@ -44,6 +44,8 @@ export function buildReportPayload(input: {
     inspection: {
       id: inspection.id,
       inspection_date: inspection.inspection_date ?? null,
+      service_context: inspection.service_context ?? null,
+      occupancy_status: inspection.occupancy_status ?? null,
       general_observations: inspection.general_observations ?? null,
       inspector_notes: inspection.inspector_notes ?? null,
     },

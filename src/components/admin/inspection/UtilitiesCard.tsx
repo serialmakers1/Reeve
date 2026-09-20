@@ -263,12 +263,21 @@ export function UtilitiesCard({ utilitiesOverview, updateUtility }: UtilitiesCar
               </div>
             )}
             <div className="space-y-2">
+              <Label htmlFor="gas_meter_reading">Gas Meter Reading</Label>
+              <Input id="gas_meter_reading" inputMode="decimal" value={getString("gas_meter_reading")} onChange={(e) => updateUtility("gas_meter_reading", e.target.value)} onBlur={(e) => updateUtility("gas_meter_reading", e.target.value)} />
+              <p className="text-xs text-muted-foreground">For piped gas; leave blank for cylinder / none.</p>
+            </div>
+            <div className="space-y-2">
               <Label>MCB / DB Box Location</Label>
               <Input value={getString("electricity_mcb_location")} onChange={(e) => updateUtility("electricity_mcb_location", e.target.value)} onBlur={(e) => updateUtility("electricity_mcb_location", e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Electricity Consumer ID / Account No.</Label>
               <Input value={getString("electricity_consumer_id")} onChange={(e) => updateUtility("electricity_consumer_id", e.target.value)} onBlur={(e) => updateUtility("electricity_consumer_id", e.target.value)} placeholder="BESCOM / BBMP account number" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="electricity_meter_reading">Electricity Meter Reading</Label>
+              <Input id="electricity_meter_reading" inputMode="decimal" value={getString("electricity_meter_reading")} onChange={(e) => updateUtility("electricity_meter_reading", e.target.value)} onBlur={(e) => updateUtility("electricity_meter_reading", e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>No. of Circuits</Label>

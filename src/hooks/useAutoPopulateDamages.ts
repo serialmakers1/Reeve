@@ -46,20 +46,24 @@ const ELECTRICAL_STATUS_SEVERITY: Record<string, AutoSeverity | null> = {
   loose:       "repair_before_relet",
   not_working: "repair_before_relet",
   damaged:     "repair_before_relet",
-  missing:     "urgent_immediate",
+  // A logged-missing electrical item is a genuine gap needing attention, but not an
+  // emergency by default (was urgent_immediate).
+  missing:     "repair_before_relet",
 };
 
 const PLUMBING_STATUS_SEVERITY: Record<string, AutoSeverity | null> = {
   ok:            null,
-  leaking:       "cosmetic",
-  dripping:      "cosmetic",
-  slow_drain:    "cosmetic",
-  low_pressure:  "cosmetic",
+  // Visible leak/drip and functional flow issues are not cosmetic — they need attention.
+  leaking:       "repair_before_relet",
+  dripping:      "repair_before_relet",
+  slow_drain:    "repair_before_relet",
+  low_pressure:  "repair_before_relet",
   other:         "cosmetic",
   blocked:       "repair_before_relet",
   not_working:   "repair_before_relet",
   damaged:       "repair_before_relet",
-  missing:       "urgent_immediate",
+  // A logged-missing plumbing item needs attention, not an emergency by default.
+  missing:       "repair_before_relet",
   major_leakage: "urgent_immediate",
 };
 
@@ -252,7 +256,19 @@ function labelOrCustom(
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
 
-function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
+/**
+ * True when the room records only a geyser point/provision (or none) rather than an
+ * installed unit. In that state a "missing" geyser is normal absence, not damage, so
+ * the auto-issue must be suppressed. `geyser_status` is the existing bathroom room
+ * feature (values: "No provision" | "Point only" | "Geyser mounted").
+ */
+function isGeyserPointOnly(rf: Record<string, unknown>): boolean {
+  const status = rf.geyser_status;
+  return status === "Point only" || status === "No provision";
+}
+
+// Exported so the pure classifier can be unit-tested without rendering the hook.
+export function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
   const desired = new Map<string, DesiredEntry>();
 
   for (const room of rooms) {
@@ -407,6 +423,9 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
       if (!status) continue;
       const severity = ELECTRICAL_STATUS_SEVERITY[status];
       if (!severity) continue;
+      // A missing geyser point where only a point/provision (or none) exists is normal
+      // absence, not damage — skip it.
+      if (entry.item === "geyser_point" && status === "missing" && isGeyserPointOnly(rf)) continue;
       const eid = entryId(entry, i);
       const fieldKey = `electrical_issues[${eid}].status`;
       const cKey = `${room.id}:${fieldKey}`;
@@ -430,6 +449,9 @@ function scanRoomsForTriggers(rooms: LocalRoom[]): Map<string, DesiredEntry> {
       if (!status) continue;
       const severity = PLUMBING_STATUS_SEVERITY[status];
       if (!severity) continue;
+      // A missing geyser where only a point/provision (or none) exists is normal
+      // absence, not damage — skip it.
+      if (entry.item === "geyser" && status === "missing" && isGeyserPointOnly(rf)) continue;
       const eid = entryId(entry, i);
       const fieldKey = `plumbing_issues[${eid}].status`;
       const cKey = `${room.id}:${fieldKey}`;

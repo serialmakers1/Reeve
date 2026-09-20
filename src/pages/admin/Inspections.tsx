@@ -23,7 +23,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { REPORT_TYPES } from "@/lib/inspection-report/types";
+import { REPORT_TYPES, REPORT_TYPE_META } from "@/lib/inspection-report/types";
+
+/** Owner-facing title for a stored report code; falls back to the raw value if unrecognized. */
+const getReportTypeTitle = (type: string): string =>
+  REPORT_TYPES.includes(type as ReportType) ? REPORT_TYPE_META[type as ReportType].title : type;
 import type { ReportType } from "@/lib/inspection-report/types";
 import { formatINDate } from "@/lib/inspection-report/formatters";
 import { buildSearchOrFilter } from "./inspectionsListUtils";
@@ -234,7 +238,7 @@ export default function InspectionsList() {
   const TypeBadge = ({ type }: { type: string | null }) =>
     type ? (
       <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">
-        {type}
+        {getReportTypeTitle(type)}
       </Badge>
     ) : (
       <span className="text-muted-foreground">—</span>
@@ -277,7 +281,7 @@ export default function InspectionsList() {
           <SelectContent>
             <SelectItem value={TYPE_ALL}>All types</SelectItem>
             {REPORT_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
+              <SelectItem key={t} value={t}>{REPORT_TYPE_META[t].title}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -420,12 +424,14 @@ export default function InspectionsList() {
                 const secondary = secondaryLine(row);
                 return (
                   <div key={row.id} className="rounded-lg border p-4">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                       <div className="min-w-0">
                         <div className="truncate font-medium">{row.building_name || "Untitled inspection"}</div>
                         {secondary && <div className="truncate text-xs text-muted-foreground">{secondary}</div>}
                       </div>
-                      <TypeBadge type={row.inspection_type} />
+                      <div className="shrink-0">
+                        <TypeBadge type={row.inspection_type} />
+                      </div>
                     </div>
 
                     <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -520,7 +526,7 @@ export default function InspectionsList() {
                 <SelectContent>
                   <SelectItem value={TYPE_NONE}>None</SelectItem>
                   {REPORT_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>{REPORT_TYPE_META[t].title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

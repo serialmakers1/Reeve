@@ -14,6 +14,7 @@ import { KeyReturnSection } from './sections/KeyReturnSection';
 import { SignatureBlock } from './sections/SignatureBlock';
 import { MediaLinkSection } from './sections/MediaLinkSection';
 import { DisclaimerSection } from './sections/DisclaimerSection';
+import { REPORT_TYPE_META } from './types';
 import type { ReportPayload } from './types';
 
 // Extra top/bottom margin inside the page to clear the fixed header (52pt) and footer (28pt).
@@ -29,7 +30,7 @@ export function ReportDocument({ payload }: Props) {
 
   return (
     <Document
-      title={`${reportType} — ${buildingName}`}
+      title={`${REPORT_TYPE_META[reportType].title} — ${buildingName}`}
       author="Reeve Property Management"
       subject={`Inspection Report: ${buildingName}`}
       creator="Reeve"
@@ -49,8 +50,8 @@ export function ReportDocument({ payload }: Props) {
         <UtilitiesSection utilitiesOverview={payload.utilitiesOverview} />
         <RoomsSection rooms={payload.rooms} />
         <AppliancesSection appliances={payload.appliances} />
-        <NotesSection inspection={payload.inspection} />
         <KeyReturnSection keyReturn={payload.keyReturnSummary} />
+        <NotesSection inspection={payload.inspection} />
         <SignatureBlock reportType={reportType} />
         <MediaLinkSection link={payload.mediaDriveLink} />
         <DisclaimerSection />

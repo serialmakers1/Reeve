@@ -75,14 +75,8 @@ export function InspectionSummarySection({ summary: rawSummary }: Props) {
     summary.urgent_items ||
     summary.recommended_items;
 
-  if (!hasData) {
-    return (
-      <View style={s.section}>
-        <Text style={styles.sectionHeader}>Inspection Summary</Text>
-        <Text style={styles.mutedSmall}>No summary recorded.</Text>
-      </View>
-    );
-  }
+  // Optional section — omit entirely when nothing was recorded.
+  if (!hasData) return null;
 
   const overallMeta = summary.overall_condition ? OVERALL_META[summary.overall_condition] : null;
 

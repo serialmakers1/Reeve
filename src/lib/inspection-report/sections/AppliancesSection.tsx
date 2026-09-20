@@ -52,14 +52,8 @@ interface Props {
 }
 
 export function AppliancesSection({ appliances }: Props) {
-  if (appliances.length === 0) {
-    return (
-      <View style={s.section}>
-        <Text style={styles.sectionHeader}>Appliances & Fixtures</Text>
-        <Text style={styles.mutedSmall}>No appliances recorded.</Text>
-      </View>
-    );
-  }
+  // Optional section — omit entirely when nothing was recorded.
+  if (appliances.length === 0) return null;
   return (
     <View style={s.section}>
       <Text style={styles.sectionHeader}>Appliances & Fixtures</Text>

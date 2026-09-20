@@ -3,9 +3,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { REPORT_TYPE_META, REPORT_TYPES } from "@/lib/inspection-report/types";
+import {
+  SERVICE_CONTEXT_OPTIONS,
+  SERVICE_CONTEXT_LABELS,
+  OCCUPANCY_STATUS_OPTIONS,
+  OCCUPANCY_STATUS_LABELS,
+} from "@/types/inspection";
 import type { InspectionRecord, InspectionType } from "@/types/inspection";
+
+// UI-only sentinel for the nullable Selects — Radix cannot use an empty-string
+// item. Displayed as "Not recorded"; mapped to null at the persistence boundary.
+const NOT_RECORDED = "none";
 
 interface Props {
   inspection: InspectionRecord;
@@ -92,7 +109,7 @@ export function InspectionDetailsCard({ inspection, updateInspectionField, onBhk
                   <label
                     key={type}
                     className={cn(
-                      "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm",
+                      "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition-colors",
                       selected
                         ? "border-primary bg-accent text-accent-foreground"
                         : "border-border bg-background hover:bg-accent/40",
@@ -100,9 +117,7 @@ export function InspectionDetailsCard({ inspection, updateInspectionField, onBhk
                   >
                     <RadioGroupItem value={type} className="mt-0.5 shrink-0" />
                     <span className="min-w-0">
-                      <span className="font-semibold">
-                        <span className="text-primary">{type}</span> — {meta.title}
-                      </span>
+                      <span className="font-semibold">{meta.title}</span>
                     </span>
                   </label>
                 );
@@ -118,6 +133,48 @@ export function InspectionDetailsCard({ inspection, updateInspectionField, onBhk
               onChange={(v) => updateInspectionField("inspection_date", v || null)}
               onBlur={(v) => updateInspectionField("inspection_date", v || null)}
             />
+            <div className="space-y-1.5">
+              <Label htmlFor="service_context">Service</Label>
+              <Select
+                value={inspection.service_context ?? NOT_RECORDED}
+                onValueChange={(v) =>
+                  updateInspectionField("service_context", v === NOT_RECORDED ? null : v)
+                }
+              >
+                <SelectTrigger id="service_context">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NOT_RECORDED}>Not recorded</SelectItem>
+                  {SERVICE_CONTEXT_OPTIONS.map((opt) => (
+                    <SelectItem key={opt} value={opt}>
+                      {SERVICE_CONTEXT_LABELS[opt]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="occupancy_status">Occupancy</Label>
+              <Select
+                value={inspection.occupancy_status ?? NOT_RECORDED}
+                onValueChange={(v) =>
+                  updateInspectionField("occupancy_status", v === NOT_RECORDED ? null : v)
+                }
+              >
+                <SelectTrigger id="occupancy_status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NOT_RECORDED}>Not recorded</SelectItem>
+                  {OCCUPANCY_STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt} value={opt}>
+                      {OCCUPANCY_STATUS_LABELS[opt]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </section>
 

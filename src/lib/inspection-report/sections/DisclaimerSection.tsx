@@ -94,8 +94,10 @@ export function DisclaimerSection() {
       <Text style={s.closing}>
         Observations in this report are limited to visually accessible areas and conditions apparent
         at the time of the inspection visit. Concealed defects, latent damage, or conditions not
-        visible during a standard walkthrough are not covered. Reeve recommends engaging qualified
-        specialists for any of the above certifications prior to executing a tenancy agreement.
+        visible during a standard walkthrough are not covered. Reeve records visible observations during
+        the inspection and does not certify the underlying structural, electrical, plumbing, pest, fire,
+        waterproofing, or legal condition of the property. Reeve recommends engaging qualified specialists
+        for any of the above certifications before relying on this report for such matters.
       </Text>
     </View>
   );
