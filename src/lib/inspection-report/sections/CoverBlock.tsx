@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, Image, Link, StyleSheet } from '@react-pdf/renderer';
+import { View, Text, Image, StyleSheet } from '@react-pdf/renderer';
 import { BRAND } from '../styles';
 import { formatBhk } from '@/lib/propertyStatus';
 import { REPORT_TYPE_META } from '../types';
 import { formatINDate, formatINDateTimeIST } from '../formatters';
 import { SERVICE_CONTEXT_LABELS, OCCUPANCY_STATUS_LABELS } from '@/types/inspection';
 import { BrandMotif, InfoChip, MetricTile } from './PdfPrimitives';
+import { ContactBand } from './ContactBand';
 import { PdfIcon } from './PdfIcon';
 import type { ReportPayload } from '../types';
 import logoUrl from '@/assets/logo-print.png';
@@ -35,17 +36,14 @@ const s = StyleSheet.create({
   pills: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 },
   tiles: { flexDirection: 'row' },
 
+  coverContact: { paddingHorizontal: 44 },
   footer: { paddingHorizontal: 44, paddingBottom: 30, paddingTop: 10 },
-  contactRail: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  railText: { fontSize: 9, color: BRAND.foreground },
-  railLink: { fontSize: 9, color: BRAND.blue, textDecoration: 'none' },
-  railDot: { fontSize: 9, color: BRAND.mutedForeground, marginHorizontal: 6 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: BRAND.border, paddingTop: 8 },
   metaText: { fontSize: 8, color: BRAND.mutedForeground },
   prepared: { fontSize: 8, color: BRAND.mutedForeground },
 });
 
-const HIT = { top: 6, bottom: 6, left: 4, right: 4 };
+const noHyphen = (word: string) => [word];
 
 function isBangalore(city: string | null): boolean {
   if (!city) return false;
@@ -59,11 +57,10 @@ export function CoverBlock({ payload }: { payload: ReportPayload }) {
   const bangalore = isBangalore(property.city);
 
   const propertyName = property.building_name || property.locality || 'Property Inspection';
-  const addressLine = [
-    property.flat_number ? `Flat ${property.flat_number}` : null,
-    property.locality,
-    property.city,
-  ].filter(Boolean).join(', ');
+  // Mirror the Brief hierarchy: full_address verbatim when present, else fallback.
+  // Never prepend building/flat into the address.
+  const addressLine = property.full_address
+    || [property.locality, property.city, property.pincode].filter(Boolean).join(', ');
 
   const serviceLabel = inspection.service_context ? SERVICE_CONTEXT_LABELS[inspection.service_context] : null;
   const occupancyLabel = inspection.occupancy_status ? OCCUPANCY_STATUS_LABELS[inspection.occupancy_status] : null;
@@ -81,7 +78,7 @@ export function CoverBlock({ payload }: { payload: ReportPayload }) {
             <Text style={s.eyebrow}>
               REEVE PROPERTY SERVICES{bangalore ? ' · BANGALORE' : ''}
             </Text>
-            <Text style={s.title}>{meta.title}</Text>
+            <Text style={s.title} hyphenationCallback={noHyphen}>{meta.title}</Text>
             <Text style={s.property}>{propertyName}</Text>
           </View>
           <View>
@@ -100,6 +97,7 @@ export function CoverBlock({ payload }: { payload: ReportPayload }) {
       <View style={s.lower}>
         {addressLine ? <Text style={s.addr}>{addressLine}</Text> : null}
         <View style={s.pills}>
+          {property.flat_number ? <InfoChip label="Unit" value={property.flat_number} /> : null}
           {inspection.inspection_date ? <InfoChip label="Date" value={formatINDate(inspection.inspection_date)} /> : null}
           {serviceLabel ? <InfoChip label="Service" value={serviceLabel} accent={BRAND.cyan} /> : null}
           {occupancyLabel ? <InfoChip label="Occupancy" value={occupancyLabel} accent={BRAND.violet} /> : null}
@@ -114,17 +112,13 @@ export function CoverBlock({ payload }: { payload: ReportPayload }) {
         </View>
       </View>
 
-      {/* ── Footer: contact rail + meta ── */}
+      {/* ── Full contact card (reuses the closing ContactBand) ── */}
+      <View style={s.coverContact}>
+        <ContactBand />
+      </View>
+
+      {/* ── Footer meta ── */}
       <View style={s.footer}>
-        <View style={s.contactRail}>
-          <PdfIcon name="phone" size={11} color={BRAND.blue} />
-          <Text style={s.railText}>  WhatsApp </Text>
-          <Link src="https://wa.me/917899874281" style={s.railLink} hitSlop={HIT}>+91 7899874281</Link>
-          <Text style={s.railDot}>·</Text>
-          <Link src="mailto:support@reeve.in" style={s.railLink} hitSlop={HIT}>support@reeve.in</Link>
-          <Text style={s.railDot}>·</Text>
-          <Link src="https://www.reeve.in" style={s.railLink} hitSlop={HIT}>reeve.in</Link>
-        </View>
         <View style={s.metaRow}>
           <Text style={s.metaText}>Ref {inspection.id.slice(0, 8).toUpperCase()}</Text>
           <Text style={s.prepared}>Prepared by Reeve</Text>
