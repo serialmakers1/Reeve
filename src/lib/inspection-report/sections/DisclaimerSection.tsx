@@ -1,9 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
-import { BRAND, styles } from '../styles';
+import { BRAND } from '../styles';
+import { SectionHeading } from './PdfPrimitives';
 
 const s = StyleSheet.create({
-  section: { marginTop: 16 },
+  section: { marginBottom: 6 },
+  panel: {
+    backgroundColor: BRAND.coolGray,
+    borderWidth: 1, borderColor: BRAND.borderSoft, borderRadius: 8, padding: 12,
+  },
   intro: {
     fontSize: 9,
     color: BRAND.mutedForeground,
@@ -76,29 +81,34 @@ const EXCLUSIONS = [
 export function DisclaimerSection() {
   return (
     <View style={s.section}>
-      <Text style={styles.sectionHeader}>Disclaimer</Text>
-      <Text style={s.intro}>
-        This inspection report is prepared solely for the purpose of documenting the visible physical
-        condition of the property at the time of inspection and for facilitating communication between
-        Reeve and its clients. It is not, and shall not be construed as, any of the following:
-      </Text>
-      {EXCLUSIONS.map((item) => (
-        <View key={item.label} style={s.row} wrap={false}>
-          <Text style={s.bullet}>•</Text>
-          <Text style={s.itemText}>
-            <Text style={s.bold}>{item.label}</Text>
-            <Text>{item.text}</Text>
-          </Text>
-        </View>
-      ))}
-      <Text style={s.closing}>
-        Observations in this report are limited to visually accessible areas and conditions apparent
-        at the time of the inspection visit. Concealed defects, latent damage, or conditions not
-        visible during a standard walkthrough are not covered. Reeve records visible observations during
-        the inspection and does not certify the underlying structural, electrical, plumbing, pest, fire,
-        waterproofing, or legal condition of the property. Reeve recommends engaging qualified specialists
-        for any of the above certifications before relying on this report for such matters.
-      </Text>
+      <SectionHeading
+        icon="shield" title="Inspection Scope & Limitations" accent={BRAND.mutedForeground}
+        id="sec-disclaimer" bookmark="Inspection Scope & Limitations"
+      />
+      <View style={s.panel}>
+        <Text style={s.intro}>
+          This inspection report is prepared solely for the purpose of documenting the visible physical
+          condition of the property at the time of inspection and for facilitating communication between
+          Reeve and its clients. It is not, and shall not be construed as, any of the following:
+        </Text>
+        {EXCLUSIONS.map((item) => (
+          <View key={item.label} style={s.row} wrap={false}>
+            <Text style={s.bullet}>•</Text>
+            <Text style={s.itemText}>
+              <Text style={s.bold}>{item.label}</Text>
+              <Text>{item.text}</Text>
+            </Text>
+          </View>
+        ))}
+        <Text style={s.closing}>
+          Observations in this report are limited to visually accessible areas and conditions apparent
+          at the time of the inspection visit. Concealed defects, latent damage, or conditions not
+          visible during a standard walkthrough are not covered. Reeve records visible observations during
+          the inspection and does not certify the underlying structural, electrical, plumbing, pest, fire,
+          waterproofing, or legal condition of the property. Reeve recommends engaging qualified specialists
+          for any of the above certifications before relying on this report for such matters.
+        </Text>
+      </View>
     </View>
   );
 }

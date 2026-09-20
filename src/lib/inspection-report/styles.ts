@@ -1,12 +1,54 @@
-import { Font, StyleSheet } from '@react-pdf/renderer';
+import { StyleSheet } from '@react-pdf/renderer';
 
+/**
+ * Centralized PDF-only design tokens for the premium Reeve editorial inspection
+ * report. Every section imports from BRAND — no raw hex scattered in components.
+ *
+ * Palette identity: deep navy/indigo + electric blue + violet + cyan.
+ * Severity families (emerald/amber/red) are reserved EXCLUSIVELY for
+ * condition/severity meaning — never decoration.
+ */
 export const BRAND = {
-  primary:        '#1a6ce8',
+  // ── Legacy keys (kept so existing references never break) ──
+  primary:        '#2563EB',
   foreground:     '#1c2533',
   mutedForeground:'#63748a',
   border:         '#e2e8f0',
   zebra:          '#f8fafc',
+
+  // ── Core (dark hero / ink) ──
+  ink:            '#0B1020',
+  indigo:         '#1E1B4B',
+  navy:           '#0B1020',
+
+  // ── Accents (brand identity) ──
+  blue:           '#2563EB',
+  violet:         '#7C3AED',
+  cyan:           '#06B6D4',
+  teal:           '#0D9488',
+
+  // ── Severity families (semantic only) ──
+  goodText:       '#059669',
+  goodBg:         '#ecfdf5',
+  attentionText:  '#B45309',
+  attentionBg:    '#fffbeb',
+  urgentText:     '#DC2626',
+  urgentBg:       '#fef2f2',
+
+  // ── Surfaces ──
+  white:          '#ffffff',
+  pageBg:         '#F5F7FB',
+  coolGray:       '#F8FAFC',
+  indigoTint:     '#F5F5FF',
+  borderSoft:     '#EEF2F7',
+
+  // ── On-dark text ──
+  onDark:         '#ffffff',
+  onDarkMuted:    '#AEB7C9',
 } as const;
+
+// Shared spacing/size scale (points).
+export const SP = { xs: 4, sm: 6, md: 10, lg: 16, xl: 24, xxl: 36 } as const;
 
 const fontsRegistered = false;
 
@@ -21,14 +63,14 @@ export function registerFonts(): void {
   // in case we re-introduce custom fonts later.
   return;
 }
+
 // Base style sheet shared across all report sections.
-// Individual section components in prompt B will create their own StyleSheet
-// entries and can spread/extend these.
 export const styles = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
     fontSize: 10,
     color: BRAND.foreground,
+    backgroundColor: BRAND.pageBg,
     paddingTop: 36,
     paddingBottom: 36,
     paddingLeft: 40,
@@ -36,18 +78,17 @@ export const styles = StyleSheet.create({
   },
   coverTitle: {
     fontSize: 22,
-    fontWeight: 700,
+    fontFamily: 'Helvetica-Bold',
     color: BRAND.foreground,
   },
   sectionHeader: {
     fontSize: 14,
-    fontWeight: 700,
+    fontFamily: 'Helvetica-Bold',
     color: BRAND.foreground,
     marginBottom: 6,
   },
   body: {
     fontSize: 10,
-    fontWeight: 400,
     color: BRAND.foreground,
   },
   mutedSmall: {
@@ -56,7 +97,7 @@ export const styles = StyleSheet.create({
   },
   tableHeader: {
     fontSize: 9,
-    fontWeight: 700,
+    fontFamily: 'Helvetica-Bold',
     color: BRAND.mutedForeground,
     backgroundColor: BRAND.zebra,
     paddingVertical: 4,
@@ -64,7 +105,6 @@ export const styles = StyleSheet.create({
   },
   tableCell: {
     fontSize: 9,
-    fontWeight: 400,
     color: BRAND.foreground,
     paddingVertical: 4,
     paddingHorizontal: 6,
@@ -73,3 +113,5 @@ export const styles = StyleSheet.create({
     backgroundColor: BRAND.zebra,
   },
 });
+
+void fontsRegistered;

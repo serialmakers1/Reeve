@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
-import { BRAND, styles } from '../styles';
+import { BRAND } from '../styles';
+import { SectionHeading, PremiumCard } from './PdfPrimitives';
 
 type InspectionSummaryData = {
   overall_condition?: string;
@@ -82,8 +83,12 @@ export function InspectionSummarySection({ summary: rawSummary }: Props) {
 
   return (
     <View style={s.section}>
-      <Text style={styles.sectionHeader}>Inspection Summary</Text>
-
+      <SectionHeading
+        icon="check" title="Inspection Snapshot" accent={BRAND.blue}
+        id="sec-snapshot" bookmark="Inspection Snapshot"
+        descriptor="Key recorded inspection context."
+      />
+      <PremiumCard>
       {overallMeta && (
         <View style={s.overallRow}>
           <Text style={s.overallLabel}>Overall condition:</Text>
@@ -122,6 +127,7 @@ export function InspectionSummarySection({ summary: rawSummary }: Props) {
           <Text style={s.textBlockValue}>{summary.recommended_items}</Text>
         </View>
       ) : null}
+      </PremiumCard>
     </View>
   );
 }

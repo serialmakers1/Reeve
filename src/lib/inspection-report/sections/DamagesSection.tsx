@@ -1,112 +1,110 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
-import { BRAND, styles } from '../styles';
+import { BRAND } from '../styles';
+import { SectionHeading, StatusChip } from './PdfPrimitives';
+import { PdfIcon } from './PdfIcon';
+import { normalizeSeverity, nextAction, SEVERITY_LABEL, SEVERITY_TONE } from './issueDisplay';
 import type { DamageItem } from '@/types/inspection';
 
 const s = StyleSheet.create({
-  section:    { marginBottom: 20 },
-  headerRow: {
-    flexDirection: 'row',
-    backgroundColor: BRAND.zebra,
-    borderBottomWidth: 1,
-    borderBottomColor: BRAND.border,
+  section: { marginBottom: 18 },
+  empty: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: BRAND.goodBg, borderRadius: 8, padding: 12,
   },
-  row: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: BRAND.border,
+  emptyText: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: BRAND.goodText, marginLeft: 8 },
+
+  card: {
+    backgroundColor: BRAND.white,
+    borderWidth: 1, borderColor: BRAND.borderSoft,
+    borderRadius: 8, marginBottom: 8, overflow: 'hidden',
   },
-  rowAlt:     { backgroundColor: BRAND.zebra },
-  cLoc:       { flex: 2,   paddingVertical: 4, paddingHorizontal: 6 },
-  cType:      { flex: 2,   paddingVertical: 4, paddingHorizontal: 6 },
-  cCond:      { flex: 1.5, paddingVertical: 4, paddingHorizontal: 6 },
-  cSev:       { flex: 1.5, paddingVertical: 4, paddingHorizontal: 6 },
-  cNotes:     { flex: 2.5, paddingVertical: 4, paddingHorizontal: 6 },
-  cAction:    { flex: 2,   paddingVertical: 4, paddingHorizontal: 6 },
-  headerText: { fontSize: 8, fontWeight: 700, color: BRAND.mutedForeground },
-  cellText:   { fontSize: 8, color: BRAND.foreground },
-  mutedText:  { fontSize: 8, color: BRAND.mutedForeground },
-  sevHigh:    { fontSize: 8, color: '#dc2626', fontWeight: 700 },
-  sevMedium:  { fontSize: 8, color: '#d97706', fontWeight: 700 },
-  sevLow:     { fontSize: 8, color: BRAND.mutedForeground },
-  autoTag:    { fontSize: 7, color: BRAND.mutedForeground },
+  accentBar: { height: 4 },
+  cardInner: { padding: 10 },
+  headRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  headIcon: { marginRight: 6 },
+  headText: { flex: 1 },
+  location: { fontSize: 10.5, fontFamily: 'Helvetica-Bold', color: BRAND.foreground },
+  type: { fontSize: 8, color: BRAND.mutedForeground, marginTop: 1 },
+
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 2 },
+  metaItem: { marginRight: 14, marginBottom: 2 },
+  metaLabel: { fontSize: 7, color: BRAND.mutedForeground, textTransform: 'uppercase', letterSpacing: 0.3 },
+  metaValue: { fontSize: 9, color: BRAND.foreground },
+
+  notes: { fontSize: 9, color: BRAND.foreground, marginTop: 4, lineHeight: 1.4 },
+
+  actionPanel: {
+    flexDirection: 'row', alignItems: 'center',
+    marginTop: 6, backgroundColor: BRAND.coolGray, borderRadius: 6, padding: 6,
+  },
+  actionLabel: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: BRAND.mutedForeground, textTransform: 'uppercase', letterSpacing: 0.4, marginRight: 6 },
+  actionText: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND.foreground, flex: 1 },
 });
 
-// Normalizes new + legacy severity values to the three internal keys.
-function normalizeSeverity(severity: DamageItem['severity']): 'cosmetic' | 'repair_before_relet' | 'urgent_immediate' | null {
-  if (severity === 'urgent_immediate' || (severity as string) === 'high')   return 'urgent_immediate';
-  if (severity === 'repair_before_relet' || (severity as string) === 'medium') return 'repair_before_relet';
-  if (severity === 'cosmetic' || (severity as string) === 'low')            return 'cosmetic';
-  return null;
-}
-
-function SeverityText({ severity }: { severity: DamageItem['severity'] }) {
-  const key = normalizeSeverity(severity);
-  if (key === 'urgent_immediate')    return <Text style={s.sevHigh}>Urgent</Text>;
-  if (key === 'repair_before_relet') return <Text style={s.sevMedium}>Attention Needed</Text>;
-  if (key === 'cosmetic')            return <Text style={s.sevLow}>Cosmetic / Minor</Text>;
-  return <Text style={s.cellText}>—</Text>;
-}
-
-// Display-only next-action fallback derived from severity. Applied ONLY to auto-generated
-// issues that carry no inspector-entered recommendation; never persisted.
-const SEVERITY_DEFAULT_ACTION: Record<'cosmetic' | 'repair_before_relet' | 'urgent_immediate', string> = {
-  cosmetic:            'Monitor',
-  repair_before_relet: 'Maintenance recommended',
-  urgent_immediate:    'Urgent attention',
-};
-
-function nextAction(d: DamageItem): string {
-  const manual = d.recommended_action?.trim();
-  if (manual) return manual;
-  if (d.is_auto_generated) {
-    const key = normalizeSeverity(d.severity);
-    if (key) return SEVERITY_DEFAULT_ACTION[key];
-  }
-  return '';
-}
-
-interface Props {
-  damages: DamageItem[];
-}
-
-export function DamagesSection({ damages }: Props) {
+export function DamagesSection({ damages }: { damages: DamageItem[] }) {
   if (damages.length === 0) {
     return (
       <View style={s.section}>
-        <Text style={styles.sectionHeader}>Issues Requiring Attention</Text>
-        <Text style={styles.mutedSmall}>No issues requiring attention were recorded.</Text>
+        <SectionHeading
+          icon="warning" title="Issues Requiring Attention" accent={BRAND.blue}
+          id="sec-issues" bookmark="Issues Requiring Attention"
+          descriptor="Items recorded for review, maintenance or urgent attention."
+        />
+        <View style={s.empty}>
+          <PdfIcon name="check" size={14} color={BRAND.goodText} />
+          <Text style={s.emptyText}>No issues requiring attention were recorded.</Text>
+        </View>
       </View>
     );
   }
+
   return (
     <View style={s.section}>
-      <Text style={styles.sectionHeader}>Issues Requiring Attention</Text>
-      <View style={s.headerRow}>
-        <Text style={[s.cLoc,    s.headerText]}>Location</Text>
-        <Text style={[s.cType,   s.headerText]}>Issue Type</Text>
-        <Text style={[s.cCond,   s.headerText]}>Condition</Text>
-        <Text style={[s.cSev,    s.headerText]}>Severity</Text>
-        <Text style={[s.cNotes,  s.headerText]}>Notes</Text>
-        <Text style={[s.cAction, s.headerText]}>Rec. Action</Text>
-      </View>
+      <SectionHeading
+        icon="warning" title="Issues Requiring Attention" accent={BRAND.blue}
+        id="sec-issues" bookmark="Issues Requiring Attention"
+        descriptor="Items recorded for review, maintenance or urgent attention."
+      />
       {damages.map((d, i) => {
+        const key = normalizeSeverity(d.severity);
+        const tone = key ? SEVERITY_TONE[key] : { text: BRAND.mutedForeground, bg: BRAND.coolGray };
         const action = nextAction(d);
         return (
-          <View key={d.localId} style={[s.row, i % 2 === 1 ? s.rowAlt : {}]} wrap={false}>
-            <Text style={[s.cLoc, s.cellText]}>{d.location || '—'}</Text>
-            <View style={s.cType}>
-              <Text style={s.cellText}>{d.damage_type || '—'}</Text>
-              {d.is_auto_generated ? <Text style={s.autoTag}>(Auto)</Text> : null}
+          <View key={d.localId ?? i} style={s.card}>
+            <View style={[s.accentBar, { backgroundColor: tone.text }]} />
+            <View style={s.cardInner}>
+              {/* bounded header row */}
+              <View style={s.headRow} wrap={false}>
+                <View style={s.headIcon}>
+                  <PdfIcon name="warning" size={12} color={tone.text} />
+                </View>
+                <View style={s.headText}>
+                  <Text style={s.location}>{d.location || d.damage_type || 'Recorded item'}</Text>
+                  <Text style={s.type}>
+                    {d.damage_type || '—'}{d.is_auto_generated ? '  ·  Auto' : ''}
+                  </Text>
+                </View>
+                {key ? <StatusChip text={SEVERITY_LABEL[key]} tone={tone} /> : null}
+              </View>
+
+              {/* wrappable body */}
+              {d.source_condition ? (
+                <View style={s.metaRow}>
+                  <View style={s.metaItem}>
+                    <Text style={s.metaLabel}>Condition</Text>
+                    <Text style={s.metaValue}>{d.source_condition}</Text>
+                  </View>
+                </View>
+              ) : null}
+              {d.notes ? <Text style={s.notes}>{d.notes}</Text> : null}
+              {action ? (
+                <View style={s.actionPanel}>
+                  <Text style={s.actionLabel}>Next Action</Text>
+                  <Text style={s.actionText}>{action}</Text>
+                </View>
+              ) : null}
             </View>
-            <Text style={[s.cCond, d.source_condition ? s.cellText : s.mutedText]}>
-              {d.source_condition || '—'}
-            </Text>
-            <View style={s.cSev}><SeverityText severity={d.severity} /></View>
-            <Text style={[s.cNotes, s.cellText]}>{d.notes || '—'}</Text>
-            <Text style={[s.cAction, action ? s.cellText : s.mutedText]}>
-              {action || '—'}
-            </Text>
           </View>
         );
       })}

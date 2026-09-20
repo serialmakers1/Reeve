@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { BRAND, styles } from '../styles';
+import { SectionHeading } from './PdfPrimitives';
+import { PdfIcon } from './PdfIcon';
 import { ROOM_FEATURE_LABELS, FEATURE_GROUP_ORDER } from '../roomFeatureLabels';
 import type { LocalRoom } from '@/types/inspection';
 
@@ -125,17 +127,22 @@ function asStr(v: unknown): string {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  section:      { marginBottom: 20 },
-  roomCard:     { marginBottom: 12, borderWidth: 1, borderColor: BRAND.border, borderRadius: 3 },
-  roomTitle: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: '#ffffff',
-    backgroundColor: BRAND.primary,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+  section:      { marginBottom: 18 },
+  roomCard:     { marginBottom: 10, borderWidth: 1, borderColor: BRAND.borderSoft, borderRadius: 8, backgroundColor: BRAND.white, overflow: 'hidden' },
+  roomTitleRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: BRAND.indigoTint,
+    paddingVertical: 6, paddingHorizontal: 10,
+    borderBottomWidth: 1, borderBottomColor: BRAND.borderSoft,
   },
-  roomBody:     { padding: 8 },
+  roomTitle: {
+    fontSize: 10.5,
+    fontFamily: 'Helvetica-Bold',
+    color: BRAND.foreground,
+    marginLeft: 6,
+  },
+  roomBody:     { padding: 10 },
+  emptyRoom:    { fontSize: 9, color: BRAND.mutedForeground },
   grid:         { flexDirection: 'row', flexWrap: 'wrap' },
   field:        { width: '50%', marginBottom: 6, paddingRight: 8 },
   label: {
@@ -203,7 +210,7 @@ function WallEntries({ entries }: { entries: Record<string, unknown>[] }) {
         const paint   = e.paint_condition ? lbl(PAINT_CONDITION_LABELS, e.paint_condition) : '';
         const notes   = asStr(e.notes);
         return (
-          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+          <View key={asStr(e.id) || i} style={s.entryItem}>
             <Text style={s.entryMainLine}>{wall || 'Wall'}{cond ? ` — ${cond}` : ''}</Text>
             {opening ? <Text style={s.entrySubLine}>Opening: {opening}</Text> : null}
             {paint ? <Text style={s.entrySubLine}>Paint: {paint}</Text> : null}
@@ -228,7 +235,7 @@ function FlooringEntries({ entries }: { entries: Record<string, unknown>[] }) {
         const notes = asStr(e.notes);
         const title = [zone, type, cond].filter(Boolean).join(' — ');
         return (
-          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+          <View key={asStr(e.id) || i} style={s.entryItem}>
             <Text style={s.entryMainLine}>{title || 'Flooring entry'}</Text>
             {cracked > 0 ? <Text style={s.entrySubLine}>Cracked tiles: {cracked}</Text> : null}
             {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
@@ -250,7 +257,7 @@ function CeilingEntries({ entries }: { entries: Record<string, unknown>[] }) {
         const seepage = asStr(e.seepage_dampness);
         const notes   = asStr(e.notes);
         return (
-          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+          <View key={asStr(e.id) || i} style={s.entryItem}>
             <Text style={s.entryMainLine}>{area || 'Ceiling'}{cond ? ` — ${cond}` : ''}</Text>
             {seepage && seepage !== 'none' ? <Text style={s.entrySubLine}>Seepage: {lbl(SEEPAGE, seepage)}</Text> : null}
             {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
@@ -272,7 +279,7 @@ function FalseCeilingEntry({ fc }: { fc: Record<string, unknown> | null | undefi
   return (
     <View>
       <Text style={s.entrySubHeader}>False Ceiling</Text>
-      <View style={s.entryItem} wrap={false}>
+      <View style={s.entryItem}>
         <Text style={s.entryMainLine}>{typeLabel}{mat ? ` (${mat})` : ''}{cond ? ` — ${cond}` : ''}</Text>
         {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
       </View>
@@ -301,7 +308,7 @@ function DoorWindowEntries({ entries }: { entries: Record<string, unknown>[] }) 
           mesh    ? `Mesh: ${mesh}`     : '',
         ].filter(Boolean).join('   ');
         return (
-          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+          <View key={asStr(e.id) || i} style={s.entryItem}>
             <Text style={s.entryMainLine}>{itemType || `Item ${i + 1}`}</Text>
             {details ? <Text style={s.entrySubLine}>{details}</Text> : null}
             {notes   ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
@@ -310,6 +317,26 @@ function DoorWindowEntries({ entries }: { entries: Record<string, unknown>[] }) 
       })}
     </View>
   );
+}
+
+// Single source of truth for "does this room have electrical/plumbing data to
+// show" — used by BOTH the parent hasEntryData gate and the block renderers so
+// the gate can never omit a field the block would render (e.g. Wi-Fi-only or
+// hot/cold-mixer-only rooms).
+function hasElectricalData(rf: Record<string, unknown>): boolean {
+  return asNum(rf.electrical_fan_count) > 0
+    || asNum(rf.electrical_light_count) > 0
+    || asNum(rf.electrical_switchboard_count) > 0
+    || asNum(rf.electrical_ac_provision_count) > 0
+    || !!asStr(rf.electrical_wifi_point)
+    || asArr(rf.electrical_issues).length > 0;
+}
+
+function hasPlumbingData(rf: Record<string, unknown>): boolean {
+  return asNum(rf.plumbing_tap_count) > 0
+    || !!asStr(rf.plumbing_shower_present)
+    || !!asStr(rf.plumbing_hot_cold_mixer)
+    || asArr(rf.plumbing_issues).length > 0;
 }
 
 function ElectricalBlock({ rf }: { rf: Record<string, unknown> }) {
@@ -327,15 +354,18 @@ function ElectricalBlock({ rf }: { rf: Record<string, unknown> }) {
 
   const haInventory = fanCount > 0 || lightCount > 0 || sbCount > 0 || acCount > 0 || !!wifiPoint;
 
-  if (!haInventory && issues.length === 0) return null;
+  if (!hasElectricalData(rf)) return null;
 
   const inventoryParts: string[] = [];
   if (fanCount > 0)   inventoryParts.push(`Fans: ${fanCount}${fanBrand ? ` (${fanBrand})` : ''}`);
   if (lightCount > 0) inventoryParts.push(`Lights: ${lightCount}${[lightType, lightBrand].filter(Boolean).length ? ` (${[lightType, lightBrand].filter(Boolean).join(', ')})` : ''}`);
   if (sbCount > 0)    inventoryParts.push(`Switchboards: ${sbCount}${sbBrand ? ` (${sbBrand})` : ''}`);
   if (acCount > 0)    inventoryParts.push(`AC points: ${acCount}`);
-  if (wifiPoint && wifiPoint !== 'N' && wifiPoint !== 'no') {
-    inventoryParts.push(`WiFi: ${wifiPoint}${wifiBrand ? ` (${wifiBrand})` : ''}`);
+  if (wifiPoint) {
+    // Render explicit negatives too, so an "Electrical" heading is never empty.
+    const wifiVal = (wifiPoint === 'N' || wifiPoint === 'no') ? 'No' : wifiPoint;
+    const showBrand = wifiVal !== 'No' && !!wifiBrand;
+    inventoryParts.push(`WiFi: ${wifiVal}${showBrand ? ` (${wifiBrand})` : ''}`);
   }
 
   return (
@@ -349,7 +379,7 @@ function ElectricalBlock({ rf }: { rf: Record<string, unknown> }) {
         const status = lbl(ELEC_STATUS, e.status);
         const notes  = asStr(e.notes);
         return (
-          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+          <View key={asStr(e.id) || i} style={s.entryItem}>
             <Text style={s.entryMainLine}>{item || 'Item'}{status ? ` — ${status}` : ''}</Text>
             {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
           </View>
@@ -367,11 +397,12 @@ function PlumbingBlock({ rf }: { rf: Record<string, unknown> }) {
 
   const hasInventory = tapCount > 0 || !!shower || !!hotCold;
 
-  if (!hasInventory && issues.length === 0) return null;
+  if (!hasPlumbingData(rf)) return null;
 
   const inventoryParts: string[] = [];
   if (tapCount > 0)  inventoryParts.push(`Taps: ${tapCount}`);
-  if (shower && shower !== 'none') inventoryParts.push(`Shower: ${lbl(SHOWER_PRESENT, shower)}`);
+  // Render "Shower: None" too, so a "Plumbing" heading is never left empty.
+  if (shower)        inventoryParts.push(`Shower: ${lbl(SHOWER_PRESENT, shower)}`);
   if (hotCold)       inventoryParts.push(`Hot & Cold Mixer: ${lbl(HOT_COLD, hotCold)}`);
 
   return (
@@ -385,7 +416,7 @@ function PlumbingBlock({ rf }: { rf: Record<string, unknown> }) {
         const status = lblWithCustom(PLUMB_STATUS, e, 'status', 'other');
         const notes  = asStr(e.notes);
         return (
-          <View key={asStr(e.id) || i} style={s.entryItem} wrap={false}>
+          <View key={asStr(e.id) || i} style={s.entryItem}>
             <Text style={s.entryMainLine}>{item || 'Item'}{status ? ` — ${status}` : ''}</Text>
             {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
           </View>
@@ -423,11 +454,8 @@ function RoomCard({ room }: { room: LocalRoom }) {
   const hasEntryData = !!(wallEntries.length > 0 || flrEntries.length > 0 || ceilEntries.length > 0 ||
     (falseCeiling && asStr(falseCeiling.false_ceiling_type) !== '' && asStr(falseCeiling.false_ceiling_type) !== 'none') ||
     dwEntries.length > 0 ||
-    asNum(rawFeatures.electrical_fan_count) > 0 || asNum(rawFeatures.electrical_light_count) > 0 ||
-    asNum(rawFeatures.electrical_switchboard_count) > 0 || asNum(rawFeatures.electrical_ac_provision_count) > 0 ||
-    asArr(rawFeatures.electrical_issues).length > 0 ||
-    asNum(rawFeatures.plumbing_tap_count) > 0 || asStr(rawFeatures.plumbing_shower_present) ||
-    asArr(rawFeatures.plumbing_issues).length > 0);
+    hasElectricalData(rawFeatures) ||
+    hasPlumbingData(rawFeatures));
 
   // ── Flat features (skip entry arrays + inventory keys) ────────────────────
   const groupedFeatures = new Map<string, Array<{ label: string; value: string }>>();
@@ -459,16 +487,19 @@ function RoomCard({ room }: { room: LocalRoom }) {
   const hasAnyData = hasSurfaceData || hasExtendedData || !!room.overall_room_notes;
 
   return (
-    <View style={s.roomCard} wrap={hasExtendedData}>
-      <Text style={s.roomTitle}>{title}</Text>
+    <View style={s.roomCard} minPresenceAhead={60}>
+      <View style={s.roomTitleRow} wrap={false}>
+        <PdfIcon name="room" size={12} color={BRAND.violet} />
+        <Text style={s.roomTitle}>{title}</Text>
+      </View>
       <View style={s.roomBody}>
 
         {!hasAnyData && (
-          <Text style={styles.mutedSmall}>No observations recorded.</Text>
+          <Text style={s.emptyRoom}>No observations recorded.</Text>
         )}
 
         {/* ── Surface condition grid ── */}
-        <View style={s.grid} wrap={false}>
+        <View style={s.grid}>
           {SURFACE_FIELDS.map((f) => {
             const cond      = room[f.condKey] as string | null;
             const notes     = room[f.notesKey] as string | null;
@@ -518,7 +549,6 @@ function RoomCard({ room }: { room: LocalRoom }) {
               <View
                 key={fi.id ?? i}
                 style={[s.furnitureTDRow, i % 2 === 1 ? s.furnitureTDRowZebra : {}]}
-                wrap={false}
               >
                 <Text style={[s.furnitureTDCell, { width: '30%' }]}>{fi.item || '—'}</Text>
                 <Text style={[s.furnitureTDCell, { width: '10%' }]}>{String(fi.count ?? 1)}</Text>
@@ -536,7 +566,7 @@ function RoomCard({ room }: { room: LocalRoom }) {
           const entries = groupedFeatures.get(group);
           if (!entries || entries.length === 0) return null;
           return (
-            <View key={group} wrap={false}>
+            <View key={group}>
               <Text style={s.inCardGroupHeader}>{group}</Text>
               {entries.map((entry, i) => (
                 <View
@@ -571,14 +601,22 @@ export function RoomsSection({ rooms }: Props) {
   if (rooms.length === 0) {
     return (
       <View style={s.section}>
-        <Text style={styles.sectionHeader}>Room-by-Room Condition</Text>
+        <SectionHeading
+          icon="room" title="Room-by-Room Details" accent={BRAND.violet}
+          id="sec-rooms" bookmark="Room-by-Room Details"
+          descriptor="Detailed observations for each inspected room and area."
+        />
         <Text style={styles.mutedSmall}>No rooms recorded.</Text>
       </View>
     );
   }
   return (
     <View style={s.section}>
-      <Text style={styles.sectionHeader}>Room-by-Room Condition</Text>
+      <SectionHeading
+        icon="room" title="Room-by-Room Details" accent={BRAND.violet}
+        id="sec-rooms" bookmark="Room-by-Room Details"
+        descriptor="Detailed observations for each inspected room and area."
+      />
       {rooms.map((r) => (
         <RoomCard key={r.id} room={r} />
       ))}
