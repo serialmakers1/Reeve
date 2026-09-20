@@ -205,8 +205,6 @@ export function ExportReportDialog({
                     <RadioGroupItem value={type} className="mt-0.5 shrink-0" />
                     <div className="min-w-0">
                       <p className="font-semibold leading-tight">
-                        <span className="text-primary">{type}</span>
-                        {' — '}
                         {meta.title}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground leading-snug">

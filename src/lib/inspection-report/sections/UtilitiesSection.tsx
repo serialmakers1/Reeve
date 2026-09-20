@@ -54,6 +54,9 @@ const GROUP_ORDER: UtilityGroup[] = [
 function valueToString(v: unknown): string {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  // Normalize obvious raw yes/no encodings to readable labels.
+  if (v === 'Y' || v === 'true') return 'Yes';
+  if (v === 'N' || v === 'false') return 'No';
   return String(v);
 }
 
@@ -76,10 +79,12 @@ export function UtilitiesSection({ utilitiesOverview }: Props) {
 
   const hasData = byGroup.size > 0;
 
+  // Optional section — omit entirely when nothing was recorded.
+  if (!hasData) return null;
+
   return (
     <View style={s.section}>
       <Text style={styles.sectionHeader}>Utilities & Facilities Overview</Text>
-      {!hasData && <Text style={styles.mutedSmall}>No utility data recorded.</Text>}
       {GROUP_ORDER.map((group) => {
         const rows = byGroup.get(group);
         if (!rows || rows.length === 0) return null;

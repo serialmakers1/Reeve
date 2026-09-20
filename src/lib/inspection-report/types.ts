@@ -2,6 +2,8 @@ import type {
   LocalRoom,
   LocalAppliance,
   DamageItem,
+  ServiceContext,
+  OccupancyStatus,
 } from '@/types/inspection';
 
 // ── Report types ─────────────────────────────────────────────────────────────
@@ -35,6 +37,8 @@ export interface ReportProperty {
 export interface ReportInspectionMeta {
   id: string;
   inspection_date: string | null;
+  service_context: ServiceContext | null;
+  occupancy_status: OccupancyStatus | null;
   general_observations: string | null;
   inspector_notes: string | null;
 }
@@ -46,27 +50,26 @@ export const REPORT_TYPE_META: Record<
   { title: string; description: string; signatureRoles: SignatureRole[] }
 > = {
   PBR: {
-    title: 'Property Baseline Report',
+    title: 'Baseline Property Report',
     description:
-      "Inspector's baseline record of property condition before any tenancy. Owner signs off.",
-    signatureRoles: ['owner', 'inspector'],
+      "A record of the property's visible condition at the time of the baseline inspection.",
+    signatureRoles: ['inspector'],
   },
   MIR: {
-    title: 'Move-In Report',
-    description:
-      'Possession-day record derived from PBR. Tenant signs to start the 5-day amendment window.',
-    signatureRoles: ['owner', 'tenant', 'inspector'],
+    title: 'Move-In Condition Report',
+    description: "A record of the property's visible condition at move-in.",
+    signatureRoles: ['tenant', 'inspector'],
   },
   BIR: {
-    title: 'Bi-Annual Inspection Report',
+    title: 'Routine Inspection Report',
     description:
-      'Mid-tenancy monitoring inspection. Tenant acknowledges but does not sign as binding.',
-    signatureRoles: ['tenant', 'inspector'],
+      "A record of the property's visible condition during a routine inspection.",
+    signatureRoles: ['inspector'],
   },
   MOCR: {
     title: 'Move-Out Condition Report',
-    description: 'Exit inspection against MIR baseline. Tenant signs on move-out day.',
-    signatureRoles: ['owner', 'tenant', 'inspector'],
+    description: "A record of the property's visible condition at move-out.",
+    signatureRoles: ['tenant', 'inspector'],
   },
 };
 
@@ -103,12 +106,14 @@ export const UTILITY_KEYS = [
   'gas_consumer_id',
   'gas_location',
   'gas_type',
+  'gas_meter_reading',
   // Electricity
   'electricity_backup',
   'electricity_circuits',
   'electricity_consumer_id',
   'electricity_inverter',
   'electricity_mcb_location',
+  'electricity_meter_reading',
   // Safety & Security
   'safety_cctv',
   'safety_fire_extinguisher',

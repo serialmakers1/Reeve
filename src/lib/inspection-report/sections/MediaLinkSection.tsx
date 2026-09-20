@@ -26,9 +26,9 @@ export function MediaLinkSection({ link }: Props) {
 
   return (
     <View style={s.section} wrap={false}>
-      <Text style={styles.sectionHeader}>Photo & Video Walkthrough</Text>
+      <Text style={styles.sectionHeader}>Dated Photo & Evidence Folder</Text>
       <Text style={s.description}>
-        The following Google Drive folder contains photos and video walkthrough taken during this inspection.
+        Inspection photographs and evidence are provided separately in the linked folder.
       </Text>
       <Link src={link}>
         <Text style={s.linkText}>{link}</Text>

@@ -448,10 +448,24 @@ function RoomCard({ room }: { room: LocalRoom }) {
 
   const hasExtendedData = furniture.length > 0 || groupedFeatures.size > 0 || hasEntryData;
 
+  // Any surface field (condition / notes / paint) with a recorded value.
+  const hasSurfaceData = SURFACE_FIELDS.some((f) => {
+    const cond      = room[f.condKey] as string | null;
+    const notes     = room[f.notesKey] as string | null;
+    const paintCond = f.condKey === 'walls_condition' ? room.paint_condition : null;
+    return !!(cond || notes || paintCond);
+  });
+
+  const hasAnyData = hasSurfaceData || hasExtendedData || !!room.overall_room_notes;
+
   return (
     <View style={s.roomCard} wrap={hasExtendedData}>
       <Text style={s.roomTitle}>{title}</Text>
       <View style={s.roomBody}>
+
+        {!hasAnyData && (
+          <Text style={styles.mutedSmall}>No observations recorded.</Text>
+        )}
 
         {/* ── Surface condition grid ── */}
         <View style={s.grid} wrap={false}>

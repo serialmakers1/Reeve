@@ -33,6 +33,7 @@ export const UTILITY_LABELS: Record<UtilityKey, { label: string; group: UtilityG
   gas_consumer_id:              { label: 'PNG consumer number',         group: 'Gas' },
   gas_location:                 { label: 'Gas connection location',     group: 'Gas' },
   gas_type:                     { label: 'Gas type',                    group: 'Gas' },
+  gas_meter_reading:            { label: 'Gas Meter Reading',           group: 'Gas' },
 
   // ── Electricity ──────────────────────────────────────────────────────────
   electricity_backup:           { label: 'Power backup',                group: 'Electricity' },
@@ -40,6 +41,7 @@ export const UTILITY_LABELS: Record<UtilityKey, { label: string; group: UtilityG
   electricity_consumer_id:      { label: 'Consumer ID (BESCOM/BBMP)',   group: 'Electricity' },
   electricity_inverter:         { label: 'Inverter?',                   group: 'Electricity' },
   electricity_mcb_location:     { label: 'MCB location',               group: 'Electricity' },
+  electricity_meter_reading:    { label: 'Electricity Meter Reading',   group: 'Electricity' },
 
   // ── Safety & Security ────────────────────────────────────────────────────
   safety_cctv:                  { label: 'CCTV coverage',               group: 'Safety & Security' },

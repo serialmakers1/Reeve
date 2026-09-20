@@ -26,6 +26,36 @@
 export type InspectionType = "PBR" | "MIR" | "BIR" | "MOCR";
 
 /**
+ * Optional inspection-level service tier and occupancy status. Both are nullable
+ * text columns on property_inspections (CHECK-constrained; migration
+ * 20260920000000). NULL means "not recorded" for both — there is no
+ * `not_recorded` literal. Labels are shared by the form and the PDF cover.
+ */
+export type ServiceContext = "reeve_managed" | "reeve_watch" | "reeve_let" | "other";
+export type OccupancyStatus = "occupied" | "vacant";
+
+export const SERVICE_CONTEXT_OPTIONS: ServiceContext[] = [
+  "reeve_managed",
+  "reeve_watch",
+  "reeve_let",
+  "other",
+];
+
+export const SERVICE_CONTEXT_LABELS: Record<ServiceContext, string> = {
+  reeve_managed: "Reeve Managed",
+  reeve_watch: "Reeve Watch",
+  reeve_let: "Reeve Let",
+  other: "Other",
+};
+
+export const OCCUPANCY_STATUS_OPTIONS: OccupancyStatus[] = ["occupied", "vacant"];
+
+export const OCCUPANCY_STATUS_LABELS: Record<OccupancyStatus, string> = {
+  occupied: "Occupied",
+  vacant: "Vacant",
+};
+
+/**
  * Standalone, fully-manual inspection record (migration
  * 20260919000000_inspections_standalone_manual_model). No marketplace property
  * link, no status/scheduling/mode workflow. All business fields are optional so an
@@ -37,6 +67,9 @@ export type InspectionRecord = {
   inspector_user_id: string;
   inspection_date: string | null;
   inspection_type: InspectionType | null;
+  // Optional inspection context (nullable; NULL = not recorded)
+  service_context: ServiceContext | null;
+  occupancy_status: OccupancyStatus | null;
   // Manual property details
   building_name: string | null;
   flat_number: string | null;

@@ -32,6 +32,8 @@ function makeInspection(): InspectionRecord {
     inspector_user_id: 'inspector-1',
     inspection_date: '2026-09-19',
     inspection_type: 'PBR',
+    service_context: 'reeve_managed',
+    occupancy_status: 'occupied',
     building_name: 'Prestige Towers',
     flat_number: 'B-1204',
     full_address: '12 MG Road, Bengaluru',
@@ -86,6 +88,12 @@ describe('buildReportPayload', () => {
     expect(payload.inspection.general_observations).toBe('Overall good condition.');
     expect(payload.inspection.inspector_notes).toBe('Verified meter readings.');
     expect(payload.mediaDriveLink).toBe('https://drive.google.com/folder');
+  });
+
+  it('includes service_context and occupancy_status in the sanitized inspection meta', () => {
+    const payload = build();
+    expect(payload.inspection.service_context).toBe('reeve_managed');
+    expect(payload.inspection.occupancy_status).toBe('occupied');
   });
 
   it('excludes every owner contact and all tenant fields from the payload', () => {
