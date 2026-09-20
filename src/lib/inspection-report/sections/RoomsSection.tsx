@@ -152,6 +152,29 @@ function isLongFeatureKey(key: string): boolean {
   return /_(notes|details|remarks)$/.test(key) || /_custom$/.test(key);
 }
 
+// Max short scalar rows kept together in one unbreakable feature chunk, so an
+// atomic chunk can never grow large enough to overflow a page.
+const CHUNK_CAP = 6;
+
+type FeatureEntry = { label: string; value: string; isLong: boolean };
+type FeatureBlock =
+  | { kind: 'short'; items: Array<{ entry: FeatureEntry; idx: number }> }
+  | { kind: 'long'; entry: FeatureEntry; idx: number };
+
+// Split a group's entries into ordered blocks: capped runs of short scalar rows
+// (kept atomic) and standalone long/free-text rows (breakable).
+function buildFeatureBlocks(entries: FeatureEntry[]): FeatureBlock[] {
+  const blocks: FeatureBlock[] = [];
+  let cur: Array<{ entry: FeatureEntry; idx: number }> = [];
+  const flush = () => { if (cur.length) { blocks.push({ kind: 'short', items: cur }); cur = []; } };
+  entries.forEach((entry, idx) => {
+    if (entry.isLong) { flush(); blocks.push({ kind: 'long', entry, idx }); }
+    else { cur.push({ entry, idx }); if (cur.length >= CHUNK_CAP) flush(); }
+  });
+  flush();
+  return blocks;
+}
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
@@ -191,6 +214,16 @@ const s = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     color: BRAND.primary,
     marginTop: 10,
+    marginBottom: 3,
+    paddingBottom: 2,
+    borderBottomWidth: 0.5,
+    borderBottomColor: BRAND.border,
+  },
+  inCardGroupHeaderCont: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    color: BRAND.mutedForeground,
+    marginTop: 6,
     marginBottom: 3,
     paddingBottom: 2,
     borderBottomWidth: 0.5,
@@ -544,9 +577,13 @@ function RoomCard({ room }: { room: LocalRoom }) {
             const isWalls   = f.condKey === 'walls_condition';
             const paintCond = isWalls ? room.paint_condition : null;
             if (!cond && !notes && !paintCond) return null;
+            const hasFollowing = !!(notes || (isWalls && paintCond));
             return (
               <View key={f.label} style={s.field}>
-                <View wrap={false}>
+                {/* Label+value stay atomic; minPresenceAhead keeps them with the
+                    start of a following note/paint line so the note never begins
+                    alone on the next page. */}
+                <View wrap={false} minPresenceAhead={hasFollowing ? 28 : undefined}>
                   <Text style={s.label}>{f.label}</Text>
                   <Text style={s.value}>{cond ? (ROOM_CONDITION_LABELS[cond] ?? cond) : '—'}</Text>
                 </View>
@@ -605,19 +642,50 @@ function RoomCard({ room }: { room: LocalRoom }) {
         {FEATURE_GROUP_ORDER.map((group) => {
           const entries = groupedFeatures.get(group);
           if (!entries || entries.length === 0) return null;
+
+          const blocks = buildFeatureBlocks(entries);
+          // Keep zebra shading consistent with the flat original order (by idx).
+          const renderRow = (entry: FeatureEntry, idx: number) => (
+            <View
+              key={entry.label}
+              style={[s.featureRow, idx % 2 === 1 ? s.featureRowZebra : {}]}
+              wrap={entry.isLong ? undefined : false}
+            >
+              <Text style={s.featureLabelCell}>{entry.label}</Text>
+              <Text style={s.featureValueCell}>{entry.value}</Text>
+            </View>
+          );
+
+          let headingEmitted = false;
           return (
             <View key={group}>
-              <Text style={s.inCardGroupHeader} minPresenceAhead={36}>{title} · {group}</Text>
-              {entries.map((entry, i) => (
-                <View
-                  key={entry.label}
-                  style={[s.featureRow, i % 2 === 1 ? s.featureRowZebra : {}]}
-                  wrap={entry.isLong ? undefined : false}
-                >
-                  <Text style={s.featureLabelCell}>{entry.label}</Text>
-                  <Text style={s.featureValueCell}>{entry.value}</Text>
-                </View>
-              ))}
+              {blocks.map((block, bi) => {
+                if (block.kind === 'long') {
+                  // Heading is a separate element before the breakable long row;
+                  // minPresenceAhead keeps it with the first line.
+                  const headStyle = headingEmitted ? s.inCardGroupHeaderCont : s.inCardGroupHeader;
+                  const headText = headingEmitted ? `${title} · ${group} · continued` : `${title} · ${group}`;
+                  headingEmitted = true;
+                  return (
+                    <View key={`b${bi}`}>
+                      <Text style={headStyle} minPresenceAhead={36}>{headText}</Text>
+                      {renderRow(block.entry, block.idx)}
+                    </View>
+                  );
+                }
+                // Short chunk — heading travels INSIDE the wrap={false} block so it
+                // can never be left behind when the atomic chunk jumps pages.
+                const isFirst = !headingEmitted;
+                headingEmitted = true;
+                return (
+                  <View key={`b${bi}`} wrap={false}>
+                    <Text style={isFirst ? s.inCardGroupHeader : s.inCardGroupHeaderCont}>
+                      {isFirst ? `${title} · ${group}` : `${title} · ${group} · continued`}
+                    </Text>
+                    {block.items.map(({ entry, idx }) => renderRow(entry, idx))}
+                  </View>
+                );
+              })}
             </View>
           );
         })}

@@ -21,6 +21,8 @@ const s = StyleSheet.create({
   },
   accentBar: { height: 4 },
   cardInner: { padding: 10 },
+  leadInner: { paddingTop: 10, paddingHorizontal: 10 },
+  bodyInner: { paddingHorizontal: 10, paddingBottom: 10 },
   headRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headIcon: { marginRight: 6 },
   headText: { flex: 1 },
@@ -67,14 +69,16 @@ export function DamagesSection({ damages }: { damages: DamageItem[] }) {
         const key = normalizeSeverity(d.severity);
         const tone = key ? SEVERITY_TONE[key] : { text: BRAND.mutedForeground, bg: BRAND.coolGray };
         const action = nextAction(d);
+        const hasBody = !!(d.notes || action);
         return (
           <View key={d.localId ?? i} style={s.card}>
-            <View style={[s.accentBar, { backgroundColor: tone.text }]} />
-            <View style={s.cardInner}>
-              {/* Short identity block: header + condition kept together, and
-                  minPresenceAhead reserves room for following notes/action so a
-                  card cannot begin with only its header at a page bottom. */}
-              <View wrap={false} minPresenceAhead={48}>
+            {/* Protected lead: the accent bar + short identity (header + condition)
+                travel together as one bounded unit, so a page break can never leave
+                the coloured bar orphaned. minPresenceAhead reserves room for the
+                start of the following notes/action. */}
+            <View wrap={false} minPresenceAhead={hasBody ? 48 : 12}>
+              <View style={[s.accentBar, { backgroundColor: tone.text }]} />
+              <View style={hasBody ? s.leadInner : s.cardInner}>
                 <View style={s.headRow}>
                   <View style={s.headIcon}>
                     <PdfIcon name="warning" size={12} color={tone.text} />
@@ -96,17 +100,21 @@ export function DamagesSection({ damages }: { damages: DamageItem[] }) {
                   </View>
                 ) : null}
               </View>
-
-              {/* wrappable body */}
-              {d.notes ? <Text style={s.notes}>{d.notes}</Text> : null}
-              {action ? (
-                <View style={s.actionPanel}>
-                  <Text style={s.actionText}>
-                    <Text style={s.actionLabelInline}>Next Action: </Text>{action}
-                  </Text>
-                </View>
-              ) : null}
             </View>
+
+            {/* Wrappable body (notes + Next Action) */}
+            {hasBody ? (
+              <View style={s.bodyInner}>
+                {d.notes ? <Text style={s.notes}>{d.notes}</Text> : null}
+                {action ? (
+                  <View style={s.actionPanel}>
+                    <Text style={s.actionText}>
+                      <Text style={s.actionLabelInline}>Next Action: </Text>{action}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
           </View>
         );
       })}
