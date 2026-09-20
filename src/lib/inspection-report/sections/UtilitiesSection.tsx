@@ -41,6 +41,16 @@ function valueToString(v: unknown): string {
   return String(v);
 }
 
+// Genuine integer-count keys only ("02"→"2"); IDs, meter readings, amounts stay verbatim.
+const COUNT_KEYS = new Set<UtilityKey>(['door_keys_count', 'electricity_circuits']);
+function formatUtilityValue(key: UtilityKey, raw: unknown): string {
+  if (COUNT_KEYS.has(key)) {
+    const str = String(raw);
+    if (/^\d+$/.test(str)) return String(parseInt(str, 10));
+  }
+  return valueToString(raw);
+}
+
 interface Props {
   utilitiesOverview: ReportPayload['utilitiesOverview'];
 }
@@ -53,7 +63,7 @@ export function UtilitiesSection({ utilitiesOverview }: Props) {
     const raw = utilitiesOverview[key];
     if (raw === null || raw === undefined || raw === '') continue;
     if (!byGroup.has(meta.group)) byGroup.set(meta.group, []);
-    byGroup.get(meta.group)!.push({ key, label: meta.label, value: valueToString(raw) });
+    byGroup.get(meta.group)!.push({ key, label: meta.label, value: formatUtilityValue(key, raw) });
   }
 
   // Optional section — omit entirely when nothing was recorded.

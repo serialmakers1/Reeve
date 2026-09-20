@@ -20,7 +20,8 @@ import { REPORT_TYPE_META } from './types';
 import type { ReportPayload } from './types';
 
 const st = StyleSheet.create({
-  cover: { backgroundColor: BRAND.ink, padding: 0 },
+  // The hero View paints its own ink; the page is light so the lower area reads dark-on-light.
+  cover: { backgroundColor: BRAND.white, padding: 0 },
   brief: { backgroundColor: BRAND.pageBg, padding: 0 },
   // Body top/bottom padding clears the fixed header (46pt) and footer (26pt).
   body: {

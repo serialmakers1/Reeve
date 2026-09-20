@@ -14,7 +14,7 @@ const WEBSITE = 'reeve.in';
 
 const s = StyleSheet.create({
   band: {
-    marginTop: 18,
+    marginTop: 8,
     backgroundColor: BRAND.ink,
     borderRadius: 10,
     paddingVertical: 16,

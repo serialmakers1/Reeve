@@ -309,6 +309,10 @@ export default function InspectionForm() {
       recommended_action: item.recommended_action ?? null,
       source_ref: item.source_ref ?? null,
       is_auto_generated: item.is_auto_generated ?? false,
+      // Preserve a stored condition through hydration — the PDF renders it when
+      // present and omits it otherwise (never inferred). Dropping it here made
+      // the report's Condition column blank on reload.
+      source_condition: item.source_condition ?? null,
     }));
   };
 

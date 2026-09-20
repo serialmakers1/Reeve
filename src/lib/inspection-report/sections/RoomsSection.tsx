@@ -124,6 +124,34 @@ function asStr(v: unknown): string {
   return v ? String(v) : '';
 }
 
+// PDF-boundary boolean display (genuine booleans only — never domain enums).
+function yesNo(v: string): string {
+  if (/^(y|yes|true)$/i.test(v)) return 'Yes';
+  if (/^(n|no|false)$/i.test(v)) return 'No';
+  return v;
+}
+
+// Display-only integer-count normalization ("02" → "2"); non-integer/empty passthrough.
+function formatCount(v: unknown): string {
+  const str = asStr(v);
+  if (str === '') return str;
+  return /^\d+$/.test(str) ? String(parseInt(str, 10)) : str;
+}
+
+// Explicit allow-list of room_features keys that are genuine integer counts.
+// Cross-checked against roomFeatureLabels.ts / RoomTypeFields.tsx (the cylinder
+// field is gas_cylinder_count; capacities/ids are NOT counts). Do not match `_count` blindly.
+const ROOM_FEATURE_COUNT_KEYS = new Set<string>([
+  'window_count', 'curtain_rod_count', 'towel_rod_count', 'tiles_cracked_count',
+  'gas_cylinder_count', 'ac_provision_count', 'fan_count', 'light_count',
+  'switchboard_count', 'electrical_point_count',
+]);
+
+// Grouped feature keys whose value is free text and must stay wrappable.
+function isLongFeatureKey(key: string): boolean {
+  return /_(notes|details|remarks)$/.test(key) || /_custom$/.test(key);
+}
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
@@ -198,11 +226,11 @@ const s = StyleSheet.create({
 
 // ── Entry-array renderer helpers ──────────────────────────────────────────────
 
-function WallEntries({ entries }: { entries: Record<string, unknown>[] }) {
+function WallEntries({ entries, roomLabel }: { entries: Record<string, unknown>[]; roomLabel: string }) {
   if (entries.length === 0) return null;
   return (
     <View>
-      <Text style={s.entrySubHeader}>Wall Detail</Text>
+      <Text style={s.entrySubHeader} minPresenceAhead={36}>{roomLabel} · Wall Detail</Text>
       {entries.map((e, i) => {
         const wall    = lblWithCustom(WHICH_WALL, e, 'which_wall');
         const opening = e.opening && e.opening !== 'none' ? lblWithCustom(WALL_OPENING, e, 'opening') : '';
@@ -222,11 +250,11 @@ function WallEntries({ entries }: { entries: Record<string, unknown>[] }) {
   );
 }
 
-function FlooringEntries({ entries }: { entries: Record<string, unknown>[] }) {
+function FlooringEntries({ entries, roomLabel }: { entries: Record<string, unknown>[]; roomLabel: string }) {
   if (entries.length === 0) return null;
   return (
     <View>
-      <Text style={s.entrySubHeader}>Flooring Detail</Text>
+      <Text style={s.entrySubHeader} minPresenceAhead={36}>{roomLabel} · Flooring Detail</Text>
       {entries.map((e, i) => {
         const zone  = lblWithCustom(FLR_ZONE, e, 'flooring_zone');
         const type  = lbl(FLR_TYPE, e.flooring_type);
@@ -246,11 +274,11 @@ function FlooringEntries({ entries }: { entries: Record<string, unknown>[] }) {
   );
 }
 
-function CeilingEntries({ entries }: { entries: Record<string, unknown>[] }) {
+function CeilingEntries({ entries, roomLabel }: { entries: Record<string, unknown>[]; roomLabel: string }) {
   if (entries.length === 0) return null;
   return (
     <View>
-      <Text style={s.entrySubHeader}>Ceiling Detail</Text>
+      <Text style={s.entrySubHeader} minPresenceAhead={36}>{roomLabel} · Ceiling Detail</Text>
       {entries.map((e, i) => {
         const area    = lblWithCustom(CEIL_AREA, e, 'ceiling_area');
         const cond    = lbl(ROOM_CONDITION_LABELS, e.condition);
@@ -268,7 +296,7 @@ function CeilingEntries({ entries }: { entries: Record<string, unknown>[] }) {
   );
 }
 
-function FalseCeilingEntry({ fc }: { fc: Record<string, unknown> | null | undefined }) {
+function FalseCeilingEntry({ fc, roomLabel }: { fc: Record<string, unknown> | null | undefined; roomLabel: string }) {
   if (!fc) return null;
   const fcType = asStr(fc.false_ceiling_type);
   if (!fcType || fcType === 'none' || fcType === '') return null;
@@ -278,7 +306,7 @@ function FalseCeilingEntry({ fc }: { fc: Record<string, unknown> | null | undefi
   const notes     = asStr(fc.notes);
   return (
     <View>
-      <Text style={s.entrySubHeader}>False Ceiling</Text>
+      <Text style={s.entrySubHeader} minPresenceAhead={36}>{roomLabel} · False Ceiling</Text>
       <View style={s.entryItem}>
         <Text style={s.entryMainLine}>{typeLabel}{mat ? ` (${mat})` : ''}{cond ? ` — ${cond}` : ''}</Text>
         {notes ? <Text style={s.entrySubLine}>Notes: {notes}</Text> : null}
@@ -287,11 +315,11 @@ function FalseCeilingEntry({ fc }: { fc: Record<string, unknown> | null | undefi
   );
 }
 
-function DoorWindowEntries({ entries }: { entries: Record<string, unknown>[] }) {
+function DoorWindowEntries({ entries, roomLabel }: { entries: Record<string, unknown>[]; roomLabel: string }) {
   if (entries.length === 0) return null;
   return (
     <View>
-      <Text style={s.entrySubHeader}>Doors & Windows Detail</Text>
+      <Text style={s.entrySubHeader} minPresenceAhead={36}>{roomLabel} · Doors & Windows Detail</Text>
       {entries.map((e, i) => {
         const itemType = e.is_custom ? asStr(e.custom_label) : lblWithCustom(DW_ITEM, e, 'item_type');
         const frame    = e.frame_condition    ? lbl(ROOM_CONDITION_LABELS, e.frame_condition)    : '';
@@ -339,7 +367,7 @@ function hasPlumbingData(rf: Record<string, unknown>): boolean {
     || asArr(rf.plumbing_issues).length > 0;
 }
 
-function ElectricalBlock({ rf }: { rf: Record<string, unknown> }) {
+function ElectricalBlock({ rf, roomLabel }: { rf: Record<string, unknown>; roomLabel: string }) {
   const fanCount   = asNum(rf.electrical_fan_count);
   const fanBrand   = asStr(rf.electrical_fan_brand);
   const lightCount = asNum(rf.electrical_light_count);
@@ -362,18 +390,22 @@ function ElectricalBlock({ rf }: { rf: Record<string, unknown> }) {
   if (sbCount > 0)    inventoryParts.push(`Switchboards: ${sbCount}${sbBrand ? ` (${sbBrand})` : ''}`);
   if (acCount > 0)    inventoryParts.push(`AC points: ${acCount}`);
   if (wifiPoint) {
-    // Render explicit negatives too, so an "Electrical" heading is never empty.
-    const wifiVal = (wifiPoint === 'N' || wifiPoint === 'no') ? 'No' : wifiPoint;
+    // Render explicit negatives too (never leave an "Electrical" heading empty);
+    // normalize the raw Y/N at the PDF boundary.
+    const wifiVal = yesNo(wifiPoint);
     const showBrand = wifiVal !== 'No' && !!wifiBrand;
     inventoryParts.push(`WiFi: ${wifiVal}${showBrand ? ` (${wifiBrand})` : ''}`);
   }
 
+  const inventoryLine = haInventory && inventoryParts.length > 0 ? inventoryParts.join('   |   ') : '';
+
   return (
     <View>
-      <Text style={s.entrySubHeader}>Electrical</Text>
-      {haInventory && inventoryParts.length > 0 ? (
-        <Text style={s.inventoryLine}>{inventoryParts.join('   |   ')}</Text>
-      ) : null}
+      {/* Keep the heading with its first value line so the label never orphans. */}
+      <View wrap={false} minPresenceAhead={36}>
+        <Text style={s.entrySubHeader}>{roomLabel} · Electrical</Text>
+        {inventoryLine ? <Text style={s.inventoryLine}>{inventoryLine}</Text> : null}
+      </View>
       {issues.map((e, i) => {
         const item   = lblWithCustom(ELEC_ITEM, e, 'item', 'other');
         const status = lbl(ELEC_STATUS, e.status);
@@ -389,7 +421,7 @@ function ElectricalBlock({ rf }: { rf: Record<string, unknown> }) {
   );
 }
 
-function PlumbingBlock({ rf }: { rf: Record<string, unknown> }) {
+function PlumbingBlock({ rf, roomLabel }: { rf: Record<string, unknown>; roomLabel: string }) {
   const tapCount  = asNum(rf.plumbing_tap_count);
   const shower    = asStr(rf.plumbing_shower_present);
   const hotCold   = asStr(rf.plumbing_hot_cold_mixer);
@@ -405,12 +437,15 @@ function PlumbingBlock({ rf }: { rf: Record<string, unknown> }) {
   if (shower)        inventoryParts.push(`Shower: ${lbl(SHOWER_PRESENT, shower)}`);
   if (hotCold)       inventoryParts.push(`Hot & Cold Mixer: ${lbl(HOT_COLD, hotCold)}`);
 
+  const inventoryLine = hasInventory && inventoryParts.length > 0 ? inventoryParts.join('   |   ') : '';
+
   return (
     <View>
-      <Text style={s.entrySubHeader}>Plumbing</Text>
-      {hasInventory && inventoryParts.length > 0 ? (
-        <Text style={s.inventoryLine}>{inventoryParts.join('   |   ')}</Text>
-      ) : null}
+      {/* Keep the heading with its first value line so the label never orphans. */}
+      <View wrap={false} minPresenceAhead={36}>
+        <Text style={s.entrySubHeader}>{roomLabel} · Plumbing</Text>
+        {inventoryLine ? <Text style={s.inventoryLine}>{inventoryLine}</Text> : null}
+      </View>
       {issues.map((e, i) => {
         const item   = lbl(PLUMB_ITEM, e.item);
         const status = lblWithCustom(PLUMB_STATUS, e, 'status', 'other');
@@ -458,7 +493,7 @@ function RoomCard({ room }: { room: LocalRoom }) {
     hasPlumbingData(rawFeatures));
 
   // ── Flat features (skip entry arrays + inventory keys) ────────────────────
-  const groupedFeatures = new Map<string, Array<{ label: string; value: string }>>();
+  const groupedFeatures = new Map<string, Array<{ label: string; value: string; isLong: boolean }>>();
   for (const [key, rawValue] of Object.entries(rawFeatures)) {
     if (SKIP_KEYS.has(key)) continue;
     if (rawValue === null || rawValue === undefined || rawValue === '') continue;
@@ -470,7 +505,9 @@ function RoomCard({ room }: { room: LocalRoom }) {
     if (!groupedFeatures.has(meta.group)) groupedFeatures.set(meta.group, []);
     groupedFeatures.get(meta.group)!.push({
       label: meta.label,
-      value: formatFeatureValue(rawValue),
+      // Normalize genuine integer counts ("02"→"2"); everything else verbatim via formatFeatureValue.
+      value: ROOM_FEATURE_COUNT_KEYS.has(key) ? formatCount(rawValue) : formatFeatureValue(rawValue),
+      isLong: isLongFeatureKey(key),
     });
   }
 
@@ -487,8 +524,9 @@ function RoomCard({ room }: { room: LocalRoom }) {
   const hasAnyData = hasSurfaceData || hasExtendedData || !!room.overall_room_notes;
 
   return (
-    <View style={s.roomCard} minPresenceAhead={60}>
-      <View style={s.roomTitleRow} wrap={false}>
+    <View style={s.roomCard}>
+      {/* minPresenceAhead on the title keeps the room heading with its first content. */}
+      <View style={s.roomTitleRow} wrap={false} minPresenceAhead={60}>
         <PdfIcon name="room" size={12} color={BRAND.violet} />
         <Text style={s.roomTitle}>{title}</Text>
       </View>
@@ -508,8 +546,10 @@ function RoomCard({ room }: { room: LocalRoom }) {
             if (!cond && !notes && !paintCond) return null;
             return (
               <View key={f.label} style={s.field}>
-                <Text style={s.label}>{f.label}</Text>
-                <Text style={s.value}>{cond ? (ROOM_CONDITION_LABELS[cond] ?? cond) : '—'}</Text>
+                <View wrap={false}>
+                  <Text style={s.label}>{f.label}</Text>
+                  <Text style={s.value}>{cond ? (ROOM_CONDITION_LABELS[cond] ?? cond) : '—'}</Text>
+                </View>
                 {notes ? <Text style={s.notes}>{notes}</Text> : null}
                 {isWalls && paintCond ? (
                   <Text style={s.paintLine}>
@@ -525,20 +565,20 @@ function RoomCard({ room }: { room: LocalRoom }) {
         {/* ── Entry-array detail blocks ── */}
         {hasEntryData && (
           <View>
-            <WallEntries    entries={wallEntries} />
-            <FlooringEntries entries={flrEntries} />
-            <CeilingEntries  entries={ceilEntries} />
-            <FalseCeilingEntry fc={falseCeiling} />
-            <DoorWindowEntries entries={dwEntries} />
-            <ElectricalBlock rf={rawFeatures} />
-            <PlumbingBlock   rf={rawFeatures} />
+            <WallEntries    entries={wallEntries} roomLabel={title} />
+            <FlooringEntries entries={flrEntries} roomLabel={title} />
+            <CeilingEntries  entries={ceilEntries} roomLabel={title} />
+            <FalseCeilingEntry fc={falseCeiling} roomLabel={title} />
+            <DoorWindowEntries entries={dwEntries} roomLabel={title} />
+            <ElectricalBlock rf={rawFeatures} roomLabel={title} />
+            <PlumbingBlock   rf={rawFeatures} roomLabel={title} />
           </View>
         )}
 
         {/* ── Furniture & Fittings ── */}
         {furniture.length > 0 && (
           <View>
-            <Text style={s.inCardGroupHeader}>Furniture & Fittings</Text>
+            <Text style={s.inCardGroupHeader} minPresenceAhead={36}>{title} · Furniture & Fittings</Text>
             <View style={s.furnitureTHRow} wrap={false}>
               <Text style={[s.furnitureTHCell, { width: '30%' }]}>Item</Text>
               <Text style={[s.furnitureTHCell, { width: '10%' }]}>Qty</Text>
@@ -567,11 +607,12 @@ function RoomCard({ room }: { room: LocalRoom }) {
           if (!entries || entries.length === 0) return null;
           return (
             <View key={group}>
-              <Text style={s.inCardGroupHeader}>{group}</Text>
+              <Text style={s.inCardGroupHeader} minPresenceAhead={36}>{title} · {group}</Text>
               {entries.map((entry, i) => (
                 <View
                   key={entry.label}
                   style={[s.featureRow, i % 2 === 1 ? s.featureRowZebra : {}]}
+                  wrap={entry.isLong ? undefined : false}
                 >
                   <Text style={s.featureLabelCell}>{entry.label}</Text>
                   <Text style={s.featureValueCell}>{entry.value}</Text>
@@ -583,7 +624,10 @@ function RoomCard({ room }: { room: LocalRoom }) {
 
         {/* ── Overall room notes ── */}
         {room.overall_room_notes ? (
-          <Text style={s.notes}>Overall: {room.overall_room_notes}</Text>
+          <View>
+            <Text style={s.inCardGroupHeader} minPresenceAhead={36}>{title} · Overall Notes</Text>
+            <Text style={s.notes}>{room.overall_room_notes}</Text>
+          </View>
         ) : null}
 
       </View>

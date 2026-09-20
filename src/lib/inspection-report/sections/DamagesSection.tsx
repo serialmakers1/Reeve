@@ -34,12 +34,9 @@ const s = StyleSheet.create({
 
   notes: { fontSize: 9, color: BRAND.foreground, marginTop: 4, lineHeight: 1.4 },
 
-  actionPanel: {
-    flexDirection: 'row', alignItems: 'center',
-    marginTop: 6, backgroundColor: BRAND.coolGray, borderRadius: 6, padding: 6,
-  },
-  actionLabel: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: BRAND.mutedForeground, textTransform: 'uppercase', letterSpacing: 0.4, marginRight: 6 },
-  actionText: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND.foreground, flex: 1 },
+  actionPanel: { marginTop: 6, backgroundColor: BRAND.coolGray, borderRadius: 6, padding: 6 },
+  actionText: { fontSize: 9, color: BRAND.foreground, lineHeight: 1.4 },
+  actionLabelInline: { fontFamily: 'Helvetica-Bold', color: BRAND.mutedForeground },
 });
 
 export function DamagesSection({ damages }: { damages: DamageItem[] }) {
@@ -74,34 +71,39 @@ export function DamagesSection({ damages }: { damages: DamageItem[] }) {
           <View key={d.localId ?? i} style={s.card}>
             <View style={[s.accentBar, { backgroundColor: tone.text }]} />
             <View style={s.cardInner}>
-              {/* bounded header row */}
-              <View style={s.headRow} wrap={false}>
-                <View style={s.headIcon}>
-                  <PdfIcon name="warning" size={12} color={tone.text} />
+              {/* Short identity block: header + condition kept together, and
+                  minPresenceAhead reserves room for following notes/action so a
+                  card cannot begin with only its header at a page bottom. */}
+              <View wrap={false} minPresenceAhead={48}>
+                <View style={s.headRow}>
+                  <View style={s.headIcon}>
+                    <PdfIcon name="warning" size={12} color={tone.text} />
+                  </View>
+                  <View style={s.headText}>
+                    <Text style={s.location}>{d.location || d.damage_type || 'Recorded item'}</Text>
+                    <Text style={s.type}>
+                      {d.damage_type || '—'}{d.is_auto_generated ? '  ·  Auto' : ''}
+                    </Text>
+                  </View>
+                  {key ? <StatusChip text={SEVERITY_LABEL[key]} tone={tone} /> : null}
                 </View>
-                <View style={s.headText}>
-                  <Text style={s.location}>{d.location || d.damage_type || 'Recorded item'}</Text>
-                  <Text style={s.type}>
-                    {d.damage_type || '—'}{d.is_auto_generated ? '  ·  Auto' : ''}
-                  </Text>
-                </View>
-                {key ? <StatusChip text={SEVERITY_LABEL[key]} tone={tone} /> : null}
+                {d.source_condition ? (
+                  <View style={s.metaRow}>
+                    <View style={s.metaItem}>
+                      <Text style={s.metaLabel}>Condition</Text>
+                      <Text style={s.metaValue}>{d.source_condition}</Text>
+                    </View>
+                  </View>
+                ) : null}
               </View>
 
               {/* wrappable body */}
-              {d.source_condition ? (
-                <View style={s.metaRow}>
-                  <View style={s.metaItem}>
-                    <Text style={s.metaLabel}>Condition</Text>
-                    <Text style={s.metaValue}>{d.source_condition}</Text>
-                  </View>
-                </View>
-              ) : null}
               {d.notes ? <Text style={s.notes}>{d.notes}</Text> : null}
               {action ? (
                 <View style={s.actionPanel}>
-                  <Text style={s.actionLabel}>Next Action</Text>
-                  <Text style={s.actionText}>{action}</Text>
+                  <Text style={s.actionText}>
+                    <Text style={s.actionLabelInline}>Next Action: </Text>{action}
+                  </Text>
                 </View>
               ) : null}
             </View>
