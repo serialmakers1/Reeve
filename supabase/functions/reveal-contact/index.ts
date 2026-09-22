@@ -10,6 +10,7 @@
 // - DB state is source of truth: approval succeeds regardless of n8n outcome.
 
 import { isApprovedTransitionProof } from "./approvalProof.ts";
+import { pickOverride } from "./ownerContactOverride.ts";
 
 const SUPABASE_URL = "https://tfutuqqcxqqbirnsdpvz.supabase.co";
 const N8N_REVEAL_WEBHOOK = "https://n8n.reeve.in/webhook/contact-reveal";
@@ -123,7 +124,7 @@ Deno.serve(async (req: Request) => {
     const [ownerUserRes, tenantUserRes, propRes, tenantProfRes] = await Promise.all([
       fetch(`${supabaseUrl}/rest/v1/users?id=eq.${cr.owner_id}&select=full_name,email,phone`, { headers: srHeaders }),
       fetch(`${supabaseUrl}/rest/v1/users?id=eq.${cr.tenant_id}&select=full_name,email,phone`, { headers: srHeaders }),
-      fetch(`${supabaseUrl}/rest/v1/properties?id=eq.${cr.property_id}&select=building_name,locality`, { headers: srHeaders }),
+      fetch(`${supabaseUrl}/rest/v1/properties?id=eq.${cr.property_id}&select=building_name,locality,listing_contact_name,listing_contact_phone`, { headers: srHeaders }),
       fetch(`${supabaseUrl}/rest/v1/profiles?user_id=eq.${cr.tenant_id}&select=display_name`, { headers: srHeaders }),
     ]);
 
@@ -131,8 +132,12 @@ Deno.serve(async (req: Request) => {
       (await ownerUserRes.json())?.[0] ?? {};
     const tenantUser: { full_name?: string | null; email?: string | null; phone?: string | null } =
       (await tenantUserRes.json())?.[0] ?? {};
-    const property: { building_name?: string | null; locality?: string | null } =
-      (await propRes.json())?.[0] ?? {};
+    const property: {
+      building_name?: string | null;
+      locality?: string | null;
+      listing_contact_name?: string | null;
+      listing_contact_phone?: string | null;
+    } = (await propRes.json())?.[0] ?? {};
     const tenantProf: { display_name?: string | null } =
       (await tenantProfRes.json())?.[0] ?? {};
 
@@ -145,7 +150,12 @@ Deno.serve(async (req: Request) => {
     // 6b. Phone fallback: if public.users.phone is null (e.g. phone linked as
     //     second provider), read from auth.identities.identity_data via the
     //     SECURITY DEFINER RPC get_phone_fallback (service_role only).
-    const ownerPhoneRaw = (ownerUser.phone ?? "").trim() || null;
+    // Owner phone: a non-blank per-property override wins over users.phone;
+    // when absent, fall through to users.phone and then get_phone_fallback below.
+    const ownerPhoneRaw = pickOverride(
+      property.listing_contact_phone,
+      (ownerUser.phone ?? "").trim() || null,
+    );
     const tenantPhoneRaw = (tenantUser.phone ?? "").trim() || null;
 
     async function fetchPhoneFallback(userId: string): Promise<string | null> {
@@ -190,7 +200,7 @@ Deno.serve(async (req: Request) => {
       },
       owner: {
         user_id: cr.owner_id,
-        full_name: ownerUser.full_name ?? null,
+        full_name: pickOverride(property.listing_contact_name, ownerUser.full_name ?? null),
         email: ownerEmail ?? "",
         phone: ownerPhone ?? "",
       },
