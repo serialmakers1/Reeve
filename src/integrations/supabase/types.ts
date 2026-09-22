@@ -1164,6 +1164,8 @@ export type Database = {
           listed_rent: number
           lister_flat_number: string | null
           lister_role: string
+          listing_contact_name: string | null
+          listing_contact_phone: string | null
           listing_type: Database["public"]["Enums"]["property_listing_type"]
           locality: string | null
           location_confirmed_at: string | null
@@ -1271,6 +1273,8 @@ export type Database = {
           listed_rent?: number
           lister_flat_number?: string | null
           lister_role: string
+          listing_contact_name?: string | null
+          listing_contact_phone?: string | null
           listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
           location_confirmed_at?: string | null
@@ -1378,6 +1382,8 @@ export type Database = {
           listed_rent?: number
           lister_flat_number?: string | null
           lister_role?: string
+          listing_contact_name?: string | null
+          listing_contact_phone?: string | null
           listing_type?: Database["public"]["Enums"]["property_listing_type"]
           locality?: string | null
           location_confirmed_at?: string | null

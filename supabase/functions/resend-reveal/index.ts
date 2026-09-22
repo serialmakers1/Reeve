@@ -12,6 +12,8 @@ const N8N_RESEND_WEBHOOK = "https://n8n.reeve.in/webhook/contact-resend-reveal";
 // queries, which then return a valid empty 200 (so the fail-closed branches never fire)
 // and silently bypass the 1/hour + 5/day gates. The anchors matter: this admits only
 // [0-9a-f-], so no query delimiter can survive.
+import { pickOverride } from "./ownerContactOverride.ts";
+
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const CORS_HEADERS = {
@@ -137,15 +139,19 @@ Deno.serve(async (req: Request) => {
     const [ownerUserRes, tenantUserRes, propRes, tenantProfRes] = await Promise.all([
       fetch(`${supabaseUrl}/rest/v1/users?id=eq.${cr.owner_id}&select=full_name,email,phone`, { headers: srHeaders }),
       fetch(`${supabaseUrl}/rest/v1/users?id=eq.${cr.tenant_id}&select=full_name,email,phone`, { headers: srHeaders }),
-      fetch(`${supabaseUrl}/rest/v1/properties?id=eq.${cr.property_id}&select=building_name,locality`, { headers: srHeaders }),
+      fetch(`${supabaseUrl}/rest/v1/properties?id=eq.${cr.property_id}&select=building_name,locality,listing_contact_name,listing_contact_phone`, { headers: srHeaders }),
       fetch(`${supabaseUrl}/rest/v1/profiles?user_id=eq.${cr.tenant_id}&select=display_name`, { headers: srHeaders }),
     ]);
     const ownerUser: { full_name?: string | null; email?: string | null; phone?: string | null } =
       (await ownerUserRes.json())?.[0] ?? {};
     const tenantUser: { full_name?: string | null; email?: string | null; phone?: string | null } =
       (await tenantUserRes.json())?.[0] ?? {};
-    const property: { building_name?: string | null; locality?: string | null } =
-      (await propRes.json())?.[0] ?? {};
+    const property: {
+      building_name?: string | null;
+      locality?: string | null;
+      listing_contact_name?: string | null;
+      listing_contact_phone?: string | null;
+    } = (await propRes.json())?.[0] ?? {};
     const tenantProf: { display_name?: string | null } =
       (await tenantProfRes.json())?.[0] ?? {};
 
@@ -180,9 +186,11 @@ Deno.serve(async (req: Request) => {
     }
 
     const otherPartyUserId = isOwner ? cr.tenant_id : cr.owner_id;
+    // When the other party is the OWNER (caller is the tenant), a non-blank
+    // per-property override wins over users.phone; the tenant branch is untouched.
     const otherPartyPhoneRaw = isOwner
       ? ((tenantUser.phone ?? "").trim() || null)
-      : ((ownerUser.phone ?? "").trim() || null);
+      : pickOverride(property.listing_contact_phone, (ownerUser.phone ?? "").trim() || null);
     const otherPartyPhone = otherPartyPhoneRaw ?? (await fetchPhoneFallback(otherPartyUserId));
     const otherPartyHasPhone = !!otherPartyPhone;
 
@@ -194,7 +202,7 @@ Deno.serve(async (req: Request) => {
           email: tenantUser.email ?? null,
         }
       : {
-          full_name: ownerUser.full_name ?? null,
+          full_name: pickOverride(property.listing_contact_name, ownerUser.full_name ?? null),
           display_name: null,          // owner has no profiles.display_name field in this flow
           phone: otherPartyPhone ?? "",
           email: ownerUser.email ?? null,
