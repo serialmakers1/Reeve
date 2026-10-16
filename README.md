@@ -82,11 +82,6 @@ Numbers as of 22 September 2026: 1,318 commits, 313 merged pull requests, 37 rou
 - [`supabase/`](supabase) — migrations (a fresh baseline on 21 August 2026), Edge Functions and SQL tests. [`src/`](src) holds the app and its tests; [`api/`](api), the Vercel edge functions.
 - [The marketplace's decision log](https://github.com/serialmakers1/Reeve/blob/a03018a1f6991231b26675899f6db6f797ab3293/commons-decisions.md) — Claude Code's working notes for the July–August 2026 rebuild: 177 numbered decisions with their reasons (removed on 21 August 2026; still in the history).
 
-## Limitations
-
-- Search is list-only: a map search was built in July 2026 and dropped from the first version.
-- Notifications are email only; WhatsApp isn't connected.
-
 ## Running it locally
 
 <details>
